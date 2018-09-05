@@ -1,0 +1,1133 @@
+From torvalds@cc.Helsinki.FI  Thu Mar 16 06:08:16 1995
+From: torvalds@cc.Helsinki.FI (Linus Torvalds)
+Date: 16 Mar 95 06:08:16 GMT
+Subject: Linux is 'creating' memory ?!
+References: <1995Feb7.172606.5784@tudedv.et.tudelft.nl> <3itc77$9lj@ninurta.fer.uni-lj.si> <3jju43$gc8@klaava.helsinki.fi> <3k3i4c$341@vixen.cso.uiuc.edu>
+Message-ID: <3k8kkg$1us@klaava.helsinki.fi>
+
+In article <3k3i4c$341@vixen.cso.uiuc.edu>,
+Steve Peltz <peltz@cerl.uiuc.edu> wrote:
+>
+>Doesn't an mmap'ed segment get swapped to the file itself (other than
+>ANON)? Why would it need to reserve swap space?
+
+Check out MAP_PRIVATE, which is actually the one that is used a lot more
+than MAP_SHARED (and is the only form fully implemented under linux,
+just for that reason). 
+
+>>2) GNU emacs (ugh) wants to start up a shell script.  In the meantime,
+>>   GNU emacs has (as it's wont to do) grown to 17 MB, and you obviously
+>>   don't have much memory left. Do you accept the fork?
+>
+>So you have 17MB of swap space that you have to have free for a millisecond
+>in order to fork a process from a huge process. Is that such a problem? It
+>will be freed up almost immediately.
+
+Are all people writing to this thread so arrogant?
+
+"is it so hard to do?" "is 17MB of swapspace for a millisecond a
+problem?" "Why can DOS do it and Linux not do it?" "Use vfork() instead
+of fork()" etc etc..
+
+It IS damned hard to do.
+
+Using 17MB of swap-space is HORRIBLE on a PC.  I have around 500MB of
+disk on my two linux-machines, and 17MB of that is noticeable.  Others
+have *much* less. 
+
+The next time somebody tells me "harddisks sell for 50c/MB", I'll
+scream.  LINUX WAS NOT MEANT TO BE ANOTHER WINDOWS NT! YOU AREN'T
+SUPPOSED TO NEED EXTRA RESOURCES TO RUN IT. 
+
+People, PLEASE wake up!
+
+It's NOT a good thing to require lots of memory and lots of disk. 
+
+It IS a good thing to take full advantage of the available resources. 
+
+Requiring swap backingstore by definition doesn't take full advantage of
+your system resources. 
+
+You pay the price, of course: linux uses your machine more efficiently,
+but if you're running low on memory it means that you're walking on the
+edge.  That's something I accept.  Take the good with the bad: there is
+no free lunch. 
+
+And please, don't WHINE. 
+
+>> - vfork() isn't an option.  Trust me on this one.  vfork is *ugly*. 
+>>   Besides, we might actually want to run the same process concurrently. 
+>
+>Actually, making the only difference between vfork and fork be whether
+>swap space gets committed would be a pretty good solution (and don't
+>worry about the other *ugly* parts of vfork, since it isn't implemented
+>anyway you aren't breaking anything that isn't already broken). However,
+>I am loathe to suggest actually making a use for vfork, as people would
+>then use it, thus creating more inconsistency in the world.
+
+Make up your mind: do you want to be safe, or don't you?
+
+>>3) you have a nice quiescent little program that uses about 100kB of
+>>   memory, and has been a good little boy for the last 5 minutes.  Now
+>>   it obviously wants to do something, so it forks 10 times.  Do we
+>>   accept it?
+>
+>Yes. In any scenario. I don't understand how this applies to the current
+>problem. If one of the forked processes is unable to allocate more memory
+>to do something, then it fails; if it is doing malloc, then it can detect
+>the failure by the result, rather than getting a segment violation.
+
+It *is* the current problem.
+
+Remember, we aren't talking about 1 process, here.  If we were, the
+problem would be as simple as it is under DOS, and I could *easily* make
+linux return NULL on any memory allocation request that doesn't fit in
+the current VM. 
+
+However, we have a dynamic system running tens of active programs, some
+of which have more importance for the user than others, but the kernel
+doesn't know that and has no way of knowing.  Oh yes, you could try to
+analyze the system, but then you'd have something that is slower than
+Windows NT.. 
+
+>>4) You have a nice little 4MB machine, no swap, and you don't run X. 
+>>   Most programs use shared libraries, and everybody is happy.  You
+>>   don't use GNU emacs, you use "ed", and you have your own trusted
+>>   small-C compiler that works well.  Does the system accept this?
+>
+>Sure, if there's no swap, there's nothing to over-commit.
+
+What? There's physical memory, and you sure as hell are overcommitting
+that.  You're sharing pages left and right, which is why the system
+still works perfectly well for you.  But those pages are mostly COW, so
+you're really living on borrowed memory.  But it *works*, which is the
+point. 
+
+>> - NO, DEFINITELY NOT.  Each shared library in place actually takes up
+>>   600kB+ of virtual memory, and the system doesn't *know* that nothing
+>>   starts using these pages in all the processes alive.  Now, with just
+>>   10 processes (a small make, and all the deamons), the kernel is
+>>   actually juggling more than 6MB of virtual memory in the shared
+>>   libraries alone, although only a fraction of that is actually in use
+>>   at that time. 
+>
+>Shared libraries should not be writeable. Are you saying they are, and are
+>C-O-W?
+
+Yup, they're COW.  Dynamic linking etc means that you have to write at
+least to the jump tables, and possibly do other fixups as well.  On the
+other hand, most programs *won't* do any fixups, because they use the
+standard C libraries and don't redefine "malloc()", for example.  So you
+want to be able to share the pages, but on the other hand you want to
+have the possibility of modifying them on a per-process basis.  COW. 
+
+>Whenever a writeable non-mmap'ed non-shared segment is allocated to the
+>address space (whether by sbrk, mmap with ANON, or fork), each such page
+>needs to have space reserved out of swap. Linus, you talk about deadlock -
+>deadlock can only occur when you actually try to prevent errors caused by
+>overcommitment of resources.
+
+Right. And we are overcommitting our resources, and rather heavily at
+that. 
+
+Why? Simply because it results in a usable system, which wouldn't be
+usable otherwise. 
+
+>			 Causing an error due to such overcommitment
+>is not what is usually meant by deadlock avoidance. Deadlock is what might
+>happen if a process were to be suspended when it tries to access memory that
+>is not actually available after it has been allocated (and, since Unix
+>doesn't have any sort of resource utilization declarations to be declared
+>by a program, deadlock avoidance can not be done at the system level).
+
+I have some dim idea what deadlock means, and what linux gets into when
+running low on memory IS a form of dead-lock, sometimes called
+"livelock".  The processes aren't suspended per se, but are in an
+eternal loop fighting for resources (memory, in this case).  The kernel
+tries to resolve it, and eventually will probably kill one of the
+programs, but yes, it's a deadlock situation once we've overextended out
+VM. 
+
+It's easy to say "don't overextend", but what I'm trying to make clear
+is that it's not even *close* to easy to actually avoid it.  And it's
+impossible to avoid it if you want to keep the good features of the
+linux memory management. 
+
+			Linus
+
+
+--ELM967624779-23128-0_--
+
+
+From torvalds at cc.Helsinki.FI  Thu Mar 16 07:08:16 1995
+From: torvalds at cc.Helsinki.FI (Linus Torvalds)
+Date: 16 Mar 95 06:08:16 GMT
+Subject: Linux is 'creating' memory ?!
+References: <1995Feb7.172606.5784@tudedv.et.tudelft.nl> <3itc77$9lj@ninurta.fer.uni-lj.si> <3jju43$gc8@klaava.helsinki.fi> <3k3i4c$341@vixen.cso.uiuc.edu>
+Message-ID: <3k8kkg$1us@klaava.helsinki.fi>
+
+In article <3k3i4c$341 at vixen.cso.uiuc.edu>,
+Steve Peltz <peltz at cerl.uiuc.edu> wrote:
+>
+>Doesn't an mmap'ed segment get swapped to the file itself (other than
+>ANON)? Why would it need to reserve swap space?
+
+Check out MAP_PRIVATE, which is actually the one that is used a lot more
+than MAP_SHARED (and is the only form fully implemented under linux,
+just for that reason). 
+
+>>2) GNU emacs (ugh) wants to start up a shell script.  In the meantime,
+>>   GNU emacs has (as it's wont to do) grown to 17 MB, and you obviously
+>>   don't have much memory left. Do you accept the fork?
+>
+>So you have 17MB of swap space that you have to have free for a millisecond
+>in order to fork a process from a huge process. Is that such a problem? It
+>will be freed up almost immediately.
+
+Are all people writing to this thread so arrogant?
+
+"is it so hard to do?" "is 17MB of swapspace for a millisecond a
+problem?" "Why can DOS do it and Linux not do it?" "Use vfork() instead
+of fork()" etc etc..
+
+It IS damned hard to do.
+
+Using 17MB of swap-space is HORRIBLE on a PC.  I have around 500MB of
+disk on my two linux-machines, and 17MB of that is noticeable.  Others
+have *much* less. 
+
+The next time somebody tells me "harddisks sell for 50c/MB", I'll
+scream.  LINUX WAS NOT MEANT TO BE ANOTHER WINDOWS NT! YOU AREN'T
+SUPPOSED TO NEED EXTRA RESOURCES TO RUN IT. 
+
+People, PLEASE wake up!
+
+It's NOT a good thing to require lots of memory and lots of disk. 
+
+It IS a good thing to take full advantage of the available resources. 
+
+Requiring swap backingstore by definition doesn't take full advantage of
+your system resources. 
+
+You pay the price, of course: linux uses your machine more efficiently,
+but if you're running low on memory it means that you're walking on the
+edge.  That's something I accept.  Take the good with the bad: there is
+no free lunch. 
+
+And please, don't WHINE. 
+
+>> - vfork() isn't an option.  Trust me on this one.  vfork is *ugly*. 
+>>   Besides, we might actually want to run the same process concurrently. 
+>
+>Actually, making the only difference between vfork and fork be whether
+>swap space gets committed would be a pretty good solution (and don't
+>worry about the other *ugly* parts of vfork, since it isn't implemented
+>anyway you aren't breaking anything that isn't already broken). However,
+>I am loathe to suggest actually making a use for vfork, as people would
+>then use it, thus creating more inconsistency in the world.
+
+Make up your mind: do you want to be safe, or don't you?
+
+>>3) you have a nice quiescent little program that uses about 100kB of
+>>   memory, and has been a good little boy for the last 5 minutes.  Now
+>>   it obviously wants to do something, so it forks 10 times.  Do we
+>>   accept it?
+>
+>Yes. In any scenario. I don't understand how this applies to the current
+>problem. If one of the forked processes is unable to allocate more memory
+>to do something, then it fails; if it is doing malloc, then it can detect
+>the failure by the result, rather than getting a segment violation.
+
+It *is* the current problem.
+
+Remember, we aren't talking about 1 process, here.  If we were, the
+problem would be as simple as it is under DOS, and I could *easily* make
+linux return NULL on any memory allocation request that doesn't fit in
+the current VM. 
+
+However, we have a dynamic system running tens of active programs, some
+of which have more importance for the user than others, but the kernel
+doesn't know that and has no way of knowing.  Oh yes, you could try to
+analyze the system, but then you'd have something that is slower than
+Windows NT.. 
+
+>>4) You have a nice little 4MB machine, no swap, and you don't run X. 
+>>   Most programs use shared libraries, and everybody is happy.  You
+>>   don't use GNU emacs, you use "ed", and you have your own trusted
+>>   small-C compiler that works well.  Does the system accept this?
+>
+>Sure, if there's no swap, there's nothing to over-commit.
+
+What? There's physical memory, and you sure as hell are overcommitting
+that.  You're sharing pages left and right, which is why the system
+still works perfectly well for you.  But those pages are mostly COW, so
+you're really living on borrowed memory.  But it *works*, which is the
+point. 
+
+>> - NO, DEFINITELY NOT.  Each shared library in place actually takes up
+>>   600kB+ of virtual memory, and the system doesn't *know* that nothing
+>>   starts using these pages in all the processes alive.  Now, with just
+>>   10 processes (a small make, and all the deamons), the kernel is
+>>   actually juggling more than 6MB of virtual memory in the shared
+>>   libraries alone, although only a fraction of that is actually in use
+>>   at that time. 
+>
+>Shared libraries should not be writeable. Are you saying they are, and are
+>C-O-W?
+
+Yup, they're COW.  Dynamic linking etc means that you have to write at
+least to the jump tables, and possibly do other fixups as well.  On the
+other hand, most programs *won't* do any fixups, because they use the
+standard C libraries and don't redefine "malloc()", for example.  So you
+want to be able to share the pages, but on the other hand you want to
+have the possibility of modifying them on a per-process basis.  COW. 
+
+>Whenever a writeable non-mmap'ed non-shared segment is allocated to the
+>address space (whether by sbrk, mmap with ANON, or fork), each such page
+>needs to have space reserved out of swap. Linus, you talk about deadlock -
+>deadlock can only occur when you actually try to prevent errors caused by
+>overcommitment of resources.
+
+Right. And we are overcommitting our resources, and rather heavily at
+that. 
+
+Why? Simply because it results in a usable system, which wouldn't be
+usable otherwise. 
+
+>			 Causing an error due to such overcommitment
+>is not what is usually meant by deadlock avoidance. Deadlock is what might
+>happen if a process were to be suspended when it tries to access memory that
+>is not actually available after it has been allocated (and, since Unix
+>doesn't have any sort of resource utilization declarations to be declared
+>by a program, deadlock avoidance can not be done at the system level).
+
+I have some dim idea what deadlock means, and what linux gets into when
+running low on memory IS a form of dead-lock, sometimes called
+"livelock".  The processes aren't suspended per se, but are in an
+eternal loop fighting for resources (memory, in this case).  The kernel
+tries to resolve it, and eventually will probably kill one of the
+programs, but yes, it's a deadlock situation once we've overextended out
+VM. 
+
+It's easy to say "don't overextend", but what I'm trying to make clear
+is that it's not even *close* to easy to actually avoid it.  And it's
+impossible to avoid it if you want to keep the good features of the
+linux memory management. 
+
+			Linus
+
+
+--ELM967624779-23128-0_--
+
+
+
+From torvalds at cc.Helsinki.FI  Thu Mar 16 07:08:16 1995
+From: torvalds at cc.Helsinki.FI (Linus Torvalds)
+Date: 16 Mar 95 06:08:16 GMT
+Subject: Linux is 'creating' memory ?!
+References: <1995Feb7.172606.5784@tudedv.et.tudelft.nl> <3itc77$9lj@ninurta.fer.uni-lj.si> <3jju43$gc8@klaava.helsinki.fi> <3k3i4c$341@vixen.cso.uiuc.edu>
+Message-ID: <3k8kkg$1us@klaava.helsinki.fi>
+
+In article <3k3i4c$341 at vixen.cso.uiuc.edu>,
+Steve Peltz <peltz at cerl.uiuc.edu> wrote:
+>
+>Doesn't an mmap'ed segment get swapped to the file itself (other than
+>ANON)? Why would it need to reserve swap space?
+
+Check out MAP_PRIVATE, which is actually the one that is used a lot more
+than MAP_SHARED (and is the only form fully implemented under linux,
+just for that reason). 
+
+>>2) GNU emacs (ugh) wants to start up a shell script.  In the meantime,
+>>   GNU emacs has (as it's wont to do) grown to 17 MB, and you obviously
+>>   don't have much memory left. Do you accept the fork?
+>
+>So you have 17MB of swap space that you have to have free for a millisecond
+>in order to fork a process from a huge process. Is that such a problem? It
+>will be freed up almost immediately.
+
+Are all people writing to this thread so arrogant?
+
+"is it so hard to do?" "is 17MB of swapspace for a millisecond a
+problem?" "Why can DOS do it and Linux not do it?" "Use vfork() instead
+of fork()" etc etc..
+
+It IS damned hard to do.
+
+Using 17MB of swap-space is HORRIBLE on a PC.  I have around 500MB of
+disk on my two linux-machines, and 17MB of that is noticeable.  Others
+have *much* less. 
+
+The next time somebody tells me "harddisks sell for 50c/MB", I'll
+scream.  LINUX WAS NOT MEANT TO BE ANOTHER WINDOWS NT! YOU AREN'T
+SUPPOSED TO NEED EXTRA RESOURCES TO RUN IT. 
+
+People, PLEASE wake up!
+
+It's NOT a good thing to require lots of memory and lots of disk. 
+
+It IS a good thing to take full advantage of the available resources. 
+
+Requiring swap backingstore by definition doesn't take full advantage of
+your system resources. 
+
+You pay the price, of course: linux uses your machine more efficiently,
+but if you're running low on memory it means that you're walking on the
+edge.  That's something I accept.  Take the good with the bad: there is
+no free lunch. 
+
+And please, don't WHINE. 
+
+>> - vfork() isn't an option.  Trust me on this one.  vfork is *ugly*. 
+>>   Besides, we might actually want to run the same process concurrently. 
+>
+>Actually, making the only difference between vfork and fork be whether
+>swap space gets committed would be a pretty good solution (and don't
+>worry about the other *ugly* parts of vfork, since it isn't implemented
+>anyway you aren't breaking anything that isn't already broken). However,
+>I am loathe to suggest actually making a use for vfork, as people would
+>then use it, thus creating more inconsistency in the world.
+
+Make up your mind: do you want to be safe, or don't you?
+
+>>3) you have a nice quiescent little program that uses about 100kB of
+>>   memory, and has been a good little boy for the last 5 minutes.  Now
+>>   it obviously wants to do something, so it forks 10 times.  Do we
+>>   accept it?
+>
+>Yes. In any scenario. I don't understand how this applies to the current
+>problem. If one of the forked processes is unable to allocate more memory
+>to do something, then it fails; if it is doing malloc, then it can detect
+>the failure by the result, rather than getting a segment violation.
+
+It *is* the current problem.
+
+Remember, we aren't talking about 1 process, here.  If we were, the
+problem would be as simple as it is under DOS, and I could *easily* make
+linux return NULL on any memory allocation request that doesn't fit in
+the current VM. 
+
+However, we have a dynamic system running tens of active programs, some
+of which have more importance for the user than others, but the kernel
+doesn't know that and has no way of knowing.  Oh yes, you could try to
+analyze the system, but then you'd have something that is slower than
+Windows NT.. 
+
+>>4) You have a nice little 4MB machine, no swap, and you don't run X. 
+>>   Most programs use shared libraries, and everybody is happy.  You
+>>   don't use GNU emacs, you use "ed", and you have your own trusted
+>>   small-C compiler that works well.  Does the system accept this?
+>
+>Sure, if there's no swap, there's nothing to over-commit.
+
+What? There's physical memory, and you sure as hell are overcommitting
+that.  You're sharing pages left and right, which is why the system
+still works perfectly well for you.  But those pages are mostly COW, so
+you're really living on borrowed memory.  But it *works*, which is the
+point. 
+
+>> - NO, DEFINITELY NOT.  Each shared library in place actually takes up
+>>   600kB+ of virtual memory, and the system doesn't *know* that nothing
+>>   starts using these pages in all the processes alive.  Now, with just
+>>   10 processes (a small make, and all the deamons), the kernel is
+>>   actually juggling more than 6MB of virtual memory in the shared
+>>   libraries alone, although only a fraction of that is actually in use
+>>   at that time. 
+>
+>Shared libraries should not be writeable. Are you saying they are, and are
+>C-O-W?
+
+Yup, they're COW.  Dynamic linking etc means that you have to write at
+least to the jump tables, and possibly do other fixups as well.  On the
+other hand, most programs *won't* do any fixups, because they use the
+standard C libraries and don't redefine "malloc()", for example.  So you
+want to be able to share the pages, but on the other hand you want to
+have the possibility of modifying them on a per-process basis.  COW. 
+
+>Whenever a writeable non-mmap'ed non-shared segment is allocated to the
+>address space (whether by sbrk, mmap with ANON, or fork), each such page
+>needs to have space reserved out of swap. Linus, you talk about deadlock -
+>deadlock can only occur when you actually try to prevent errors caused by
+>overcommitment of resources.
+
+Right. And we are overcommitting our resources, and rather heavily at
+that. 
+
+Why? Simply because it results in a usable system, which wouldn't be
+usable otherwise. 
+
+>			 Causing an error due to such overcommitment
+>is not what is usually meant by deadlock avoidance. Deadlock is what might
+>happen if a process were to be suspended when it tries to access memory that
+>is not actually available after it has been allocated (and, since Unix
+>doesn't have any sort of resource utilization declarations to be declared
+>by a program, deadlock avoidance can not be done at the system level).
+
+I have some dim idea what deadlock means, and what linux gets into when
+running low on memory IS a form of dead-lock, sometimes called
+"livelock".  The processes aren't suspended per se, but are in an
+eternal loop fighting for resources (memory, in this case).  The kernel
+tries to resolve it, and eventually will probably kill one of the
+programs, but yes, it's a deadlock situation once we've overextended out
+VM. 
+
+It's easy to say "don't overextend", but what I'm trying to make clear
+is that it's not even *close* to easy to actually avoid it.  And it's
+impossible to avoid it if you want to keep the good features of the
+linux memory management. 
+
+			Linus
+
+
+--ELM967624779-23128-0_--
+
+
+
+From torvalds at cc.Helsinki.FI  Thu Mar 16 07:08:16 1995
+From: torvalds at cc.Helsinki.FI (Linus Torvalds)
+Date: 16 Mar 95 06:08:16 GMT
+Subject: Linux is 'creating' memory ?!
+References: <1995Feb7.172606.5784@tudedv.et.tudelft.nl> <3itc77$9lj@ninurta.fer.uni-lj.si> <3jju43$gc8@klaava.helsinki.fi> <3k3i4c$341@vixen.cso.uiuc.edu>
+Message-ID: <3k8kkg$1us@klaava.helsinki.fi>
+
+In article <3k3i4c$341 at vixen.cso.uiuc.edu>,
+Steve Peltz <peltz at cerl.uiuc.edu> wrote:
+>
+>Doesn't an mmap'ed segment get swapped to the file itself (other than
+>ANON)? Why would it need to reserve swap space?
+
+Check out MAP_PRIVATE, which is actually the one that is used a lot more
+than MAP_SHARED (and is the only form fully implemented under linux,
+just for that reason). 
+
+>>2) GNU emacs (ugh) wants to start up a shell script.  In the meantime,
+>>   GNU emacs has (as it's wont to do) grown to 17 MB, and you obviously
+>>   don't have much memory left. Do you accept the fork?
+>
+>So you have 17MB of swap space that you have to have free for a millisecond
+>in order to fork a process from a huge process. Is that such a problem? It
+>will be freed up almost immediately.
+
+Are all people writing to this thread so arrogant?
+
+"is it so hard to do?" "is 17MB of swapspace for a millisecond a
+problem?" "Why can DOS do it and Linux not do it?" "Use vfork() instead
+of fork()" etc etc..
+
+It IS damned hard to do.
+
+Using 17MB of swap-space is HORRIBLE on a PC.  I have around 500MB of
+disk on my two linux-machines, and 17MB of that is noticeable.  Others
+have *much* less. 
+
+The next time somebody tells me "harddisks sell for 50c/MB", I'll
+scream.  LINUX WAS NOT MEANT TO BE ANOTHER WINDOWS NT! YOU AREN'T
+SUPPOSED TO NEED EXTRA RESOURCES TO RUN IT. 
+
+People, PLEASE wake up!
+
+It's NOT a good thing to require lots of memory and lots of disk. 
+
+It IS a good thing to take full advantage of the available resources. 
+
+Requiring swap backingstore by definition doesn't take full advantage of
+your system resources. 
+
+You pay the price, of course: linux uses your machine more efficiently,
+but if you're running low on memory it means that you're walking on the
+edge.  That's something I accept.  Take the good with the bad: there is
+no free lunch. 
+
+And please, don't WHINE. 
+
+>> - vfork() isn't an option.  Trust me on this one.  vfork is *ugly*. 
+>>   Besides, we might actually want to run the same process concurrently. 
+>
+>Actually, making the only difference between vfork and fork be whether
+>swap space gets committed would be a pretty good solution (and don't
+>worry about the other *ugly* parts of vfork, since it isn't implemented
+>anyway you aren't breaking anything that isn't already broken). However,
+>I am loathe to suggest actually making a use for vfork, as people would
+>then use it, thus creating more inconsistency in the world.
+
+Make up your mind: do you want to be safe, or don't you?
+
+>>3) you have a nice quiescent little program that uses about 100kB of
+>>   memory, and has been a good little boy for the last 5 minutes.  Now
+>>   it obviously wants to do something, so it forks 10 times.  Do we
+>>   accept it?
+>
+>Yes. In any scenario. I don't understand how this applies to the current
+>problem. If one of the forked processes is unable to allocate more memory
+>to do something, then it fails; if it is doing malloc, then it can detect
+>the failure by the result, rather than getting a segment violation.
+
+It *is* the current problem.
+
+Remember, we aren't talking about 1 process, here.  If we were, the
+problem would be as simple as it is under DOS, and I could *easily* make
+linux return NULL on any memory allocation request that doesn't fit in
+the current VM. 
+
+However, we have a dynamic system running tens of active programs, some
+of which have more importance for the user than others, but the kernel
+doesn't know that and has no way of knowing.  Oh yes, you could try to
+analyze the system, but then you'd have something that is slower than
+Windows NT.. 
+
+>>4) You have a nice little 4MB machine, no swap, and you don't run X. 
+>>   Most programs use shared libraries, and everybody is happy.  You
+>>   don't use GNU emacs, you use "ed", and you have your own trusted
+>>   small-C compiler that works well.  Does the system accept this?
+>
+>Sure, if there's no swap, there's nothing to over-commit.
+
+What? There's physical memory, and you sure as hell are overcommitting
+that.  You're sharing pages left and right, which is why the system
+still works perfectly well for you.  But those pages are mostly COW, so
+you're really living on borrowed memory.  But it *works*, which is the
+point. 
+
+>> - NO, DEFINITELY NOT.  Each shared library in place actually takes up
+>>   600kB+ of virtual memory, and the system doesn't *know* that nothing
+>>   starts using these pages in all the processes alive.  Now, with just
+>>   10 processes (a small make, and all the deamons), the kernel is
+>>   actually juggling more than 6MB of virtual memory in the shared
+>>   libraries alone, although only a fraction of that is actually in use
+>>   at that time. 
+>
+>Shared libraries should not be writeable. Are you saying they are, and are
+>C-O-W?
+
+Yup, they're COW.  Dynamic linking etc means that you have to write at
+least to the jump tables, and possibly do other fixups as well.  On the
+other hand, most programs *won't* do any fixups, because they use the
+standard C libraries and don't redefine "malloc()", for example.  So you
+want to be able to share the pages, but on the other hand you want to
+have the possibility of modifying them on a per-process basis.  COW. 
+
+>Whenever a writeable non-mmap'ed non-shared segment is allocated to the
+>address space (whether by sbrk, mmap with ANON, or fork), each such page
+>needs to have space reserved out of swap. Linus, you talk about deadlock -
+>deadlock can only occur when you actually try to prevent errors caused by
+>overcommitment of resources.
+
+Right. And we are overcommitting our resources, and rather heavily at
+that. 
+
+Why? Simply because it results in a usable system, which wouldn't be
+usable otherwise. 
+
+>			 Causing an error due to such overcommitment
+>is not what is usually meant by deadlock avoidance. Deadlock is what might
+>happen if a process were to be suspended when it tries to access memory that
+>is not actually available after it has been allocated (and, since Unix
+>doesn't have any sort of resource utilization declarations to be declared
+>by a program, deadlock avoidance can not be done at the system level).
+
+I have some dim idea what deadlock means, and what linux gets into when
+running low on memory IS a form of dead-lock, sometimes called
+"livelock".  The processes aren't suspended per se, but are in an
+eternal loop fighting for resources (memory, in this case).  The kernel
+tries to resolve it, and eventually will probably kill one of the
+programs, but yes, it's a deadlock situation once we've overextended out
+VM. 
+
+It's easy to say "don't overextend", but what I'm trying to make clear
+is that it's not even *close* to easy to actually avoid it.  And it's
+impossible to avoid it if you want to keep the good features of the
+linux memory management. 
+
+			Linus
+
+
+--ELM967624779-23128-0_--
+
+
+
+From torvalds at cc.Helsinki.FI  Thu Mar 16 07:08:16 1995
+From: torvalds at cc.Helsinki.FI (Linus Torvalds)
+Date: 16 Mar 95 06:08:16 GMT
+Subject: Linux is 'creating' memory ?!
+References: <1995Feb7.172606.5784@tudedv.et.tudelft.nl> <3itc77$9lj@ninurta.fer.uni-lj.si> <3jju43$gc8@klaava.helsinki.fi> <3k3i4c$341@vixen.cso.uiuc.edu>
+Message-ID: <3k8kkg$1us@klaava.helsinki.fi>
+
+In article <3k3i4c$341 at vixen.cso.uiuc.edu>,
+Steve Peltz <peltz at cerl.uiuc.edu> wrote:
+>
+>Doesn't an mmap'ed segment get swapped to the file itself (other than
+>ANON)? Why would it need to reserve swap space?
+
+Check out MAP_PRIVATE, which is actually the one that is used a lot more
+than MAP_SHARED (and is the only form fully implemented under linux,
+just for that reason). 
+
+>>2) GNU emacs (ugh) wants to start up a shell script.  In the meantime,
+>>   GNU emacs has (as it's wont to do) grown to 17 MB, and you obviously
+>>   don't have much memory left. Do you accept the fork?
+>
+>So you have 17MB of swap space that you have to have free for a millisecond
+>in order to fork a process from a huge process. Is that such a problem? It
+>will be freed up almost immediately.
+
+Are all people writing to this thread so arrogant?
+
+"is it so hard to do?" "is 17MB of swapspace for a millisecond a
+problem?" "Why can DOS do it and Linux not do it?" "Use vfork() instead
+of fork()" etc etc..
+
+It IS damned hard to do.
+
+Using 17MB of swap-space is HORRIBLE on a PC.  I have around 500MB of
+disk on my two linux-machines, and 17MB of that is noticeable.  Others
+have *much* less. 
+
+The next time somebody tells me "harddisks sell for 50c/MB", I'll
+scream.  LINUX WAS NOT MEANT TO BE ANOTHER WINDOWS NT! YOU AREN'T
+SUPPOSED TO NEED EXTRA RESOURCES TO RUN IT. 
+
+People, PLEASE wake up!
+
+It's NOT a good thing to require lots of memory and lots of disk. 
+
+It IS a good thing to take full advantage of the available resources. 
+
+Requiring swap backingstore by definition doesn't take full advantage of
+your system resources. 
+
+You pay the price, of course: linux uses your machine more efficiently,
+but if you're running low on memory it means that you're walking on the
+edge.  That's something I accept.  Take the good with the bad: there is
+no free lunch. 
+
+And please, don't WHINE. 
+
+>> - vfork() isn't an option.  Trust me on this one.  vfork is *ugly*. 
+>>   Besides, we might actually want to run the same process concurrently. 
+>
+>Actually, making the only difference between vfork and fork be whether
+>swap space gets committed would be a pretty good solution (and don't
+>worry about the other *ugly* parts of vfork, since it isn't implemented
+>anyway you aren't breaking anything that isn't already broken). However,
+>I am loathe to suggest actually making a use for vfork, as people would
+>then use it, thus creating more inconsistency in the world.
+
+Make up your mind: do you want to be safe, or don't you?
+
+>>3) you have a nice quiescent little program that uses about 100kB of
+>>   memory, and has been a good little boy for the last 5 minutes.  Now
+>>   it obviously wants to do something, so it forks 10 times.  Do we
+>>   accept it?
+>
+>Yes. In any scenario. I don't understand how this applies to the current
+>problem. If one of the forked processes is unable to allocate more memory
+>to do something, then it fails; if it is doing malloc, then it can detect
+>the failure by the result, rather than getting a segment violation.
+
+It *is* the current problem.
+
+Remember, we aren't talking about 1 process, here.  If we were, the
+problem would be as simple as it is under DOS, and I could *easily* make
+linux return NULL on any memory allocation request that doesn't fit in
+the current VM. 
+
+However, we have a dynamic system running tens of active programs, some
+of which have more importance for the user than others, but the kernel
+doesn't know that and has no way of knowing.  Oh yes, you could try to
+analyze the system, but then you'd have something that is slower than
+Windows NT.. 
+
+>>4) You have a nice little 4MB machine, no swap, and you don't run X. 
+>>   Most programs use shared libraries, and everybody is happy.  You
+>>   don't use GNU emacs, you use "ed", and you have your own trusted
+>>   small-C compiler that works well.  Does the system accept this?
+>
+>Sure, if there's no swap, there's nothing to over-commit.
+
+What? There's physical memory, and you sure as hell are overcommitting
+that.  You're sharing pages left and right, which is why the system
+still works perfectly well for you.  But those pages are mostly COW, so
+you're really living on borrowed memory.  But it *works*, which is the
+point. 
+
+>> - NO, DEFINITELY NOT.  Each shared library in place actually takes up
+>>   600kB+ of virtual memory, and the system doesn't *know* that nothing
+>>   starts using these pages in all the processes alive.  Now, with just
+>>   10 processes (a small make, and all the deamons), the kernel is
+>>   actually juggling more than 6MB of virtual memory in the shared
+>>   libraries alone, although only a fraction of that is actually in use
+>>   at that time. 
+>
+>Shared libraries should not be writeable. Are you saying they are, and are
+>C-O-W?
+
+Yup, they're COW.  Dynamic linking etc means that you have to write at
+least to the jump tables, and possibly do other fixups as well.  On the
+other hand, most programs *won't* do any fixups, because they use the
+standard C libraries and don't redefine "malloc()", for example.  So you
+want to be able to share the pages, but on the other hand you want to
+have the possibility of modifying them on a per-process basis.  COW. 
+
+>Whenever a writeable non-mmap'ed non-shared segment is allocated to the
+>address space (whether by sbrk, mmap with ANON, or fork), each such page
+>needs to have space reserved out of swap. Linus, you talk about deadlock -
+>deadlock can only occur when you actually try to prevent errors caused by
+>overcommitment of resources.
+
+Right. And we are overcommitting our resources, and rather heavily at
+that. 
+
+Why? Simply because it results in a usable system, which wouldn't be
+usable otherwise. 
+
+>			 Causing an error due to such overcommitment
+>is not what is usually meant by deadlock avoidance. Deadlock is what might
+>happen if a process were to be suspended when it tries to access memory that
+>is not actually available after it has been allocated (and, since Unix
+>doesn't have any sort of resource utilization declarations to be declared
+>by a program, deadlock avoidance can not be done at the system level).
+
+I have some dim idea what deadlock means, and what linux gets into when
+running low on memory IS a form of dead-lock, sometimes called
+"livelock".  The processes aren't suspended per se, but are in an
+eternal loop fighting for resources (memory, in this case).  The kernel
+tries to resolve it, and eventually will probably kill one of the
+programs, but yes, it's a deadlock situation once we've overextended out
+VM. 
+
+It's easy to say "don't overextend", but what I'm trying to make clear
+is that it's not even *close* to easy to actually avoid it.  And it's
+impossible to avoid it if you want to keep the good features of the
+linux memory management. 
+
+			Linus
+
+
+--ELM967624779-23128-0_--
+
+
+
+From torvalds at cc.Helsinki.FI  Thu Mar 16 07:08:16 1995
+From: torvalds at cc.Helsinki.FI (Linus Torvalds)
+Date: 16 Mar 95 06:08:16 GMT
+Subject: Linux is 'creating' memory ?!
+References: <1995Feb7.172606.5784@tudedv.et.tudelft.nl> <3itc77$9lj@ninurta.fer.uni-lj.si> <3jju43$gc8@klaava.helsinki.fi> <3k3i4c$341@vixen.cso.uiuc.edu>
+Message-ID: <3k8kkg$1us@klaava.helsinki.fi>
+
+In article <3k3i4c$341 at vixen.cso.uiuc.edu>,
+Steve Peltz <peltz at cerl.uiuc.edu> wrote:
+>
+>Doesn't an mmap'ed segment get swapped to the file itself (other than
+>ANON)? Why would it need to reserve swap space?
+
+Check out MAP_PRIVATE, which is actually the one that is used a lot more
+than MAP_SHARED (and is the only form fully implemented under linux,
+just for that reason). 
+
+>>2) GNU emacs (ugh) wants to start up a shell script.  In the meantime,
+>>   GNU emacs has (as it's wont to do) grown to 17 MB, and you obviously
+>>   don't have much memory left. Do you accept the fork?
+>
+>So you have 17MB of swap space that you have to have free for a millisecond
+>in order to fork a process from a huge process. Is that such a problem? It
+>will be freed up almost immediately.
+
+Are all people writing to this thread so arrogant?
+
+"is it so hard to do?" "is 17MB of swapspace for a millisecond a
+problem?" "Why can DOS do it and Linux not do it?" "Use vfork() instead
+of fork()" etc etc..
+
+It IS damned hard to do.
+
+Using 17MB of swap-space is HORRIBLE on a PC.  I have around 500MB of
+disk on my two linux-machines, and 17MB of that is noticeable.  Others
+have *much* less. 
+
+The next time somebody tells me "harddisks sell for 50c/MB", I'll
+scream.  LINUX WAS NOT MEANT TO BE ANOTHER WINDOWS NT! YOU AREN'T
+SUPPOSED TO NEED EXTRA RESOURCES TO RUN IT. 
+
+People, PLEASE wake up!
+
+It's NOT a good thing to require lots of memory and lots of disk. 
+
+It IS a good thing to take full advantage of the available resources. 
+
+Requiring swap backingstore by definition doesn't take full advantage of
+your system resources. 
+
+You pay the price, of course: linux uses your machine more efficiently,
+but if you're running low on memory it means that you're walking on the
+edge.  That's something I accept.  Take the good with the bad: there is
+no free lunch. 
+
+And please, don't WHINE. 
+
+>> - vfork() isn't an option.  Trust me on this one.  vfork is *ugly*. 
+>>   Besides, we might actually want to run the same process concurrently. 
+>
+>Actually, making the only difference between vfork and fork be whether
+>swap space gets committed would be a pretty good solution (and don't
+>worry about the other *ugly* parts of vfork, since it isn't implemented
+>anyway you aren't breaking anything that isn't already broken). However,
+>I am loathe to suggest actually making a use for vfork, as people would
+>then use it, thus creating more inconsistency in the world.
+
+Make up your mind: do you want to be safe, or don't you?
+
+>>3) you have a nice quiescent little program that uses about 100kB of
+>>   memory, and has been a good little boy for the last 5 minutes.  Now
+>>   it obviously wants to do something, so it forks 10 times.  Do we
+>>   accept it?
+>
+>Yes. In any scenario. I don't understand how this applies to the current
+>problem. If one of the forked processes is unable to allocate more memory
+>to do something, then it fails; if it is doing malloc, then it can detect
+>the failure by the result, rather than getting a segment violation.
+
+It *is* the current problem.
+
+Remember, we aren't talking about 1 process, here.  If we were, the
+problem would be as simple as it is under DOS, and I could *easily* make
+linux return NULL on any memory allocation request that doesn't fit in
+the current VM. 
+
+However, we have a dynamic system running tens of active programs, some
+of which have more importance for the user than others, but the kernel
+doesn't know that and has no way of knowing.  Oh yes, you could try to
+analyze the system, but then you'd have something that is slower than
+Windows NT.. 
+
+>>4) You have a nice little 4MB machine, no swap, and you don't run X. 
+>>   Most programs use shared libraries, and everybody is happy.  You
+>>   don't use GNU emacs, you use "ed", and you have your own trusted
+>>   small-C compiler that works well.  Does the system accept this?
+>
+>Sure, if there's no swap, there's nothing to over-commit.
+
+What? There's physical memory, and you sure as hell are overcommitting
+that.  You're sharing pages left and right, which is why the system
+still works perfectly well for you.  But those pages are mostly COW, so
+you're really living on borrowed memory.  But it *works*, which is the
+point. 
+
+>> - NO, DEFINITELY NOT.  Each shared library in place actually takes up
+>>   600kB+ of virtual memory, and the system doesn't *know* that nothing
+>>   starts using these pages in all the processes alive.  Now, with just
+>>   10 processes (a small make, and all the deamons), the kernel is
+>>   actually juggling more than 6MB of virtual memory in the shared
+>>   libraries alone, although only a fraction of that is actually in use
+>>   at that time. 
+>
+>Shared libraries should not be writeable. Are you saying they are, and are
+>C-O-W?
+
+Yup, they're COW.  Dynamic linking etc means that you have to write at
+least to the jump tables, and possibly do other fixups as well.  On the
+other hand, most programs *won't* do any fixups, because they use the
+standard C libraries and don't redefine "malloc()", for example.  So you
+want to be able to share the pages, but on the other hand you want to
+have the possibility of modifying them on a per-process basis.  COW. 
+
+>Whenever a writeable non-mmap'ed non-shared segment is allocated to the
+>address space (whether by sbrk, mmap with ANON, or fork), each such page
+>needs to have space reserved out of swap. Linus, you talk about deadlock -
+>deadlock can only occur when you actually try to prevent errors caused by
+>overcommitment of resources.
+
+Right. And we are overcommitting our resources, and rather heavily at
+that. 
+
+Why? Simply because it results in a usable system, which wouldn't be
+usable otherwise. 
+
+>			 Causing an error due to such overcommitment
+>is not what is usually meant by deadlock avoidance. Deadlock is what might
+>happen if a process were to be suspended when it tries to access memory that
+>is not actually available after it has been allocated (and, since Unix
+>doesn't have any sort of resource utilization declarations to be declared
+>by a program, deadlock avoidance can not be done at the system level).
+
+I have some dim idea what deadlock means, and what linux gets into when
+running low on memory IS a form of dead-lock, sometimes called
+"livelock".  The processes aren't suspended per se, but are in an
+eternal loop fighting for resources (memory, in this case).  The kernel
+tries to resolve it, and eventually will probably kill one of the
+programs, but yes, it's a deadlock situation once we've overextended out
+VM. 
+
+It's easy to say "don't overextend", but what I'm trying to make clear
+is that it's not even *close* to easy to actually avoid it.  And it's
+impossible to avoid it if you want to keep the good features of the
+linux memory management. 
+
+			Linus
+
+
+--ELM967624779-23128-0_--
+
+
+
+From torvalds at cc.Helsinki.FI  Thu Mar 16 07:08:16 1995
+From: torvalds at cc.Helsinki.FI (Linus Torvalds)
+Date: 16 Mar 95 06:08:16 GMT
+Subject: Linux is 'creating' memory ?!
+References: <1995Feb7.172606.5784@tudedv.et.tudelft.nl> <3itc77$9lj@ninurta.fer.uni-lj.si> <3jju43$gc8@klaava.helsinki.fi> <3k3i4c$341@vixen.cso.uiuc.edu>
+Message-ID: <3k8kkg$1us@klaava.helsinki.fi>
+
+In article <3k3i4c$341 at vixen.cso.uiuc.edu>,
+Steve Peltz <peltz at cerl.uiuc.edu> wrote:
+>
+>Doesn't an mmap'ed segment get swapped to the file itself (other than
+>ANON)? Why would it need to reserve swap space?
+
+Check out MAP_PRIVATE, which is actually the one that is used a lot more
+than MAP_SHARED (and is the only form fully implemented under linux,
+just for that reason). 
+
+>>2) GNU emacs (ugh) wants to start up a shell script.  In the meantime,
+>>   GNU emacs has (as it's wont to do) grown to 17 MB, and you obviously
+>>   don't have much memory left. Do you accept the fork?
+>
+>So you have 17MB of swap space that you have to have free for a millisecond
+>in order to fork a process from a huge process. Is that such a problem? It
+>will be freed up almost immediately.
+
+Are all people writing to this thread so arrogant?
+
+"is it so hard to do?" "is 17MB of swapspace for a millisecond a
+problem?" "Why can DOS do it and Linux not do it?" "Use vfork() instead
+of fork()" etc etc..
+
+It IS damned hard to do.
+
+Using 17MB of swap-space is HORRIBLE on a PC.  I have around 500MB of
+disk on my two linux-machines, and 17MB of that is noticeable.  Others
+have *much* less. 
+
+The next time somebody tells me "harddisks sell for 50c/MB", I'll
+scream.  LINUX WAS NOT MEANT TO BE ANOTHER WINDOWS NT! YOU AREN'T
+SUPPOSED TO NEED EXTRA RESOURCES TO RUN IT. 
+
+People, PLEASE wake up!
+
+It's NOT a good thing to require lots of memory and lots of disk. 
+
+It IS a good thing to take full advantage of the available resources. 
+
+Requiring swap backingstore by definition doesn't take full advantage of
+your system resources. 
+
+You pay the price, of course: linux uses your machine more efficiently,
+but if you're running low on memory it means that you're walking on the
+edge.  That's something I accept.  Take the good with the bad: there is
+no free lunch. 
+
+And please, don't WHINE. 
+
+>> - vfork() isn't an option.  Trust me on this one.  vfork is *ugly*. 
+>>   Besides, we might actually want to run the same process concurrently. 
+>
+>Actually, making the only difference between vfork and fork be whether
+>swap space gets committed would be a pretty good solution (and don't
+>worry about the other *ugly* parts of vfork, since it isn't implemented
+>anyway you aren't breaking anything that isn't already broken). However,
+>I am loathe to suggest actually making a use for vfork, as people would
+>then use it, thus creating more inconsistency in the world.
+
+Make up your mind: do you want to be safe, or don't you?
+
+>>3) you have a nice quiescent little program that uses about 100kB of
+>>   memory, and has been a good little boy for the last 5 minutes.  Now
+>>   it obviously wants to do something, so it forks 10 times.  Do we
+>>   accept it?
+>
+>Yes. In any scenario. I don't understand how this applies to the current
+>problem. If one of the forked processes is unable to allocate more memory
+>to do something, then it fails; if it is doing malloc, then it can detect
+>the failure by the result, rather than getting a segment violation.
+
+It *is* the current problem.
+
+Remember, we aren't talking about 1 process, here.  If we were, the
+problem would be as simple as it is under DOS, and I could *easily* make
+linux return NULL on any memory allocation request that doesn't fit in
+the current VM. 
+
+However, we have a dynamic system running tens of active programs, some
+of which have more importance for the user than others, but the kernel
+doesn't know that and has no way of knowing.  Oh yes, you could try to
+analyze the system, but then you'd have something that is slower than
+Windows NT.. 
+
+>>4) You have a nice little 4MB machine, no swap, and you don't run X. 
+>>   Most programs use shared libraries, and everybody is happy.  You
+>>   don't use GNU emacs, you use "ed", and you have your own trusted
+>>   small-C compiler that works well.  Does the system accept this?
+>
+>Sure, if there's no swap, there's nothing to over-commit.
+
+What? There's physical memory, and you sure as hell are overcommitting
+that.  You're sharing pages left and right, which is why the system
+still works perfectly well for you.  But those pages are mostly COW, so
+you're really living on borrowed memory.  But it *works*, which is the
+point. 
+
+>> - NO, DEFINITELY NOT.  Each shared library in place actually takes up
+>>   600kB+ of virtual memory, and the system doesn't *know* that nothing
+>>   starts using these pages in all the processes alive.  Now, with just
+>>   10 processes (a small make, and all the deamons), the kernel is
+>>   actually juggling more than 6MB of virtual memory in the shared
+>>   libraries alone, although only a fraction of that is actually in use
+>>   at that time. 
+>
+>Shared libraries should not be writeable. Are you saying they are, and are
+>C-O-W?
+
+Yup, they're COW.  Dynamic linking etc means that you have to write at
+least to the jump tables, and possibly do other fixups as well.  On the
+other hand, most programs *won't* do any fixups, because they use the
+standard C libraries and don't redefine "malloc()", for example.  So you
+want to be able to share the pages, but on the other hand you want to
+have the possibility of modifying them on a per-process basis.  COW. 
+
+>Whenever a writeable non-mmap'ed non-shared segment is allocated to the
+>address space (whether by sbrk, mmap with ANON, or fork), each such page
+>needs to have space reserved out of swap. Linus, you talk about deadlock -
+>deadlock can only occur when you actually try to prevent errors caused by
+>overcommitment of resources.
+
+Right. And we are overcommitting our resources, and rather heavily at
+that. 
+
+Why? Simply because it results in a usable system, which wouldn't be
+usable otherwise. 
+
+>			 Causing an error due to such overcommitment
+>is not what is usually meant by deadlock avoidance. Deadlock is what might
+>happen if a process were to be suspended when it tries to access memory that
+>is not actually available after it has been allocated (and, since Unix
+>doesn't have any sort of resource utilization declarations to be declared
+>by a program, deadlock avoidance can not be done at the system level).
+
+I have some dim idea what deadlock means, and what linux gets into when
+running low on memory IS a form of dead-lock, sometimes called
+"livelock".  The processes aren't suspended per se, but are in an
+eternal loop fighting for resources (memory, in this case).  The kernel
+tries to resolve it, and eventually will probably kill one of the
+programs, but yes, it's a deadlock situation once we've overextended out
+VM. 
+
+It's easy to say "don't overextend", but what I'm trying to make clear
+is that it's not even *close* to easy to actually avoid it.  And it's
+impossible to avoid it if you want to keep the good features of the
+linux memory management. 
+
+			Linus
+
+
+--ELM967624779-23128-0_--
+
+
+
