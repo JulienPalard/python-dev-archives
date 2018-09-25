@@ -18,6 +18,6 @@ script:
   - git config user.email "julien+travis@palard.fr"
   - git config user.name "Travis the Build Bot"
   - git checkout master
-  - mailman-fetch -n -v https://mail.python.org/pipermail/python-devs/ ./
+  - mailman-fetch -n -v -a https://mail.python.org/pipermail/python-devs/ ./
   - git add *.txt
   - '[ -n "$(git diff --cached --name-only)" ] && git commit -m "update" && git push git@github.com:JulienPalard/python-committers-archives.git || :'
