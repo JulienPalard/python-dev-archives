@@ -13108,3 +13108,4028 @@ Regards,
 
   Neil
 
+From stefan_ml at behnel.de  Wed Sep 19 03:32:34 2018
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Wed, 19 Sep 2018 09:32:34 +0200
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <CANVK_QheiVR-Z13c8PyVniPpS=LRtkkH7XgvkhfDwqSBU5++ZA@mail.gmail.com>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180916222441.13600498@fsol>
+ <CANVK_Qgcx_+af1q4RrNcmSB4sHdxokd8c34=PDt7MyRcz+WKjg@mail.gmail.com>
+ <CANXBEFrOJKHejC7Q3oxHy8wVAQWezFm1Z3efsdr+tZFuioEaRg@mail.gmail.com>
+ <CANVK_QhD2LG7P_rJgF5Z2JW6FnDDVqAEH5jwgeMCnCVQ2LJ6hA@mail.gmail.com>
+ <397028a3-8368-4d57-57de-916f0847f90f@python.org>
+ <CANVK_QheiVR-Z13c8PyVniPpS=LRtkkH7XgvkhfDwqSBU5++ZA@mail.gmail.com>
+Message-ID: <pnstue$bc1$1@blaine.gmane.org>
+
+Carl Shapiro schrieb am 18.09.2018 um 22:44:
+> How might people feel about using the linker to bundle a list of pre-loaded
+> modules into a single-file executable?
+
+One way to do that would be to compile Python modules with Cython and link
+them in statically, instead of compiling them to .pyc files.
+
+Advantage: you get native C .o files, fast and straight forward to link.
+
+Disadvantage: native code is much more voluminous than byte code, so the
+overall binary size would grow substantially.
+
+Also, one thing that would be interesting to find out is whether constant
+Python data structures can actually be pre-allocated in the data segment
+(and I mean their object structs) . Then things like tuples of strings
+(argument lists and what not) could be loaded and the objects quickly
+initialised (although, is that even necessary?), rather than having to heap
+allocate and create them. Probably something that we should try out in Cython.
+
+Stefan
+
+
+From ncoghlan at gmail.com  Wed Sep 19 03:49:40 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Wed, 19 Sep 2018 17:49:40 +1000
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <942002A1-4319-4370-BC07-A628BB1B8FC1@python.org>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+ <942002A1-4319-4370-BC07-A628BB1B8FC1@python.org>
+Message-ID: <CADiSq7chv2VQMCekSpKW-Us_e6c0XLXioy09XSdC14OHhvdwMg@mail.gmail.com>
+
+I think the changes to both master and the 3.7 branch should be reverted.
+
+For 3.7, I already said that I think we should just accept that that
+ship has sailed with 3.7.0 and leave the as-shipped implementation
+alone for the rest of the 3.7 series:
+https://bugs.python.org/issue34589#msg325242
+
+It isn't the way I intended it to work, but the kinds of large scale
+architectural changes the intended implementation is designed to cope
+with aren't going to happen on a maintenance branch anyway.
+
+For 3.8, after Victor's rushed changes have been reverted, my PR
+should be conflict free again, and we'll be able to get PEP 538 back
+to working the way it was always supposed to work (while keeping the
+genuine stdio handling fixes that Victor's refactoring provided):
+https://github.com/python/cpython/pull/9257
+
+Regards,
+Nick.
+On Tue, 18 Sep 2018 at 11:42, Ned Deily <nad at python.org> wrote:
+>
+> On Sep 17, 2018, at 21:20, Victor Stinner <vstinner at redhat.com> wrote:
+> > tl; dr Nick, Ned, INADA-san: I modified 3.7.1 to add a new "-X
+> > coerce_c_locale=value" option and make sure that the C locale coercion
+> > cannot be when Python in embedded: are you ok with these changes?
+> >
+> >
+> > Before 3.7.0 release, during the implementation of the UTF-8 Mode (PEP
+> > 540), I changed two things in Nick Coghlan's implementation of the C
+> > locale coercion (PEP 538):
+> >
+> > (1) PYTHONCOERCECLOCALE environment variable is now ignored when -E or
+> > -I command line option is used.
+> >
+> > (2) When Python is embeded, the C locale coercion is now enabled if
+> > the LC_CTYPE locale is "C".
+> >
+> > Nick asked me to change the behavior:
+> > https://bugs.python.org/issue34589
+> >
+> > I just pushed this change in the 3.7 branch which adds a new "-X
+> > coerce_c_locale=value" option:
+> > https://github.com/python/cpython/commit/144f1e2c6f4a24bd288c045986842c65cc289684
+> >
+> > Examples using Pyhon 3.7 (future 3.7.1) with UTF-8 Mode disabled, to
+> > only test the C locale coercion:
+> > ---
+> > $ cat test.py
+> > import codecs, locale
+> > enc = locale.getpreferredencoding()
+> > enc = codecs.lookup(enc).name
+> > print(enc)
+> >
+> > $ export LC_ALL= LC_CTYPE=C LANG=
+> >
+> > # Disable C locale coercion: get ASCII as expected
+> > $ PYTHONCOERCECLOCALE=0 ./python -X utf8=0 test.py
+> > ascii
+> >
+> > # -E ignores PYTHONCOERCECLOCALE=0:
+> > # C locale is coerced, we get UTF-8
+> > $ PYTHONCOERCECLOCALE=0 ./python -E -X utf8=0 test.py
+> > utf-8
+> >
+> > # -X coerce_c_locale=0 is not affected by -E:
+> > # C locale coercion disabled as expected, get ASCII as expected
+> > $ ./python -E -X utf8=0 -X coerce_c_locale=0 test.py
+> > ascii
+> > ---
+> >
+> >
+> > For (1), Nick's use case is to get Python 3.6 behavior (C locale not
+> > coerced) on Python 3.7 using PYTHONCOERCECLOCALE. Nick proposed to use
+> > PYTHONCOERCECLOCALE even with -E or -I, but I dislike introducing a
+> > special case for -E option.
+> >
+> > I chose to add a new "-X coerce_c_locale=0" to Python 3.7.1 to provide
+> > a solution for this use case. (Python 3.7.0 and older ignore this
+> > option.)
+> >
+> > Note: Python 3.7.0 is fine with PYTHONCOERCECLOCALE=0, we are only
+> > talking about the special case of -E and -I options.
+> >
+> >
+> > For (2), I modified Python 3.7.1 to make sure the C locale is never
+> > coerced when the C API is used to embed Python inside an application:
+> > Py_Initialize() and Py_Main(). The C locale can only be coerced by the
+> > official Python program ("python3.7").
+> >
+> > I don't know if it should be possible to enable C locale coercion when
+> > Python is embedded. So I just made the change requested by Nick :-)
+> >
+> >
+> > I dislike doing such late changes in 3.7.1, especially since PEP 538
+> > has been designed by Nick Coghlan, and we disagree on the fix. But Ned
+> > Deily, our Python 3.7 release manager, wants to see last 3.7 fixes
+> > merged before Tuesday, so here we are.
+>
+> Just because the 3.7.1rc is scheduled doesn't mean we should throw something in, particularly if it's not fully reviewed and fully agreed upon.  If it's important enough, we could delay the rc a few days ... or decide to wait for 3.7.2.
+>
+> > Nick, Ned, INADA-san: are you ok with these changes?
+> > The other choices for 3.7.1 are:
+> >
+> > * Revert my change: C locale coercion can still be enabled when Python
+> > is embedded, -E option ignores PYTHONCOERCECLOCALE env var.
+> >
+> > * Revert my change and apply Nick's PR 9257: C locale coercion cannot
+> > be enabled when Python is embedded and -E option doesn't ignore
+> > PYTHONCOERCECLOCALE env var.
+> >
+> >
+> > I spent months to fix the master branch to support all possible
+> > locales and encodings, and get a consistent CLI:
+> > https://vstinner.github.io/python3-locales-encodings.html
+> >
+> > So I'm not excited by Nick's PR which IMHO moves Python backward,
+> > especially it breaks the -E option contract: it doesn't ignore
+> > PYTHONCOERCECLOCALE env var.
+>
+> I would like to see Nick review the merged 3.7 PR and have both him and you agree that this is the thing to do for 3.7.1.  I also want to make sure we understand what affect this will have on 3.7.0 users.  Let's not potentially make things worse.
+>
+> I'm not planning to tag 3.7.1rc for at least another 18 hours.  I'm marking bpo-34589 as "release blocker" and I will not proceed until this is resolved.
+>
+> Thanks!
+> --Ned
+>
+> --
+>   Ned Deily
+>   nad at python.org -- []
+>
+
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From vstinner at redhat.com  Wed Sep 19 07:47:36 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 19 Sep 2018 13:47:36 +0200
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <CADiSq7chv2VQMCekSpKW-Us_e6c0XLXioy09XSdC14OHhvdwMg@mail.gmail.com>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+ <942002A1-4319-4370-BC07-A628BB1B8FC1@python.org>
+ <CADiSq7chv2VQMCekSpKW-Us_e6c0XLXioy09XSdC14OHhvdwMg@mail.gmail.com>
+Message-ID: <CA+3bQGFk5uRNv_njOSgMj+m+OipJn-9H8b6EugwCrz=LTRvD+w@mail.gmail.com>
+
+Le mer. 19 sept. 2018 ? 09:50, Nick Coghlan <ncoghlan at gmail.com> a ?crit :
+> I think the changes to both master and the 3.7 branch should be reverted.
+
+Ok, I prepared a PR to revert the 3.7 change:
+https://github.com/python/cpython/pull/9416
+
+
+> For 3.7, I already said that I think we should just accept that that
+> ship has sailed with 3.7.0 and leave the as-shipped implementation
+> alone for the rest of the 3.7 series: (...) For 3.8, (...), my PR
+> should be conflict free again, and we'll be able to get PEP 538 back
+> to working the way it was always supposed to work (...)
+
+I read all your comments, and honestly, I don't understand you. Once you say:
+
+"we don't actually want anyone turning off locale coercion except for
+debugging purposes"
+https://bugs.python.org/issue34589#msg325554
+
+but you also say that Python 3.7.0 is broken on Centos 7 because it's
+not possible to disable C locale coercion using -E flag:
+https://bugs.python.org/issue34589#msg325246
+
+And here (your email), one more time, you insist to support
+"PYTHONCOERCECLOCALE=0 python3 -E".
+
+I don't understand if you want PYTHONCOERCECLOCALE to be ignored when
+using -E or not.
+
+Since the PEP 538 is something new, we don't have much feedback of
+users to know if it causes any troubles, so I agree that we should
+provide a way to disable the feature, as I provided a way to disable
+the UTF-8 Mode when the LC_CTYPE is C or POSIX. Just to give user a
+full control on locales and encodings.
+
+That's why I came up with a new -X coerce_c_locale option which can be
+used even with -E. I understood that you like the option, since you
+proposed to use it:
+https://bugs.python.org/issue34589#msg325493
+
+--
+
+Moreover, you asked me to make sure that Py_Initialize() and Py_Main()
+cannot enable C locale coercion. That's what I did.
+
+--
+
+IMHO the implementation is really a secondary concern here, the main
+question is: what is the correct behavior?
+
+Nick:
+
+* Do we agree that we need to provide a way to disable C locale
+coercion (PEP 538) even when -E is used?
+* Do you agree that Py_Initialize() and Py_Main() must not enable the
+C locale coercion (PEP 538)?
+
+I understood that your reply is yes for the second question, since you
+insist to push your change which also prevent Py_Initialize() and
+Py_Main() to enable C locale coercion.
+
+If we change 3.7.0 behavior in 3.8, I would prefer to change the
+behavior in 3.7.1. IMHO it's not too late to *fix* 3.7.
+
+--
+
+I decided to push a concrete implementation because I understood that
+you was ok for the -X coerce_c_locale option and you asked me to fix
+my mistakes. I feel guilty that I broke the implementation of your PEP
+:-( Moreover, I'm also exhausted by fixing locales and encodings, I'm
+doing that for one year now, and I expected many times that I was done
+with all regressions and corner cases...
+
+We are discussing these issues since 3 weeks and we failed to fix
+them, whereas Ned asked to push last fixes before 3.7.1. I sent an
+email to make sure that we all agree on the solution.
+
+Well, it seems like again, we failed to agree on the expected *behavior*.
+
+Victor
+
+From vstinner at redhat.com  Wed Sep 19 08:07:30 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 19 Sep 2018 14:07:30 +0200
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <CA+3bQGFk5uRNv_njOSgMj+m+OipJn-9H8b6EugwCrz=LTRvD+w@mail.gmail.com>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+ <942002A1-4319-4370-BC07-A628BB1B8FC1@python.org>
+ <CADiSq7chv2VQMCekSpKW-Us_e6c0XLXioy09XSdC14OHhvdwMg@mail.gmail.com>
+ <CA+3bQGFk5uRNv_njOSgMj+m+OipJn-9H8b6EugwCrz=LTRvD+w@mail.gmail.com>
+Message-ID: <CA+3bQGGHCekv2TkodsN3RPfbfRjz6RfyV0XW8QnKw4biLrsLUQ@mail.gmail.com>
+
+> IMHO the implementation is really a secondary concern here, the main
+> question is: what is the correct behavior?
+>
+> Nick:
+>
+> * Do we agree that we need to provide a way to disable C locale
+> coercion (PEP 538) even when -E is used?
+> * Do you agree that Py_Initialize() and Py_Main() must not enable the
+> C locale coercion (PEP 538)?
+>
+> I understood that your reply is yes for the second question, since you
+> insist to push your change which also prevent Py_Initialize() and
+> Py_Main() to enable C locale coercion.
+
+Hum, I'm not sure if I explained properly my opinion on these questions.
+
+I consider that Python 3.7.0 introduced a regression compared to
+Python 3.6: it changes the LC_CTYPE locale for Python and all child
+processes and it's not possible to opt-out for that when using -E
+command line option. I proposed (and implemented) -X coerce_c_locale=0
+for that. Unicode and locales are so hard to get right that I consider
+that it's important that we provide an option to opt-out,. Otherwise,
+someone will find an use case where Python 3.7 doesn't behave as
+expected and break one specific use case. I didn't notice a complain
+yet, but there are very few Python 3.7 users at this point. For
+example, very few Linux distributions use it yet.
+
+I consider that PYTHONCOERCECLOCALE must not introduce an exception in
+-E: it must be ignored when -E or -I is used. For security reasons,
+it's important to really ignore all PYTHON* environment variables.
+"Unicode" (in general) has been abused in the past to exploit
+vulnerabilities in applications. Locales and encodings are so hard,
+that it's easy to mess up and introduce a vulnerability just caused by
+encodings. It's also important to get deterministic and reproducible
+programs.
+
+For Py_Initialize() and Py_Main(): I have no opinion, so I rely on
+Nick's request to make sure that the C locale is not coerced when
+Python is embeded :-)
+
+Victor
+
+From yselivanov.ml at gmail.com  Wed Sep 19 13:30:26 2018
+From: yselivanov.ml at gmail.com (Yury Selivanov)
+Date: Wed, 19 Sep 2018 13:30:26 -0400
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <CA+3bQGGHCekv2TkodsN3RPfbfRjz6RfyV0XW8QnKw4biLrsLUQ@mail.gmail.com>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+ <942002A1-4319-4370-BC07-A628BB1B8FC1@python.org>
+ <CADiSq7chv2VQMCekSpKW-Us_e6c0XLXioy09XSdC14OHhvdwMg@mail.gmail.com>
+ <CA+3bQGFk5uRNv_njOSgMj+m+OipJn-9H8b6EugwCrz=LTRvD+w@mail.gmail.com>
+ <CA+3bQGGHCekv2TkodsN3RPfbfRjz6RfyV0XW8QnKw4biLrsLUQ@mail.gmail.com>
+Message-ID: <CA+St6D2OH+C0hA_rvENAScQD94BuhW1P23u-Oq_O_dJLZZeqtQ@mail.gmail.com>
+
+Ned, Nick, Victor,
+
+There's an issue with the new PEP 567 (contextvars) C API.
+
+Currently it's designed to expose "PyContext*" and "PyContextVar*"
+pointers.  I want to change that to "PyObject*" as using non-PyObject
+pointers turned out to be a very bad idea (interfacing with Cython is
+particularly challenging).
+
+Is it a good idea to change this in Python 3.7.1?
+
+Yury
+
+From vstinner at redhat.com  Wed Sep 19 15:08:08 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 19 Sep 2018 21:08:08 +0200
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+Message-ID: <CA+3bQGH_Qn-d_okVtf0fi3Lbm0wVdW3gNMC6nwnj9TxsMgaAgQ@mail.gmail.com>
+
+Le mardi 18 septembre 2018, Victor Stinner <vstinner at redhat.com> a ?crit :
+> Hi Unicode and locales lovers,
+>
+> tl; dr Nick, Ned, INADA-san: I modified 3.7.1 to add a new "-X
+> coerce_c_locale=value" option and make sure that the C locale coercion
+> cannot be when Python in embedded: are you ok with these changes?
+
+Nick asked me to revert, which means that no, he is not ok with these
+changes.
+
+I reverted my change in 3.7.
+
+Victor
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180919/77367e06/attachment.html>
+
+From steve at holdenweb.com  Wed Sep 19 15:19:04 2018
+From: steve at holdenweb.com (Steve Holden)
+Date: Wed, 19 Sep 2018 20:19:04 +0100
+Subject: [Python-Dev] [help] where to learn how to upgrade from 2.7 to 3
+In-Reply-To: <CAO41-mMbHv33rO5=tPo2tA_=b=EGG7brh9ep_7RggK6nSBfgkg@mail.gmail.com>
+References: <CAMMNA9K50-6UeVhUr1D54TX+E-uQy87jrK4-9iw6yuh_zVzoHg@mail.gmail.com>
+ <CAO41-mMbHv33rO5=tPo2tA_=b=EGG7brh9ep_7RggK6nSBfgkg@mail.gmail.com>
+Message-ID: <CAMofdRBq_Yc1RXeWRYWyLZH9==U6D5J+0PjfihKVJYmbDRMMqA@mail.gmail.com>
+
+You can find information about python-list at
+https://mail.python.org/mailman/listinfo/python-list
+
+regards
+Steve Holden
+
+
+On Tue, Sep 18, 2018 at 4:28 AM Ryan Gonzalez <rymg19 at gmail.com> wrote:
+
+> Python-dev is for development *of* Python, not *in* Python! You want
+> python-list instead.
+>
+> Also, make sure you include some full example code where the error occurs
+> and what exactly is failing. Right now, it's hard for me to tell what
+> exactly is going on...
+>
+> On Mon, Sep 17, 2018, 8:21 PM Avery Richards <avery.richards at gmail.com>
+> wrote:
+>
+>> I am having so much fun learning python! I did not install the best
+>> version into my mac at first. Now I can't find out how to upgrade, (pip is
+>> awesome but not as conversational as I need it to be on the subject). I've
+>> downloaded the packages from python.org, installed all sorts of stuff,
+>>  I configured my text editor to recognize python3, resolving formatting
+>> strings output, but now as I progress the
+>>
+>> [end = '  ']
+>>
+>> is not recognized. I have figured out a lot on my own, can you help me
+>> upgrade to 3.6 once and for all? Again I consulted with pip and followed
+>> faq websites (maybe a mistake there, idk).
+>>
+>> please please thank you!
+>>
+>> ~Avery
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/rymg19%40gmail.com
+>>
+> --
+>
+> Ryan (????)
+> Yoko Shimomura, ryo (supercell/EGOIST), Hiroyuki Sawano >> everyone else
+> https://refi64.com/
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180919/6bf98f1d/attachment.html>
+
+From nad at python.org  Wed Sep 19 16:24:08 2018
+From: nad at python.org (Ned Deily)
+Date: Wed, 19 Sep 2018 16:24:08 -0400
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <CA+St6D2OH+C0hA_rvENAScQD94BuhW1P23u-Oq_O_dJLZZeqtQ@mail.gmail.com>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+ <942002A1-4319-4370-BC07-A628BB1B8FC1@python.org>
+ <CADiSq7chv2VQMCekSpKW-Us_e6c0XLXioy09XSdC14OHhvdwMg@mail.gmail.com>
+ <CA+3bQGFk5uRNv_njOSgMj+m+OipJn-9H8b6EugwCrz=LTRvD+w@mail.gmail.com>
+ <CA+3bQGGHCekv2TkodsN3RPfbfRjz6RfyV0XW8QnKw4biLrsLUQ@mail.gmail.com>
+ <CA+St6D2OH+C0hA_rvENAScQD94BuhW1P23u-Oq_O_dJLZZeqtQ@mail.gmail.com>
+Message-ID: <E51B58CE-E696-4704-94E3-9B6F5E4FC2C0@python.org>
+
+On Sep 19, 2018, at 13:30, Yury Selivanov <yselivanov.ml at gmail.com> wrote:
+> Ned, Nick, Victor,
+> 
+> There's an issue with the new PEP 567 (contextvars) C API.
+> 
+> Currently it's designed to expose "PyContext*" and "PyContextVar*"
+> pointers.  I want to change that to "PyObject*" as using non-PyObject
+> pointers turned out to be a very bad idea (interfacing with Cython is
+> particularly challenging).
+> 
+> Is it a good idea to change this in Python 3.7.1?
+
+It's hard to make an informed decision without a concrete PR to review.  What would be the impact on any user code that has already adopted it in 3.7.0?
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From nad at python.org  Wed Sep 19 16:48:46 2018
+From: nad at python.org (Ned Deily)
+Date: Wed, 19 Sep 2018 16:48:46 -0400
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <CA+3bQGH_Qn-d_okVtf0fi3Lbm0wVdW3gNMC6nwnj9TxsMgaAgQ@mail.gmail.com>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+ <CA+3bQGH_Qn-d_okVtf0fi3Lbm0wVdW3gNMC6nwnj9TxsMgaAgQ@mail.gmail.com>
+Message-ID: <D13297C2-204E-4073-8E61-3EF38F60F7C2@python.org>
+
+On Sep 19, 2018, at 15:08, Victor Stinner <vstinner at redhat.com> wrote:
+> Le mardi 18 septembre 2018, Victor Stinner <vstinner at redhat.com> a ?crit :
+> > Hi Unicode and locales lovers,
+> >
+> > tl; dr Nick, Ned, INADA-san: I modified 3.7.1 to add a new "-X
+> > coerce_c_locale=value" option and make sure that the C locale coercion
+> > cannot be when Python in embedded: are you ok with these changes?
+> 
+> Nick asked me to revert, which means that no, he is not ok with these changes.
+> 
+> I reverted my change in 3.7.
+
+Thank you, Victor!
+
+Nick, with regard to this does the current state of the 3.7 branch look acceptable now for a 3.7.1?
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From nad at python.org  Wed Sep 19 17:12:47 2018
+From: nad at python.org (Ned Deily)
+Date: Wed, 19 Sep 2018 17:12:47 -0400
+Subject: [Python-Dev] 3.7.1 and 3.6.7 Releases Coming Soon
+In-Reply-To: <3ABAB3B5-6346-49F2-98F7-185303166016@python.org>
+References: <3ABAB3B5-6346-49F2-98F7-185303166016@python.org>
+Message-ID: <EB8E04F7-72C8-4846-9CCA-118E70DFD9AF@python.org>
+
+Update: not surprisingly, there have been a number of issues that have popped up during and since the sprint that we would like to ensure are addressed in 3.7.1 and 3.6.7.  In order to do so, I've been holding off on starting the releases. I think we are now getting close to having the important ones resolved so I'm going to plan on cutting off code for 3.7.1rc1 and 3.6.7rc1 by the end of 2018-09-20 (23:59 AoE).  That's roughly 38 hours from now.
+
+Thanks for all of your help in improving Python for everyone!
+
+--Ned
+
+On Sep 10, 2018, at 18:17, Ned Deily <nad at python.org> wrote:
+> I have now scheduled a 3.7.1 release candidate and rescheduled the 3.6.7 release candidate for 2018-09-18, about a week from today, and 3.7.1 final and 3.6.7 final for 2018-09-28.  That allows us to take advantage of fixes generated at the Core Developers sprint taking place this week.
+> 
+> Please review any open issues you are working on or are interested in and try to get them merged in to the 3.7 and/or 3.6 branches soon - by the beginning of next week at the latest.  As usual, if there are any issues you believe need to be addressed prior to these releases, please ensure there are open issues for them in the bug tracker (bugs.python.org) and that their priorities are set accordingly (e.g. "release blocker").
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From tjreedy at udel.edu  Wed Sep 19 18:08:37 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 19 Sep 2018 18:08:37 -0400
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <397028a3-8368-4d57-57de-916f0847f90f@python.org>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180916222441.13600498@fsol>
+ <CANVK_Qgcx_+af1q4RrNcmSB4sHdxokd8c34=PDt7MyRcz+WKjg@mail.gmail.com>
+ <CANXBEFrOJKHejC7Q3oxHy8wVAQWezFm1Z3efsdr+tZFuioEaRg@mail.gmail.com>
+ <CANVK_QhD2LG7P_rJgF5Z2JW6FnDDVqAEH5jwgeMCnCVQ2LJ6hA@mail.gmail.com>
+ <397028a3-8368-4d57-57de-916f0847f90f@python.org>
+Message-ID: <pnuh95$kpc$1@blaine.gmane.org>
+
+On 9/18/2018 2:38 PM, Steve Dower wrote:
+
+> The primary benefit of the importlib hook approach is that it would not 
+> require rebuilding CPython each time you make a change.
+
+If one edits a .c or .h file, one must rebuild to test.  If one edits a 
+.py module, one does not, and it would be a major nuisance to have to.
+
+My first suggested patches on the tracker (to .py files) were developed 
+in my installed version (after backing up a module).  I have 
+occasionally told people on StackOverflow how to edit an idlelib file to 
+get a future change 'now'.  Other people have occasional reported there 
+own custom modifications.  If Python usually used derived stdlib code, 
+but could optionally use the original .py files via a command-line 
+switch, experimenting with changes to .py files would be easier.
+
+-- 
+Terry Jan Reedy
+
+
+From larry at hastings.org  Wed Sep 19 19:54:52 2018
+From: larry at hastings.org (Larry Hastings)
+Date: Wed, 19 Sep 2018 16:54:52 -0700
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <pnuh95$kpc$1@blaine.gmane.org>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180916222441.13600498@fsol>
+ <CANVK_Qgcx_+af1q4RrNcmSB4sHdxokd8c34=PDt7MyRcz+WKjg@mail.gmail.com>
+ <CANXBEFrOJKHejC7Q3oxHy8wVAQWezFm1Z3efsdr+tZFuioEaRg@mail.gmail.com>
+ <CANVK_QhD2LG7P_rJgF5Z2JW6FnDDVqAEH5jwgeMCnCVQ2LJ6hA@mail.gmail.com>
+ <397028a3-8368-4d57-57de-916f0847f90f@python.org>
+ <pnuh95$kpc$1@blaine.gmane.org>
+Message-ID: <e07a92c2-8eaf-0382-1c18-6019724356d1@hastings.org>
+
+
+
+On 09/19/2018 03:08 PM, Terry Reedy wrote:
+> If Python usually used derived stdlib code, but could optionally use 
+> the original .py files via a command-line switch, experimenting with 
+> changes to .py files would be easier.
+
+When Carl described the patch to me, he said there was already a switch 
+in there somewhere to do exactly that.? I don't remember if it was 
+command-line, it might have been an environment variable.? (I admit I 
+didn't go hunting for it--I didn't need it to test the patch itself, and 
+I had enough to do.)? Regardless, we would definitely have that 
+functionality in before the patch would ever be considered for merging.
+
+
+We talked about it last week at the core dev sprint, and I thought about 
+it some more.? As a result here's the behavior I propose.? I'm going to 
+call the process "freezing" and the result "frozen modules", even though 
+that's an already-well-overused name and I hope we'll pick something 
+else before it gets merged.
+
+    First, .py files that get frozen will have their date/time stamps
+    set to a known value, both as part of the tarball / zip file, and
+    when installed (a la "make install", the Win32 installer, etc).?
+    There are some constraints on this; we distribute Python via .zip
+    files, and .zip only supports 2 second resolution for date/time
+    stamps.? So maybe something like this: the date is the approximate
+    date of the release, and the time is the version number (e.g.
+    03:08:00 for all 3.8.x releases).
+
+    When attempting to load a frozen Python module, Python will stat the
+    .py file.? If the date/time and size match what we expected, Python
+    will use the frozen module.? Otherwise it'll fall back to
+    conventional behavior, including supporting .pyc files.
+
+    There will also be a switch (command-line? environment variable?
+    compile-time flag? all three?) for people who control their
+    environments where you can skip the .py file and use the frozen
+    module every time.
+
+In short: correctness by default, and more speed available if you know 
+it's safe for your use case.? Use of the optimization is intentionally a 
+little fragile, to ensure correctness.
+
+
+Cheers,
+
+
+//arry/
+
+p.s. Why not 03:08:01 for 3.8.1?? That wouldn't be stored properly in 
+the .zip file with its only-two-second resolution.? And multiplying the 
+tertiary version number by 2--or 10, etc--would be surprising.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180919/5f82645d/attachment.html>
+
+From greg at krypto.org  Wed Sep 19 20:34:01 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 19 Sep 2018 17:34:01 -0700
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <CACac1F8FOEUnFosJ0EA3eiOVVkFPJif_xmjEF=co9NtvCsSb0w@mail.gmail.com>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180914215424.hjxvq5l7m66schas@python.ca>
+ <58cdf8c3-1b23-326c-2244-835f16397b51@hastings.org>
+ <20180914222558.yuromalgkggfp2re@python.ca>
+ <CACac1F8FOEUnFosJ0EA3eiOVVkFPJif_xmjEF=co9NtvCsSb0w@mail.gmail.com>
+Message-ID: <CAGE7PN+ncFGSXZeuwSB1HFMqOep4OKx+C4++aWjvQ0JNp42ETA@mail.gmail.com>
+
+On Sat, Sep 15, 2018 at 2:53 AM Paul Moore <p.f.moore at gmail.com> wrote:
+
+> On Fri, 14 Sep 2018 at 23:28, Neil Schemenauer <nas-python at arctrix.com>
+> wrote:
+> >
+> > On 2018-09-14, Larry Hastings wrote:
+> > > [..] adding the stat calls back in costs you half the startup.  So
+> > > any mechanism where we're talking to the disk _at all_ simply
+> > > isn't going to be as fast.
+> >
+> > Okay, so if we use hundreds of small .pyc files scattered all over
+> > the disk, that's bad?  Who would have thunk it. ;-P
+> >
+> > We could have a new format, .pya (compiled python archive) that has
+> > data for many .pyc files in it.  In normal runs you would have one
+> > or just and handlful of these things (e.g. one for stdlib, one for
+> > your app and all the packages it uses).  Then you mmap these just
+> > once and rely on OS page faults to bring in the data as you need it.
+> > The .pya would have a hash table at the start or end that tells you
+> > the offset for each module.
+>
+> Isn't that essentially what putting the stdlib in a zipfile does? (See
+> the windows embedded distribution for an example). It probably uses
+> normal IO rather than mmap, but maybe adding a "use mmap" flag to the
+> zipfile module would be a more general enhancement that zipimport
+> could use for free.
+>
+> Paul
+>
+
+To share a lesson learned: Putting the stdlib in a zip file is doable, but
+comes with a caveats that would likely make OS distros want to undo the
+change if done with CPython today:
+
+We did that for one of our internal pre-built Python 2.7 distributions used
+internally at Google used in the 2012-2014 timeframe.  Thinking at the time
+"yay, less inodes and disk space and stat calls by the interpreter on all
+machines."
+
+The caveat we didn't anticipate was unfortunately that zipimport.c cannot
+handle the zip file changing out from underneath a running process.  Ever.
+It does not hold an open file handle to the zip file (which on posix
+systems would ameliorate the problem) but instead regularly reopens it by
+name while using a startup-time cached zip file index.  So when you deploy
+a change to your Python interpreter (as any OS distro package update,
+security update, upgrade, etc.) existing running processes that go on to do
+another import of a stdlib module that hadn't already been imported
+(statistically likely to be a codec related module, as those are often
+imported upon first use rather than at startup time with most modules the
+way people tend to structure their code) read a different zipfile using a
+cached index from a previous one and... boom.  A strange rolling error in
+production that is not pretty to debug.  Fixing zipimport.c to deal with
+this properly was tried, but still ran into issues, and was deemed
+ultimately infeasible.  There's a BPO issue or three filed about this if
+you go hunting.
+
+On the contrary, having compiled in constants in the executable is fine and
+will never suffer from this problem.  Those are mapped as RO data by the
+dynamic loader and demand paged.  No complicated code in CPython required
+to manage them aside from the stdlib startup code import intercepting logic
+(which should be reasonably small, even without having looked at the patch
+in the PR yet).
+
+There's ongoing work to rewrite zipimport.c in python using zipfile itself
+which if used for the stdlib will require everything that it needs to be
+frozen into C data similar to existing bootstrap import logic - and being a
+different implementation of zip file reading code might be possible to do
+without suffering the same caveat.  But storing the data on the C side
+still sounds like a much simpler code path to me.
+
+The maintenance concern is mostly about testing and building to make sure
+we include everything needed by the interpreter and keep it up to date.
+I'd like a configure flag controlling when the feature is to be "on by
+default". Having it off by default and enabled by an interpreter command
+line flag otherwise. Consider adding the individual configure flag to the
+set of things that --with-optimizations turns on for people.
+
+Don't be surprised if Facebook reports a startup time speedup greater than
+what you ever measure yourself. Their applications are different, and if
+they're using their XAR thing that mounts applications as a FUSE filesystem
+- that increases stat() overhead beyond what it already is with additional
+kernel round trips so it'll benefit that design even more.
+
+Any savings in startup time by not doing a crazy amount of sequential high
+latency blocking system calls is a good thing regardless.  Not just for
+command line tools.  Serving applications that are starting up are
+effectively spinning consuming CPUs to ultimately compute the same result
+everywhere for every application every time before performing useful
+work...  You can measure such an optimization in a worthwhile amount of $
+or carbon footprint saved around the world.  Heat death of the universe by
+a billion cuts.  Thanks for working on this!
+
+-G
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180919/66e63710/attachment-0001.html>
+
+From barry at python.org  Wed Sep 19 21:25:07 2018
+From: barry at python.org (Barry Warsaw)
+Date: Wed, 19 Sep 2018 21:25:07 -0400
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <CAGE7PN+ncFGSXZeuwSB1HFMqOep4OKx+C4++aWjvQ0JNp42ETA@mail.gmail.com>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180914215424.hjxvq5l7m66schas@python.ca>
+ <58cdf8c3-1b23-326c-2244-835f16397b51@hastings.org>
+ <20180914222558.yuromalgkggfp2re@python.ca>
+ <CACac1F8FOEUnFosJ0EA3eiOVVkFPJif_xmjEF=co9NtvCsSb0w@mail.gmail.com>
+ <CAGE7PN+ncFGSXZeuwSB1HFMqOep4OKx+C4++aWjvQ0JNp42ETA@mail.gmail.com>
+Message-ID: <DC26D36F-2E89-4EF5-8E4A-E0E3FE3E6365@python.org>
+
+On Sep 19, 2018, at 20:34, Gregory P. Smith <greg at krypto.org> wrote:
+
+> There's ongoing work to rewrite zipimport.c in python using zipfile itself
+
+Great timing!  Serhiy?s rewrite of zipimport in Python has just landed in 3.8, although it doesn?t use zipfile.  What?s in git now is a pretty straightforward translation from the original C, so it could use some clean ups (and I think Serhiy is planning that).  So the problem you describe should be easier to fix now in 3.8.  It would be interesting to see if we can squeeze more performance and better behavior out of it now that it?s in Python.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180919/c22be7a7/attachment.sig>
+
+From eric at trueblade.com  Wed Sep 19 21:37:30 2018
+From: eric at trueblade.com (Eric V. Smith)
+Date: Wed, 19 Sep 2018 21:37:30 -0400
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <DC26D36F-2E89-4EF5-8E4A-E0E3FE3E6365@python.org>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180914215424.hjxvq5l7m66schas@python.ca>
+ <58cdf8c3-1b23-326c-2244-835f16397b51@hastings.org>
+ <20180914222558.yuromalgkggfp2re@python.ca>
+ <CACac1F8FOEUnFosJ0EA3eiOVVkFPJif_xmjEF=co9NtvCsSb0w@mail.gmail.com>
+ <CAGE7PN+ncFGSXZeuwSB1HFMqOep4OKx+C4++aWjvQ0JNp42ETA@mail.gmail.com>
+ <DC26D36F-2E89-4EF5-8E4A-E0E3FE3E6365@python.org>
+Message-ID: <8d100c3b-e829-6c4f-7f8f-64bf64689717@trueblade.com>
+
+On 9/19/2018 9:25 PM, Barry Warsaw wrote:
+> On Sep 19, 2018, at 20:34, Gregory P. Smith <greg at krypto.org> wrote:
+> 
+>> There's ongoing work to rewrite zipimport.c in python using zipfile itself
+> 
+> Great timing!  Serhiy?s rewrite of zipimport in Python has just landed in 3.8, although it doesn?t use zipfile.  What?s in git now is a pretty straightforward translation from the original C, so it could use some clean ups (and I think Serhiy is planning that).  So the problem you describe should be easier to fix now in 3.8.  It would be interesting to see if we can squeeze more performance and better behavior out of it now that it?s in Python.
+
+You don't hear "better performance" and "now that it's in Python" 
+together very often! Although I agree with your point: it's like how we 
+tried and failed to make progress on namespace packages when import was 
+written in C, and then once it was in Python it was easy to add the 
+functionality.
+
+Eric
+
+
+From ncoghlan at gmail.com  Thu Sep 20 06:11:45 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 20 Sep 2018 20:11:45 +1000
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <CA+3bQGGHCekv2TkodsN3RPfbfRjz6RfyV0XW8QnKw4biLrsLUQ@mail.gmail.com>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+ <942002A1-4319-4370-BC07-A628BB1B8FC1@python.org>
+ <CADiSq7chv2VQMCekSpKW-Us_e6c0XLXioy09XSdC14OHhvdwMg@mail.gmail.com>
+ <CA+3bQGFk5uRNv_njOSgMj+m+OipJn-9H8b6EugwCrz=LTRvD+w@mail.gmail.com>
+ <CA+3bQGGHCekv2TkodsN3RPfbfRjz6RfyV0XW8QnKw4biLrsLUQ@mail.gmail.com>
+Message-ID: <CADiSq7d2mhd9Rc-A85zPCqhQafmD78NAVgPeLn3hr03NuPHe3Q@mail.gmail.com>
+
+On Wed, 19 Sep 2018 at 22:07, Victor Stinner <vstinner at redhat.com> wrote:
+>
+> > IMHO the implementation is really a secondary concern here, the main
+> > question is: what is the correct behavior?
+> >
+> > Nick:
+> >
+> > * Do we agree that we need to provide a way to disable C locale
+> > coercion (PEP 538) even when -E is used?
+> > * Do you agree that Py_Initialize() and Py_Main() must not enable the
+> > C locale coercion (PEP 538)?
+> >
+> > I understood that your reply is yes for the second question, since you
+> > insist to push your change which also prevent Py_Initialize() and
+> > Py_Main() to enable C locale coercion.
+>
+> Hum, I'm not sure if I explained properly my opinion on these questions.
+>
+> I consider that Python 3.7.0 introduced a regression compared to
+> Python 3.6: it changes the LC_CTYPE locale for Python and all child
+> processes and it's not possible to opt-out for that when using -E
+> command line option.
+
+This *wasn't* broken in the original PEP 538 implementation - it was
+only broken when you ignored the PEP and tried to make everything work
+the same way PEP 540 did, including moving the coercion out of the
+Python CLI and into the runtime library APIs.
+
+I still think the locale coercion handling in Python 3.7.x is broken,
+but adding MORE code is NOT the right answer: going back to the
+original (correct) implementation is.
+
+So changing it back to the way the PEP is supposed to work is fine,
+making everything more complicated for no good reason whatsoever is
+not fine.
+
+What changed is the fact I decided it wasn't worth holding up 3.7.1
+over (and it certainly isn't worth adding a new -X option in a point
+release).
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Thu Sep 20 06:20:53 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 20 Sep 2018 20:20:53 +1000
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <D13297C2-204E-4073-8E61-3EF38F60F7C2@python.org>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+ <CA+3bQGH_Qn-d_okVtf0fi3Lbm0wVdW3gNMC6nwnj9TxsMgaAgQ@mail.gmail.com>
+ <D13297C2-204E-4073-8E61-3EF38F60F7C2@python.org>
+Message-ID: <CADiSq7e2S_VrxerOLijN1QOvB3pLX7jXCK1MPhZGH2H-=KB1Rw@mail.gmail.com>
+
+On Thu, 20 Sep 2018 at 06:48, Ned Deily <nad at python.org> wrote:
+>
+> On Sep 19, 2018, at 15:08, Victor Stinner <vstinner at redhat.com> wrote:
+> > Le mardi 18 septembre 2018, Victor Stinner <vstinner at redhat.com> a ?crit :
+> > > Hi Unicode and locales lovers,
+> > >
+> > > tl; dr Nick, Ned, INADA-san: I modified 3.7.1 to add a new "-X
+> > > coerce_c_locale=value" option and make sure that the C locale coercion
+> > > cannot be when Python in embedded: are you ok with these changes?
+> >
+> > Nick asked me to revert, which means that no, he is not ok with these changes.
+> >
+> > I reverted my change in 3.7.
+>
+> Thank you, Victor!
+>
+> Nick, with regard to this does the current state of the 3.7 branch look acceptable now for a 3.7.1?
+
+It's still broken relative to the PEP in the following respects:
+
+- Py_Initialize() coerces the C locale to C.UTF-8, even though it's
+not supposed to
+- Py_Main() coerces the C locale to C.UTF-8, even though it's not supposed to
+- PYTHONCOERCECLOCALE=0 doesn't work if -E or -I are passed on the
+command line (but it's supposed to)
+- PYTHONCOERCECLOCALE=warn doesn't work if -E or -I are passed on the
+command line (it's nominally supposed to do this too, but I'm less
+concerned about this one)
+
+The problem with Victor's patch is that instead of reverting to the
+as-designed-and-accepted PEP the way my PR (mostly) does, it instead
+introduces a whole new command line option (which then needs to be
+documented and tested), and still coerces *far* too late (not until
+Py_Initialise is already running, after who knows how much code in the
+embedding application has already executed).
+
+I don't have the time required to push through Victor's insistence
+that -E and -I are sacrosanct and must always be respected (despite
+PEP 538 explicitly saying that they won't be where PYTHONCOERCECLOCALE
+is concerned), and so we can't *possibly* change back to having the
+locale coercion work the way I originally implemented it, so I wrote
+the 3.7.x series off as a lost cause, and decided to devote my
+energies to getting things back to the way they were supposed to be
+for 3.8+.
+
+Regards,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Thu Sep 20 07:06:44 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 20 Sep 2018 21:06:44 +1000
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <CADiSq7e2S_VrxerOLijN1QOvB3pLX7jXCK1MPhZGH2H-=KB1Rw@mail.gmail.com>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+ <CA+3bQGH_Qn-d_okVtf0fi3Lbm0wVdW3gNMC6nwnj9TxsMgaAgQ@mail.gmail.com>
+ <D13297C2-204E-4073-8E61-3EF38F60F7C2@python.org>
+ <CADiSq7e2S_VrxerOLijN1QOvB3pLX7jXCK1MPhZGH2H-=KB1Rw@mail.gmail.com>
+Message-ID: <CADiSq7daQMWwcfRRBQn8wgUSgYhMjPDPDPRrquh9S5Bb5qGdWg@mail.gmail.com>
+
+On Thu, 20 Sep 2018 at 20:20, Nick Coghlan <ncoghlan at gmail.com> wrote:
+>
+> On Thu, 20 Sep 2018 at 06:48, Ned Deily <nad at python.org> wrote:
+> >
+> > On Sep 19, 2018, at 15:08, Victor Stinner <vstinner at redhat.com> wrote:
+> > > Le mardi 18 septembre 2018, Victor Stinner <vstinner at redhat.com> a ?crit :
+> > > > Hi Unicode and locales lovers,
+> > > >
+> > > > tl; dr Nick, Ned, INADA-san: I modified 3.7.1 to add a new "-X
+> > > > coerce_c_locale=value" option and make sure that the C locale coercion
+> > > > cannot be when Python in embedded: are you ok with these changes?
+> > >
+> > > Nick asked me to revert, which means that no, he is not ok with these changes.
+> > >
+> > > I reverted my change in 3.7.
+> >
+> > Thank you, Victor!
+> >
+> > Nick, with regard to this does the current state of the 3.7 branch look acceptable now for a 3.7.1?
+>
+> It's still broken relative to the PEP in the following respects:
+>
+> - Py_Initialize() coerces the C locale to C.UTF-8, even though it's
+> not supposed to
+> - Py_Main() coerces the C locale to C.UTF-8, even though it's not supposed to
+> - PYTHONCOERCECLOCALE=0 doesn't work if -E or -I are passed on the
+> command line (but it's supposed to)
+> - PYTHONCOERCECLOCALE=warn doesn't work if -E or -I are passed on the
+> command line (it's nominally supposed to do this too, but I'm less
+> concerned about this one)
+
+It's worth noting that even though the PYTHONCOERCECLOCALE=0 off
+switch doesn't currently work as described in PEP 538 when passing -E
+or -I, setting "LC_ALL=C" does (since that's handled by the C library,
+independently of any CPython command line flags).
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Thu Sep 20 09:18:15 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 20 Sep 2018 23:18:15 +1000
+Subject: [Python-Dev] Nearly - all tests PASS for AIX
+In-Reply-To: <ccfdc861-b0e4-4508-a541-46b126cad755@felt.demon.nl>
+References: <908465e6-d28b-a4ec-d687-1ff3826e7e84@felt.demon.nl>
+ <ccfdc861-b0e4-4508-a541-46b126cad755@felt.demon.nl>
+Message-ID: <CADiSq7fJt_aUdD992PsABv7xEDq-3AFX0+Bpu=EecThNmHrvjg@mail.gmail.com>
+
+On Wed, 19 Sep 2018 at 00:00, Michael <aixtools at felt.demon.nl> wrote:
+> On 17/09/2018 12:50, Michael wrote:
+> > Dear all,
+> >
+> > The last two months I have spent nearly all my free time to cleanup "a
+> > frustration" - from my side - the long list of failing tests for AIX
+> > (there were nearly 20 when I started).
+>
+> == Tests result: SUCCESS ==
+>
+> 393 tests OK.
+
+Nice!
+
+> 1 test altered the execution environment:
+>     test_threading
+>
+> 25 tests skipped:
+>     test_dbm_gnu test_devpoll test_epoll test_gdb test_idle
+>     test_kqueue test_lzma test_msilib test_ossaudiodev test_readline
+>     test_spwd test_sqlite test_startfile test_tcl test_tix test_tk
+>     test_ttk_guionly test_ttk_textonly test_turtle test_unicode_file
+>     test_unicode_file_functions test_winconsoleio test_winreg
+>     test_winsound test_zipfile64
+>
+> Total duration: 13 min 30 sec
+> Tests result: SUCCESS
+>
+> May I put this up as a PR - not for merging - but to see how it
+> performs, or does not perform, with the Travis Ci, etc. tests?
+
+That seems like a reasonable approach to me - it will also allow folks
+to give the changes a quick skim and provide suggestions for splitting
+it up into more easily reviewed PRs.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Thu Sep 20 09:26:46 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 20 Sep 2018 23:26:46 +1000
+Subject: [Python-Dev] debugging test_importlib.test_bad_traverse -
+ script status is SUCCESS - but FAIL is expected.
+In-Reply-To: <dd411728-58b5-ae7f-0f9a-10fe0ecc25af@felt.demon.nl>
+References: <10c3d2a1-85e3-5747-77a2-8c282565e8ce@felt.demon.nl>
+ <dd411728-58b5-ae7f-0f9a-10fe0ecc25af@felt.demon.nl>
+Message-ID: <CADiSq7eX4S85_wwWQ98doa+ApNoVegs0NChXEyEa7j5V8bm9gg@mail.gmail.com>
+
+On Tue, 18 Sep 2018 at 19:52, Michael <aixtools at felt.demon.nl> wrote:
+>
+> On 17/09/2018 09:39, Michael wrote:
+> > I read the discussion related to issue32374. That seems to be sure that
+> > other events that could
+> > cause the test to fail (i.e., the program executes successfully) are
+> > caught early, and/or ignored
+> > so that the program fails - and the test succeeds.
+>
+> After reading below, I would appreciate knowing whether to ask that
+> issue32374 be reopened and the test adjusted so that the test is
+> "SkipIf" AIX? Or, something else? I'll work on something else, but I do
+> not want to guess the current intent of this test module.
+
+Reviewing https://bugs.python.org/issue32374, the purpose of the test
+case is to check that failing to handle the m_state == NULL case will
+always segfault (because the import machinery always checks that
+m_traverse is valid after the create stage), rather than only
+segfaulting sometimes (based on whether or not a cyclic gc run
+triggers at an inopportune moment).
+
+Since the AIX case won't segfault in either the deliberately triggered
+traversal *or* in a GC-induced traversal, skipping the test case on
+AIX seems fine (with the note that null pointer accesses are just zero
+on AIX, not a segfault).
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From stefanrin at gmail.com  Thu Sep 20 13:29:22 2018
+From: stefanrin at gmail.com (Stefan Ring)
+Date: Thu, 20 Sep 2018 19:29:22 +0200
+Subject: [Python-Dev] SEC: Spectre variant 2: GCC:
+ -mindirect-branch=thunk -mindirect-branch-register
+In-Reply-To: <CAEfz+Typ+3BSnrn8Gg_xXH9aCadVZwsz=wK4zs=F99wXb_QiHw@mail.gmail.com>
+References: <CACfEFw9+XkxC1DMsyRjgQ=ay-FhAumD1_3qtkBTS9Xc85hUZZg@mail.gmail.com>
+ <CACfEFw_P+O_-cQZGAH+sW3uBK-4PqAE2Pv9VCo0STjYEibh08A@mail.gmail.com>
+ <395ca1a4-f997-f533-241c-c3d3edc25f7e@python.org>
+ <CACfEFw9i6MMFtWzrB9R3=2qQKr0kdefTXmRaknHkNBDRQfXONQ@mail.gmail.com>
+ <7f61f443-8599-31dc-58ee-609843f86250@python.org>
+ <CACfEFw_Vpud1ym4+tAqhYf9BQcMphHRJCGZ=hMTiHSY4MyrBHQ@mail.gmail.com>
+ <CAEfz+Typ+3BSnrn8Gg_xXH9aCadVZwsz=wK4zs=F99wXb_QiHw@mail.gmail.com>
+Message-ID: <CAAxjCEw1--rkV=-EdGDbAM2CZe6eqpF49PjTh=TRNb9X9MBLWw@mail.gmail.com>
+
+On Tue, Sep 18, 2018 at 8:38 AM INADA Naoki <songofacandy at gmail.com> wrote:
+
+> I think this topic should split to two topics: (1) Guard Python
+> process from Spectre/Meltdown
+> attack from other process, (2) Prohibit Python code attack other
+> processes by using
+> Spectre/Meltdown.
+
+(3) Guard Python from performance degradation by overly aggressive
+Spectre "mitigation".
+
+From wes.turner at gmail.com  Thu Sep 20 14:08:26 2018
+From: wes.turner at gmail.com (Wes Turner)
+Date: Thu, 20 Sep 2018 14:08:26 -0400
+Subject: [Python-Dev] SEC: Spectre variant 2: GCC:
+ -mindirect-branch=thunk -mindirect-branch-register
+In-Reply-To: <CAAxjCEw1--rkV=-EdGDbAM2CZe6eqpF49PjTh=TRNb9X9MBLWw@mail.gmail.com>
+References: <CACfEFw9+XkxC1DMsyRjgQ=ay-FhAumD1_3qtkBTS9Xc85hUZZg@mail.gmail.com>
+ <CACfEFw_P+O_-cQZGAH+sW3uBK-4PqAE2Pv9VCo0STjYEibh08A@mail.gmail.com>
+ <395ca1a4-f997-f533-241c-c3d3edc25f7e@python.org>
+ <CACfEFw9i6MMFtWzrB9R3=2qQKr0kdefTXmRaknHkNBDRQfXONQ@mail.gmail.com>
+ <7f61f443-8599-31dc-58ee-609843f86250@python.org>
+ <CACfEFw_Vpud1ym4+tAqhYf9BQcMphHRJCGZ=hMTiHSY4MyrBHQ@mail.gmail.com>
+ <CAEfz+Typ+3BSnrn8Gg_xXH9aCadVZwsz=wK4zs=F99wXb_QiHw@mail.gmail.com>
+ <CAAxjCEw1--rkV=-EdGDbAM2CZe6eqpF49PjTh=TRNb9X9MBLWw@mail.gmail.com>
+Message-ID: <CACfEFw9XJzui4LSDAZw=JPug7jfEzfME-sDO4G02zw2aug2tqA@mail.gmail.com>
+
+On Thursday, September 20, 2018, Stefan Ring <stefanrin at gmail.com> wrote:
+
+> On Tue, Sep 18, 2018 at 8:38 AM INADA Naoki <songofacandy at gmail.com>
+> wrote:
+>
+> > I think this topic should split to two topics: (1) Guard Python
+> > process from Spectre/Meltdown
+> > attack from other process, (2) Prohibit Python code attack other
+> > processes by using
+> > Spectre/Meltdown.
+>
+> (3) Guard Python from performance degradation by overly aggressive
+> Spectre "mitigation".
+
+
+> Spectre has the potential of having a greater impact on cloud providers
+than Meltdown. Whereas Meltdown allows unauthorized applications to read
+from privileged memory to obtain sensitive data from processes running on
+the same cloud server, Spectre can allow malicious programs to induce a
+hypervisor to transmit the data to a guest system running on top of it.
+
+- Private SSL certs
+- Cached keys and passwords in non-zeroed RAM
+- [...]
+
+https://en.wikipedia.org/wiki/Spectre_(security_vulnerability)
+
+
+I really shouldn't need to apologise for bringing this up here.
+
+Here's one:
+https://github.com/Eugnis/spectre-attack/blob/master/Source.c
+
+Is this too slow in CPython with:
+- Coroutines (asyncio (tulip))
+- PyPy JIT *
+- Numba JIT *
+- C Extensions *
+- Cython *
+
+* Not anyone here's problem.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180920/f9deb698/attachment.html>
+
+From aixtools at felt.demon.nl  Thu Sep 20 13:58:43 2018
+From: aixtools at felt.demon.nl (Michael)
+Date: Thu, 20 Sep 2018 19:58:43 +0200
+Subject: [Python-Dev] Nearly - all tests PASS for AIX
+In-Reply-To: <CADiSq7fJt_aUdD992PsABv7xEDq-3AFX0+Bpu=EecThNmHrvjg@mail.gmail.com>
+References: <908465e6-d28b-a4ec-d687-1ff3826e7e84@felt.demon.nl>
+ <ccfdc861-b0e4-4508-a541-46b126cad755@felt.demon.nl>
+ <CADiSq7fJt_aUdD992PsABv7xEDq-3AFX0+Bpu=EecThNmHrvjg@mail.gmail.com>
+Message-ID: <de737e4b-b7e7-2f14-26ac-5c324c70cca2@felt.demon.nl>
+
+On 20/09/2018 15:18, Nick Coghlan wrote:
+> That seems like a reasonable approach to me - it will also allow folks
+> to give the changes a quick skim and provide suggestions for splitting
+> it up into more easily reviewed PRs.
+I already have them as individual PR's (8 Open) -
+https://github.com/python/cpython/pulls?q=is%3Aopen+is%3Apr+author%3Aaixtools+sort%3Aupdated-desc
+
+But I'll add the combined one to get it through grinder and see if there
+are unexpected surprises.
+
+Michael
+>
+> Cheers,
+> Nick.
+
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 488 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180920/4ee01c8d/attachment.sig>
+
+From carl.shapiro at gmail.com  Thu Sep 20 14:21:06 2018
+From: carl.shapiro at gmail.com (Carl Shapiro)
+Date: Thu, 20 Sep 2018 11:21:06 -0700
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <pnstue$bc1$1@blaine.gmane.org>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180916222441.13600498@fsol>
+ <CANVK_Qgcx_+af1q4RrNcmSB4sHdxokd8c34=PDt7MyRcz+WKjg@mail.gmail.com>
+ <CANXBEFrOJKHejC7Q3oxHy8wVAQWezFm1Z3efsdr+tZFuioEaRg@mail.gmail.com>
+ <CANVK_QhD2LG7P_rJgF5Z2JW6FnDDVqAEH5jwgeMCnCVQ2LJ6hA@mail.gmail.com>
+ <397028a3-8368-4d57-57de-916f0847f90f@python.org>
+ <CANVK_QheiVR-Z13c8PyVniPpS=LRtkkH7XgvkhfDwqSBU5++ZA@mail.gmail.com>
+ <pnstue$bc1$1@blaine.gmane.org>
+Message-ID: <CANVK_QiODjaLVddmpJ3DfDzo5ZAOWrxO2jnZz5o3tzaEeR_urg@mail.gmail.com>
+
+On Wed, Sep 19, 2018 at 12:32 AM, Stefan Behnel <stefan_ml at behnel.de> wrote:
+
+> Also, one thing that would be interesting to find out is whether constant
+> Python data structures can actually be pre-allocated in the data segment
+> (and I mean their object structs) . Then things like tuples of strings
+> (argument lists and what not) could be loaded and the objects quickly
+> initialised (although, is that even necessary?), rather than having to heap
+> allocate and create them. Probably something that we should try out in
+> Cython.
+>
+
+I might not be fully understanding the scope of your question but this
+patch does allocate constant data structures in the data segment.  We could
+be more aggressive with that but we limit our scope to what is presented to
+the un-marshaling code.  This may be relevant to Cython, as well.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180920/0a550e59/attachment.html>
+
+From stefan_ml at behnel.de  Fri Sep 21 01:53:05 2018
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Fri, 21 Sep 2018 07:53:05 +0200
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <CANVK_QiODjaLVddmpJ3DfDzo5ZAOWrxO2jnZz5o3tzaEeR_urg@mail.gmail.com>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180916222441.13600498@fsol>
+ <CANVK_Qgcx_+af1q4RrNcmSB4sHdxokd8c34=PDt7MyRcz+WKjg@mail.gmail.com>
+ <CANXBEFrOJKHejC7Q3oxHy8wVAQWezFm1Z3efsdr+tZFuioEaRg@mail.gmail.com>
+ <CANVK_QhD2LG7P_rJgF5Z2JW6FnDDVqAEH5jwgeMCnCVQ2LJ6hA@mail.gmail.com>
+ <397028a3-8368-4d57-57de-916f0847f90f@python.org>
+ <CANVK_QheiVR-Z13c8PyVniPpS=LRtkkH7XgvkhfDwqSBU5++ZA@mail.gmail.com>
+ <pnstue$bc1$1@blaine.gmane.org>
+ <CANVK_QiODjaLVddmpJ3DfDzo5ZAOWrxO2jnZz5o3tzaEeR_urg@mail.gmail.com>
+Message-ID: <po20ru$jfk$1@blaine.gmane.org>
+
+Carl Shapiro schrieb am 20.09.2018 um 20:21:
+> On Wed, Sep 19, 2018 at 12:32 AM, Stefan Behnel wrote:
+> 
+>> Also, one thing that would be interesting to find out is whether constant
+>> Python data structures can actually be pre-allocated in the data segment
+>> (and I mean their object structs) . Then things like tuples of strings
+>> (argument lists and what not) could be loaded and the objects quickly
+>> initialised (although, is that even necessary?), rather than having to heap
+>> allocate and create them. Probably something that we should try out in
+>> Cython.
+> 
+> I might not be fully understanding the scope of your question but this
+> patch does allocate constant data structures in the data segment.  We could
+> be more aggressive with that but we limit our scope to what is presented to
+> the un-marshaling code.
+
+Ah, thanks, yes, it works recursively, also for tuples and code objects.
+Took me a while to figure out how to open the "frozemodules.c" file, but
+looking at that makes it clear. Yes, that's what I meant.
+
+
+> This may be relevant to Cython, as well.
+
+Totally. This might actually be more relevant for Cython than for CPython
+in the end, because it wouldn't be limited to the stdlib and its core modules.
+
+It's a bit more difficult for us, because this probably won't work easily
+across Python releases (2.[67] and 3.[45678] for now) and also definitely
+not for PyPy, but that just means some multiplication of the generated
+code, and we have the dynamic part of it already. Supporting that for
+Unicode strings will be fun, I'm sure. :)
+
+Stefan
+
+
+From stefan_ml at behnel.de  Fri Sep 21 02:20:47 2018
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Fri, 21 Sep 2018 08:20:47 +0200
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+Message-ID: <po22fs$id$1@blaine.gmane.org>
+
+Larry Hastings schrieb am 14.09.2018 um 23:27:
+> What the patch does: it takes all the Python modules that are loaded as
+> part of interpreter startup and deserializes the marshalled .pyc file into
+> precreated objects stored as static C data.
+
+What about the small integers cache? The C serialisation generates several
+PyLong objects that would normally reside in the cache. Is this handled
+somewhere? I guess the cache could entirely be loaded from the data
+segment. And the same would have to be done for interned strings. Basically
+anything that CPython only wants to have one instance of.
+
+That would severely limit the application of this optimisation to external
+modules, though. I don't see a way how they could load their data
+structures from the data segment without duplicating all sorts of "singletons".
+
+Stefan
+
+
+From leewangzhong+python at gmail.com  Fri Sep 21 02:24:52 2018
+From: leewangzhong+python at gmail.com (Franklin? Lee)
+Date: Fri, 21 Sep 2018 02:24:52 -0400
+Subject: [Python-Dev] SEC: Spectre variant 2: GCC:
+ -mindirect-branch=thunk -mindirect-branch-register
+In-Reply-To: <CACfEFw9XJzui4LSDAZw=JPug7jfEzfME-sDO4G02zw2aug2tqA@mail.gmail.com>
+References: <CACfEFw9+XkxC1DMsyRjgQ=ay-FhAumD1_3qtkBTS9Xc85hUZZg@mail.gmail.com>
+ <CACfEFw_P+O_-cQZGAH+sW3uBK-4PqAE2Pv9VCo0STjYEibh08A@mail.gmail.com>
+ <395ca1a4-f997-f533-241c-c3d3edc25f7e@python.org>
+ <CACfEFw9i6MMFtWzrB9R3=2qQKr0kdefTXmRaknHkNBDRQfXONQ@mail.gmail.com>
+ <7f61f443-8599-31dc-58ee-609843f86250@python.org>
+ <CACfEFw_Vpud1ym4+tAqhYf9BQcMphHRJCGZ=hMTiHSY4MyrBHQ@mail.gmail.com>
+ <CAEfz+Typ+3BSnrn8Gg_xXH9aCadVZwsz=wK4zs=F99wXb_QiHw@mail.gmail.com>
+ <CAAxjCEw1--rkV=-EdGDbAM2CZe6eqpF49PjTh=TRNb9X9MBLWw@mail.gmail.com>
+ <CACfEFw9XJzui4LSDAZw=JPug7jfEzfME-sDO4G02zw2aug2tqA@mail.gmail.com>
+Message-ID: <CAB_e7izd1wpnQN+rFVHTyoNyZZu=uN--0LDuJ+7-Dw33t0006w@mail.gmail.com>
+
+On Thu, Sep 20, 2018 at 2:10 PM Wes Turner <wes.turner at gmail.com> wrote:
+>
+> On Thursday, September 20, 2018, Stefan Ring <stefanrin at gmail.com> wrote:
+>>
+>> On Tue, Sep 18, 2018 at 8:38 AM INADA Naoki <songofacandy at gmail.com> wrote:
+>>
+>> > I think this topic should split to two topics: (1) Guard Python
+>> > process from Spectre/Meltdown
+>> > attack from other process, (2) Prohibit Python code attack other
+>> > processes by using
+>> > Spectre/Meltdown.
+>>
+>> (3) Guard Python from performance degradation by overly aggressive
+>> Spectre "mitigation".
+>
+>
+> > Spectre has the potential of having a greater impact on cloud providers than Meltdown. Whereas Meltdown allows unauthorized applications to read from privileged memory to obtain sensitive data from processes running on the same cloud server, Spectre can allow malicious programs to induce a hypervisor to transmit the data to a guest system running on top of it.
+> - Private SSL certs
+> - Cached keys and passwords in non-zeroed RAM
+> - [...]
+>
+> https://en.wikipedia.org/wiki/Spectre_(security_vulnerability)
+
+It's true that the attacks should worry cloud providers. Doesn't that
+mean that companies like Amazon, Microsoft (Steve), and Docker should
+have done analyses on CPython's vulnerability to these exploits?
+Has/should/can anyone officially representing Python contact the
+companies and ask them?
+
+When I followed your quote to find the context, I found it uses, as
+its source, a Forbes article. The source cited by THAT article is
+Daniel Gruss, who was one of the researchers. Should someone from the
+PSF contact the researchers? Steve says he spoke to some of them to
+judge whether the proposed compiler flags would help, and decided
+against it.
+
+Absent of expert input, here's my non-expert take: That quote requires
+an OS-level fix. A Python program without the proper permissions can't
+do such things unless there is a vulnerability with the OS, and it is
+extremely unlikely for anyone to update Python for Spectre but not
+update the OS (and they'd be screwed in any case). And even if there
+is a vulnerability in the OS, maybe the way to exploit it is by using
+arbitrary Python execution (which you need before you can TRY to use
+Spectre) on this Python interpreter. You can then write a new binary
+file and run THAT, and it will be fast enough. That's not something
+you can fix about CPython.
+
+Also, (again with my understanding) the problem of Spectre and
+Meltdown are that you can escape sandboxes and the like, such as the
+user/kernel divide, or a software sandbox like that provided by a
+JavaScript VM. For CPython to be "vulnerable" to these attacks, it
+needs to have some kind of sandbox or protection to break out of.
+Instead, we sometimes have sandboxes AROUND CPython (like Jupyter) or
+WITHIN CPython. I don't see how it makes sense to talk about a sandbox
+escape FOR CPython (yet).
+
+Your original post linked to a discussion about Linux using those
+build flags. Linux is a kernel, and has such protections that can be
+bypassed, so it has something to worry about. Malicious code can be
+native code, which (to my understanding) will be fast enough to
+exploit the cache miss time. Here's Google's article about the
+retpoline and why it helps:
+https://support.google.com/faqs/answer/7625886
+
+As of yet, you have quoted passages that have little relevance to
+interpreter devs, especially non-JIT interpreters, and you have linked
+to entire articles for non-experts with little relevance to
+interpreter devs. This doesn't show that you have any better of an
+understanding than I have, which is less than the understanding that
+some of the Python devs have, and much less than what Steve has. In
+short, it LOOKS like you don't know what you're talking about. If you
+have a different and deeper understanding of the problem, then you
+need to show it, and say why there is a problem for CPython
+specifically. Or find someone who can do that for you.
+
+> Here's one:
+> https://github.com/Eugnis/spectre-attack/blob/master/Source.c
+>
+> Is this too slow in CPython with:
+> - Coroutines (asyncio (tulip))
+> - PyPy JIT *
+> - Numba JIT *
+> - C Extensions *
+> - Cython *
+>
+> * Not anyone here's problem.
+
+C extensions are obviously fast enough. I think most of the other
+starred examples are fast enough, but it's probably more subtle than I
+think and requires further analysis by their devs. I also think
+there's something important I'm still missing about what's required
+and what it can do.
+
+I don't see what coroutines have to do with it. Coroutines are still
+Python code, and they're subject to the GIL.
+
+From wes.turner at gmail.com  Fri Sep 21 03:11:59 2018
+From: wes.turner at gmail.com (Wes Turner)
+Date: Fri, 21 Sep 2018 03:11:59 -0400
+Subject: [Python-Dev] SEC: Spectre variant 2: GCC:
+ -mindirect-branch=thunk -mindirect-branch-register
+In-Reply-To: <CAB_e7izd1wpnQN+rFVHTyoNyZZu=uN--0LDuJ+7-Dw33t0006w@mail.gmail.com>
+References: <CACfEFw9+XkxC1DMsyRjgQ=ay-FhAumD1_3qtkBTS9Xc85hUZZg@mail.gmail.com>
+ <CACfEFw_P+O_-cQZGAH+sW3uBK-4PqAE2Pv9VCo0STjYEibh08A@mail.gmail.com>
+ <395ca1a4-f997-f533-241c-c3d3edc25f7e@python.org>
+ <CACfEFw9i6MMFtWzrB9R3=2qQKr0kdefTXmRaknHkNBDRQfXONQ@mail.gmail.com>
+ <7f61f443-8599-31dc-58ee-609843f86250@python.org>
+ <CACfEFw_Vpud1ym4+tAqhYf9BQcMphHRJCGZ=hMTiHSY4MyrBHQ@mail.gmail.com>
+ <CAEfz+Typ+3BSnrn8Gg_xXH9aCadVZwsz=wK4zs=F99wXb_QiHw@mail.gmail.com>
+ <CAAxjCEw1--rkV=-EdGDbAM2CZe6eqpF49PjTh=TRNb9X9MBLWw@mail.gmail.com>
+ <CACfEFw9XJzui4LSDAZw=JPug7jfEzfME-sDO4G02zw2aug2tqA@mail.gmail.com>
+ <CAB_e7izd1wpnQN+rFVHTyoNyZZu=uN--0LDuJ+7-Dw33t0006w@mail.gmail.com>
+Message-ID: <CACfEFw9CWOkeDgB287PimxLP9swtvAmmU7Sm0q-Gk_7sBnvGFw@mail.gmail.com>
+
+I feel like you are actively undermining attempts to prevent exploitation
+of known vulnerabilities because the software in question is currently too
+slow.
+
+For a 4-8% performance penalty, we could just add the CFLAGS to the build
+now and not worry about it.
+
+I give up.
+
+On Friday, September 21, 2018, Franklin? Lee <leewangzhong+python at gmail.com>
+wrote:
+
+> On Thu, Sep 20, 2018 at 2:10 PM Wes Turner <wes.turner at gmail.com> wrote:
+> >
+> > On Thursday, September 20, 2018, Stefan Ring <stefanrin at gmail.com>
+> wrote:
+> >>
+> >> On Tue, Sep 18, 2018 at 8:38 AM INADA Naoki <songofacandy at gmail.com>
+> wrote:
+> >>
+> >> > I think this topic should split to two topics: (1) Guard Python
+> >> > process from Spectre/Meltdown
+> >> > attack from other process, (2) Prohibit Python code attack other
+> >> > processes by using
+> >> > Spectre/Meltdown.
+> >>
+> >> (3) Guard Python from performance degradation by overly aggressive
+> >> Spectre "mitigation".
+> >
+> >
+> > > Spectre has the potential of having a greater impact on cloud
+> providers than Meltdown. Whereas Meltdown allows unauthorized applications
+> to read from privileged memory to obtain sensitive data from processes
+> running on the same cloud server, Spectre can allow malicious programs to
+> induce a hypervisor to transmit the data to a guest system running on top
+> of it.
+> > - Private SSL certs
+> > - Cached keys and passwords in non-zeroed RAM
+> > - [...]
+> >
+> > https://en.wikipedia.org/wiki/Spectre_(security_vulnerability)
+>
+> It's true that the attacks should worry cloud providers. Doesn't that
+> mean that companies like Amazon, Microsoft (Steve), and Docker should
+> have done analyses on CPython's vulnerability to these exploits?
+> Has/should/can anyone officially representing Python contact the
+> companies and ask them?
+>
+> When I followed your quote to find the context, I found it uses, as
+> its source, a Forbes article. The source cited by THAT article is
+> Daniel Gruss, who was one of the researchers. Should someone from the
+> PSF contact the researchers? Steve says he spoke to some of them to
+> judge whether the proposed compiler flags would help, and decided
+> against it.
+>
+> Absent of expert input, here's my non-expert take: That quote requires
+> an OS-level fix. A Python program without the proper permissions can't
+> do such things unless there is a vulnerability with the OS, and it is
+> extremely unlikely for anyone to update Python for Spectre but not
+> update the OS (and they'd be screwed in any case). And even if there
+> is a vulnerability in the OS, maybe the way to exploit it is by using
+> arbitrary Python execution (which you need before you can TRY to use
+> Spectre) on this Python interpreter. You can then write a new binary
+> file and run THAT, and it will be fast enough. That's not something
+> you can fix about CPython.
+>
+> Also, (again with my understanding) the problem of Spectre and
+> Meltdown are that you can escape sandboxes and the like, such as the
+> user/kernel divide, or a software sandbox like that provided by a
+> JavaScript VM. For CPython to be "vulnerable" to these attacks, it
+> needs to have some kind of sandbox or protection to break out of.
+> Instead, we sometimes have sandboxes AROUND CPython (like Jupyter) or
+> WITHIN CPython. I don't see how it makes sense to talk about a sandbox
+> escape FOR CPython (yet).
+>
+> Your original post linked to a discussion about Linux using those
+> build flags. Linux is a kernel, and has such protections that can be
+> bypassed, so it has something to worry about. Malicious code can be
+> native code, which (to my understanding) will be fast enough to
+> exploit the cache miss time. Here's Google's article about the
+> retpoline and why it helps:
+> https://support.google.com/faqs/answer/7625886
+>
+> As of yet, you have quoted passages that have little relevance to
+> interpreter devs, especially non-JIT interpreters, and you have linked
+> to entire articles for non-experts with little relevance to
+> interpreter devs. This doesn't show that you have any better of an
+> understanding than I have, which is less than the understanding that
+> some of the Python devs have, and much less than what Steve has. In
+> short, it LOOKS like you don't know what you're talking about. If you
+> have a different and deeper understanding of the problem, then you
+> need to show it, and say why there is a problem for CPython
+> specifically. Or find someone who can do that for you.
+>
+> > Here's one:
+> > https://github.com/Eugnis/spectre-attack/blob/master/Source.c
+> >
+> > Is this too slow in CPython with:
+> > - Coroutines (asyncio (tulip))
+> > - PyPy JIT *
+> > - Numba JIT *
+> > - C Extensions *
+> > - Cython *
+> >
+> > * Not anyone here's problem.
+>
+> C extensions are obviously fast enough. I think most of the other
+> starred examples are fast enough, but it's probably more subtle than I
+> think and requires further analysis by their devs. I also think
+> there's something important I'm still missing about what's required
+> and what it can do.
+>
+> I don't see what coroutines have to do with it. Coroutines are still
+> Python code, and they're subject to the GIL.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180921/f2c19986/attachment-0001.html>
+
+From leewangzhong+python at gmail.com  Fri Sep 21 03:23:03 2018
+From: leewangzhong+python at gmail.com (Franklin? Lee)
+Date: Fri, 21 Sep 2018 03:23:03 -0400
+Subject: [Python-Dev] SEC: Spectre variant 2: GCC:
+ -mindirect-branch=thunk -mindirect-branch-register
+In-Reply-To: <CACfEFw9CWOkeDgB287PimxLP9swtvAmmU7Sm0q-Gk_7sBnvGFw@mail.gmail.com>
+References: <CACfEFw9+XkxC1DMsyRjgQ=ay-FhAumD1_3qtkBTS9Xc85hUZZg@mail.gmail.com>
+ <CACfEFw_P+O_-cQZGAH+sW3uBK-4PqAE2Pv9VCo0STjYEibh08A@mail.gmail.com>
+ <395ca1a4-f997-f533-241c-c3d3edc25f7e@python.org>
+ <CACfEFw9i6MMFtWzrB9R3=2qQKr0kdefTXmRaknHkNBDRQfXONQ@mail.gmail.com>
+ <7f61f443-8599-31dc-58ee-609843f86250@python.org>
+ <CACfEFw_Vpud1ym4+tAqhYf9BQcMphHRJCGZ=hMTiHSY4MyrBHQ@mail.gmail.com>
+ <CAEfz+Typ+3BSnrn8Gg_xXH9aCadVZwsz=wK4zs=F99wXb_QiHw@mail.gmail.com>
+ <CAAxjCEw1--rkV=-EdGDbAM2CZe6eqpF49PjTh=TRNb9X9MBLWw@mail.gmail.com>
+ <CACfEFw9XJzui4LSDAZw=JPug7jfEzfME-sDO4G02zw2aug2tqA@mail.gmail.com>
+ <CAB_e7izd1wpnQN+rFVHTyoNyZZu=uN--0LDuJ+7-Dw33t0006w@mail.gmail.com>
+ <CACfEFw9CWOkeDgB287PimxLP9swtvAmmU7Sm0q-Gk_7sBnvGFw@mail.gmail.com>
+Message-ID: <CAB_e7ix2e6KX8gu7Mk53MWS8iLkK5HLOLLKaQRexqgNYp-zvkA@mail.gmail.com>
+
+There is much reason to believe it won't help, and you have given little
+reason to believe that it will help, or that you even properly understand
+how the flag mitigates Spectre in programs where it does help.
+
+I am not undermining your attempts for the sake of performance. I am trying
+to help you understand why no one is taking you seriously, and suggesting
+what you can do so that they will. One way is to explain why an unsandboxed
+interpreter needs to protect against a sandbox escape.
+
+On Sep 21, 2018 3:12 AM, "Wes Turner" <wes.turner at gmail.com> wrote:
+
+I feel like you are actively undermining attempts to prevent exploitation
+of known vulnerabilities because the software in question is currently too
+slow.
+
+For a 4-8% performance penalty, we could just add the CFLAGS to the build
+now and not worry about it.
+
+I give up.
+
+
+On Friday, September 21, 2018, Franklin? Lee <leewangzhong+python at gmail.com>
+wrote:
+
+> On Thu, Sep 20, 2018 at 2:10 PM Wes Turner <wes.turner at gmail.com> wrote:
+> >
+> > On Thursday, September 20, 2018, Stefan Ring <stefanrin at gmail.com>
+> wrote:
+> >>
+> >> On Tue, Sep 18, 2018 at 8:38 AM INADA Naoki <songofacandy at gmail.com>
+> wrote:
+> >>
+> >> > I think this topic should split to two topics: (1) Guard Python
+> >> > process from Spectre/Meltdown
+> >> > attack from other process, (2) Prohibit Python code attack other
+> >> > processes by using
+> >> > Spectre/Meltdown.
+> >>
+> >> (3) Guard Python from performance degradation by overly aggressive
+> >> Spectre "mitigation".
+> >
+> >
+> > > Spectre has the potential of having a greater impact on cloud
+> providers than Meltdown. Whereas Meltdown allows unauthorized applications
+> to read from privileged memory to obtain sensitive data from processes
+> running on the same cloud server, Spectre can allow malicious programs to
+> induce a hypervisor to transmit the data to a guest system running on top
+> of it.
+> > - Private SSL certs
+> > - Cached keys and passwords in non-zeroed RAM
+> > - [...]
+> >
+> > https://en.wikipedia.org/wiki/Spectre_(security_vulnerability)
+>
+> It's true that the attacks should worry cloud providers. Doesn't that
+> mean that companies like Amazon, Microsoft (Steve), and Docker should
+> have done analyses on CPython's vulnerability to these exploits?
+> Has/should/can anyone officially representing Python contact the
+> companies and ask them?
+>
+> When I followed your quote to find the context, I found it uses, as
+> its source, a Forbes article. The source cited by THAT article is
+> Daniel Gruss, who was one of the researchers. Should someone from the
+> PSF contact the researchers? Steve says he spoke to some of them to
+> judge whether the proposed compiler flags would help, and decided
+> against it.
+>
+> Absent of expert input, here's my non-expert take: That quote requires
+> an OS-level fix. A Python program without the proper permissions can't
+> do such things unless there is a vulnerability with the OS, and it is
+> extremely unlikely for anyone to update Python for Spectre but not
+> update the OS (and they'd be screwed in any case). And even if there
+> is a vulnerability in the OS, maybe the way to exploit it is by using
+> arbitrary Python execution (which you need before you can TRY to use
+> Spectre) on this Python interpreter. You can then write a new binary
+> file and run THAT, and it will be fast enough. That's not something
+> you can fix about CPython.
+>
+> Also, (again with my understanding) the problem of Spectre and
+> Meltdown are that you can escape sandboxes and the like, such as the
+> user/kernel divide, or a software sandbox like that provided by a
+> JavaScript VM. For CPython to be "vulnerable" to these attacks, it
+> needs to have some kind of sandbox or protection to break out of.
+> Instead, we sometimes have sandboxes AROUND CPython (like Jupyter) or
+> WITHIN CPython. I don't see how it makes sense to talk about a sandbox
+> escape FOR CPython (yet).
+>
+> Your original post linked to a discussion about Linux using those
+> build flags. Linux is a kernel, and has such protections that can be
+> bypassed, so it has something to worry about. Malicious code can be
+> native code, which (to my understanding) will be fast enough to
+> exploit the cache miss time. Here's Google's article about the
+> retpoline and why it helps:
+> https://support.google.com/faqs/answer/7625886
+>
+> As of yet, you have quoted passages that have little relevance to
+> interpreter devs, especially non-JIT interpreters, and you have linked
+> to entire articles for non-experts with little relevance to
+> interpreter devs. This doesn't show that you have any better of an
+> understanding than I have, which is less than the understanding that
+> some of the Python devs have, and much less than what Steve has. In
+> short, it LOOKS like you don't know what you're talking about. If you
+> have a different and deeper understanding of the problem, then you
+> need to show it, and say why there is a problem for CPython
+> specifically. Or find someone who can do that for you.
+>
+> > Here's one:
+> > https://github.com/Eugnis/spectre-attack/blob/master/Source.c
+> >
+> > Is this too slow in CPython with:
+> > - Coroutines (asyncio (tulip))
+> > - PyPy JIT *
+> > - Numba JIT *
+> > - C Extensions *
+> > - Cython *
+> >
+> > * Not anyone here's problem.
+>
+> C extensions are obviously fast enough. I think most of the other
+> starred examples are fast enough, but it's probably more subtle than I
+> think and requires further analysis by their devs. I also think
+> there's something important I'm still missing about what's required
+> and what it can do.
+>
+> I don't see what coroutines have to do with it. Coroutines are still
+> Python code, and they're subject to the GIL.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180921/0642c950/attachment.html>
+
+From christian at python.org  Fri Sep 21 05:37:25 2018
+From: christian at python.org (Christian Heimes)
+Date: Fri, 21 Sep 2018 11:37:25 +0200
+Subject: [Python-Dev] 3.7.1 and 3.6.7 Releases Coming Soon
+In-Reply-To: <EB8E04F7-72C8-4846-9CCA-118E70DFD9AF@python.org>
+References: <3ABAB3B5-6346-49F2-98F7-185303166016@python.org>
+ <EB8E04F7-72C8-4846-9CCA-118E70DFD9AF@python.org>
+Message-ID: <b1623583-bc48-b7e4-a522-a23996027f19@python.org>
+
+On 19/09/2018 23.12, Ned Deily wrote:
+> Update: not surprisingly, there have been a number of issues that have popped up during and since the sprint that we would like to ensure are addressed in 3.7.1 and 3.6.7.  In order to do so, I've been holding off on starting the releases. I think we are now getting close to having the important ones resolved so I'm going to plan on cutting off code for 3.7.1rc1 and 3.6.7rc1 by the end of 2018-09-20 (23:59 AoE).  That's roughly 38 hours from now.
+> 
+> Thanks for all of your help in improving Python for everyone!
+
+Hi Ned,
+
+I'm really sorry, but would it be possible to delay the RCs until Sunday
+or Monday AoE?
+
+Some of the XML security fixes, OpenSSL 1.1.1 fixes (TLS 1.3
+post-handshake authentication), and SSL module regression haven't landed
+yet. I'm confident that I can land most to all fixes during the weekend.
+
+Related PRs are:
+
+* https://github.com/python/cpython/pull/9468
+* https://github.com/python/cpython/pull/9460
+* https://github.com/python/cpython/pull/9217
+* https://github.com/python/cpython/pull/9265
+
+I'm also still collaborating with Sebastian Pipping (libexpat
+maintainer) on the DoS mitigations (CVE-2013-0340). My initial patch had
+some flaws. I might be able to get expat release 2.3.0 in time, too.
+
+https://github.com/libexpat/libexpat/pull/220
+
+Christian
+
+
+From nad at python.org  Fri Sep 21 09:08:52 2018
+From: nad at python.org (Ned Deily)
+Date: Fri, 21 Sep 2018 09:08:52 -0400
+Subject: [Python-Dev] 3.7.1 and 3.6.7 Releases Coming Soon
+In-Reply-To: <b1623583-bc48-b7e4-a522-a23996027f19@python.org>
+References: <3ABAB3B5-6346-49F2-98F7-185303166016@python.org>
+ <EB8E04F7-72C8-4846-9CCA-118E70DFD9AF@python.org>
+ <b1623583-bc48-b7e4-a522-a23996027f19@python.org>
+Message-ID: <8629D385-F3BF-417C-A12E-4FC3FA4F4F12@python.org>
+
+On Sep 21, 2018, at 05:37, Christian Heimes <christian at python.org> wrote:
+> On 19/09/2018 23.12, Ned Deily wrote:
+>> Update: not surprisingly, there have been a number of issues that have popped up during and since the sprint that we would like to ensure are addressed in 3.7.1 and 3.6.7.  In order to do so, I've been holding off on starting the releases. I think we are now getting close to having the important ones resolved so I'm going to plan on cutting off code for 3.7.1rc1 and 3.6.7rc1 by the end of 2018-09-20 (23:59 AoE).  That's roughly 38 hours from now.
+> I'm really sorry, but would it be possible to delay the RCs until Sunday
+> or Monday AoE?
+> 
+> Some of the XML security fixes, OpenSSL 1.1.1 fixes (TLS 1.3
+> post-handshake authentication), and SSL module regression haven't landed
+> yet. I'm confident that I can land most to all fixes during the weekend.
+> 
+> Related PRs are:
+> 
+> * https://github.com/python/cpython/pull/9468
+> * https://github.com/python/cpython/pull/9460
+> * https://github.com/python/cpython/pull/9217
+> * https://github.com/python/cpython/pull/9265
+> 
+> I'm also still collaborating with Sebastian Pipping (libexpat
+> maintainer) on the DoS mitigations (CVE-2013-0340). My initial patch had
+> some flaws. I might be able to get expat release 2.3.0 in time, too.
+> 
+> https://github.com/libexpat/libexpat/pull/220
+
+I agree that it would be good to get the security-related and OpenSSL-related fixes in sooner than later and there has been a lot going on recently.  Since you have asked so nicely, I have rescheduled the cutoffs for 3.7.1rc1 and 3.6.7rc1 to be by the end of 2018-09-24 (23:59 AoE) and the final releases now on 2018-10-04.
+
+Everyone else: here are a few more days to get important things in to these releases.
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From guido at python.org  Fri Sep 21 10:26:26 2018
+From: guido at python.org (Guido van Rossum)
+Date: Fri, 21 Sep 2018 07:26:26 -0700
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <po22fs$id$1@blaine.gmane.org>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <po22fs$id$1@blaine.gmane.org>
+Message-ID: <CAP7+vJLW1J33oDuUVYvWErmegNRwSbgBeSt8Q=nn9oiBzGRQ4w@mail.gmail.com>
+
+> What about the small integers cache?
+
+I believe the small integers cache is only used to reduce the number of
+objects -- I don't think there's any code (in CPython itself) that just
+*assumes* that because an int is small it must be in the cache. So it
+should be fine.
+
+On Thu, Sep 20, 2018 at 11:23 PM Stefan Behnel <stefan_ml at behnel.de> wrote:
+
+> Larry Hastings schrieb am 14.09.2018 um 23:27:
+> > What the patch does: it takes all the Python modules that are loaded as
+> > part of interpreter startup and deserializes the marshalled .pyc file
+> into
+> > precreated objects stored as static C data.
+>
+> What about the small integers cache? The C serialisation generates several
+> PyLong objects that would normally reside in the cache. Is this handled
+> somewhere? I guess the cache could entirely be loaded from the data
+> segment. And the same would have to be done for interned strings. Basically
+> anything that CPython only wants to have one instance of.
+>
+> That would severely limit the application of this optimisation to external
+> modules, though. I don't see a way how they could load their data
+> structures from the data segment without duplicating all sorts of
+> "singletons".
+>
+> Stefan
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180921/3db77832/attachment.html>
+
+From christian at python.org  Fri Sep 21 11:13:27 2018
+From: christian at python.org (Christian Heimes)
+Date: Fri, 21 Sep 2018 17:13:27 +0200
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <CAP7+vJLW1J33oDuUVYvWErmegNRwSbgBeSt8Q=nn9oiBzGRQ4w@mail.gmail.com>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <po22fs$id$1@blaine.gmane.org>
+ <CAP7+vJLW1J33oDuUVYvWErmegNRwSbgBeSt8Q=nn9oiBzGRQ4w@mail.gmail.com>
+Message-ID: <po31mk$no9$1@blaine.gmane.org>
+
+On 21/09/2018 16.26, Guido van Rossum wrote:
+>> What about the small integers cache?
+> 
+> I believe the small integers cache is only used to reduce the number of
+> objects -- I don't think there's any code (in CPython itself) that just
+> *assumes* that because an int is small it must be in the cache. So it
+> should be fine.
+
+Some places may assume that PyLong_FromLong() for a small int never
+fails. I certainly expect this in coverity scan modeling.
+
+Christian
+
+
+From yselivanov.ml at gmail.com  Fri Sep 21 11:15:18 2018
+From: yselivanov.ml at gmail.com (Yury Selivanov)
+Date: Fri, 21 Sep 2018 11:15:18 -0400
+Subject: [Python-Dev] Late Python 3.7.1 changes to fix the C locale
+ coercion (PEP 538) implementation
+In-Reply-To: <E51B58CE-E696-4704-94E3-9B6F5E4FC2C0@python.org>
+References: <CA+3bQGHcMS1koGpWOW95MwD22C56S51Xm5xKbcZ6SPqPSu9aYg@mail.gmail.com>
+ <942002A1-4319-4370-BC07-A628BB1B8FC1@python.org>
+ <CADiSq7chv2VQMCekSpKW-Us_e6c0XLXioy09XSdC14OHhvdwMg@mail.gmail.com>
+ <CA+3bQGFk5uRNv_njOSgMj+m+OipJn-9H8b6EugwCrz=LTRvD+w@mail.gmail.com>
+ <CA+3bQGGHCekv2TkodsN3RPfbfRjz6RfyV0XW8QnKw4biLrsLUQ@mail.gmail.com>
+ <CA+St6D2OH+C0hA_rvENAScQD94BuhW1P23u-Oq_O_dJLZZeqtQ@mail.gmail.com>
+ <E51B58CE-E696-4704-94E3-9B6F5E4FC2C0@python.org>
+Message-ID: <CA+St6D3E=LSCi4WgnVD5ssnf2YzU3s68Q8Si=aDLPdryRYeTFw@mail.gmail.com>
+
+On Wed, Sep 19, 2018 at 4:26 PM Ned Deily <nad at python.org> wrote:
+> On Sep 19, 2018, at 13:30, Yury Selivanov <yselivanov.ml at gmail.com> wrote:
+[..]
+> > Currently it's designed to expose "PyContext*" and "PyContextVar*"
+> > pointers.  I want to change that to "PyObject*" as using non-PyObject
+> > pointers turned out to be a very bad idea (interfacing with Cython is
+> > particularly challenging).
+> >
+> > Is it a good idea to change this in Python 3.7.1?
+>
+> It's hard to make an informed decision without a concrete PR to review.  What would be the impact on any user code that has already adopted it in 3.7.0?
+
+Ned, I've created an issue to track this: https://bugs.python.org/issue34762
+
+Yury
+
+From jeethu at jeethurao.com  Fri Sep 21 03:19:18 2018
+From: jeethu at jeethurao.com (Jeethu Rao)
+Date: Fri, 21 Sep 2018 08:19:18 +0100
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <po20ru$jfk$1@blaine.gmane.org>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180916222441.13600498@fsol>
+ <CANVK_Qgcx_+af1q4RrNcmSB4sHdxokd8c34=PDt7MyRcz+WKjg@mail.gmail.com>
+ <CANXBEFrOJKHejC7Q3oxHy8wVAQWezFm1Z3efsdr+tZFuioEaRg@mail.gmail.com>
+ <CANVK_QhD2LG7P_rJgF5Z2JW6FnDDVqAEH5jwgeMCnCVQ2LJ6hA@mail.gmail.com>
+ <397028a3-8368-4d57-57de-916f0847f90f@python.org>
+ <CANVK_QheiVR-Z13c8PyVniPpS=LRtkkH7XgvkhfDwqSBU5++ZA@mail.gmail.com>
+ <pnstue$bc1$1@blaine.gmane.org>
+ <CANVK_QiODjaLVddmpJ3DfDzo5ZAOWrxO2jnZz5o3tzaEeR_urg@mail.gmail.com>
+ <po20ru$jfk$1@blaine.gmane.org>
+Message-ID: <E8870373-98FD-4766-9088-B8A3AFCA9513@jeethurao.com>
+
+> On Sep 21, 2018, at 06:53, Stefan Behnel <stefan_ml at behnel.de> wrote:
+> 
+> Totally. This might actually be more relevant for Cython than for CPython
+> in the end, because it wouldn't be limited to the stdlib and its core modules.
+> 
+> It's a bit more difficult for us, because this probably won't work easily
+> across Python releases (2.[67] and 3.[45678] for now) and also definitely
+> not for PyPy, but that just means some multiplication of the generated
+> code, and we have the dynamic part of it already. Supporting that for
+> Unicode strings will be fun, I'm sure. :)
+
+I?m glad to hear that this might be relevant to Cython.
+I believe it should be straightforward to parametrize the code generator to generate code targeted
+at specific cPython versions. While we originally targeted 3.6, Larry Hastings managed to quickly port it to 3.8.
+The two changes in cPython?s data structures between 3.6 and 3.8 that needed changes to the
+code-gen were [1] from 3.7 and [2] from 3.8. And internally, I?ve still got a task open to back-port this to support 2.7.
+
+-- Jeethu
+
+[1]: https://bugs.python.org/issue18896
+[2]: https://bugs.python.org/issue33597
+
+From status at bugs.python.org  Fri Sep 21 12:10:04 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 21 Sep 2018 18:10:04 +0200 (CEST)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20180921161004.5F0F257BC7@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-09-14 - 2018-09-21)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6795 (-24)
+  closed 39723 (+111)
+  total  46518 (+87)
+
+Open issues with patches: 2711 
+
+
+Issues opened (63)
+==================
+
+#19756: test_nntplib: sporadic failures, network isses? server down?
+https://bugs.python.org/issue19756  reopened by berker.peksag
+
+#34682: Typo reports on docs@
+https://bugs.python.org/issue34682  opened by zach.ware
+
+#34683: Caret positioned wrong for SyntaxError reported by ast.c
+https://bugs.python.org/issue34683  opened by gvanrossum
+
+#34686: Add `-r`, as opposed to `-R` to Python core interpreter
+https://bugs.python.org/issue34686  opened by lepaperwan
+
+#34687: asyncio: is it time to make ProactorEventLoop as the default e
+https://bugs.python.org/issue34687  opened by vstinner
+
+#34688: Segfault in pandas that works fine on 3.7
+https://bugs.python.org/issue34688  opened by xtreak
+
+#34689: Lib/sysconfig.py expands non-variables
+https://bugs.python.org/issue34689  opened by lepaperwan
+
+#34690: Store startup modules as C structures for 20%+ startup speed i
+https://bugs.python.org/issue34690  opened by larry
+
+#34691: _contextvars missing in x64 master branch Windows build?
+https://bugs.python.org/issue34691  opened by tim.peters
+
+#34696: PyByteArray_FromObject() has undocumented (and untested) behav
+https://bugs.python.org/issue34696  opened by ZackerySpytz
+
+#34697: ctypes: Crash if manually-created CField instance is used
+https://bugs.python.org/issue34697  opened by izbyshev
+
+#34698: urllib.request.Request.set_proxy doesn't (necessarily) replace
+https://bugs.python.org/issue34698  opened by tburke
+
+#34699: allow path-like objects in program arguments in Windows
+https://bugs.python.org/issue34699  opened by guoci
+
+#34700: typing.get_type_hints doesn't know about typeshed
+https://bugs.python.org/issue34700  opened by Ben.Darnell
+
+#34701: Asyncio documentation for recursive coroutines is lacking
+https://bugs.python.org/issue34701  opened by azaria.zornberg
+
+#34702: urlopen doesn't handle query strings with "file" scheme
+https://bugs.python.org/issue34702  opened by liZe
+
+#34704: Do not access ob_type directly, introduce Py_TP
+https://bugs.python.org/issue34704  opened by nascheme
+
+#34705: Python 3.8 changes how returns through finally clauses are tra
+https://bugs.python.org/issue34705  opened by nedbat
+
+#34706: Signature.from_callable sometimes drops subclassing
+https://bugs.python.org/issue34706  opened by bukzor
+
+#34707: Python not reentrant
+https://bugs.python.org/issue34707  opened by skaller
+
+#34708: Odd crashes/freezes when sys.stdout.shell.console is typed
+https://bugs.python.org/issue34708  opened by Harrison Chudleigh
+
+#34709: Suggestion: make getuser.getpass() also look at SUDO_USER envi
+https://bugs.python.org/issue34709  opened by Amos S
+
+#34711: return ENOTDIR when open() accepts filenames with a trailing s
+https://bugs.python.org/issue34711  opened by Michael.Felt
+
+#34713: csvwriter.writerow()'s return type is undocumented
+https://bugs.python.org/issue34713  opened by nchammas
+
+#34714: timeout in test_multiprocessing_spawn x86 Windows7 3.x buildbo
+https://bugs.python.org/issue34714  opened by pablogsal
+
+#34716: MagicMock.__divmod__ should return a pair
+https://bugs.python.org/issue34716  opened by serhiy.storchaka
+
+#34720: Fix test_importlib.test_bad_traverse for AIX
+https://bugs.python.org/issue34720  opened by Michael.Felt
+
+#34722: Non-deterministic bytecode generation
+https://bugs.python.org/issue34722  opened by Peter Ebden
+
+#34724: argparse subparser help indent too short
+https://bugs.python.org/issue34724  opened by TakingItCasual
+
+#34725: Py_GetProgramFullPath() odd behaviour in Windows
+https://bugs.python.org/issue34725  opened by mariofutire
+
+#34726: Add support of checked hash-based pycs in zipimport
+https://bugs.python.org/issue34726  opened by serhiy.storchaka
+
+#34728: deprecate *loop* argument for asyncio.sleep
+https://bugs.python.org/issue34728  opened by yselivanov
+
+#34730: aclose() doesn't stop raise StopAsyncIteration / GeneratorExit
+https://bugs.python.org/issue34730  opened by dfee
+
+#34732: uuid returns version more than 5
+https://bugs.python.org/issue34732  opened by jophine pranjal
+
+#34734: Azure linux buildbot failure
+https://bugs.python.org/issue34734  opened by xtreak
+
+#34736: Confusing base64.b64decode output
+https://bugs.python.org/issue34736  opened by mark.dickinson
+
+#34737: Python upgrade with SYSTEM account uninstalls python
+https://bugs.python.org/issue34737  opened by JatinGoel
+
+#34738: Distutils: ZIP files don't include directory entries
+https://bugs.python.org/issue34738  opened by serhiy.storchaka
+
+#34739: Get rid of tp_getattro in xml.etree.ElementTree.XMLParser
+https://bugs.python.org/issue34739  opened by serhiy.storchaka
+
+#34740: Get rid of tp_getattro in ossaudiodev.oss_audio_device
+https://bugs.python.org/issue34740  opened by serhiy.storchaka
+
+#34741: Get rid of tp_getattro and tp_setattro in pyexpat.xmlparser
+https://bugs.python.org/issue34741  opened by serhiy.storchaka
+
+#34742: Add optional argument for exit status in argparse.ArgumentPars
+https://bugs.python.org/issue34742  opened by Ankit Goel
+
+#34744: New %(flag)s format specifier for argparse.add_argument help s
+https://bugs.python.org/issue34744  opened by helmsman helmsman
+
+#34745: asyncio ssl memory leak
+https://bugs.python.org/issue34745  opened by thehesiod
+
+#34747: SSLSocket.context cannot be changed on non-connected sockets
+https://bugs.python.org/issue34747  opened by vincent-nexedi
+
+#34748: Incorrect HTML link in functools.partial
+https://bugs.python.org/issue34748  opened by xitop
+
+#34749: improve performance of binascii.a2b_base64()
+https://bugs.python.org/issue34749  opened by sir-sigurd
+
+#34750: locals().update doesn't work in Enum body, even though direct 
+https://bugs.python.org/issue34750  opened by Antony.Lee
+
+#34751: Hash collisions for tuples
+https://bugs.python.org/issue34751  opened by jdemeyer
+
+#34752: warnings.warn fails silently with unicode input
+https://bugs.python.org/issue34752  opened by nparslow
+
+#34753: Use coroutine object or coroutine function instead of coroutin
+https://bugs.python.org/issue34753  opened by Windson Yang
+
+#34756: Few changes in sys.breakpointhook()
+https://bugs.python.org/issue34756  opened by serhiy.storchaka
+
+#34757: Placeholder for discussion on Combined patches for AIX - to re
+https://bugs.python.org/issue34757  opened by Michael.Felt
+
+#34758: http.server module sets incorrect mimetype for WebAssembly fil
+https://bugs.python.org/issue34758  opened by travisoneill
+
+#34759: Possible regression in ssl module in 3.7.1 and master
+https://bugs.python.org/issue34759  opened by njs
+
+#34760: Regression in abc in combination with passing a function to is
+https://bugs.python.org/issue34760  opened by glaubich
+
+#34761: str(super()) != super().__str__()
+https://bugs.python.org/issue34761  opened by Guillaume Dominici
+
+#34762: Change contextvars C API to use PyObject
+https://bugs.python.org/issue34762  opened by yselivanov
+
+#34763: Python lacks 0x4E17
+https://bugs.python.org/issue34763  opened by ?????????
+
+#34764: Improve documentation example for using iter() with sentinel v
+https://bugs.python.org/issue34764  opened by ChrisRands
+
+#34765: Update install-sh
+https://bugs.python.org/issue34765  opened by cstratak
+
+#34766: BaseProxy cache should be cleaned when Manager client is recon
+https://bugs.python.org/issue34766  opened by wynfred
+
+#34767: Optimize asyncio.Lock
+https://bugs.python.org/issue34767  opened by yselivanov
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#34767: Optimize asyncio.Lock
+https://bugs.python.org/issue34767
+
+#34766: BaseProxy cache should be cleaned when Manager client is recon
+https://bugs.python.org/issue34766
+
+#34764: Improve documentation example for using iter() with sentinel v
+https://bugs.python.org/issue34764
+
+#34763: Python lacks 0x4E17
+https://bugs.python.org/issue34763
+
+#34758: http.server module sets incorrect mimetype for WebAssembly fil
+https://bugs.python.org/issue34758
+
+#34757: Placeholder for discussion on Combined patches for AIX - to re
+https://bugs.python.org/issue34757
+
+#34752: warnings.warn fails silently with unicode input
+https://bugs.python.org/issue34752
+
+#34749: improve performance of binascii.a2b_base64()
+https://bugs.python.org/issue34749
+
+#34748: Incorrect HTML link in functools.partial
+https://bugs.python.org/issue34748
+
+#34747: SSLSocket.context cannot be changed on non-connected sockets
+https://bugs.python.org/issue34747
+
+#34741: Get rid of tp_getattro and tp_setattro in pyexpat.xmlparser
+https://bugs.python.org/issue34741
+
+#34740: Get rid of tp_getattro in ossaudiodev.oss_audio_device
+https://bugs.python.org/issue34740
+
+#34720: Fix test_importlib.test_bad_traverse for AIX
+https://bugs.python.org/issue34720
+
+#34716: MagicMock.__divmod__ should return a pair
+https://bugs.python.org/issue34716
+
+#34714: timeout in test_multiprocessing_spawn x86 Windows7 3.x buildbo
+https://bugs.python.org/issue34714
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#34763: Python lacks 0x4E17
+https://bugs.python.org/issue34763
+
+#34762: Change contextvars C API to use PyObject
+https://bugs.python.org/issue34762
+
+#34759: Possible regression in ssl module in 3.7.1 and master
+https://bugs.python.org/issue34759
+
+#34758: http.server module sets incorrect mimetype for WebAssembly fil
+https://bugs.python.org/issue34758
+
+#34757: Placeholder for discussion on Combined patches for AIX - to re
+https://bugs.python.org/issue34757
+
+#34756: Few changes in sys.breakpointhook()
+https://bugs.python.org/issue34756
+
+#34751: Hash collisions for tuples
+https://bugs.python.org/issue34751
+
+#34749: improve performance of binascii.a2b_base64()
+https://bugs.python.org/issue34749
+
+#34744: New %(flag)s format specifier for argparse.add_argument help s
+https://bugs.python.org/issue34744
+
+#34741: Get rid of tp_getattro and tp_setattro in pyexpat.xmlparser
+https://bugs.python.org/issue34741
+
+#34740: Get rid of tp_getattro in ossaudiodev.oss_audio_device
+https://bugs.python.org/issue34740
+
+#34739: Get rid of tp_getattro in xml.etree.ElementTree.XMLParser
+https://bugs.python.org/issue34739
+
+#34738: Distutils: ZIP files don't include directory entries
+https://bugs.python.org/issue34738
+
+#34732: uuid returns version more than 5
+https://bugs.python.org/issue34732
+
+#34728: deprecate *loop* argument for asyncio.sleep
+https://bugs.python.org/issue34728
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#34589: Py_Initialize() and Py_Main() should not enable C locale coerc
+https://bugs.python.org/issue34589  21 msgs
+
+#34751: Hash collisions for tuples
+https://bugs.python.org/issue34751  14 msgs
+
+#19756: test_nntplib: sporadic failures, network isses? server down?
+https://bugs.python.org/issue19756  13 msgs
+
+#17239: XML vulnerabilities in Python
+https://bugs.python.org/issue17239  10 msgs
+
+#34759: Possible regression in ssl module in 3.7.1 and master
+https://bugs.python.org/issue34759  10 msgs
+
+#34732: uuid returns version more than 5
+https://bugs.python.org/issue34732   9 msgs
+
+#34623: _elementtree.c doesn't call XML_SetHashSalt()
+https://bugs.python.org/issue34623   7 msgs
+
+#34686: Add `-r`, as opposed to `-R` to Python core interpreter
+https://bugs.python.org/issue34686   7 msgs
+
+#31635: test_strptime failure on OpenBSD
+https://bugs.python.org/issue31635   6 msgs
+
+#32557: allow shutil.disk_usage to take a file path on Windows also
+https://bugs.python.org/issue32557   6 msgs
+
+
+
+Issues closed (105)
+===================
+
+#8450: httplib: false BadStatusLine() raised
+https://bugs.python.org/issue8450  closed by miss-islington
+
+#9148: os.execve puts process to background on windows
+https://bugs.python.org/issue9148  closed by eryksun
+
+#15713: PEP 3121, 384 Refactoring applied to zipimport module
+https://bugs.python.org/issue15713  closed by serhiy.storchaka
+
+#18174: Make regrtest with --huntrleaks check for fd leaks
+https://bugs.python.org/issue18174  closed by vstinner
+
+#18295: Possible integer overflow in PyCode_New()
+https://bugs.python.org/issue18295  closed by vstinner
+
+#19431: Document PyFrame_FastToLocals() and PyFrame_FastToLocalsWithEr
+https://bugs.python.org/issue19431  closed by vstinner
+
+#20414: Python 3.4 has two Overlapped types
+https://bugs.python.org/issue20414  closed by vstinner
+
+#21702: asyncio: remote_addr of create_datagram_endpoint() is not docu
+https://bugs.python.org/issue21702  closed by vstinner
+
+#23236: asyncio: add timeout to StreamReader read methods
+https://bugs.python.org/issue23236  closed by vstinner
+
+#23295: [Windows] asyncio: add UDP support to ProactorEventLoop
+https://bugs.python.org/issue23295  closed by vstinner
+
+#23327: zipimport to import from non-ascii pathname on Windows
+https://bugs.python.org/issue23327  closed by serhiy.storchaka
+
+#25750: tp_descr_get(self, obj, type) is called without owning a refer
+https://bugs.python.org/issue25750  closed by jdemeyer
+
+#26119: Windows Installer can sometimes silently fail pip stage
+https://bugs.python.org/issue26119  closed by steve.dower
+
+#26568: Add a new warnings.showwarnmsg() function taking a warnings.Wa
+https://bugs.python.org/issue26568  closed by vstinner
+
+#28955: Not matched behavior of numeric comparison with the documentat
+https://bugs.python.org/issue28955  closed by benjamin.peterson
+
+#29306: Check usage of Py_EnterRecursiveCall() and Py_LeaveRecursiveCa
+https://bugs.python.org/issue29306  closed by vstinner
+
+#29419: Argument Clinic: inline PyArg_UnpackTuple and PyArg_ParseStack
+https://bugs.python.org/issue29419  closed by vstinner
+
+#29451: Use _PyArg_Parser for _PyArg_ParseStack(): support positional 
+https://bugs.python.org/issue29451  closed by vstinner
+
+#29465: Modify _PyObject_FastCall() to reduce stack consumption
+https://bugs.python.org/issue29465  closed by vstinner
+
+#29471: AST: add an attribute to FunctionDef to distinguish functions 
+https://bugs.python.org/issue29471  closed by vstinner
+
+#29674: Use GCC __attribute__((alloc_size(x, y))) on PyMem_Malloc() fu
+https://bugs.python.org/issue29674  closed by vstinner
+
+#29881: Add a new private API clear private variables, which are initi
+https://bugs.python.org/issue29881  closed by vstinner
+
+#30170: "tests may fail, unable to create temporary directory" warning
+https://bugs.python.org/issue30170  closed by vstinner
+
+#30198: distutils build_ext: don't run newer_group() in parallel in mu
+https://bugs.python.org/issue30198  closed by vstinner
+
+#30227: test_site must not write outside the build directory: must not
+https://bugs.python.org/issue30227  closed by vstinner
+
+#30244: Emit a ResourceWarning in concurrent.futures executor destruct
+https://bugs.python.org/issue30244  closed by vstinner
+
+#30317: test_timeout() of test_multiprocessing_spawn.WithManagerTestBa
+https://bugs.python.org/issue30317  closed by vstinner
+
+#30318: test_distutils is too verbose on Windows
+https://bugs.python.org/issue30318  closed by vstinner
+
+#30816: test_open() of test_eintr timeout after 10 min on "x86-64 El C
+https://bugs.python.org/issue30816  closed by vstinner
+
+#30884: regrtest -jN --timeout=TIMEOUT should kill child process runni
+https://bugs.python.org/issue30884  closed by vstinner
+
+#31321: traceback.clear_frames() doesn't clear *all* frames
+https://bugs.python.org/issue31321  closed by vstinner
+
+#31392: Upgrade installers to OpenSSL 1.1.0g and 1.0.2n
+https://bugs.python.org/issue31392  closed by ned.deily
+
+#31531: crash and SystemError in case of a bad zipimport._zip_director
+https://bugs.python.org/issue31531  closed by serhiy.storchaka
+
+#31687: test_semaphore_tracker() of test_multiprocessing_spawn fails r
+https://bugs.python.org/issue31687  closed by vstinner
+
+#31958: UUID versions are not validated to lie in the documented range
+https://bugs.python.org/issue31958  closed by berker.peksag
+
+#32075: Expose ZipImporter Type Object in the include header files.
+https://bugs.python.org/issue32075  closed by serhiy.storchaka
+
+#32093: macOS: implement time.thread_time() using thread_info()
+https://bugs.python.org/issue32093  closed by vstinner
+
+#32128: test_nntplib: test_article_head_body() fails in SSL mode
+https://bugs.python.org/issue32128  closed by vstinner
+
+#32183: Coverity: CID 1423264:  Insecure data handling  (TAINTED_SCALA
+https://bugs.python.org/issue32183  closed by vstinner
+
+#32245: OSError: raw write() returned invalid length on latest Win 10 
+https://bugs.python.org/issue32245  closed by eryksun
+
+#32455: PyCompile_OpcodeStackEffect() and dis.stack_effect() are not p
+https://bugs.python.org/issue32455  closed by serhiy.storchaka
+
+#33070: Add platform triplet for RISC-V
+https://bugs.python.org/issue33070  closed by benjamin.peterson
+
+#33216: [3.5] Wrong order of stack for CALL_FUNCTION_VAR and CALL_FUNC
+https://bugs.python.org/issue33216  closed by serhiy.storchaka
+
+#33486: regen autotools related files
+https://bugs.python.org/issue33486  closed by petr.viktorin
+
+#33531: test_asyncio: test_subprocess test_stdin_broken_pipe() failure
+https://bugs.python.org/issue33531  closed by vstinner
+
+#33613: test_multiprocessing_fork: test_semaphore_tracker_sigint() fai
+https://bugs.python.org/issue33613  closed by vstinner
+
+#33649: asyncio docs overhaul
+https://bugs.python.org/issue33649  closed by yselivanov
+
+#33676: test_multiprocessing_fork: dangling threads warning
+https://bugs.python.org/issue33676  closed by vstinner
+
+#33680: regrtest: re-run failed tests in a subprocess
+https://bugs.python.org/issue33680  closed by vstinner
+
+#33683: asyncio: sendfile tests ignore SO_SNDBUF on Windows
+https://bugs.python.org/issue33683  closed by vstinner
+
+#33686: test_concurrent_futures: test_pending_calls_race() failed on x
+https://bugs.python.org/issue33686  closed by vstinner
+
+#33717: Enhance test.pythoninfo: meta-ticket for multiple changes
+https://bugs.python.org/issue33717  closed by vstinner
+
+#33718: Enhance regrtest: meta-ticket for multiple changes
+https://bugs.python.org/issue33718  closed by vstinner
+
+#33721: os.path.exists() ought to return False if pathname contains NU
+https://bugs.python.org/issue33721  closed by serhiy.storchaka
+
+#33868: test__xxsubinterpreters: test_subinterpreter() fails randomly 
+https://bugs.python.org/issue33868  closed by vstinner
+
+#33920: test_asyncio: test_run_coroutine_threadsafe_with_timeout() fai
+https://bugs.python.org/issue33920  closed by vstinner
+
+#33966: test_multiprocessing_spawn.WithProcessesTestPool.test_tracebac
+https://bugs.python.org/issue33966  closed by vstinner
+
+#34011: Default preference not given to venv DLL's
+https://bugs.python.org/issue34011  closed by steve.dower
+
+#34125: Profiling depends on whether **kwargs is given
+https://bugs.python.org/issue34125  closed by jdemeyer
+
+#34131: test_threading: BarrierTests.test_default_timeout() failed on 
+https://bugs.python.org/issue34131  closed by vstinner
+
+#34150: test_multiprocessing_spawn: Dangling processes leaked on AMD64
+https://bugs.python.org/issue34150  closed by vstinner
+
+#34247: PYTHONOPTIMIZE ignored in 3.7.0 when using custom launcher
+https://bugs.python.org/issue34247  closed by ncoghlan
+
+#34285: regrtest: in case of test failure, add "always look on the bri
+https://bugs.python.org/issue34285  closed by vstinner
+
+#34341: Appending to ZIP archive blows up existing Central Directory e
+https://bugs.python.org/issue34341  closed by serhiy.storchaka
+
+#34354: Memory leak on _testCongestion
+https://bugs.python.org/issue34354  closed by petr.viktorin
+
+#34363: dataclasses.asdict() mishandles dataclass instance attributes 
+https://bugs.python.org/issue34363  closed by eric.smith
+
+#34382: test_os.test_mode fails when directory base directory has g+s 
+https://bugs.python.org/issue34382  closed by Michael.Felt
+
+#34458: No way to alternate options
+https://bugs.python.org/issue34458  closed by paul.j3
+
+#34479: ArgumentParser subparser error display at the wrong level
+https://bugs.python.org/issue34479  closed by paul.j3
+
+#34515: lib2to3: support non-ASCII identifiers
+https://bugs.python.org/issue34515  closed by benjamin.peterson
+
+#34560: Backport of uuid1() failure fix
+https://bugs.python.org/issue34560  closed by Riccardo Mottola
+
+#34585: Don't use AC_RUN_IFELSE to determine float endian
+https://bugs.python.org/issue34585  closed by benjamin.peterson
+
+#34587: test_socket: testCongestion() hangs on my Fedora 28
+https://bugs.python.org/issue34587  closed by vstinner
+
+#34595: PyUnicode_FromFormat(): add %T format for an object type name
+https://bugs.python.org/issue34595  closed by vstinner
+
+#34603: ctypes on Windows: error calling C function that returns a str
+https://bugs.python.org/issue34603  closed by vstinner
+
+#34639: PYTHONCOERCECLOCALE is ignored when using -E or -I option
+https://bugs.python.org/issue34639  closed by vstinner
+
+#34651: Disallow fork in a subinterpreter.
+https://bugs.python.org/issue34651  closed by eric.snow
+
+#34656: memory exhaustion in Modules/_pickle.c:1393
+https://bugs.python.org/issue34656  closed by benjamin.peterson
+
+#34663: Support POSIX_SPAWN_USEVFORK flag in posix_spawn
+https://bugs.python.org/issue34663  closed by pablogsal
+
+#34673: make the eval loop more editable
+https://bugs.python.org/issue34673  closed by benjamin.peterson
+
+#34681: Incorrect class name Pattern in sre_parse.py
+https://bugs.python.org/issue34681  closed by serhiy.storchaka
+
+#34684: Generate _geoslib.c with Cython 0.28.2 for Python 3.7 transiti
+https://bugs.python.org/issue34684  closed by zach.ware
+
+#34685: scheduler tests for posix_spawn fail on AMD64 FreeBSD 10.x Sha
+https://bugs.python.org/issue34685  closed by pablogsal
+
+#34692: ok
+https://bugs.python.org/issue34692  closed by serhiy.storchaka
+
+#34693: PEPping distutils/core.py
+https://bugs.python.org/issue34693  closed by berker.peksag
+
+#34694: Dismiss To Avoid Slave/Master wording cause it easier for non 
+https://bugs.python.org/issue34694  closed by Mariatta
+
+#34695: sqlite3: Cache.get() crashes if Cache.__init__() was not calle
+https://bugs.python.org/issue34695  closed by berker.peksag
+
+#34703: Unexpected Arithmetic Result
+https://bugs.python.org/issue34703  closed by mark.dickinson
+
+#34710: SSL Module build fails with more pedantic compiler flags
+https://bugs.python.org/issue34710  closed by christian.heimes
+
+#34712: Style fixes in examples of "Input and Output" tutorial section
+https://bugs.python.org/issue34712  closed by ned.deily
+
+#34715: timemodule.c fails to compile on BSD
+https://bugs.python.org/issue34715  closed by benjamin.peterson
+
+#34717: docs: disable numbered sections for stdlib in html
+https://bugs.python.org/issue34717  closed by yselivanov
+
+#34718: Syntax error on factorial example
+https://bugs.python.org/issue34718  closed by magmax
+
+#34719: Deprecate set to frozenset conversion in set.__contains__
+https://bugs.python.org/issue34719  closed by rhettinger
+
+#34721: json module loads function
+https://bugs.python.org/issue34721  closed by ammar2
+
+#34723: lower() on Turkish letter "??" returns a 2-chars-long string
+https://bugs.python.org/issue34723  closed by vstinner
+
+#34727: Windows/2.7.15 IOError [Errno 0] when user interacts with cmd 
+https://bugs.python.org/issue34727  closed by eryksun
+
+#34729: bz2/lzma: Compressor/decompressor crash if __init__ is not cal
+https://bugs.python.org/issue34729  closed by izbyshev
+
+#34731: pathlib path.match misshandles multiple `**`
+https://bugs.python.org/issue34731  closed by Ronny.Pfannschmidt
+
+#34733: Missing search bar on docs.python.org
+https://bugs.python.org/issue34733  closed by yselivanov
+
+#34735: Modules/timemodule.c: Memory leak in time_strftime()
+https://bugs.python.org/issue34735  closed by serhiy.storchaka
+
+#34743: test_database_source_name fails with SQLite 3.7.9
+https://bugs.python.org/issue34743  closed by berker.peksag
+
+#34746: Asyncio documentation have a error
+https://bugs.python.org/issue34746  closed by yselivanov
+
+#34754: test_flush_return_value fails on FreeBSD
+https://bugs.python.org/issue34754  closed by berker.peksag
+
+#34755: Few minor optimizations in _asynciomodule.c
+https://bugs.python.org/issue34755  closed by serhiy.storchaka
+
+From guido at python.org  Fri Sep 21 13:35:45 2018
+From: guido at python.org (Guido van Rossum)
+Date: Fri, 21 Sep 2018 10:35:45 -0700
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <po31mk$no9$1@blaine.gmane.org>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <po22fs$id$1@blaine.gmane.org>
+ <CAP7+vJLW1J33oDuUVYvWErmegNRwSbgBeSt8Q=nn9oiBzGRQ4w@mail.gmail.com>
+ <po31mk$no9$1@blaine.gmane.org>
+Message-ID: <CAP7+vJL9oBpbKRJw9ZuXSOqfuV2WvrOfK4TSURdUdfWkKvj6SQ@mail.gmail.com>
+
+On Fri, Sep 21, 2018 at 8:16 AM Christian Heimes <christian at python.org>
+wrote:
+
+> On 21/09/2018 16.26, Guido van Rossum wrote:
+> >> What about the small integers cache?
+> >
+> > I believe the small integers cache is only used to reduce the number of
+> > objects -- I don't think there's any code (in CPython itself) that just
+> > *assumes* that because an int is small it must be in the cache. So it
+> > should be fine.
+>
+> Some places may assume that PyLong_FromLong() for a small int never
+> fails. I certainly expect this in coverity scan modeling.
+>
+
+Ah, that goes in the other direction. That function will always return a
+value from the cache if it's in range for the cache. and nothing change
+there.
+
+I was talking about situations where code might assume that if an object's
+address is not that of the canonical cached zero-valued PyLong object, it
+couldn't be a PyLong with value zero (same for other values in range of the
+cache). I'd be very surprised if there was code assuming that, and I'd say
+it was always wrong. (It's like beginners' code using 'x is 0' instead of
+'x == 0'.)
+
+Though now I start worrying about interned strings. That's a concept that's
+a little closer to being a feature.
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180921/9772cf47/attachment.html>
+
+From e2qb2a44f at prolan-power.hu  Fri Sep 21 14:02:32 2018
+From: e2qb2a44f at prolan-power.hu (e2qb2a44f at prolan-power.hu)
+Date: Fri, 21 Sep 2018 20:02:32 +0200
+Subject: [Python-Dev] switch statement
+Message-ID: <87a6ff86-01f8-0355-8a8a-0ce0e64b5ccb@prolan-power.hu>
+
+Hi,
+
+A humble proposal for a switch-like statement syntax for Python:
+
+- - -
+switch blah in (100, 2, 30, 'bumm'):
+  dosomething1()
+  x = 88
+case blah in (44, 55):
+  otherstuff(9)
+case blah in (8):
+  boo()
+else:
+  wawa()
+- - -
+
+So, let's use, and allow only *tuples*.
+As early as possible, build a jump table, based on (foreknown) small integer values. As in other languages.
+Strings may have to be hashed (in "compile time"), to obtain small integer value. Some secondary checking may
+have to be done for exact content equality. (Alternative: do no allow strings at all.)
+For gaps in the integer range: maybe apply some very basic dividing/shifting to "compact" the range. (As
+compilers optimize in other languages, I guess -- but I may be totally wrong.) (For example find "unused bits"
+in the numbers (in 2-base representation). newnum = orignum >> 3 & 6 | orignum & ~6. newnum is smaller (roughly
+1/8) than orignum.)
+The (achievable) goal is to be faster than hash table lookup. (A hash table with keys 100, 2, 30, 'bumm' etc.)
+And approach the speed of single array-index lookup. (Or even faster in some cases as there will be just jumps
+instead of calls?)
+(I am not an "expert"!)
+
+Let allow fallthrough or not? - To be decided. (Either is compatible with the above.)
+
+
+I know about PEP 3103 and
+https://docs.python.org/3.8/faq/design.html?highlight=switch#why-isn-t-there-a-switch-or-case-statement-in-python
+
+(I do not know how to comment on a PEP, where to discuss a PEP. If this is inappropriate place, please forward it.)
+
+-- 
+
+
+
+
+
+
+From carl.shapiro at gmail.com  Fri Sep 21 14:22:08 2018
+From: carl.shapiro at gmail.com (Carl Shapiro)
+Date: Fri, 21 Sep 2018 11:22:08 -0700
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <20180918220003.ulk4ypmxtbym6s4v@python.ca>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180916222441.13600498@fsol>
+ <CANVK_Qgcx_+af1q4RrNcmSB4sHdxokd8c34=PDt7MyRcz+WKjg@mail.gmail.com>
+ <CANXBEFrOJKHejC7Q3oxHy8wVAQWezFm1Z3efsdr+tZFuioEaRg@mail.gmail.com>
+ <CANVK_QhD2LG7P_rJgF5Z2JW6FnDDVqAEH5jwgeMCnCVQ2LJ6hA@mail.gmail.com>
+ <397028a3-8368-4d57-57de-916f0847f90f@python.org>
+ <CANVK_QheiVR-Z13c8PyVniPpS=LRtkkH7XgvkhfDwqSBU5++ZA@mail.gmail.com>
+ <20180918220003.ulk4ypmxtbym6s4v@python.ca>
+Message-ID: <CANVK_QiW3P_eihb-sBM5S6V5mV+=zPHW4pUNvbXxNH0QdWhWQw@mail.gmail.com>
+
+On Tue, Sep 18, 2018 at 3:00 PM, Neil Schemenauer <nas-python at arctrix.com>
+wrote:
+
+> The users of Python are pretty diverse so it depends on who you ask.
+> Some would like a giant executable that includes everything they
+> need (so of like the Go approach).  Other people want an executable
+> that has just importlib inside it and then mix-and-match different
+> shared libs for their different purposes.  Some will not want work
+> "old school" and load from separate .py or .pyc files.
+>
+> I see no reason why we can't support all these options.
+>
+
+Supporting those options is possible if a some of our simplifying
+assumptions are revisited.  Here are a few
+
+We know about all the objects being stored in the data segment.  That makes
+it is easy to ensure that immutable objects are unique.  Knowing anything
+less, that work would have to be done at load-time.
+
+We do not have to worry about the relocation cost of the pointers we add to
+the data segment.  We are compiled into an executable that typically gets
+loaded at a fixed address.  This could become a performance concern if we
+wrote our data into a shared library.
+
+Because we are compiled into the runtime, we do not have versioning
+issues.  There is no possibility of PyObject_HEAD or any PyObject subclass
+being changed out from under us.  The existing marshal format abstracts
+away from these details but our format is very sensitive to the host
+environment.
+
+All of these problems have technical solutions.  They should be evaluated
+carefully to ensure that the added overhead does not wipe-out the
+performance wins or add lots of complexity to the runtime.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180921/981c0445/attachment.html>
+
+From stefan_ml at behnel.de  Fri Sep 21 14:36:37 2018
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Fri, 21 Sep 2018 20:36:37 +0200
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <CAP7+vJL9oBpbKRJw9ZuXSOqfuV2WvrOfK4TSURdUdfWkKvj6SQ@mail.gmail.com>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <po22fs$id$1@blaine.gmane.org>
+ <CAP7+vJLW1J33oDuUVYvWErmegNRwSbgBeSt8Q=nn9oiBzGRQ4w@mail.gmail.com>
+ <po31mk$no9$1@blaine.gmane.org>
+ <CAP7+vJL9oBpbKRJw9ZuXSOqfuV2WvrOfK4TSURdUdfWkKvj6SQ@mail.gmail.com>
+Message-ID: <po3djj$7h3$1@blaine.gmane.org>
+
+Guido van Rossum schrieb am 21.09.2018 um 19:35:
+> Though now I start worrying about interned strings. That's a concept that's
+> a little closer to being a feature.
+
+True. While there's the general '"ab"+"cd" is (not) "abcd"' caveat, I'm
+sure quite a bit of code out there assumes that parsed identifiers in a
+module, such as the names of functions and classes, are interned, since
+this was often communicated. And in fact, explicitly interning the same
+name might return a different string object with this change than what's in
+the module/class dict.
+
+Stefan
+
+
+From mike at selik.org  Fri Sep 21 14:40:10 2018
+From: mike at selik.org (Michael Selik)
+Date: Fri, 21 Sep 2018 11:40:10 -0700
+Subject: [Python-Dev] switch statement
+In-Reply-To: <87a6ff86-01f8-0355-8a8a-0ce0e64b5ccb@prolan-power.hu>
+References: <87a6ff86-01f8-0355-8a8a-0ce0e64b5ccb@prolan-power.hu>
+Message-ID: <CAGgTfkMRh_zM10FWkvK3tz9v2uCZ=Qsa=hvnkqgv5igL4GjccQ@mail.gmail.com>
+
+First, this sounds like it belongs on python-ideas, not python-dev.
+Second, when you do send a message to python-ideas, it'll help to
+accompany it with a realistic example usage that motivates your
+proposal.
+On Fri, Sep 21, 2018 at 11:18 AM <e2qb2a44f at prolan-power.hu> wrote:
+>
+> Hi,
+>
+> A humble proposal for a switch-like statement syntax for Python:
+>
+> - - -
+> switch blah in (100, 2, 30, 'bumm'):
+>   dosomething1()
+>   x = 88
+> case blah in (44, 55):
+>   otherstuff(9)
+> case blah in (8):
+>   boo()
+> else:
+>   wawa()
+> - - -
+>
+> So, let's use, and allow only *tuples*.
+> As early as possible, build a jump table, based on (foreknown) small integer values. As in other languages.
+> Strings may have to be hashed (in "compile time"), to obtain small integer value. Some secondary checking may
+> have to be done for exact content equality. (Alternative: do no allow strings at all.)
+> For gaps in the integer range: maybe apply some very basic dividing/shifting to "compact" the range. (As
+> compilers optimize in other languages, I guess -- but I may be totally wrong.) (For example find "unused bits"
+> in the numbers (in 2-base representation). newnum = orignum >> 3 & 6 | orignum & ~6. newnum is smaller (roughly
+> 1/8) than orignum.)
+> The (achievable) goal is to be faster than hash table lookup. (A hash table with keys 100, 2, 30, 'bumm' etc.)
+> And approach the speed of single array-index lookup. (Or even faster in some cases as there will be just jumps
+> instead of calls?)
+> (I am not an "expert"!)
+>
+> Let allow fallthrough or not? - To be decided. (Either is compatible with the above.)
+>
+>
+> I know about PEP 3103 and
+> https://docs.python.org/3.8/faq/design.html?highlight=switch#why-isn-t-there-a-switch-or-case-statement-in-python
+>
+> (I do not know how to comment on a PEP, where to discuss a PEP. If this is inappropriate place, please forward it.)
+>
+> --
+>
+>
+>
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/mike%40selik.org
+
+From jcgoble3 at gmail.com  Fri Sep 21 14:53:03 2018
+From: jcgoble3 at gmail.com (Jonathan Goble)
+Date: Fri, 21 Sep 2018 14:53:03 -0400
+Subject: [Python-Dev] switch statement
+In-Reply-To: <87a6ff86-01f8-0355-8a8a-0ce0e64b5ccb@prolan-power.hu>
+References: <87a6ff86-01f8-0355-8a8a-0ce0e64b5ccb@prolan-power.hu>
+Message-ID: <CAK256p2yyyhL51hcnrUS-_K99NgwMW32jKLBryi3Lwjo89EWZA@mail.gmail.com>
+
+As Michael said, this belongs on python-ideas, but it's interesting. I'd
+support it, though my input in that regard is worth approximately $0.00. ;)
+It's the core devs and especially the eventual BDFL replacement whom you
+would have to convince.
+
+Without getting into an extended discussion here on python-dev, I'd like to
+offer one brief comment to try to help improve the proposal:
+
+On Fri, Sep 21, 2018 at 2:17 PM <e2qb2a44f at prolan-power.hu> wrote:
+
+> Let allow fallthrough or not? - To be decided. (Either is compatible with
+> the above.)
+>
+
+I would argue for non-fallthrough as the default with support for
+explicitly requesting fallthrough when desired by using "continue". I don't
+know of any prior art for doing it that way, but it makes sense to me. It
+eliminates hidden bugs from missing a "break" while still allowing it when
+needed.
+
+Good luck with the proposal!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180921/78a18204/attachment.html>
+
+From carl.shapiro at gmail.com  Fri Sep 21 15:01:15 2018
+From: carl.shapiro at gmail.com (Carl Shapiro)
+Date: Fri, 21 Sep 2018 12:01:15 -0700
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <po22fs$id$1@blaine.gmane.org>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <po22fs$id$1@blaine.gmane.org>
+Message-ID: <CANVK_Qh0o-XVFb-Hbtymy5aKP_aQg0rVOy1qzG04emQ8UwdeAQ@mail.gmail.com>
+
+On Thu, Sep 20, 2018 at 11:20 PM, Stefan Behnel <stefan_ml at behnel.de> wrote:
+
+> What about the small integers cache? The C serialisation generates several
+> PyLong objects that would normally reside in the cache. Is this handled
+> somewhere? I guess the cache could entirely be loaded from the data
+> segment. And the same would have to be done for interned strings. Basically
+> anything that CPython only wants to have one instance of.
+>
+
+Un-marshaled immutable objects are tracked in a table to ensure their
+uniqueness.  Thanks for mentioning the small integer cache.  It is not part
+of the change, but it could be brought under this framework.  By doing so,
+we could store the small integer objects instances in the data segment and
+other data segment objects could reference those unique small integer
+instances.
+
+That would severely limit the application of this optimisation to external
+> modules, though. I don't see a way how they could load their data
+> structures from the data segment without duplicating all sorts of
+> "singletons".
+
+
+Yes, additional load-time work would have to be done to ensure the
+uniqueness of those objects.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180921/c9596e6e/attachment.html>
+
+From breamoreboy at gmail.com  Fri Sep 21 16:20:10 2018
+From: breamoreboy at gmail.com (Mark Lawrence)
+Date: Fri, 21 Sep 2018 21:20:10 +0100
+Subject: [Python-Dev] SEC: Spectre variant 2: GCC:
+ -mindirect-branch=thunk -mindirect-branch-register
+In-Reply-To: <CACfEFw9CWOkeDgB287PimxLP9swtvAmmU7Sm0q-Gk_7sBnvGFw@mail.gmail.com>
+References: <CACfEFw9+XkxC1DMsyRjgQ=ay-FhAumD1_3qtkBTS9Xc85hUZZg@mail.gmail.com>
+ <CACfEFw_P+O_-cQZGAH+sW3uBK-4PqAE2Pv9VCo0STjYEibh08A@mail.gmail.com>
+ <395ca1a4-f997-f533-241c-c3d3edc25f7e@python.org>
+ <CACfEFw9i6MMFtWzrB9R3=2qQKr0kdefTXmRaknHkNBDRQfXONQ@mail.gmail.com>
+ <7f61f443-8599-31dc-58ee-609843f86250@python.org>
+ <CACfEFw_Vpud1ym4+tAqhYf9BQcMphHRJCGZ=hMTiHSY4MyrBHQ@mail.gmail.com>
+ <CAEfz+Typ+3BSnrn8Gg_xXH9aCadVZwsz=wK4zs=F99wXb_QiHw@mail.gmail.com>
+ <CAAxjCEw1--rkV=-EdGDbAM2CZe6eqpF49PjTh=TRNb9X9MBLWw@mail.gmail.com>
+ <CACfEFw9XJzui4LSDAZw=JPug7jfEzfME-sDO4G02zw2aug2tqA@mail.gmail.com>
+ <CAB_e7izd1wpnQN+rFVHTyoNyZZu=uN--0LDuJ+7-Dw33t0006w@mail.gmail.com>
+ <CACfEFw9CWOkeDgB287PimxLP9swtvAmmU7Sm0q-Gk_7sBnvGFw@mail.gmail.com>
+Message-ID: <po3jln$h6g$1@blaine.gmane.org>
+
+On 21/09/18 08:11, Wes Turner wrote:
+> I feel like you are actively undermining attempts to prevent 
+> exploitation of known vulnerabilities because the software in question 
+> is currently too slow.
+> 
+
+Did you write "How to Win Friends And Influence People"?
+
+-- 
+My fellow Pythonistas, ask not what our language can do for you, ask
+what you can do for our language.
+
+Mark Lawrence
+
+
+From guido at python.org  Fri Sep 21 17:10:00 2018
+From: guido at python.org (Guido van Rossum)
+Date: Fri, 21 Sep 2018 14:10:00 -0700
+Subject: [Python-Dev] switch statement
+In-Reply-To: <87a6ff86-01f8-0355-8a8a-0ce0e64b5ccb@prolan-power.hu>
+References: <87a6ff86-01f8-0355-8a8a-0ce0e64b5ccb@prolan-power.hu>
+Message-ID: <CAP7+vJ+sbTWkByFff2b6_=QrGyZwgFCZsyb1fPNAZBp9vG9+HQ@mail.gmail.com>
+
+There's already a rejected PEP about a switch statement:
+https://www.python.org/dev/peps/pep-3103/. There's no point bringing this
+up again unless you have a new use case.
+
+There have been several promising posts to python-ideas about the much more
+powerful idea of a "match" statement. Please search for those before
+re-posting on python-ideas.
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180921/9d14cedf/attachment.html>
+
+From levkivskyi at gmail.com  Fri Sep 21 17:22:22 2018
+From: levkivskyi at gmail.com (Ivan Levkivskyi)
+Date: Fri, 21 Sep 2018 22:22:22 +0100
+Subject: [Python-Dev] switch statement
+In-Reply-To: <CAP7+vJ+sbTWkByFff2b6_=QrGyZwgFCZsyb1fPNAZBp9vG9+HQ@mail.gmail.com>
+References: <87a6ff86-01f8-0355-8a8a-0ce0e64b5ccb@prolan-power.hu>
+ <CAP7+vJ+sbTWkByFff2b6_=QrGyZwgFCZsyb1fPNAZBp9vG9+HQ@mail.gmail.com>
+Message-ID: <CAOMjWkmEreknOf+B=201rJMahUFUPipVf=hNNyHVk4OVRuEHUQ@mail.gmail.com>
+
+> There have been several promising posts to python-ideas about the much
+more powerful idea of a "match" statement
+
+I actually even started working on a PEP about this (pattern matching), but
+then decided to postpone it because it is unlikely that anything of this
+size can be discussed/accepted in current situation.
+We can return back to the idea when decision-making model will clarify.
+
+--
+Ivan
+
+
+
+On Fri, 21 Sep 2018 at 22:12, Guido van Rossum <guido at python.org> wrote:
+
+> There's already a rejected PEP about a switch statement:
+> https://www.python.org/dev/peps/pep-3103/. There's no point bringing this
+> up again unless you have a new use case.
+>
+> There have been several promising posts to python-ideas about the much
+> more powerful idea of a "match" statement. Please search for those before
+> re-posting on python-ideas.
+>
+> --
+> --Guido van Rossum (python.org/~guido)
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/levkivskyi%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180921/9d782be2/attachment.html>
+
+From ericsnowcurrently at gmail.com  Fri Sep 21 19:01:45 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Fri, 21 Sep 2018 17:01:45 -0600
+Subject: [Python-Dev] Questions about signal handling.
+Message-ID: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+
+Hi all,
+
+I've got a pretty good sense of how signal handling works in the
+runtime (i.e. via a dance with the eval loop), but still have some
+questions:
+
+1. Why do we restrict calls to signal.signal() to the main thread?
+2. Why must signal handlers run in the main thread?
+3. Why does signal handling operate via the "pending calls" machinery
+and not distinctly?
+
+More details are below.  My interest in the topic relates to improving
+in-process interpreter isolation.
+
+#1 & #2
+-----------
+
+Toward the top of signalmodule.c we find the following comment [1]
+(written in 1994):
+
+/*
+   NOTES ON THE INTERACTION BETWEEN SIGNALS AND THREADS
+   When threads are supported, we want the following semantics:
+   - only the main thread can set a signal handler
+   - any thread can get a signal handler
+   - signals are only delivered to the main thread
+   I.e. we don't support "synchronous signals" like SIGFPE (catching
+   this doesn't make much sense in Python anyway) nor do we support
+   signals as a means of inter-thread communication, since not all
+   thread implementations support that (at least our thread library
+   doesn't).
+   We still have the problem that in some implementations signals
+   generated by the keyboard (e.g. SIGINT) are delivered to all
+   threads (e.g. SGI), while in others (e.g. Solaris) such signals are
+   delivered to one random thread (an intermediate possibility would
+   be to deliver it to the main thread -- POSIX?).  For now, we have
+   a working implementation that works in all three cases -- the
+   handler ignores signals if getpid() isn't the same as in the main
+   thread.  XXX This is a hack.
+*/
+
+At the very top of the file we see another relevant comment:
+
+/* XXX Signals should be recorded per thread, now we have thread state. */
+
+That one was written in 1997, right after PyThreadState was introduced.
+
+So is the constraint about the main thread just a historical artifact?
+ If not, what would be an appropriate explanation for why signals must
+be strictly bound to the main thread?
+
+#3
+-----
+
+Regarding the use of Py_MakePendingCalls() for signal handling, I can
+imagine the history there.  However, is there any reason signal
+handling couldn't be separated from the "pending calls" machinery at
+this point?  As far as I can tell there is no longer any strong
+relationship between the two.
+
+-eric
+
+[1] https://github.com/python/cpython/blob/master/Modules/signalmodule.c#L71
+
+From vstinner at redhat.com  Fri Sep 21 19:10:59 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 22 Sep 2018 01:10:59 +0200
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+Message-ID: <CA+3bQGGOqjmZDVgZajB0mw6nYY2cQ0XM-3z0XZXwQy6mDwnrdA@mail.gmail.com>
+
+Le sam. 22 sept. 2018 ? 01:05, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> 3. Why does signal handling operate via the "pending calls" machinery
+> and not distinctly?
+
+Signals can be received anytime, between two instructions at the
+machine code level. But the Python code base is rarely reentrant.
+Moreover, you can get the signal while you don't hold the GIL :-)
+
+Victor
+
+From wes.turner at gmail.com  Fri Sep 21 22:49:50 2018
+From: wes.turner at gmail.com (Wes Turner)
+Date: Fri, 21 Sep 2018 22:49:50 -0400
+Subject: [Python-Dev] SEC: Spectre variant 2: GCC:
+ -mindirect-branch=thunk -mindirect-branch-register
+In-Reply-To: <po3jln$h6g$1@blaine.gmane.org>
+References: <CACfEFw9+XkxC1DMsyRjgQ=ay-FhAumD1_3qtkBTS9Xc85hUZZg@mail.gmail.com>
+ <CACfEFw_P+O_-cQZGAH+sW3uBK-4PqAE2Pv9VCo0STjYEibh08A@mail.gmail.com>
+ <395ca1a4-f997-f533-241c-c3d3edc25f7e@python.org>
+ <CACfEFw9i6MMFtWzrB9R3=2qQKr0kdefTXmRaknHkNBDRQfXONQ@mail.gmail.com>
+ <7f61f443-8599-31dc-58ee-609843f86250@python.org>
+ <CACfEFw_Vpud1ym4+tAqhYf9BQcMphHRJCGZ=hMTiHSY4MyrBHQ@mail.gmail.com>
+ <CAEfz+Typ+3BSnrn8Gg_xXH9aCadVZwsz=wK4zs=F99wXb_QiHw@mail.gmail.com>
+ <CAAxjCEw1--rkV=-EdGDbAM2CZe6eqpF49PjTh=TRNb9X9MBLWw@mail.gmail.com>
+ <CACfEFw9XJzui4LSDAZw=JPug7jfEzfME-sDO4G02zw2aug2tqA@mail.gmail.com>
+ <CAB_e7izd1wpnQN+rFVHTyoNyZZu=uN--0LDuJ+7-Dw33t0006w@mail.gmail.com>
+ <CACfEFw9CWOkeDgB287PimxLP9swtvAmmU7Sm0q-Gk_7sBnvGFw@mail.gmail.com>
+ <po3jln$h6g$1@blaine.gmane.org>
+Message-ID: <CACfEFw9pyTgH0xMFB+oD-1Y6qug6-53nLY01KCbjGyBcUm-dcQ@mail.gmail.com>
+
+On Friday, September 21, 2018, Mark Lawrence <breamoreboy at gmail.com> wrote:
+
+> On 21/09/18 08:11, Wes Turner wrote:
+>
+>> I feel like you are actively undermining attempts to prevent exploitation
+>> of known vulnerabilities because the software in question is currently too
+>> slow.
+>>
+>>
+> Did you write "How to Win Friends And Influence People"?
+
+
+"Andrew Carnegie - Rags to Riches Power to Peace"
+... Vredespaleis
+
+"Think and Grow Rich" by Napoleon Hill
+
+Today is International Day of Peace.
+
+But, now, I've gone way OT,
+So, we'll just have to hope IBRS is enabled,
+On all of the Jupyter cloud hosts.
+
+
+>
+> --
+> My fellow Pythonistas, ask not what our language can do for you, ask
+> what you can do for our language.
+>
+> Mark Lawrence
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/wes.
+> turner%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180921/28b88c45/attachment.html>
+
+From david at drhagen.com  Sat Sep 22 08:18:40 2018
+From: david at drhagen.com (David Hagen)
+Date: Sat, 22 Sep 2018 08:18:40 -0400
+Subject: [Python-Dev] Postponed annotations break inspection of dataclasses
+Message-ID: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+
+The new postponed annotations have an unexpected interaction with
+dataclasses. Namely, you cannot get the type hints of any of the data
+classes methods.
+
+For example, I have some code that inspects the type parameters of a
+class's `__init__` method. (The real use case is to provide a default
+serializer for the class, but that is not important here.)
+
+```
+from dataclasses import dataclass
+from typing import get_type_hints
+
+class Foo:
+    pass
+
+@dataclass
+class Bar:
+    foo: Foo
+
+print(get_type_hints(Bar.__init__))
+```
+
+In Python 3.6 and 3.7, this does what is expected; it prints `{'foo':
+<class '__main__.Foo'>, 'return': <class 'NoneType'>}`.
+
+However, if in Python 3.7, I add `from __future__ import annotations`, then
+this fails with an error:
+
+```
+NameError: name 'Foo' is not defined
+```
+
+I know why this is happening. The `__init__` method is defined in the
+`dataclasses` module which does not have the `Foo` object in its
+environment, and the `Foo` annotation is being passed to `dataclass` and
+attached to `__init__` as the string `"Foo"` rather than as the original
+object `Foo`, but `get_type_hints` for the new annotations only does a name
+lookup in the module where `__init__` is defined not where the annotation
+is defined.
+
+I know that the use of lambdas to implement PEP 563 was rejected for
+performance reasons. I could be wrong, but I think this was motivated by
+variable annotations because the lambda would have to be constructed each
+time the function body ran. I was wondering if I could motivate storing the
+annotations as lambdas in class bodies and function signatures, in which
+the environment is already being captured and is code that usually only
+runs once.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180922/4bfe10ca/attachment-0001.html>
+
+From guido at python.org  Sat Sep 22 12:41:22 2018
+From: guido at python.org (Guido van Rossum)
+Date: Sat, 22 Sep 2018 09:41:22 -0700
+Subject: [Python-Dev] Postponed annotations break inspection of
+ dataclasses
+In-Reply-To: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+References: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+Message-ID: <CAP7+vJL5vZH_rBFOCU+jFYDnHN4VOn+7Y0HQ_MUTd-sDNRKi5w@mail.gmail.com>
+
+This is a good catch -- thanks for bringing it up. I'm adding Eric Smith
+(author of dataclasses) and Ivan Levkivskyi (co-author of typing) as well
+as ?ukasz Langa (author of PEP 563) to the thread to see if they have
+further insights.
+
+Personally I don't think it's feasible to change PEP 563 to use lambdas (if
+it were even advisable, which would be a long discussion), but I do think
+we might be able to make small improvements to the dataclasses and/or
+typing modules to make sure your use case works.
+
+Probably a bugs.python.org issue is a better place to dive into the details
+than python-dev.
+
+Thanks again,
+
+--Guido (top-poster in chief)
+
+On Sat, Sep 22, 2018 at 8:32 AM David Hagen <david at drhagen.com> wrote:
+
+> The new postponed annotations have an unexpected interaction with
+> dataclasses. Namely, you cannot get the type hints of any of the data
+> classes methods.
+>
+> For example, I have some code that inspects the type parameters of a
+> class's `__init__` method. (The real use case is to provide a default
+> serializer for the class, but that is not important here.)
+>
+> ```
+> from dataclasses import dataclass
+> from typing import get_type_hints
+>
+> class Foo:
+>     pass
+>
+> @dataclass
+> class Bar:
+>     foo: Foo
+>
+> print(get_type_hints(Bar.__init__))
+> ```
+>
+> In Python 3.6 and 3.7, this does what is expected; it prints `{'foo':
+> <class '__main__.Foo'>, 'return': <class 'NoneType'>}`.
+>
+> However, if in Python 3.7, I add `from __future__ import annotations`,
+> then this fails with an error:
+>
+> ```
+> NameError: name 'Foo' is not defined
+> ```
+>
+> I know why this is happening. The `__init__` method is defined in the
+> `dataclasses` module which does not have the `Foo` object in its
+> environment, and the `Foo` annotation is being passed to `dataclass` and
+> attached to `__init__` as the string `"Foo"` rather than as the original
+> object `Foo`, but `get_type_hints` for the new annotations only does a name
+> lookup in the module where `__init__` is defined not where the annotation
+> is defined.
+>
+> I know that the use of lambdas to implement PEP 563 was rejected for
+> performance reasons. I could be wrong, but I think this was motivated by
+> variable annotations because the lambda would have to be constructed each
+> time the function body ran. I was wondering if I could motivate storing the
+> annotations as lambdas in class bodies and function signatures, in which
+> the environment is already being captured and is code that usually only
+> runs once.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180922/a66a20f7/attachment.html>
+
+From eric at trueblade.com  Sat Sep 22 14:29:21 2018
+From: eric at trueblade.com (Eric V. Smith)
+Date: Sat, 22 Sep 2018 14:29:21 -0400
+Subject: [Python-Dev] Postponed annotations break inspection of
+ dataclasses
+In-Reply-To: <CAP7+vJL5vZH_rBFOCU+jFYDnHN4VOn+7Y0HQ_MUTd-sDNRKi5w@mail.gmail.com>
+References: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+ <CAP7+vJL5vZH_rBFOCU+jFYDnHN4VOn+7Y0HQ_MUTd-sDNRKi5w@mail.gmail.com>
+Message-ID: <aff1d4fe-9e69-e929-1169-92dfef657a61@trueblade.com>
+
+On 9/22/2018 12:41 PM, Guido van Rossum wrote:
+> This is a good catch -- thanks for bringing it up. I'm adding Eric Smith 
+> (author of dataclasses) and Ivan Levkivskyi (co-author of typing) as 
+> well as ?ukasz Langa (author of PEP 563) to the thread to see if they 
+> have further insights.
+
+I don't see Ivan and ?ukasz cc'd, so I'm adding them here.
+
+> Personally I don't think it's feasible to change PEP 563 to use lambdas 
+> (if it were even advisable, which would be a long discussion), but I do 
+> think we might be able to make small improvements to the dataclasses 
+> and/or typing modules to make sure your use case works.
+> 
+> Probably a bugs.python.org <http://bugs.python.org> issue is a better 
+> place to dive into the details than python-dev.
+
+Agreed that opening a bug would be good.
+
+And then I'll ruin that suggestion by answering here, too:
+
+I think this problem is endemic to get_type_hints(). I've never 
+understood how you're supposed to use the globals and locals arguments 
+to it, but this works:
+
+print(get_type_hints(Bar.__init__, globals()))
+
+as does:
+
+print(get_type_hints(Bar.__init__, Bar.__module__))
+
+But that seems like you'd have to know a lot about how a class were 
+declared in order to call get_type_hints on it. I'm not sure __module__ 
+is always correct (but again, I haven't really thought about it).
+
+The docs for get_type_hints() says: "In addition, forward references 
+encoded as string literals are handled by evaluating them in globals and 
+locals namespaces."
+
+Every once in a while someone will bring up the idea of delayed 
+evaluation, and the answer is always "use a lambda". If we ever wanted 
+to do something more with delayed evaluation, this is a good use case 
+for it.
+
+Eric
+
+> 
+> Thanks again,
+> 
+> --Guido (top-poster in chief)
+> 
+> On Sat, Sep 22, 2018 at 8:32 AM David Hagen <david at drhagen.com 
+> <mailto:david at drhagen.com>> wrote:
+> 
+>     The new postponed annotations have an unexpected interaction with
+>     dataclasses. Namely, you cannot get the type hints of any of the
+>     data classes methods.
+> 
+>     For example, I have some code that inspects the type parameters of a
+>     class's `__init__` method. (The real use case is to provide a
+>     default serializer for the class, but that is not important here.)
+> 
+>     ```
+>     from dataclasses import dataclass
+>     from typing import get_type_hints
+> 
+>     class Foo:
+>      ? ? pass
+> 
+>     @dataclass
+>     class Bar:
+>      ? ? foo: Foo
+> 
+>     print(get_type_hints(Bar.__init__))
+>     ```
+> 
+>     In Python 3.6 and 3.7, this does what is expected; it prints
+>     `{'foo': <class '__main__.Foo'>, 'return': <class 'NoneType'>}`.
+> 
+>     However, if in Python 3.7, I add `from __future__ import
+>     annotations`, then this fails with an error:
+> 
+>     ```
+>     NameError: name 'Foo' is not defined
+>     ```
+> 
+>     I know why this is happening. The `__init__` method is defined in
+>     the `dataclasses` module which does not have the `Foo` object in its
+>     environment, and the `Foo` annotation is being passed to `dataclass`
+>     and attached to `__init__` as the string `"Foo"` rather than as the
+>     original object `Foo`, but `get_type_hints` for the new annotations
+>     only does a name lookup in the module where `__init__` is defined
+>     not where the annotation is defined.
+> 
+>     I know that the use of lambdas to implement PEP 563 was rejected for
+>     performance reasons. I could be wrong, but I think this was
+>     motivated by variable annotations because the lambda would have to
+>     be constructed each time the function body ran. I was wondering if I
+>     could motivate storing the annotations as lambdas in?class bodies
+>     and function signatures, in which the environment is already being
+>     captured and is code that usually only runs once.
+>     _______________________________________________
+>     Python-Dev mailing list
+>     Python-Dev at python.org <mailto:Python-Dev at python.org>
+>     https://mail.python.org/mailman/listinfo/python-dev
+>     Unsubscribe:
+>     https://mail.python.org/mailman/options/python-dev/guido%40python.org
+> 
+> 
+> 
+> -- 
+> --Guido van Rossum (python.org/~guido <http://python.org/%7Eguido>)
+> 
+> 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/eric%2Ba-python-dev%40trueblade.com
+> 
+
+From guido at python.org  Sat Sep 22 15:09:22 2018
+From: guido at python.org (Guido van Rossum)
+Date: Sat, 22 Sep 2018 12:09:22 -0700
+Subject: [Python-Dev] Postponed annotations break inspection of
+ dataclasses
+In-Reply-To: <aff1d4fe-9e69-e929-1169-92dfef657a61@trueblade.com>
+References: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+ <CAP7+vJL5vZH_rBFOCU+jFYDnHN4VOn+7Y0HQ_MUTd-sDNRKi5w@mail.gmail.com>
+ <aff1d4fe-9e69-e929-1169-92dfef657a61@trueblade.com>
+Message-ID: <CAP7+vJLY=nocFZnkwiCKnfG9KngKdfL5JRC8OiU-Q6BxgG6cOA@mail.gmail.com>
+
+On Sat, Sep 22, 2018 at 11:29 AM Eric V. Smith <eric at trueblade.com> wrote:
+
+> I think this problem is endemic to get_type_hints(). I've never
+> understood how you're supposed to use the globals and locals arguments
+> to it, but this works:
+>
+> print(get_type_hints(Bar.__init__, globals()))
+>
+> as does:
+>
+> print(get_type_hints(Bar.__init__, Bar.__module__))
+>
+> But that seems like you'd have to know a lot about how a class were
+> declared in order to call get_type_hints on it. I'm not sure __module__
+> is always correct (but again, I haven't really thought about it).
+>
+
+Still, I wonder if there's a tweak possible of the globals and locals used
+when exec()'ing the function definitions in dataclasses.py, so that
+get_type_hints() gets the right globals for this use case.
+
+It's really tough to be at the intersection of three PEPs...
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180922/ae1c4611/attachment.html>
+
+From yselivanov.ml at gmail.com  Sat Sep 22 16:38:22 2018
+From: yselivanov.ml at gmail.com (Yury Selivanov)
+Date: Sat, 22 Sep 2018 16:38:22 -0400
+Subject: [Python-Dev] Postponed annotations break inspection of
+ dataclasses
+In-Reply-To: <CAP7+vJLY=nocFZnkwiCKnfG9KngKdfL5JRC8OiU-Q6BxgG6cOA@mail.gmail.com>
+References: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+ <CAP7+vJL5vZH_rBFOCU+jFYDnHN4VOn+7Y0HQ_MUTd-sDNRKi5w@mail.gmail.com>
+ <aff1d4fe-9e69-e929-1169-92dfef657a61@trueblade.com>
+ <CAP7+vJLY=nocFZnkwiCKnfG9KngKdfL5JRC8OiU-Q6BxgG6cOA@mail.gmail.com>
+Message-ID: <CA+St6D3uUk1mDdG_Uh8+yH31Ji6im2-bbtrV86qrr3CMQQB-1A@mail.gmail.com>
+
+On Sat, Sep 22, 2018 at 3:11 PM Guido van Rossum <guido at python.org> wrote:
+[..]
+> Still, I wonder if there's a tweak possible of the globals and locals used when exec()'ing the function definitions in dataclasses.py, so that get_type_hints() gets the right globals for this use case.
+>
+> It's really tough to be at the intersection of three PEPs...
+
+If it's possible to fix exec() to accept any Mapping (not just dicts),
+then we can create a proxy mapping for "Dataclass.__init__.__module__"
+module and everything would work as expected.
+
+Here's a very hack-ish fix we can use in meanwhile (even in 3.7.1?):
+https://gist.github.com/1st1/37fdd3cc84cd65b9af3471b935b722df
+
+Yury
+
+From david at drhagen.com  Sun Sep 23 06:40:29 2018
+From: david at drhagen.com (David Hagen)
+Date: Sun, 23 Sep 2018 06:40:29 -0400
+Subject: [Python-Dev] Postponed annotations break inspection of
+ dataclasses
+In-Reply-To: <CA+St6D3uUk1mDdG_Uh8+yH31Ji6im2-bbtrV86qrr3CMQQB-1A@mail.gmail.com>
+References: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+ <CAP7+vJL5vZH_rBFOCU+jFYDnHN4VOn+7Y0HQ_MUTd-sDNRKi5w@mail.gmail.com>
+ <aff1d4fe-9e69-e929-1169-92dfef657a61@trueblade.com>
+ <CAP7+vJLY=nocFZnkwiCKnfG9KngKdfL5JRC8OiU-Q6BxgG6cOA@mail.gmail.com>
+ <CA+St6D3uUk1mDdG_Uh8+yH31Ji6im2-bbtrV86qrr3CMQQB-1A@mail.gmail.com>
+Message-ID: <CALO6Ft67UAVq9Q+_5xO8Q-g7DwffVP9vTBs+Yn5Nv_9Fc5H4Gg@mail.gmail.com>
+
+On Sat, Sep 22, 2018 at 3:11 PM Guido van Rossum <guido at python.org> wrote:
+> Still, I wonder if there's a tweak possible of the globals and locals
+used when exec()'ing the function definitions in dataclasses.py, so that
+get_type_hints() gets the right globals for this use case.
+
+On Sat, Sep 22, 2018 at 4:38 PM Yury Selivanov <yselivanov.ml at gmail.com>
+wrote:
+> If it's possible to fix exec() to accept any Mapping (not just dicts),
+> then we can create a proxy mapping for "Dataclass.__init__.__module__"
+> module and everything would work as expected.
+
+Another possible solution is that `__annotations__` are *permitted* to be
+lambdas, but not created as such by default, and `get_type_hints` is aware
+of this. Operations that are known to break type hints (such as when data
+classes copy the type hints from the class body to the `__init__` method)
+could covert the type hint from a string to a lambda before moving it. It
+does not even have to be a lambda; an instance of some `TypeHint` class,
+which stores the string and pointers to the original `globals` and `locals`
+(or just the original object whose `globals` and `locals` are relevant),
+but that's essentially what a lambda is anyway.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180923/5acbe92c/attachment.html>
+
+From david at drhagen.com  Sun Sep 23 06:48:38 2018
+From: david at drhagen.com (David Hagen)
+Date: Sun, 23 Sep 2018 06:48:38 -0400
+Subject: [Python-Dev] Postponed annotations break inspection of
+ dataclasses
+In-Reply-To: <CALO6Ft67UAVq9Q+_5xO8Q-g7DwffVP9vTBs+Yn5Nv_9Fc5H4Gg@mail.gmail.com>
+References: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+ <CAP7+vJL5vZH_rBFOCU+jFYDnHN4VOn+7Y0HQ_MUTd-sDNRKi5w@mail.gmail.com>
+ <aff1d4fe-9e69-e929-1169-92dfef657a61@trueblade.com>
+ <CAP7+vJLY=nocFZnkwiCKnfG9KngKdfL5JRC8OiU-Q6BxgG6cOA@mail.gmail.com>
+ <CA+St6D3uUk1mDdG_Uh8+yH31Ji6im2-bbtrV86qrr3CMQQB-1A@mail.gmail.com>
+ <CALO6Ft67UAVq9Q+_5xO8Q-g7DwffVP9vTBs+Yn5Nv_9Fc5H4Gg@mail.gmail.com>
+Message-ID: <CALO6Ft5f9VQ-5Ta7iLuaGXhGeL+MQd7pdidNsb6mSrjL_ZjuAQ@mail.gmail.com>
+
+On Sat, Sep 22, 2018 at 12:41 PM Guido van Rossum <guido at python.org>
+wrote:
+> Probably a bugs.python.org issue is a better place to dive into the
+details than python-dev.
+
+Issue tracker issue created: https://bugs.python.org/issue34776
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180923/4783c7be/attachment.html>
+
+From ralshammrei2 at gmail.com  Sun Sep 23 13:59:19 2018
+From: ralshammrei2 at gmail.com (R Alshammrei)
+Date: Sun, 23 Sep 2018 20:59:19 +0300
+Subject: [Python-Dev] (no subject)
+Message-ID: <CAB8+uekt9AdTEFB-6qZ+TBCP6Roqb+a8kXibFGrn2sT90jsgOA@mail.gmail.com>
+
+------------------------------
+
+?? 8 ?????? ? 2017 ?? ???? ?????? 12:30 ??? ????? ????? ? ?????
+Masayuki YAMAMOTO
+< ma3yuki.8mamo10 at gmail.com
+<https://mail.python.org/mailman/listinfo/python-dev> > ???:
+> *????? ?? ????
+* > > *I ????? PEP 539 ??????? ??????? ?????????. ???? ????? ???????
+* > *?????????!
+*
+???? ?? ???? ????????? ??? ????? ???? ??? ??? PEP!
+???? ????????? ???? ? ???? ?????? ?? ???? ?? BDFL-Delegate ???
+???????? ????? ???? :)
+?? ???????
+???.
+-
+??? ??????   ncoghlan ?? gmail.com
+<https://mail.python.org/mailman/listinfo/python-dev>    | ????????
+????????
+
+------------------------------
+
+
+   - Previous message (by thread): [Python-Dev] PEP 539 v3: A C new API for
+   Thread-Local Storage in CPython
+   <https://mail.python.org/pipermail/python-dev/2017-September/149354.html>
+   - ??????? ??????? (?????? ???? ???????): [Python-Dev] PEP 539 v3: ?????
+   ????? ??????? C ????? ??????? ?????? ?????? ?? CPython
+   <https://mail.python.org/pipermail/python-dev/2017-September/149371.html>
+   - *?? ??? ??????? ???: *[date]
+   <https://mail.python.org/pipermail/python-dev/2017-September/date.html#149358>
+   [thread]
+   <https://mail.python.org/pipermail/python-dev/2017-September/thread.html#149358>
+   [subject]
+   <https://mail.python.org/pipermail/python-dev/2017-September/subject.html#149358>
+   [author]
+   <https://mail.python.org/pipermail/python-dev/2017-September/author.html#149358>
+
+------------------------------
+???? ?? ????????? ??? ??????? ???????? ?? Python-Dev
+<https://mail.python.org/mailman/listinfo/python-dev>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180923/50ac788d/attachment.html>
+
+From jackiekazil at gmail.com  Sun Sep 23 19:29:56 2018
+From: jackiekazil at gmail.com (Jacqueline Kazil)
+Date: Sun, 23 Sep 2018 19:29:56 -0400
+Subject: [Python-Dev] Official citation for Python
+In-Reply-To: <e2e901db-b0d4-10c8-747e-7598468fd105@mrabarnett.plus.com>
+References: <CAKD0ODz6CsH0DQ=JoK+6mzQb22LfATy=y57VFtf6ioFArkGPkg@mail.gmail.com>
+ <233a848c-c8a6-fda5-1c83-6cbf281b28eb@klix.ch>
+ <CALGmxEJ1+Nh3_cKMU5C4XUa_MSpo8NB_wyvrR2pmKHxSQynV4g@mail.gmail.com>
+ <23449.57520.710702.426310@turnbull.sk.tsukuba.ac.jp>
+ <CACfEFw8xUnXnVgsRtxqxbthvqgQfPMC+YMzopTU6vosqG+GU9Q@mail.gmail.com>
+ <CACfEFw8xNvKvZH7q97FhLtDGiRiBDSoej2ZmqX-P4JJVAEzBrw@mail.gmail.com>
+ <CAKD0ODzP8tPWYLw+JQ+6B23QX1A6rjv7xtUBhjhV-EKKoQQ-=w@mail.gmail.com>
+ <CALXdMtnPeMYjvGTTRTNQwp6cBd_tqYvKUJxrqFDNSK_U2CFjpA@mail.gmail.com>
+ <e2e901db-b0d4-10c8-747e-7598468fd105@mrabarnett.plus.com>
+Message-ID: <CAKD0ODxYxJa3TPdNw6vDdYMQqmEBDrGiq6U2Rm7FAkQBQ5uFaQ@mail.gmail.com>
+
+I wanted to send an update.
+At the NumFocus Summit, I found out about...
+This: https://www.force11.org/group/software-citation-working-group
+& this: https://github.com/adrn/CitationPEP
+
+I am going to work on a citation approach based off of those two sources
+and come back with a more developed proposal.
+
+-Jackie
+
+On Mon, Sep 17, 2018 at 1:12 PM MRAB <python at mrabarnett.plus.com> wrote:
+
+> On 2018-09-17 05:05, Jeremy Hylton wrote:
+> >
+> > I wanted to start with an easy answer that is surely unsatisfying:
+> >
+> http://blog.apastyle.org/apastyle/2015/01/how-to-cite-software-in-apa-style.html
+> >
+> > APA style is pretty popular, and it says that standard software doesn't
+> > need to be specified. Standard software includes "Microsoft Word, Java,
+> > and Adobe Photoshop." So I'd say Python fits well in that category, and
+> > doesn't need to be cited.
+> >
+> > I said you wouldn't be satisfied...
+> >
+> It goes on to say """Note: We don?t keep a comprehensive list of what
+> programs are ?standard.? You make the call.""".
+>
+> [snip]
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/jackiekazil%40gmail.com
+>
+
+
+-- 
+Jacqueline Kazil | @jackiekazil
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180923/954d25ef/attachment.html>
+
+From raymond.hettinger at gmail.com  Mon Sep 24 02:23:47 2018
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Sun, 23 Sep 2018 23:23:47 -0700
+Subject: [Python-Dev] Postponed annotations break inspection of
+ dataclasses
+In-Reply-To: <CA+St6D3uUk1mDdG_Uh8+yH31Ji6im2-bbtrV86qrr3CMQQB-1A@mail.gmail.com>
+References: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+ <CAP7+vJL5vZH_rBFOCU+jFYDnHN4VOn+7Y0HQ_MUTd-sDNRKi5w@mail.gmail.com>
+ <aff1d4fe-9e69-e929-1169-92dfef657a61@trueblade.com>
+ <CAP7+vJLY=nocFZnkwiCKnfG9KngKdfL5JRC8OiU-Q6BxgG6cOA@mail.gmail.com>
+ <CA+St6D3uUk1mDdG_Uh8+yH31Ji6im2-bbtrV86qrr3CMQQB-1A@mail.gmail.com>
+Message-ID: <A4C2B031-DBC1-4535-B5B8-6107B1D98F43@gmail.com>
+
+
+
+> On Sep 22, 2018, at 1:38 PM, Yury Selivanov <yselivanov.ml at gmail.com> wrote:
+> 
+> On Sat, Sep 22, 2018 at 3:11 PM Guido van Rossum <guido at python.org> wrote:
+> [..]
+>> Still, I wonder if there's a tweak possible of the globals and locals used when exec()'ing the function definitions in dataclasses.py, so that get_type_hints() gets the right globals for this use case.
+>> 
+>> It's really tough to be at the intersection of three PEPs...
+> 
+> If it's possible to fix exec() to accept any Mapping (not just dicts),
+> then we can create a proxy mapping for "Dataclass.__init__.__module__"
+> module and everything would work as expected
+
+FWIW, the locals() dict for exec() already accepts any mapping (not just dicts):
+
+    >>> class M:
+            def __getitem__(self, key):
+                return key.upper()
+            def __setitem__(self, key, value):
+                print(f'{key!r}: {value!r}')
+        
+    >>> exec('a=b', globals(), M())
+    'a': 'B'
+
+
+Raymond
+
+From ncoghlan at gmail.com  Mon Sep 24 08:18:13 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 24 Sep 2018 22:18:13 +1000
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CA+3bQGGOqjmZDVgZajB0mw6nYY2cQ0XM-3z0XZXwQy6mDwnrdA@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+3bQGGOqjmZDVgZajB0mw6nYY2cQ0XM-3z0XZXwQy6mDwnrdA@mail.gmail.com>
+Message-ID: <CADiSq7fQw7+Mn0R-a1pk8bDhFGeOR6qg1Yd=ru61d25D+=4jkQ@mail.gmail.com>
+
+On Sat, 22 Sep 2018 at 09:14, Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Le sam. 22 sept. 2018 ? 01:05, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> > 3. Why does signal handling operate via the "pending calls" machinery
+> > and not distinctly?
+>
+> Signals can be received anytime, between two instructions at the
+> machine code level. But the Python code base is rarely reentrant.
+> Moreover, you can get the signal while you don't hold the GIL :-)
+
+This would actually be the main reason to keep the current behaviour:
+at least some folks are running their applications in subthreads as a
+workaround to avoid https://bugs.python.org/issue29988 and the general
+fact that Ctrl-C handling and deterministic resource cleanup generally
+don't get along overly well.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ericsnowcurrently at gmail.com  Mon Sep 24 12:51:33 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Mon, 24 Sep 2018 10:51:33 -0600
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CA+3bQGGOqjmZDVgZajB0mw6nYY2cQ0XM-3z0XZXwQy6mDwnrdA@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+3bQGGOqjmZDVgZajB0mw6nYY2cQ0XM-3z0XZXwQy6mDwnrdA@mail.gmail.com>
+Message-ID: <CALFfu7Du1-D_Vz+EYEWNYwRMZ-H5XRkdHkgmWUQR+sLsKnJ3FA@mail.gmail.com>
+
+On Fri, Sep 21, 2018 at 5:11 PM Victor Stinner <vstinner at redhat.com> wrote:
+> Le sam. 22 sept. 2018 ? 01:05, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> > 3. Why does signal handling operate via the "pending calls" machinery
+> > and not distinctly?
+>
+> Signals can be received anytime, between two instructions at the
+> machine code level. But the Python code base is rarely reentrant.
+> Moreover, you can get the signal while you don't hold the GIL :-)
+
+Sorry, I wasn't clear.  I'm not suggesting that signals should be
+handled outside the interpreter.  Instead, why do we call
+PyErr_CheckSignals() in Py_MakePendingCalls() rather than distinctly,
+right before we call Py_MakePendingCalls()?
+
+-eric
+
+From leewangzhong+python at gmail.com  Mon Sep 24 12:52:35 2018
+From: leewangzhong+python at gmail.com (Franklin? Lee)
+Date: Mon, 24 Sep 2018 12:52:35 -0400
+Subject: [Python-Dev] Store startup modules as C structures for 20%+
+ startup speed improvement?
+In-Reply-To: <58cdf8c3-1b23-326c-2244-835f16397b51@hastings.org>
+References: <dfc2b162-1fca-6ec2-cfa7-d6cf467e8c14@hastings.org>
+ <20180914215424.hjxvq5l7m66schas@python.ca>
+ <58cdf8c3-1b23-326c-2244-835f16397b51@hastings.org>
+Message-ID: <CAB_e7iyNpYBVRpMgfJm8OiR0zZw1vpqqXEfHOitGwcPb=UUb=A@mail.gmail.com>
+
+On Fri, Sep 14, 2018 at 6:08 PM Larry Hastings <larry at hastings.org> wrote:
+> I can suggest that, based on conversation from Carl, that adding the stat calls back in costs you half the startup.  So any mechanism where we're talking to the disk _at all_ simply isn't going to be as fast.
+
+Is that cost for when the stat calls are done in parallel with the new
+loading mechanism?
+
+From yselivanov.ml at gmail.com  Mon Sep 24 13:14:32 2018
+From: yselivanov.ml at gmail.com (Yury Selivanov)
+Date: Mon, 24 Sep 2018 13:14:32 -0400
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+Message-ID: <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+
+On Fri, Sep 21, 2018 at 7:04 PM Eric Snow <ericsnowcurrently at gmail.com> wrote:
+>
+> Hi all,
+>
+> I've got a pretty good sense of how signal handling works in the
+> runtime (i.e. via a dance with the eval loop), but still have some
+> questions:
+>
+> 1. Why do we restrict calls to signal.signal() to the main thread?
+> 2. Why must signal handlers run in the main thread?
+> 3. Why does signal handling operate via the "pending calls" machinery
+> and not distinctly?
+
+Here's my take on this:
+
+Handling signals in a multi-threaded program is hard. Some signals can
+be delivered to an arbitrary thread, some to the one that caused them.
+Posix provides lots of mechanisms to tune how signals are received (or
+blocked) by individual threads, but (a) Python doesn't expose those
+APIs, (b) using those APIs correctly is insanely hard.  By restricting
+that we can only receive signals in the main thread we remove all that
+complexity.  Restricting that signal.signal() can only be called from
+the main thread just makes this API more consistent (and also IIRC
+avoids weird sigaction() behaviour when it is called from different
+threads within one program).
+
+Next, you can only call reentrant functions in your signal handlers.
+For instance, printf() function isn't safe to use.  Therefore one
+common practice is to set a flag that a signal was received and check
+it later (exactly what we do with the pending calls machinery).
+
+Therefore, IMO, the current way we handle signals in Python is the
+safest, most predictable, and most cross-platform option there is.
+And changing how Python signals API works with threads in any way will
+actually break the world.
+
+Yury
+
+From eryksun at gmail.com  Mon Sep 24 14:34:33 2018
+From: eryksun at gmail.com (eryk sun)
+Date: Mon, 24 Sep 2018 13:34:33 -0500
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CA+3bQGGOqjmZDVgZajB0mw6nYY2cQ0XM-3z0XZXwQy6mDwnrdA@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+3bQGGOqjmZDVgZajB0mw6nYY2cQ0XM-3z0XZXwQy6mDwnrdA@mail.gmail.com>
+Message-ID: <CACL+1avzHFqTTeHv0nDHRth1nrDmNxDmKi6O6DELdxBdxb=XUw@mail.gmail.com>
+
+On Fri, Sep 21, 2018 at 6:10 PM, Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Moreover, you can get the signal while you don't hold the GIL :-)
+
+Note that, in Windows, SIGINT and SIGBREAK are implemented in the C
+runtime and linked to the corresponding console control events in a
+console application, such as python.exe. Console control events are
+delivered on a new thread (i.e. no Python thread state) that starts at
+CtrlRoutine in kernelbase.dll. The session server (csrss.exe) creates
+this thread remotely upon request from the console host process
+(conhost.exe).
+
+From ericsnowcurrently at gmail.com  Mon Sep 24 16:19:38 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Mon, 24 Sep 2018 14:19:38 -0600
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+Message-ID: <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+
+On Mon, Sep 24, 2018 at 11:14 AM Yury Selivanov <yselivanov.ml at gmail.com> wrote:
+> On Fri, Sep 21, 2018 at 7:04 PM Eric Snow <ericsnowcurrently at gmail.com> wrote:
+> > 1. Why do we restrict calls to signal.signal() to the main thread?
+> > 2. Why must signal handlers run in the main thread?
+> > 3. Why does signal handling operate via the "pending calls" machinery
+> > and not distinctly?
+>
+> Here's my take on this:
+>
+> Handling signals in a multi-threaded program is hard. Some signals can
+> be delivered to an arbitrary thread, some to the one that caused them.
+> Posix provides lots of mechanisms to tune how signals are received (or
+> blocked) by individual threads, but (a) Python doesn't expose those
+> APIs, (b) using those APIs correctly is insanely hard.  By restricting
+> that we can only receive signals in the main thread we remove all that
+> complexity.
+
+Just to be clear, I'm *not* suggesting that we allow folks to specify
+in which Python (or kernel) thread a Python-level signal handler is
+called.
+
+The reason I've asked about signals is because of the semantics under
+subinterpreters (where there is no "main" thread).  However, I don't
+have any plans to introduce per-interpreter signal handlers.  Mostly I
+want to understand about the "main" thread restriction for the
+possible impact on subinterpreters.
+
+FWIW, I'm also mildly curious about the value of the "main" thread
+restriction currently.  From what I can tell the restriction was made
+early on and there are hints in the C code that it's no longer needed.
+I suspect we still have the restriction solely because no one has
+bothered to change it.  However, I wasn't sure so I figured I'd ask.
+:)
+
+> Restricting that signal.signal() can only be called from
+> the main thread just makes this API more consistent
+
+Yeah, that's what I thought.
+
+> (and also IIRC
+> avoids weird sigaction() behaviour when it is called from different
+> threads within one program).
+
+Is there a good place where this weirdness is documented?
+
+> Next, you can only call reentrant functions in your signal handlers.
+> For instance, printf() function isn't safe to use.  Therefore one
+> common practice is to set a flag that a signal was received and check
+> it later (exactly what we do with the pending calls machinery).
+
+We don't actually use the pending calls machinery for signals though.
+The only thing we do is *always* call PyErr_CheckSignals() before
+making any pending calls.  Wouldn't it be equivalent if we called
+PyErr_CheckSignals() at the beginning of the eval loop right before
+calling Py_MakePendingCalls()?
+
+This matters to me because I'd like to use "pending" calls for
+subinterpreters, which means dealing with signals *in*
+Py_MakePendingCalls() is problematic.  Pulling the
+PyErr_CheckSignals() call out would eliminate that problem.
+
+> Therefore, IMO, the current way we handle signals in Python is the
+> safest, most predictable, and most cross-platform option there is.
+> And changing how Python signals API works with threads in any way will
+> actually break the world.
+
+I agree that the way we deal with signals (i.e. set a flag that is
+later handled in PyErr_CheckSignals(), protected by the GIL) shouldn't
+change.  My original 3 questions do not relate to that.  Looks like
+that wasn't terribly clear. :)
+
+-eric
+
+From yselivanov.ml at gmail.com  Mon Sep 24 17:10:27 2018
+From: yselivanov.ml at gmail.com (Yury Selivanov)
+Date: Mon, 24 Sep 2018 17:10:27 -0400
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+Message-ID: <CA+St6D2T-FNmBC=KJmCMxVSLgW1t9vkncegpG8hm-CXP_5YAsw@mail.gmail.com>
+
+On Mon, Sep 24, 2018 at 4:19 PM Eric Snow <ericsnowcurrently at gmail.com> wrote:
+[..]
+> Is there a good place where this weirdness is documented?
+
+I'll need to look through uvloop & libuv commit log to remember that;
+will try to find time tonight/tomorrow.
+
+[..]
+> This matters to me because I'd like to use "pending" calls for
+> subinterpreters, which means dealing with signals *in*
+> Py_MakePendingCalls() is problematic.  Pulling the
+> PyErr_CheckSignals() call out would eliminate that problem.
+
+Py_MakePendingCalls is a public API, even though it's not documented.
+If we change it to not call PyErr_CheckSignals and if there are C
+extensions that block pure Python code execution for long time (but
+call Py_MakePendingCalls explicitly), such extensions would stop
+reacting to ^C.
+
+Maybe a better workaround would be to introduce a concept of "main"
+sub-interpreter? We can then fix Py_MakePendingCalls to only check for
+signals when it's called from the main interpreter.
+
+Yury
+
+From ericsnowcurrently at gmail.com  Mon Sep 24 19:24:02 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Mon, 24 Sep 2018 17:24:02 -0600
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CA+St6D2T-FNmBC=KJmCMxVSLgW1t9vkncegpG8hm-CXP_5YAsw@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+St6D2T-FNmBC=KJmCMxVSLgW1t9vkncegpG8hm-CXP_5YAsw@mail.gmail.com>
+Message-ID: <CALFfu7BBGe2yARLYHY9PKyrCb=wG3nhL8K8=bHWngwyR-Su1Mg@mail.gmail.com>
+
+On Mon, Sep 24, 2018 at 3:10 PM Yury Selivanov <yselivanov.ml at gmail.com> wrote:
+> On Mon, Sep 24, 2018 at 4:19 PM Eric Snow <ericsnowcurrently at gmail.com> wrote:
+> > This matters to me because I'd like to use "pending" calls for
+> > subinterpreters, which means dealing with signals *in*
+> > Py_MakePendingCalls() is problematic.  Pulling the
+> > PyErr_CheckSignals() call out would eliminate that problem.
+>
+> Py_MakePendingCalls is a public API, even though it's not documented.
+> If we change it to not call PyErr_CheckSignals and if there are C
+> extensions that block pure Python code execution for long time (but
+> call Py_MakePendingCalls explicitly), such extensions would stop
+> reacting to ^C.
+>
+> Maybe a better workaround would be to introduce a concept of "main"
+> sub-interpreter? We can then fix Py_MakePendingCalls to only check for
+> signals when it's called from the main interpreter.
+
+I'm planning on making Py_MakePendingCalls() a backward-compatible
+wrapper around a new private _Py_MakePendingCalls() which supports
+per-interpreter operation.  Then the eval loop will call the new
+internal function.  So nothing would change for users.
+
+-eric
+
