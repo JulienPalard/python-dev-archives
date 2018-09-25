@@ -1,0 +1,23 @@
+# To generate an encrypted key:
+# - setup the repo on travis.
+# - ssh-keygen -t ed25519  # and make it write it in the current directory
+# - Add the public key as a github deploy key with write access
+# - travis encrypt-file id_ed25519-python-dev-archives
+# - git add *.enc
+
+language: python
+python: 3.6
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install -y git
+  - openssl aes-256-cbc -K $encrypted_3ffd6c94bc73_key -iv $encrypted_3ffd6c94bc73_iv -in id_ed25519-python-dev-archives.enc -out ~/.ssh/id_ed25519 -d
+  - chmod 600 ~/.ssh/id_ed25519
+install:
+  - pip install mailman-fetch
+script:
+  - git config user.email "julien+travis@palard.fr"
+  - git config user.name "Travis the Build Bot"
+  - git checkout master
+  - mailman-fetch -n -v https://mail.python.org/pipermail/python-devs/ ./
+  - git add *.txt
+  - '[ -n "$(git diff --cached --name-only)" ] && git commit -m "update" && git push git@github.com:JulienPalard/python-committers-archives.git || :'
