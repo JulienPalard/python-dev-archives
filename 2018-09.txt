@@ -17133,3 +17133,913 @@ internal function.  So nothing would change for users.
 
 -eric
 
+From vstinner at redhat.com  Tue Sep 25 03:44:57 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 25 Sep 2018 09:44:57 +0200
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+Message-ID: <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+
+Please don't rely on this ugly API. *By design*, Py_AddPendingCall()
+tries 100 times to acquire the lock: if it fails to acquire the lock,
+it does notthing... your callback is ignored...
+
+By the way, recently, we had to fix yet another bug in signal
+handling. A new function has been added:
+
+void
+_PyEval_SignalReceived(void)
+{
+    /* bpo-30703: Function called when the C signal handler of Python gets a
+       signal. We cannot queue a callback using Py_AddPendingCall() since
+       that function is not async-signal-safe. */
+    SIGNAL_PENDING_CALLS();
+}
+
+If you want to exchange commands between two interpreters, which I see
+as two threads, I suggest to use two queues and something to consume
+queues.
+
+Victor
+Le lun. 24 sept. 2018 ? 22:23, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+>
+> On Mon, Sep 24, 2018 at 11:14 AM Yury Selivanov <yselivanov.ml at gmail.com> wrote:
+> > On Fri, Sep 21, 2018 at 7:04 PM Eric Snow <ericsnowcurrently at gmail.com> wrote:
+> > > 1. Why do we restrict calls to signal.signal() to the main thread?
+> > > 2. Why must signal handlers run in the main thread?
+> > > 3. Why does signal handling operate via the "pending calls" machinery
+> > > and not distinctly?
+> >
+> > Here's my take on this:
+> >
+> > Handling signals in a multi-threaded program is hard. Some signals can
+> > be delivered to an arbitrary thread, some to the one that caused them.
+> > Posix provides lots of mechanisms to tune how signals are received (or
+> > blocked) by individual threads, but (a) Python doesn't expose those
+> > APIs, (b) using those APIs correctly is insanely hard.  By restricting
+> > that we can only receive signals in the main thread we remove all that
+> > complexity.
+>
+> Just to be clear, I'm *not* suggesting that we allow folks to specify
+> in which Python (or kernel) thread a Python-level signal handler is
+> called.
+>
+> The reason I've asked about signals is because of the semantics under
+> subinterpreters (where there is no "main" thread).  However, I don't
+> have any plans to introduce per-interpreter signal handlers.  Mostly I
+> want to understand about the "main" thread restriction for the
+> possible impact on subinterpreters.
+>
+> FWIW, I'm also mildly curious about the value of the "main" thread
+> restriction currently.  From what I can tell the restriction was made
+> early on and there are hints in the C code that it's no longer needed.
+> I suspect we still have the restriction solely because no one has
+> bothered to change it.  However, I wasn't sure so I figured I'd ask.
+> :)
+>
+> > Restricting that signal.signal() can only be called from
+> > the main thread just makes this API more consistent
+>
+> Yeah, that's what I thought.
+>
+> > (and also IIRC
+> > avoids weird sigaction() behaviour when it is called from different
+> > threads within one program).
+>
+> Is there a good place where this weirdness is documented?
+>
+> > Next, you can only call reentrant functions in your signal handlers.
+> > For instance, printf() function isn't safe to use.  Therefore one
+> > common practice is to set a flag that a signal was received and check
+> > it later (exactly what we do with the pending calls machinery).
+>
+> We don't actually use the pending calls machinery for signals though.
+> The only thing we do is *always* call PyErr_CheckSignals() before
+> making any pending calls.  Wouldn't it be equivalent if we called
+> PyErr_CheckSignals() at the beginning of the eval loop right before
+> calling Py_MakePendingCalls()?
+>
+> This matters to me because I'd like to use "pending" calls for
+> subinterpreters, which means dealing with signals *in*
+> Py_MakePendingCalls() is problematic.  Pulling the
+> PyErr_CheckSignals() call out would eliminate that problem.
+>
+> > Therefore, IMO, the current way we handle signals in Python is the
+> > safest, most predictable, and most cross-platform option there is.
+> > And changing how Python signals API works with threads in any way will
+> > actually break the world.
+>
+> I agree that the way we deal with signals (i.e. set a flag that is
+> later handled in PyErr_CheckSignals(), protected by the GIL) shouldn't
+> change.  My original 3 questions do not relate to that.  Looks like
+> that wasn't terribly clear. :)
+>
+> -eric
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+From barry at python.org  Tue Sep 25 10:01:56 2018
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 25 Sep 2018 10:01:56 -0400
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions about
+ signal handling.)
+In-Reply-To: <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+Message-ID: <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+
+On Sep 25, 2018, at 03:44, Victor Stinner <vstinner at redhat.com> wrote:
+
+> By the way, recently, we had to fix yet another bug in signal
+> handling. A new function has been added:
+> 
+> void
+> _PyEval_SignalReceived(void)
+> {
+>    /* bpo-30703: Function called when the C signal handler of Python gets a
+>       signal. We cannot queue a callback using Py_AddPendingCall() since
+>       that function is not async-signal-safe. */
+>    SIGNAL_PENDING_CALLS();
+> }
+
+Is anybody else concerned about the proliferation of undocumented private C API functions?  I?m fine with adding leading underscore functions and macros when it makes sense, but what concerns me is that they don?t appear in the Python C API documentation (AFAICT).  That means they are undiscoverable, and their existence and utility is buried in institutional knowledge and obscure places within the C code.  And yet, the interpreter relies heavily on them.
+
+Maybe this is better off discussed in doc-sig but I think we need to consider documenting the private C API.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180925/23a604b5/attachment.sig>
+
+From J.Demeyer at UGent.be  Tue Sep 25 10:08:24 2018
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Tue, 25 Sep 2018 16:08:24 +0200
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <177b20ddea5a41bbaa46716ccdcfec42@xmail103.UGent.be>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <177b20ddea5a41bbaa46716ccdcfec42@xmail103.UGent.be>
+Message-ID: <5BAA4158.6090504@UGent.be>
+
+On 2018-09-25 16:01, Barry Warsaw wrote:
+> Maybe this is better off discussed in doc-sig but I think we need to consider documenting the private C API.
+
+Even the *public* C API is not fully documented. For example, none of 
+the PyCFunction_... functions appears in the documentation.
+
+
+From solipsis at pitrou.net  Tue Sep 25 10:18:07 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 25 Sep 2018 16:18:07 +0200
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+Message-ID: <20180925161807.5e13e90e@fsol>
+
+On Tue, 25 Sep 2018 10:01:56 -0400
+Barry Warsaw <barry at python.org> wrote:
+> On Sep 25, 2018, at 03:44, Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> > By the way, recently, we had to fix yet another bug in signal
+> > handling. A new function has been added:
+> > 
+> > void
+> > _PyEval_SignalReceived(void)
+> > {
+> >    /* bpo-30703: Function called when the C signal handler of Python gets a
+> >       signal. We cannot queue a callback using Py_AddPendingCall() since
+> >       that function is not async-signal-safe. */
+> >    SIGNAL_PENDING_CALLS();
+> > }  
+> 
+> Is anybody else concerned about the proliferation of undocumented private C API functions?  I?m fine with adding leading underscore functions and macros when it makes sense, but what concerns me is that they don?t appear in the Python C API documentation (AFAICT).
+
+Not really.  Many are just like "static" (i.e. module-private)
+functions, except that they need to be shared by two or three different
+C modules.  It's definitely the case for _PyEval_SignalReceived().
+
+Putting them in the C API documentation risks making the docs harder to
+browse through for third-party users.  I think it's enough if there's a
+comment in the .h file explaining the given function.
+
+Regards
+
+Antoine.
+
+
+
+From barry at python.org  Tue Sep 25 10:30:00 2018
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 25 Sep 2018 10:30:00 -0400
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <20180925161807.5e13e90e@fsol>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+ <20180925161807.5e13e90e@fsol>
+Message-ID: <B9E0D025-A1AA-46F9-B4F7-792048E8CA81@python.org>
+
+On Sep 25, 2018, at 10:18, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> 
+> Not really.  Many are just like "static" (i.e. module-private)
+> functions, except that they need to be shared by two or three different
+> C modules.  It's definitely the case for _PyEval_SignalReceived().
+
+Purely static functions which appear only in the file they are defined in are probably fine not to document, although I do still think we should take care to comment on their semantics and external behaviors (i.e. reference counting).  But if they?re used in multiple C files, then I think they *can* deserve placement within the documentation.
+
+> Putting them in the C API documentation risks making the docs harder to
+> browse through for third-party users.  I think it's enough if there's a
+> comment in the .h file explaining the given function.
+
+It?s a trade-off for sure.  I don?t have any great ideas about how to balance that, and I don?t know what documentation techniques would help, but it does often bother me that I can?t search for them on docs.python.org.
+
+Cheers,
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180925/9e4fecb3/attachment.sig>
+
+From barry at python.org  Tue Sep 25 10:31:29 2018
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 25 Sep 2018 10:31:29 -0400
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <5BAA4158.6090504@UGent.be>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <177b20ddea5a41bbaa46716ccdcfec42@xmail103.UGent.be>
+ <5BAA4158.6090504@UGent.be>
+Message-ID: <8273D318-BE52-4797-9DF7-77548E9DE69A@python.org>
+
+On Sep 25, 2018, at 10:08, Jeroen Demeyer <J.Demeyer at UGent.be> wrote:
+> 
+> On 2018-09-25 16:01, Barry Warsaw wrote:
+>> Maybe this is better off discussed in doc-sig but I think we need to consider documenting the private C API.
+> 
+> Even the *public* C API is not fully documented. For example, none of the PyCFunction_... functions appears in the documentation.
+
+That?s clearly a documentation bug :).
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180925/eb7efe88/attachment.sig>
+
+From ericsnowcurrently at gmail.com  Tue Sep 25 11:09:26 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Tue, 25 Sep 2018 09:09:26 -0600
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+Message-ID: <CALFfu7D5JgTyDYzWSMOCxKF9S2HC_7Y+vXeZtR2PKVWN_ukN0g@mail.gmail.com>
+
+On Tue, Sep 25, 2018 at 1:45 AM Victor Stinner <vstinner at redhat.com> wrote:
+> Please don't rely on this ugly API. *By design*, Py_AddPendingCall()
+> tries 100 times to acquire the lock: if it fails to acquire the lock,
+> it does notthing... your callback is ignored...
+
+Yeah, there are issues with pending calls as implemented.
+Furthermore, I'm not clear on why it was made a public API in the
+first place.  Ultimately I'd like to deprecate Py_AddPendingCall and
+Py_MakePendingCalls (but that's not my priority right now).
+Regardless, the underlying machinery matches what I need for
+interpreter isolation right now.  See below.
+
+> By the way, recently, we had to fix yet another bug in signal
+> handling. A new function has been added:
+> [snip]
+
+I saw that.  If anything, it's more justification for separating
+signals from the pending calls machinery. :)
+
+> If you want to exchange commands between two interpreters, which I see
+> as two threads, I suggest to use two queues and something to consume
+> queues.
+
+Sure.  However, to make that work I'd end up with something that's
+almost identical to the existing pending calls machinery.  Since the
+function-to-run may call Python code, there must be an active
+PyThreadState and the GIL (or, eventually, target interpreter's lock)
+must be held.  That is what Py_MakePendingCalls gives us already.
+Injecting the pending call into the eval loop (as we do today) means
+we don't have to create a new thread just for handling pending calls.
+[1]
+
+In the short term I'd like to stick with existing functionality as
+much as possible.  Doing so has a number of benefits.  That's been one
+of my guiding principles as I've worked toward the multi-core Python
+goal.  That said, I agree that the pending calls machinery has some
+deficiencies that should be fixed or something better should replace
+it.  I just don't want that to get in the way of short-term goals,
+especially as I have limited time for this.
+
+-eric
+
+[1] FWIW, a separate thread for "asynchronous" operations (ones that
+interrupt the eval loop, e.g. "pending" calls and signals) might be a
+viable approach now that we require platforms to support threading.
+The way we interrupt the eval loop currently seems more complex (and
+inefficient) than necessary.  I was thinking about this last week and
+plan to explore it further at some point in the future.  For now,
+though, I'd like to keep the focus on more immediate needs. :)
+
+From yselivanov.ml at gmail.com  Tue Sep 25 11:15:55 2018
+From: yselivanov.ml at gmail.com (Yury Selivanov)
+Date: Tue, 25 Sep 2018 11:15:55 -0400
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+Message-ID: <CA+St6D3RDj7Y1Uh1=TqB3kmMZb477x_yf5RK8FFDNCjBu7fLpw@mail.gmail.com>
+
+On Tue, Sep 25, 2018 at 10:04 AM Barry Warsaw <barry at python.org> wrote:
+>
+> Is anybody else concerned about the proliferation of undocumented private C API functions?
+
+I am concerned about that too.  In my opinion having all those
+semi-private undocumented C API just contributes to the noise and
+artificially inflates the grey area of C API that alternative
+implementations *have to* support.
+
+We already have a mechanism for private header files: the
+"Include/internal/" directory. I think it should be mandatory to
+always put private C API-like functions/structs there.
+
+Yury
+
+From ericsnowcurrently at gmail.com  Tue Sep 25 11:18:04 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Tue, 25 Sep 2018 09:18:04 -0600
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <B9E0D025-A1AA-46F9-B4F7-792048E8CA81@python.org>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+ <20180925161807.5e13e90e@fsol>
+ <B9E0D025-A1AA-46F9-B4F7-792048E8CA81@python.org>
+Message-ID: <CALFfu7CO7P8BCD79yGgTc5tdvJLse4q54iYtyyLQhi-srO49ZA@mail.gmail.com>
+
+On Tue, Sep 25, 2018 at 8:30 AM Barry Warsaw <barry at python.org> wrote:
+> On Sep 25, 2018, at 10:18, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> > Putting them in the C API documentation risks making the docs harder to
+> > browse through for third-party users.  I think it's enough if there's a
+> > comment in the .h file explaining the given function.
+>
+> It?s a trade-off for sure.  I don?t have any great ideas about how to balance that, and I don?t know what documentation techniques would help, but it does often bother me that I can?t search for them on docs.python.org.
+
+FWIW, I've run into the same issue.  Perhaps we could have a single
+dedicated page in the C-API docs for internal API.  It could be just a
+big table with a bold red warning at the top (e.g. "These are
+internal-only APIs, here for the benefit of folks working on CPython
+itself.").  We *could* even have a CI check to ensure that new
+internal API (which doesn't happen often) gets added to the table.
+
+-eric
+
+From solipsis at pitrou.net  Tue Sep 25 11:19:11 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 25 Sep 2018 17:19:11 +0200
+Subject: [Python-Dev] Questions about signal handling.
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <CALFfu7D5JgTyDYzWSMOCxKF9S2HC_7Y+vXeZtR2PKVWN_ukN0g@mail.gmail.com>
+Message-ID: <20180925171911.3495105f@fsol>
+
+On Tue, 25 Sep 2018 09:09:26 -0600
+Eric Snow <ericsnowcurrently at gmail.com> wrote:
+> On Tue, Sep 25, 2018 at 1:45 AM Victor Stinner <vstinner at redhat.com> wrote:
+> > Please don't rely on this ugly API. *By design*, Py_AddPendingCall()
+> > tries 100 times to acquire the lock: if it fails to acquire the lock,
+> > it does notthing... your callback is ignored...  
+> 
+> Yeah, there are issues with pending calls as implemented.
+> Furthermore, I'm not clear on why it was made a public API in the
+> first place.
+
+I don't know, but I think Eve Online used the API at some point (not
+sure they're still Python-based nowadays).  Perhaps Kristj?n may
+confirm if he's reading this.
+
+Regards
+
+Antoine.
+
+
+
+From ericsnowcurrently at gmail.com  Tue Sep 25 11:24:43 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Tue, 25 Sep 2018 09:24:43 -0600
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <CA+St6D3RDj7Y1Uh1=TqB3kmMZb477x_yf5RK8FFDNCjBu7fLpw@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+ <CA+St6D3RDj7Y1Uh1=TqB3kmMZb477x_yf5RK8FFDNCjBu7fLpw@mail.gmail.com>
+Message-ID: <CALFfu7BntOdvTX6aDP5k9CK=Uxp_Yx=Ka_p_qZPvPvOqE=kjvw@mail.gmail.com>
+
+On Tue, Sep 25, 2018 at 9:16 AM Yury Selivanov <yselivanov.ml at gmail.com> wrote:
+> We already have a mechanism for private header files: the
+> "Include/internal/" directory. I think it should be mandatory to
+> always put private C API-like functions/structs there.
+
++1
+
+This is the main reason I created that directory.  (Victor had a
+similar idea about the same time.)  Having the separate
+"Include/internal" directory definitely makes it much easier to
+discover internal APIs, to distinguish between public and private, and
+to keep extension authors (and embedders) from using internal APIs
+without knowing what they're doing.
+
+That said, having docs for the internal APIs would still be awesome!
+
+-eric
+
+From vstinner at redhat.com  Tue Sep 25 11:28:51 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 25 Sep 2018 17:28:51 +0200
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+Message-ID: <CA+3bQGEd-nwDPMb63DH9-22fQMhCj4ZMcrg=nA=1Cewr4GiDgQ@mail.gmail.com>
+
+Nobody should use _PyEval_SignalReceived(). It should only be used the
+the C signal handler.
+
+But if we have a separated documented for CPython internals, why not
+documenting private functions. At least, I would prefer to not put it
+at the same place an the *public* C API. (At least, a different
+directory.)
+
+Victor
+Le mar. 25 sept. 2018 ? 16:05, Barry Warsaw <barry at python.org> a ?crit :
+>
+> On Sep 25, 2018, at 03:44, Victor Stinner <vstinner at redhat.com> wrote:
+>
+> > By the way, recently, we had to fix yet another bug in signal
+> > handling. A new function has been added:
+> >
+> > void
+> > _PyEval_SignalReceived(void)
+> > {
+> >    /* bpo-30703: Function called when the C signal handler of Python gets a
+> >       signal. We cannot queue a callback using Py_AddPendingCall() since
+> >       that function is not async-signal-safe. */
+> >    SIGNAL_PENDING_CALLS();
+> > }
+>
+> Is anybody else concerned about the proliferation of undocumented private C API functions?  I?m fine with adding leading underscore functions and macros when it makes sense, but what concerns me is that they don?t appear in the Python C API documentation (AFAICT).  That means they are undiscoverable, and their existence and utility is buried in institutional knowledge and obscure places within the C code.  And yet, the interpreter relies heavily on them.
+>
+> Maybe this is better off discussed in doc-sig but I think we need to consider documenting the private C API.
+>
+> -Barry
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+From greg at krypto.org  Tue Sep 25 11:30:03 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Tue, 25 Sep 2018 08:30:03 -0700
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+Message-ID: <CAGE7PNJ9A+ceDfE8KWZ6Q5eLJN0Wvv+KTAOjGOLus83E4adMGw@mail.gmail.com>
+
+On Mon, Sep 24, 2018 at 1:20 PM Eric Snow <ericsnowcurrently at gmail.com>
+wrote:
+
+> On Mon, Sep 24, 2018 at 11:14 AM Yury Selivanov <yselivanov.ml at gmail.com>
+> wrote:
+> > On Fri, Sep 21, 2018 at 7:04 PM Eric Snow <ericsnowcurrently at gmail.com>
+> wrote:
+> > > 1. Why do we restrict calls to signal.signal() to the main thread?
+> > > 2. Why must signal handlers run in the main thread?
+> > > 3. Why does signal handling operate via the "pending calls" machinery
+> > > and not distinctly?
+> >
+> > Here's my take on this:
+> >
+> > Handling signals in a multi-threaded program is hard. Some signals can
+> > be delivered to an arbitrary thread, some to the one that caused them.
+> > Posix provides lots of mechanisms to tune how signals are received (or
+> > blocked) by individual threads, but (a) Python doesn't expose those
+> > APIs, (b) using those APIs correctly is insanely hard.  By restricting
+> > that we can only receive signals in the main thread we remove all that
+> > complexity.
+>
+> Just to be clear, I'm *not* suggesting that we allow folks to specify
+> in which Python (or kernel) thread a Python-level signal handler is
+> called.
+>
+> The reason I've asked about signals is because of the semantics under
+> subinterpreters (where there is no "main" thread).  However, I don't
+> have any plans to introduce per-interpreter signal handlers.  Mostly I
+> want to understand about the "main" thread restriction for the
+> possible impact on subinterpreters.
+>
+> FWIW, I'm also mildly curious about the value of the "main" thread
+> restriction currently.  From what I can tell the restriction was made
+> early on and there are hints in the C code that it's no longer needed.
+> I suspect we still have the restriction solely because no one has
+> bothered to change it.  However, I wasn't sure so I figured I'd ask.
+> :)
+>
+
+We can't change the API of the main thread being where signal handlers are
+executed by default.
+
+If a signal handler raised an exception in a daemon thread, the process
+would not die when it goes uncaught (ie: why KeyboardInterrupt works).  The
+daemon thread ends and the rest of the process is unaware of that.  Many
+existing Python signal handlers expect to only be called from the main
+thread.
+
+If we wanted to change this, we'd probably want to have users declare which
+thread(s) are allowed to execute which signal handlers at signal handler
+registration time and whether they are executed by only one of those
+threads or by all of those threads.  Not semantics I expect most people are
+used to because I'm not aware of any other language doing that.  But I
+don't see a compelling use case for implementing such complexity.  Maybe
+something like that would make sense for subinterpreter delegation only?
+I'm not sure.  I'd start without signals at all in subinterpreters before
+making such a decision.
+
+Python keeping signals simple has long been cited as a feature of the VM.
+
+-gps
+
+
+>
+> > Restricting that signal.signal() can only be called from
+> > the main thread just makes this API more consistent
+>
+> Yeah, that's what I thought.
+>
+> > (and also IIRC
+> > avoids weird sigaction() behaviour when it is called from different
+> > threads within one program).
+>
+> Is there a good place where this weirdness is documented?
+>
+> > Next, you can only call reentrant functions in your signal handlers.
+> > For instance, printf() function isn't safe to use.  Therefore one
+> > common practice is to set a flag that a signal was received and check
+> > it later (exactly what we do with the pending calls machinery).
+>
+> We don't actually use the pending calls machinery for signals though.
+> The only thing we do is *always* call PyErr_CheckSignals() before
+> making any pending calls.  Wouldn't it be equivalent if we called
+> PyErr_CheckSignals() at the beginning of the eval loop right before
+> calling Py_MakePendingCalls()?
+>
+> This matters to me because I'd like to use "pending" calls for
+> subinterpreters, which means dealing with signals *in*
+> Py_MakePendingCalls() is problematic.  Pulling the
+> PyErr_CheckSignals() call out would eliminate that problem.
+>
+> > Therefore, IMO, the current way we handle signals in Python is the
+> > safest, most predictable, and most cross-platform option there is.
+> > And changing how Python signals API works with threads in any way will
+> > actually break the world.
+>
+> I agree that the way we deal with signals (i.e. set a flag that is
+> later handled in PyErr_CheckSignals(), protected by the GIL) shouldn't
+> change.  My original 3 questions do not relate to that.  Looks like
+> that wasn't terribly clear. :)
+>
+> -eric
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180925/e52a93cd/attachment-0001.html>
+
+From ericsnowcurrently at gmail.com  Tue Sep 25 11:39:47 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Tue, 25 Sep 2018 09:39:47 -0600
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <CAGE7PNJ9A+ceDfE8KWZ6Q5eLJN0Wvv+KTAOjGOLus83E4adMGw@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CAGE7PNJ9A+ceDfE8KWZ6Q5eLJN0Wvv+KTAOjGOLus83E4adMGw@mail.gmail.com>
+Message-ID: <CALFfu7AVxPPba50VuemCbzbyXrb+aPuc-+PQF7dUH8998798jg@mail.gmail.com>
+
+On Tue, Sep 25, 2018 at 9:30 AM Gregory P. Smith <greg at krypto.org> wrote:
+> We can't change the API of the main thread being where signal handlers are
+> executed by default.
+>
+> If a signal handler raised an exception in a daemon thread, the process would
+> not die when it goes uncaught (ie: why KeyboardInterrupt works).  The daemon
+> thread ends and the rest of the process is unaware of that.  Many existing
+> Python signal handlers expect to only be called from the main thread.
+
+Ah, that's good to know.  Thanks, Greg!
+
+> If we wanted to change this, we'd probably want to have users declare which
+> thread(s) are allowed to execute which signal handlers at signal handler
+> registration time and whether they are executed by only one of those threads or
+> by all of those threads.  Not semantics I expect most people are used to because
+> I'm not aware of any other language doing that.  But I don't see a compelling use
+> case for implementing such complexity.
+
+That's similar to what I imagined, based on how signals and posix
+threads interact. Likewise I consider it not nearly worth doing. :)
+
+> Maybe something like that would make sense for subinterpreter delegation only?
+> I'm not sure.  I'd start without signals at all in subinterpreters before making such
+> a decision.
+>
+> Python keeping signals simple has long been cited as a feature of the VM.
+
+Exactly.  For now I was planning on keeping signals main-thread-only
+(consequently main-interpreter-only).  There's the possibility we
+could support per-interpreter signal handlers, but I don't plan on
+exploring that idea until well after the more important stuff is
+finished.
+
+-eric
+
+From barry at python.org  Tue Sep 25 11:53:08 2018
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 25 Sep 2018 11:53:08 -0400
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <CA+3bQGEd-nwDPMb63DH9-22fQMhCj4ZMcrg=nA=1Cewr4GiDgQ@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+ <CA+3bQGEd-nwDPMb63DH9-22fQMhCj4ZMcrg=nA=1Cewr4GiDgQ@mail.gmail.com>
+Message-ID: <458835EA-0924-4FF0-B1F3-EB2A162CBC9D@python.org>
+
+On Sep 25, 2018, at 11:28, Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> But if we have a separated documented for CPython internals, why not
+> documenting private functions. At least, I would prefer to not put it
+> at the same place an the *public* C API. (At least, a different
+> directory.)
+
+I like the idea of an ?internals? C API documentation, separate from the public API.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180925/f642bcc7/attachment.sig>
+
+From guido at python.org  Tue Sep 25 12:01:58 2018
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 25 Sep 2018 09:01:58 -0700
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <458835EA-0924-4FF0-B1F3-EB2A162CBC9D@python.org>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+ <CA+3bQGEd-nwDPMb63DH9-22fQMhCj4ZMcrg=nA=1Cewr4GiDgQ@mail.gmail.com>
+ <458835EA-0924-4FF0-B1F3-EB2A162CBC9D@python.org>
+Message-ID: <CAP7+vJKQHEJ4n6m7c+Jqis57fJwtoFBN7=moW82CV23zwiHnXQ@mail.gmail.com>
+
+On Tue, Sep 25, 2018 at 8:55 AM Barry Warsaw <barry at python.org> wrote:
+
+> On Sep 25, 2018, at 11:28, Victor Stinner <vstinner at redhat.com> wrote:
+> >
+> > But if we have a separated documented for CPython internals, why not
+> > documenting private functions. At least, I would prefer to not put it
+> > at the same place an the *public* C API. (At least, a different
+> > directory.)
+>
+> I like the idea of an ?internals? C API documentation, separate from the
+> public API.
+>
+
+Right. IMO it should be physically separate from the public C API docs.
+I.e. reside in a different subdirectory of Doc, and be published at a
+different URL (perhaps not even under docs.python.org), since the audience
+here is exclusively people who want to modify the CPython interpreter,
+*not* people who want to write extension modules for use with CPython. And
+we should fully reserve the right to change their behavior incompatibly,
+even in bugfix releases.
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180925/ddc395df/attachment.html>
+
+From yselivanov.ml at gmail.com  Tue Sep 25 12:09:33 2018
+From: yselivanov.ml at gmail.com (Yury Selivanov)
+Date: Tue, 25 Sep 2018 12:09:33 -0400
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <458835EA-0924-4FF0-B1F3-EB2A162CBC9D@python.org>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+ <CA+3bQGEd-nwDPMb63DH9-22fQMhCj4ZMcrg=nA=1Cewr4GiDgQ@mail.gmail.com>
+ <458835EA-0924-4FF0-B1F3-EB2A162CBC9D@python.org>
+Message-ID: <CA+St6D3GfW5TS=8r91nyB3LetirwKisSZXGveGevLmgg0Q7KMg@mail.gmail.com>
+
+On Tue, Sep 25, 2018 at 11:55 AM Barry Warsaw <barry at python.org> wrote:
+>
+> On Sep 25, 2018, at 11:28, Victor Stinner <vstinner at redhat.com> wrote:
+> >
+> > But if we have a separated documented for CPython internals, why not
+> > documenting private functions. At least, I would prefer to not put it
+> > at the same place an the *public* C API. (At least, a different
+> > directory.)
+>
+> I like the idea of an ?internals? C API documentation, separate from the public API.
+
+For that we can just document them in the code, right?  Like this one,
+from Include/internal/pystate.h:
+
+/* Initialize _PyRuntimeState.
+   Return NULL on success, or return an error message on failure. */
+PyAPI_FUNC(_PyInitError) _PyRuntime_Initialize(void);
+
+My main concern with maintaining a *separate* documentation of
+internals is that it would make it harder to keep it in sync with the
+actual implementation.  We often struggle to keep the comments in the
+code in sync with that code.
+
+Yury
+
+From barry at python.org  Tue Sep 25 15:24:49 2018
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 25 Sep 2018 15:24:49 -0400
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <CA+St6D3GfW5TS=8r91nyB3LetirwKisSZXGveGevLmgg0Q7KMg@mail.gmail.com>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+ <CA+3bQGEd-nwDPMb63DH9-22fQMhCj4ZMcrg=nA=1Cewr4GiDgQ@mail.gmail.com>
+ <458835EA-0924-4FF0-B1F3-EB2A162CBC9D@python.org>
+ <CA+St6D3GfW5TS=8r91nyB3LetirwKisSZXGveGevLmgg0Q7KMg@mail.gmail.com>
+Message-ID: <119B0CFA-FF9F-49F0-8301-F3D11F21C772@python.org>
+
+On Sep 25, 2018, at 12:09, Yury Selivanov <yselivanov.ml at gmail.com> wrote:
+> 
+> My main concern with maintaining a *separate* documentation of
+> internals is that it would make it harder to keep it in sync with the
+> actual implementation.  We often struggle to keep the comments in the
+> code in sync with that code.
+
+Well, my goal is that the internal API would show up when I search for function names on docs.python.org.   Right now, I believe the ?quick search? box does search the entire documentation suite.  I don?t care too much whether they would reside in a separate section in the current C API, or in a separate directory, listed or not under ?Parts of the documentation? on the front landing page.  But I agree they shouldn?t be intermingled with the public C API.
+
+Cheers,
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180925/3f01b328/attachment.sig>
+
+From yselivanov.ml at gmail.com  Tue Sep 25 15:32:16 2018
+From: yselivanov.ml at gmail.com (Yury Selivanov)
+Date: Tue, 25 Sep 2018 15:32:16 -0400
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <119B0CFA-FF9F-49F0-8301-F3D11F21C772@python.org>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+ <CA+3bQGEd-nwDPMb63DH9-22fQMhCj4ZMcrg=nA=1Cewr4GiDgQ@mail.gmail.com>
+ <458835EA-0924-4FF0-B1F3-EB2A162CBC9D@python.org>
+ <CA+St6D3GfW5TS=8r91nyB3LetirwKisSZXGveGevLmgg0Q7KMg@mail.gmail.com>
+ <119B0CFA-FF9F-49F0-8301-F3D11F21C772@python.org>
+Message-ID: <CA+St6D3Sm6QLX59CA_8yCv8qzPM9zOFv-uDMpc49_+jThyU4hQ@mail.gmail.com>
+
+On Tue, Sep 25, 2018 at 3:27 PM Barry Warsaw <barry at python.org> wrote:
+>
+> On Sep 25, 2018, at 12:09, Yury Selivanov <yselivanov.ml at gmail.com> wrote:
+> >
+> > My main concern with maintaining a *separate* documentation of
+> > internals is that it would make it harder to keep it in sync with the
+> > actual implementation.  We often struggle to keep the comments in the
+> > code in sync with that code.
+>
+> Well, my goal is that the internal API would show up when I search for function names on docs.python.org.   Right now, I believe the ?quick search? box does search the entire documentation suite.  I don?t care too much whether they would reside in a separate section in the current C API, or in a separate directory, listed or not under ?Parts of the documentation? on the front landing page.  But I agree they shouldn?t be intermingled with the public C API.
+
+An idea: it would be cool to have something like Sphinx autodoc for C
+headers to pull this documentation from source.
+
+Yury
+
+From myriachan at gmail.com  Tue Sep 25 15:38:17 2018
+From: myriachan at gmail.com (Myria)
+Date: Tue, 25 Sep 2018 12:38:17 -0700
+Subject: [Python-Dev] Bug in _portable_fseek on Windows in 2.7.x
+Message-ID: <CAJM5LfuOVvHnvpbdF2xz_ci1L4CAf=hPgSh5my50Xq0AWrNRRw@mail.gmail.com>
+
+Sorry for mailing about a bug instead of putting in a bug tracker
+ticket.  The bug tracker's login system just sits there for a minute
+then says "an error has occurred".
+
+
+This line of code is broken in Windows:
+
+https://github.com/python/cpython/blob/v2.7.15/Objects/fileobject.c#L721
+
+_lseeki64 only modifies the kernel's seek position, not the cached
+position stored in stdio.  This sometimes leads to problems where
+fgetpos does not return the correct file pointer.
+
+The solution is to not do that "SIZEOF_FPOS_T >= 8" code at all on
+Windows, and just do this instead (or make a new HAVE_FSEEKI64 macro):
+
+#elif defined(MS_WINDOWS)
+   return _fseeki64(fp, offset, whence);
+
+
+3.x is unaffected because it uses the Unix-like FD API in Windows
+instead of stdio, in which its usage of _lseeki64 is correct.
+
+
+Thanks,
+
+Melissa
+
