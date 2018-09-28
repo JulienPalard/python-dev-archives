@@ -18043,3 +18043,334 @@ Thanks,
 
 Melissa
 
+From jab at math.brown.edu  Wed Sep 26 07:26:17 2018
+From: jab at math.brown.edu (jab at math.brown.edu)
+Date: Wed, 26 Sep 2018 07:26:17 -0400
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+Message-ID: <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+
+I recently found out about Python 3's round-to-even change (via
+https://github.com/cosmologicon/pywat!) and am having trouble finding
+where that change was discussed.
+
+I did find the revealingly-invalid bug report
+https://bugs.python.org/issue32956 ("python 3 round bug"), so I asked
+there, but wanted to invite anyone else on this list who might be
+interested to help. If interested, please see the comments there
+(copy/pasted below for convenience), and +nosy or comment on that
+issue.
+
+Thanks!
+
+Joshua Bronson added the comment:
+
+This was so surprising to me that I had to check some other languages
+that I had handy. It turns out that not one of JavaScript, Ruby, Perl,
+C++, Java, Go, or Rust agrees with Python. In fact they all agreed
+with one another that 2.5 should round to 3. Examples below.
+
+I understand from
+https://github.com/cosmologicon/pywat/pull/40#discussion_r219962259
+that "to always round up... can theoretically skew the data" but it's
+not clear why that's a good enough reason to differ from the "round"
+function in all these other languages (as opposed to e.g. offering
+this alternative behavior in some additional "round_unskewed"
+function).
+
+I assume the rationale for having Python 3's "round" differ from that
+of so many other languages was written down when this decision was
+made, but I searched and couldn't find it. Could anyone link to it in
+a comment here?
+
+And would it be worth including rationale and a larger callout in the
+https://docs.python.org/3/library/functions.html#round docs? The
+documentation of this behavior is a bit buried among other things, and
+the rationale for it is missing entirely.
+
+
+$ node -e 'console.log(Math.round(2.5))'
+3
+
+$ ruby -e 'puts (2.5).round()'
+3
+
+$ perl -e 'use Math::Round; print round(2.5)'
+3
+
+$ cat test_round.cpp
+#include <stdio.h>
+#include <math.h>
+int main(void) {
+  printf("%f\n", round(2.5));
+}
+$ g++ test_round.cpp && ./a.out
+3.000000
+
+$ cat TestRound.java
+class TestRound {
+  public static void main(String[] args) {
+    System.out.println(Math.round(2.5));
+  }
+}
+$ javac TestRound.java && java TestRound
+3
+
+$ cat test_round.go
+package main
+import "fmt"
+import "math"
+func main() {
+        fmt.Println(math.Round(2.5))
+}
+$ go build test_round.go && ./test_round
+3
+
+$ cat test_round.rs
+fn main() {
+  println!("{}", (2.5_f64).round());
+}
+$ rustc test_round.rs && ./test_round
+3
+
+
+Serhiy Storchaka added the comment:
+
+See the discussion on the Python-Dev mailing list:
+https://mail.python.org/pipermail/python-dev/2008-January/075863.html.
+
+For C look at the rint() function. It is a common knowledge that
+rounding half-to-even is what users want in most cases, but it is a
+tiny bit more expensive in C. In Python the additional cost of such
+rounding is insignificant.
+
+
+Joshua Bronson added the comment:
+
+Thanks Serhiy, I read the Python-Dev thread you linked to, but that
+doesn't resolve the issues:
+
+- Its topic is Python 2.6 (where this behavior does not occur) rather
+than Python 3 (where it does).
+
+- A few messages into the thread Guido does address Python 3, but in
+fact says "I think the consensus is against round-to-even in 3.0" (see
+https://mail.python.org/pipermail/python-dev/2008-January/075897.html).
+
+- There is no discussion of the fact that this behavior differs from
+the function named "round" in all the other programming languages I
+mentioned, and whether it would therefore be better exposed as an
+additional function (e.g. "round_to_even" or "round_unbiased", and in
+the math or statistics package rather than builtins). Surprisingly,
+Excel is the only other programming environment I saw discussed in the
+thread. (And round(2.5) == 3 there.)
+
+So that all suggests there must be some other thread or issue where
+this change for Python 3 have been discussed, but I looked again and
+could not find it.
+
+The C "rint" example you gave just seems to prove the point that this
+behavior should have a distinct name from "round".
+
+Regarding:
+> It is a common knowledge that rounding half-to-even is what users want in most cases
+
+I don't think that's common knowledge; seems like citation needed?
+Based on all the other languages where this differs (not to mention
+Python 2), it's not clear users would want Python 3 to be the only
+different one. And this is definitely a surprise for the majority of
+programmers, whose experience with "round" is how it works everywhere
+else. (This is making it into pywat after all:
+https://github.com/cosmologicon/pywat/pull/40)
+
+I can submit a PR for at least updating the docs about this (as per my
+previous comment) if that would be welcomed.
+
+From phoenix1987 at gmail.com  Wed Sep 26 17:01:17 2018
+From: phoenix1987 at gmail.com (Gabriele)
+Date: Wed, 26 Sep 2018 22:01:17 +0100
+Subject: [Python-Dev] What is the purpose of the _PyThreadState_Current
+ symbol in Python 3?
+Message-ID: <CAGnuNNsNQHxfq6pjoJbFmEDpH_+ivcvY5nb9nQYwrK1eGL30XQ@mail.gmail.com>
+
+In trying to find the location of a valid instance of PyInterpreterState in
+the virtual memory of a running Python (3.6) application (using
+process_vm_read on Linux), I have noticed that I can only rely on
+_PyThreadState_Current.interp at the very beginning of the execution. If I
+try to attach to a running Python process, then
+_PythreadState_Current.interp doesn't seem to point to anything useful to
+derive the currently running threads and the frame stacks for each of them.
+This makes me wonder about the purpose of this symbol in the
+.dynsym section. Apart from a brute force approach for finding a valid
+PyInterpreterState, is there a more reliable approach for the version of
+Python that I'm targeting?
+
+Thanks,
+Gabriele
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180926/1d95144d/attachment.html>
+
+From nad at python.org  Wed Sep 26 22:21:30 2018
+From: nad at python.org (Ned Deily)
+Date: Wed, 26 Sep 2018 22:21:30 -0400
+Subject: [Python-Dev] [RELEASE] Python 3.7.1rc1 and 3.6.7rc1 now available
+ for testing
+Message-ID: <5C0A8514-FE4D-46DB-A4A3-8EC5F36D8F9B@python.org>
+
+Python 3.7.1rc1 and 3.6.7rc1 are now available. 3.7.1rc1 is the release
+preview of the first maintenance release of Python 3.7, the latest feature
+release of Python. 3.6.7rc1 is the release preview of the next maintenance
+release of Python 3.6, the previous feature release of Python. Assuming no
+critical problems are found prior to 2018-10-06, no code changes are
+planned between these release candidates and the final releases. These
+release candidates are intended to give you the opportunity to test the
+new security and bug fixes in 3.7.1 and 3.6.7. We strongly encourage you
+to test your projects and report issues found to bugs.python.org as soon
+as possible.
+
+Please keep in mind that these are preview releases and, thus, their use
+is not recommended for production environments.
+
+You can find these releases and more information here:
+    https://www.python.org/downloads/release/python-371rc1/
+    https://www.python.org/downloads/release/python-367rc1/
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Wed Sep 26 23:34:05 2018
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Thu, 27 Sep 2018 12:34:05 +0900
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <458835EA-0924-4FF0-B1F3-EB2A162CBC9D@python.org>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+ <CA+3bQGEd-nwDPMb63DH9-22fQMhCj4ZMcrg=nA=1Cewr4GiDgQ@mail.gmail.com>
+ <458835EA-0924-4FF0-B1F3-EB2A162CBC9D@python.org>
+Message-ID: <23468.20397.232047.112263@turnbull.sk.tsukuba.ac.jp>
+
+Barry Warsaw writes:
+
+ > I like the idea of an ?internals? C API documentation, separate
+ > from the public API.
+
+FWIW, this worked well for XEmacs ("came for flamewars, stayed for the
+internals manual").
+
+Much of the stuff we inherited from GNU only got documented when there
+was massive bugginess (yes, that happened ;-), but we were pretty good
+at getting *something* (if only a "Here be Dragons" in Portuguese) in
+for most new global identifiers, and that was generally enough.
+
+
+
+From steve at pearwood.info  Thu Sep 27 01:29:59 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 27 Sep 2018 15:29:59 +1000
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+Message-ID: <20180927052958.GC19437@ando.pearwood.info>
+
+On Wed, Sep 26, 2018 at 07:26:17AM -0400, jab at math.brown.edu wrote:
+
+> I did find the revealingly-invalid bug report
+> https://bugs.python.org/issue32956 ("python 3 round bug"), so I asked
+> there, but wanted to invite anyone else on this list who might be
+> interested to help. 
+
+What about those of us who are interested in hindering?
+
+But seriously, even if round-to-even was a mistake, Python 3.x has used 
+it for seven releases now, about a decade. Backwards compatibility means 
+we cannot just change it. By now, there are people relying on this 
+behaviour. Changing it would need to go through a deprecation cycle, 
+which probably means one release with a silent warning, a second release 
+with warning enabled, and not until 3.10 would the default change.
+
+That's a lot of inconvenience just for the sake of almost-but-not-quite 
+matching the behaviour of some other programming languages, while 
+breaking compatibility with others:
+
+julia> round(2.5)
+2.0
+julia> round(3.5)
+4.0
+
+In any case, I would oppose any proposal to revert this change. Round- 
+to-even ("banker's rounding") is generally mathematically better, and 
+its been said (half in jest) that if you're not using it, you're 
+probably up to shenanigans :-)
+
+For users who don't specifically care about the rounding mode, round-to- 
+even generally makes the safest default, even if it is surprising to 
+those used to the naive technique taught in primary schools. For those 
+who care about compatibility with some other language, well, there are a 
+lot of languages and we can't match them *all* by default:
+
+# Javascript
+js> Math.round(-2.5)
+-2
+
+# Ruby
+irb(main):001:0> (-2.5).round()
+=> -3
+
+so you probably need your own custom round function. On the other hand, 
+I wouldn't object out of hand to a feature request to support the same 
+eight rounding modes as the decimal module. But as always, the Devil is 
+in the details.
+
+
+-- 
+Steve
+
+From greg.ewing at canterbury.ac.nz  Thu Sep 27 01:55:07 2018
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Thu, 27 Sep 2018 17:55:07 +1200
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+Message-ID: <5BAC70BB.2040707@canterbury.ac.nz>
+
+jab at math.brown.edu wrote:
+> I understand from
+> https://github.com/cosmologicon/pywat/pull/40#discussion_r219962259
+> that "to always round up... can theoretically skew the data"
+
+*Very* theoretically. If the number is even a whisker bigger than
+2.5 it's going to get rounded up regardless:
+
+ >>> round(2.500000000000001)
+3
+
+That difference is on the order of the error you expect from
+representing decimal fractions in binary, so I would be surprised
+if anyone can actually measure this bias in a real application.
+
+>>It is a common knowledge that rounding half-to-even is what users want in most cases
+>
+> I don't think that's common knowledge; seems like citation needed?
+
+It's not common enough for me to have heard of it before.
+
+(BTW, how do you provide a citation for "common knowledge"?-)
+
+-- 
+Greg
+
+
+
