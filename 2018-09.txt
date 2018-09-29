@@ -18374,3 +18374,371 @@ Greg
 
 
 
+From steve at holdenweb.com  Thu Sep 27 06:50:53 2018
+From: steve at holdenweb.com (Steve Holden)
+Date: Thu, 27 Sep 2018 11:50:53 +0100
+Subject: [Python-Dev] Questions about signal handling.
+In-Reply-To: <20180925171911.3495105f@fsol>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <CALFfu7D5JgTyDYzWSMOCxKF9S2HC_7Y+vXeZtR2PKVWN_ukN0g@mail.gmail.com>
+ <20180925171911.3495105f@fsol>
+Message-ID: <CAMofdRD745SstjG-gTwW+zXP9x-h4ehUM4APj4Cn2Z+FMAd6uQ@mail.gmail.com>
+
+I'm afraid Kristjan left CCP some time ago, and may not subscribe to this
+list any more.
+
+Steve Holden
+
+
+On Tue, Sep 25, 2018 at 4:23 PM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> On Tue, 25 Sep 2018 09:09:26 -0600
+> Eric Snow <ericsnowcurrently at gmail.com> wrote:
+> > On Tue, Sep 25, 2018 at 1:45 AM Victor Stinner <vstinner at redhat.com>
+> wrote:
+> > > Please don't rely on this ugly API. *By design*, Py_AddPendingCall()
+> > > tries 100 times to acquire the lock: if it fails to acquire the lock,
+> > > it does notthing... your callback is ignored...
+> >
+> > Yeah, there are issues with pending calls as implemented.
+> > Furthermore, I'm not clear on why it was made a public API in the
+> > first place.
+>
+> I don't know, but I think Eve Online used the API at some point (not
+> sure they're still Python-based nowadays).  Perhaps Kristj?n may
+> confirm if he's reading this.
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180927/39229685/attachment.html>
+
+From steve at pearwood.info  Thu Sep 27 09:53:33 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 27 Sep 2018 23:53:33 +1000
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <5BAC70BB.2040707@canterbury.ac.nz>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+Message-ID: <20180927135327.GE19437@ando.pearwood.info>
+
+On Thu, Sep 27, 2018 at 05:55:07PM +1200, Greg Ewing wrote:
+> jab at math.brown.edu wrote:
+> >I understand from
+> >https://github.com/cosmologicon/pywat/pull/40#discussion_r219962259
+> >that "to always round up... can theoretically skew the data"
+> 
+> *Very* theoretically. If the number is even a whisker bigger than
+> 2.5 it's going to get rounded up regardless:
+> 
+> >>> round(2.500000000000001)
+> 3
+> 
+> That difference is on the order of the error you expect from
+> representing decimal fractions in binary, so I would be surprised
+> if anyone can actually measure this bias in a real application.
+
+I think you may have misunderstood the nature of the bias. It's not 
+about individual roundings and it definitely has nothing to do with 
+binary representation.
+
+Any one round operation will introduce a bias. You had a number, say 
+2.3, and it gets rounded down to 2.0, introducing an error of -0.3. But 
+if you have lots of rounds, some will round up, and some will round 
+down, and we want the rounding errors to cancel.
+
+The errors *almost* cancel using the naive rounding algorithm as most of 
+the digits pair up:
+
+.1 rounds down, error = -0.1
+.9 rounds up, error = +0.1
+
+.2 rounds down, error = -0.2
+.8 rounds up, error = +0.2
+
+etc. If each digit is equally likely, then on average they'll cancel and 
+we're left with *almost* no overall error.
+
+The problem is that while there are four digits rounding down (.1 
+through .4) there are FIVE which round up (.5 through .9). Two digits 
+don't pair up:
+
+.0 stays unchanged, error = 0
+.5 always rounds up, error = +0.5
+
+Given that for many purposes, our data is recorded only to a fixed 
+number of decimal places, we're dealing with numbers like 0.5 rather 
+than 0.5000000001, so this can become a real issue. Every ten rounding 
+operations will introduce an average error of +0.05 instead of 
+cancelling out. Rounding introduces a small but real bias.
+
+The most common (and, in many experts' opinion, the best default 
+behaviour) is Banker's Rounding, or round-to-even. All the other digits 
+round as per the usual rule, but .5 rounds UP half the time and DOWN the 
+rest of the time:
+
+0.5, 2.5, 3.5 etc round down, error = -0.5
+1.5, 3.5, 5.5 etc round up, error = +0.5
+
+thus on average the .5 digit introduces no error and the bias goes away.
+
+
+
+-- 
+Steve
+
+From aixtools at felt.demon.nl  Thu Sep 27 10:55:47 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Thu, 27 Sep 2018 16:55:47 +0200
+Subject: [Python-Dev] [RELEASE] Python 3.7.1rc1 and 3.6.7rc1 now
+ available for testing
+In-Reply-To: <5C0A8514-FE4D-46DB-A4A3-8EC5F36D8F9B@python.org>
+References: <5C0A8514-FE4D-46DB-A4A3-8EC5F36D8F9B@python.org>
+Message-ID: <dbdf9b05-25cd-d0a8-2e55-aa0023f1c94c@felt.demon.nl>
+
+Not critical - but I note a difference between Python3 3.6.7 and 3.7.1 -
+no support for the configure option --with-openssl.
+
+On AIX I was able to run both configure and "make install" without incident.
+
+I also ran the "make test" command.
+
+v3.7.1:
+
+9 tests failed again:
+??? test_ctypes test_distutils test_httpservers test_importlib
+??? test_site test_socket test_time? test_utf8_mode test_venv
+?
+
+There are, for most of above, a PR for these waiting final review and merge.
+
+test_utf8_mode: I thought this was already merged. Will research.
+
+test_venv, test_site: new test failures (I am not familiar with). Will
+need more research.
+
+v3.6.1:
+16 tests failed:
+??? test_asyncio test_ctypes test_distutils test_ftplib test_httplib
+??? test_httpservers test_importlib test_locale
+??? test_multiprocessing_fork test_multiprocessing_forkserver
+??? test_multiprocessing_spawn test_socket test_ssl test_strptime
+??? test_time test_tools
+
+FYI: again, there are PR for many of these, but, for now, I'll assume
+they will not be considered for backport. FYI only.
+
+On 9/27/2018 4:21 AM, Ned Deily wrote:
+>  Assuming no
+> critical problems are found prior to 2018-10-06, no code changes are
+> planned between these release candidates and the final releases. These
+> release candidates are intended to give you the opportunity to test the
+> new security and bug fixes in 3.7.1 and 3.6.7. We strongly encourage you
+> to test your projects and report issues found to bugs.python.org as soon
+> as possible.
+
+
+
+From levkivskyi at gmail.com  Thu Sep 27 12:05:57 2018
+From: levkivskyi at gmail.com (Ivan Levkivskyi)
+Date: Thu, 27 Sep 2018 17:05:57 +0100
+Subject: [Python-Dev] Postponed annotations break inspection of
+ dataclasses
+In-Reply-To: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+References: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+Message-ID: <CAOMjWkmpMZUA38hfyM-h93aXOhWvfGt5QhWdUQfSoQtgfo2uUg@mail.gmail.com>
+
+Do we have a b.p.o. issue about this? If no, then I would recommend to open
+one, so that we will not loose track of this.
+
+--
+Ivan
+
+
+
+On Sat, 22 Sep 2018 at 16:32, David Hagen <david at drhagen.com> wrote:
+
+> The new postponed annotations have an unexpected interaction with
+> dataclasses. Namely, you cannot get the type hints of any of the data
+> classes methods.
+>
+> For example, I have some code that inspects the type parameters of a
+> class's `__init__` method. (The real use case is to provide a default
+> serializer for the class, but that is not important here.)
+>
+> ```
+> from dataclasses import dataclass
+> from typing import get_type_hints
+>
+> class Foo:
+>     pass
+>
+> @dataclass
+> class Bar:
+>     foo: Foo
+>
+> print(get_type_hints(Bar.__init__))
+> ```
+>
+> In Python 3.6 and 3.7, this does what is expected; it prints `{'foo':
+> <class '__main__.Foo'>, 'return': <class 'NoneType'>}`.
+>
+> However, if in Python 3.7, I add `from __future__ import annotations`,
+> then this fails with an error:
+>
+> ```
+> NameError: name 'Foo' is not defined
+> ```
+>
+> I know why this is happening. The `__init__` method is defined in the
+> `dataclasses` module which does not have the `Foo` object in its
+> environment, and the `Foo` annotation is being passed to `dataclass` and
+> attached to `__init__` as the string `"Foo"` rather than as the original
+> object `Foo`, but `get_type_hints` for the new annotations only does a name
+> lookup in the module where `__init__` is defined not where the annotation
+> is defined.
+>
+> I know that the use of lambdas to implement PEP 563 was rejected for
+> performance reasons. I could be wrong, but I think this was motivated by
+> variable annotations because the lambda would have to be constructed each
+> time the function body ran. I was wondering if I could motivate storing the
+> annotations as lambdas in class bodies and function signatures, in which
+> the environment is already being captured and is code that usually only
+> runs once.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/levkivskyi%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180927/f610edfc/attachment.html>
+
+From eric at trueblade.com  Thu Sep 27 12:28:57 2018
+From: eric at trueblade.com (Eric V. Smith)
+Date: Thu, 27 Sep 2018 12:28:57 -0400
+Subject: [Python-Dev] Postponed annotations break inspection of
+ dataclasses
+In-Reply-To: <CAOMjWkmpMZUA38hfyM-h93aXOhWvfGt5QhWdUQfSoQtgfo2uUg@mail.gmail.com>
+References: <CALO6Ft6egfZgG9xi2+ofNQskCpgq1E6mrv3atvEqnjjcsmryyQ@mail.gmail.com>
+ <CAOMjWkmpMZUA38hfyM-h93aXOhWvfGt5QhWdUQfSoQtgfo2uUg@mail.gmail.com>
+Message-ID: <CF377E13-98AF-45B1-8972-A9C67A11DC18@trueblade.com>
+
+Yes, it?s https://bugs.python.org/issue34776
+
+--
+Eric
+
+> On Sep 27, 2018, at 12:05 PM, Ivan Levkivskyi <levkivskyi at gmail.com> wrote:
+> 
+> Do we have a b.p.o. issue about this? If no, then I would recommend to open one, so that we will not loose track of this.
+> 
+> --
+> Ivan
+> 
+> 
+> 
+>> On Sat, 22 Sep 2018 at 16:32, David Hagen <david at drhagen.com> wrote:
+>> The new postponed annotations have an unexpected interaction with dataclasses. Namely, you cannot get the type hints of any of the data classes methods.
+>> 
+>> For example, I have some code that inspects the type parameters of a class's `__init__` method. (The real use case is to provide a default serializer for the class, but that is not important here.)  
+>> 
+>> ```
+>> from dataclasses import dataclass
+>> from typing import get_type_hints
+>> 
+>> class Foo:
+>>     pass
+>> 
+>> @dataclass
+>> class Bar:
+>>     foo: Foo
+>> 
+>> print(get_type_hints(Bar.__init__))
+>> ```
+>> 
+>> In Python 3.6 and 3.7, this does what is expected; it prints `{'foo': <class '__main__.Foo'>, 'return': <class 'NoneType'>}`.
+>> 
+>> However, if in Python 3.7, I add `from __future__ import annotations`, then this fails with an error:
+>> 
+>> ```
+>> NameError: name 'Foo' is not defined
+>> ```
+>> 
+>> I know why this is happening. The `__init__` method is defined in the `dataclasses` module which does not have the `Foo` object in its environment, and the `Foo` annotation is being passed to `dataclass` and attached to `__init__` as the string `"Foo"` rather than as the original object `Foo`, but `get_type_hints` for the new annotations only does a name lookup in the module where `__init__` is defined not where the annotation is defined.
+>> 
+>> I know that the use of lambdas to implement PEP 563 was rejected for performance reasons. I could be wrong, but I think this was motivated by variable annotations because the lambda would have to be constructed each time the function body ran. I was wondering if I could motivate storing the annotations as lambdas in class bodies and function signatures, in which the environment is already being captured and is code that usually only runs once.
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/levkivskyi%40gmail.com
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/eric%2Ba-python-dev%40trueblade.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180927/53dbd158/attachment.html>
+
+From vstinner at redhat.com  Thu Sep 27 16:44:37 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 27 Sep 2018 22:44:37 +0200
+Subject: [Python-Dev] What is the purpose of the _PyThreadState_Current
+ symbol in Python 3?
+In-Reply-To: <CAGnuNNsNQHxfq6pjoJbFmEDpH_+ivcvY5nb9nQYwrK1eGL30XQ@mail.gmail.com>
+References: <CAGnuNNsNQHxfq6pjoJbFmEDpH_+ivcvY5nb9nQYwrK1eGL30XQ@mail.gmail.com>
+Message-ID: <CA+3bQGEQY2FVOkkBOCrFHipFcw8DHvN148H1_dtoPAsT3+q8PQ@mail.gmail.com>
+
+Hi,
+
+Le mer. 26 sept. 2018 ? 23:27, Gabriele <phoenix1987 at gmail.com> a ?crit :
+> In trying to find the location of a valid instance of PyInterpreterState in the virtual memory of a running Python (3.6) application (using process_vm_read on Linux),
+
+I understand that you are writing a debugger and you can only *read*
+modify, not execute code, right?
+
+> I have noticed that I can only rely on _PyThreadState_Current.interp at the very beginning of the execution. If I try to attach to a running Python process, then _PythreadState_Current.interp doesn't seem to point to anything useful to derive the currently running threads and the frame stacks for each of them.
+
+In the master branch, it's now _PyRuntime.gilstate.tstate_current. If
+you run time.sleep(3600) and look into
+_PyRuntime.gilstate.tstate_current using gdb, you can a NULL pointer
+(tstate_current=0) because Python releases the GIL..
+
+In faulthandler, I call PyGILState_GetThisThreadState() from signal
+handlers to get the Python thread state of the current thread... But
+this one is implemented using PyThread_tss_get()
+(pthread_getspecific() on most platforms). Moreover, it returns NULL
+if the current thread is not a Python thread.
+
+There is also _PyGILState_GetInterpreterStateUnsafe() which gives
+access to the current Python interpreter:
+_PyRuntime.gilstate.autoInterpreterState. From the interpreter, you
+can use the linked list of thread states from interp->tstate_head.
+
+I hope that I helped :-)
+
+Obviously, when you access Python internals, the details change at
+each Python release... I described the master branch.
+
+Victor
+
