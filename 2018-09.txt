@@ -18742,3 +18742,1021 @@ each Python release... I described the master branch.
 
 Victor
 
+From phoenix1987 at gmail.com  Fri Sep 28 10:18:51 2018
+From: phoenix1987 at gmail.com (Gabriele)
+Date: Fri, 28 Sep 2018 15:18:51 +0100
+Subject: [Python-Dev] What is the purpose of the _PyThreadState_Current
+ symbol in Python 3?
+Message-ID: <CAGnuNNt9A57YdbjLOoT9NffNRTD+WNbtWTx6+FSkt6+0VsEWHQ@mail.gmail.com>
+
+Hi Victor,
+
+> I understand that you are writing a debugger and you can only *read*
+> modify, not execute code, right?
+
+I'm working on a frame stack sampler that runs independently from the
+Python process. The project is "Austin"
+(https://github.com/P403n1x87/austin). Whilst I could, in principle,
+execute code with other system calls, I prefer not to in this case.
+
+> In the master branch, it's now _PyRuntime.gilstate.tstate_current. If
+> you run time.sleep(3600) and look into
+> _PyRuntime.gilstate.tstate_current using gdb, you can a NULL pointer
+> (tstate_current=0) because Python releases the GIL..
+
+I would like my application to make as few assumptions as possible.
+The _PyRuntime symbol might not be available if all the symbols have
+been stripped out of the binaries. That's why I was trying to rely on
+_PyThreadState_Current, which is in the .dynsym section. Judging by
+the output of nm -D `which python3` (I'm on Python 3.6.6 at the
+moment) I cannot see anything more useful than that.
+
+My current strategy is to try and make something out of this symbol
+and then fall back to a brute force approach to scan the .bss section
+for valid PyInterpreterState instances (which works reliably well and
+is quite fast too, but a bit ugly).
+
+> There is also _PyGILState_GetInterpreterStateUnsafe() which gives
+> access to the current Python interpreter:
+> _PyRuntime.gilstate.autoInterpreterState. From the interpreter, you
+> can use the linked list of thread states from interp->tstate_head.
+>
+> I hope that I helped :-)
+
+Yes thanks! Your comment made me realise why I can use
+PyThreadState_Current at the very beginning, and it is because Python
+is going through the intensive startup process, which involves, among
+other things, the loading of frozen modules (I can clearly see most if
+not all the steps in the output of Austin, as mentioned in the repo's
+README). During this phase, the main (and only thread) holds the GIL
+and is quite busy doing stuff. The long-running applications that I
+was trying to attach to have very long wait periods where they sit
+idle waiting for a timer to trigger the next operations, that fire
+very quickly and put the threads back to sleep again.
+
+If this is what the _PyThreadState_Current is designed for, then I
+guess I cannot really rely on it, especially when attaching Austin to
+another process.
+
+Best regards,
+Gabriele
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180928/3b8a0d1f/attachment.html>
+
+From ncoghlan at gmail.com  Fri Sep 28 10:29:44 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sat, 29 Sep 2018 00:29:44 +1000
+Subject: [Python-Dev] Documenting the private C API (was Re: Questions
+ about signal handling.)
+In-Reply-To: <B9E0D025-A1AA-46F9-B4F7-792048E8CA81@python.org>
+References: <CALFfu7D0rRs+iEpqYO7W+PDgMdrOEjYGNa6EWtaaEqbCXQHX3Q@mail.gmail.com>
+ <CA+St6D0ffpR25RPL72BdkhHS=kV5vFsdpPr=d6WpC-5S3RwH_g@mail.gmail.com>
+ <CALFfu7A9aR8L1cp7yVn1d_AfzYmsZBeswOoVrAaienL0NKd_7w@mail.gmail.com>
+ <CA+3bQGHxs=SLCn_V1dMoKKUWbtdGyBPunZfSiPBNaOWqJPi_EQ@mail.gmail.com>
+ <105BF294-CA1E-43C4-9CE2-A71683371DDB@python.org>
+ <20180925161807.5e13e90e@fsol>
+ <B9E0D025-A1AA-46F9-B4F7-792048E8CA81@python.org>
+Message-ID: <CADiSq7fjx5MHVt7zdEm-_QHujgeKQK6v6W8oDCxJL=2pzLcgCg@mail.gmail.com>
+
+On Wed, 26 Sep 2018 at 00:33, Barry Warsaw <barry at python.org> wrote:
+>
+> On Sep 25, 2018, at 10:18, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> >
+> > Not really.  Many are just like "static" (i.e. module-private)
+> > functions, except that they need to be shared by two or three different
+> > C modules.  It's definitely the case for _PyEval_SignalReceived().
+>
+> Purely static functions which appear only in the file they are defined in are probably fine not to document, although I do still think we should take care to comment on their semantics and external behaviors (i.e. reference counting).  But if they?re used in multiple C files, then I think they *can* deserve placement within the documentation.
+
+We run into this problem with the test.support helpers as well (we
+have more helpers than just those in the docs, but the others tend to
+rely on contributors and/or PR reviewers having looked at other tests
+that already use them).
+
+Fleshing out on the "internals" docs idea that some folks have mentioned:
+
+1. Call it "Doc/_internals" and keep the leading underscore in the
+published docs
+2. Use it to cover both C internals and Python internals (such as test.support)
+3. Permit use of autodoc tools that we don't allow in the main docs
+(as these docs would be for CPython contributors, so the intended
+audience for the docs is the same as the audience for the code)
+4. Potentially pull in some specific files and sections from the
+source code as literal include blocks (as per
+http://docutils.sourceforge.net/docs/ref/rst/directives.html#include)
+rather than rewriting them
+
+Cheers,
+Nick.
+
+P.S. While it wouldn't be usable directly,
+https://github.com/jnikula/hawkmoth at least demonstrates the
+principle of extracting Sphinx API docs from C source files.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From status at bugs.python.org  Fri Sep 28 12:10:05 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 28 Sep 2018 18:10:05 +0200 (CEST)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20180928161005.5DD0E56A89@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-09-21 - 2018-09-28)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6781 (-14)
+  closed 39803 (+80)
+  total  46584 (+66)
+
+Open issues with patches: 2703 
+
+
+Issues opened (54)
+==================
+
+#12782: Multiple context expressions do not support parentheses for co
+https://bugs.python.org/issue12782  reopened by lukasz.langa
+
+#28655: Tests altered the execution environment in isolated mode
+https://bugs.python.org/issue28655  reopened by vstinner
+
+#32528: Change base class for futures.CancelledError
+https://bugs.python.org/issue32528  reopened by yselivanov
+
+#34768: Add documentation explaining __init__.py in packages
+https://bugs.python.org/issue34768  opened by bkestelman
+
+#34769: _asyncgen_finalizer_hook running in wrong thread
+https://bugs.python.org/issue34769  opened by twisteroid ambassador
+
+#34771: test_ctypes failing on Linux SPARC64
+https://bugs.python.org/issue34771  opened by kelledin-3
+
+#34773: sqlite3 module inconsistently returning only some rows from a 
+https://bugs.python.org/issue34773  opened by shankargopal
+
+#34774: IDLE: use theme colors for help viewer
+https://bugs.python.org/issue34774  opened by terry.reedy
+
+#34775: pathlib.PurePath division raises TypeError instead of returnin
+https://bugs.python.org/issue34775  opened by Roger Aiudi
+
+#34776: Postponed annotations break inspection of dataclasses
+https://bugs.python.org/issue34776  opened by drhagen
+
+#34778: Memoryview for column-major (f_contiguous) arrays from bytes i
+https://bugs.python.org/issue34778  opened by lgautier
+
+#34779: IDLE internals show up in tracebacks when returning objects th
+https://bugs.python.org/issue34779  opened by ppperry
+
+#34780: Hang on startup if stdin refers to a pipe with an outstanding 
+https://bugs.python.org/issue34780  opened by izbyshev
+
+#34781: infinite waiting in multiprocessing.Pool
+https://bugs.python.org/issue34781  opened by coells
+
+#34782: Pdb crashes when code is executed in a mapping that does not d
+https://bugs.python.org/issue34782  opened by ppperry
+
+#34784: Heap-allocated StructSequences
+https://bugs.python.org/issue34784  opened by eelizondo
+
+#34785: pty.spawn -- auto-termination after child process is dead (a z
+https://bugs.python.org/issue34785  opened by jarryshaw
+
+#34788: ipaddress module fails on rfc4007 scoped IPv6 addresses
+https://bugs.python.org/issue34788  opened by Jeremy McMillan
+
+#34789: Make xml.sax.make_parser accept iterables
+https://bugs.python.org/issue34789  opened by adelfino
+
+#34790: Deprecate passing coroutine objects to asyncio.wait()
+https://bugs.python.org/issue34790  opened by yselivanov
+
+#34791: xml package does not obey sys.flags.ignore_environment
+https://bugs.python.org/issue34791  opened by christian.heimes
+
+#34792: Tutorial doesn''t discuss / and * function arguments
+https://bugs.python.org/issue34792  opened by diekhans
+
+#34793: Remove support for "with (await asyncio.lock):"
+https://bugs.python.org/issue34793  opened by yselivanov
+
+#34794: memory leak in TkApp:_createbytearray
+https://bugs.python.org/issue34794  opened by dtalkin
+
+#34795: loop.sock_recv failure because of delayed callback handling
+https://bugs.python.org/issue34795  opened by kyuupichan
+
+#34796: Tkinter scrollbar issues on Mac.
+https://bugs.python.org/issue34796  opened by terry.reedy
+
+#34797: Convert heapq to the argument clinic
+https://bugs.python.org/issue34797  opened by pablogsal
+
+#34798: pprint ignores the compact parameter for dicts
+https://bugs.python.org/issue34798  opened by Nicolas Hug
+
+#34799: When function in tracing returns None, tracing continues.
+https://bugs.python.org/issue34799  opened by fabioz
+
+#34800: email.contentmanager raises error when policy.max_line_length=
+https://bugs.python.org/issue34800  opened by silane
+
+#34801: codecs.getreader() splits lines containing control characters
+https://bugs.python.org/issue34801  opened by nascheme
+
+#34804: Repetition of 'for example' in documentation
+https://bugs.python.org/issue34804  opened by rarblack
+
+#34805: Explicitly specify `MyClass.__subclasses__()` returns classes 
+https://bugs.python.org/issue34805  opened by pekka.klarck
+
+#34806: distutils tests fail with recent 3.7 branch
+https://bugs.python.org/issue34806  opened by doko
+
+#34807: pathlib.[r]glob fails when the toplevel directory is not reada
+https://bugs.python.org/issue34807  opened by Antony.Lee
+
+#34810: Maximum and minimum value of C types integers from Python
+https://bugs.python.org/issue34810  opened by scls
+
+#34811: test_gdb fails with latest gdb
+https://bugs.python.org/issue34811  opened by cstratak
+
+#34812: support.args_from_interpreter_flags() doesn't inherit -I (isol
+https://bugs.python.org/issue34812  opened by vstinner
+
+#34814: makesetup: must link C extensions to libpython when compiled i
+https://bugs.python.org/issue34814  opened by vstinner
+
+#34816: ctypes + hasattr
+https://bugs.python.org/issue34816  opened by lfriedri
+
+#34817: Ellipsis docs has extra dot in the markdown that makes it look
+https://bugs.python.org/issue34817  opened by xtreak
+
+#34818: test.test_ssl.ThreadedTests.test_tls1_3 fails in 2.7 with Attr
+https://bugs.python.org/issue34818  opened by xnox
+
+#34820: binascii.c:1578:1: error: the control flow of function ???bina
+https://bugs.python.org/issue34820  opened by wencan
+
+#34821: Crash after run Python interpreter from removed directory
+https://bugs.python.org/issue34821  opened by ?????????? ??????????????
+
+#34822: Simplify AST for slices
+https://bugs.python.org/issue34822  opened by serhiy.storchaka
+
+#34823: libffi detection doesn???t work in my setup
+https://bugs.python.org/issue34823  opened by stapelberg
+
+#34824: _ssl.c: Possible null pointer dereference
+https://bugs.python.org/issue34824  opened by ZackerySpytz
+
+#34825: Add more entries to os module to pathlib reference table
+https://bugs.python.org/issue34825  opened by xtreak
+
+#34826: io.BufferedReader crashes in 2.7 on memoryview attribute acces
+https://bugs.python.org/issue34826  opened by gregory.p.smith
+
+#34828: sqlite.iterdump does not work for (most) databases with autoin
+https://bugs.python.org/issue34828  opened by itssme
+
+#34829: Add missing selection_ methods to tkinter Spinbox
+https://bugs.python.org/issue34829  opened by j-4321-i
+
+#34831: Asyncio Tutorial
+https://bugs.python.org/issue34831  opened by cjrh
+
+#34832: "Short circuiting" in base64's b64decode, decode, decodebytes
+https://bugs.python.org/issue34832  opened by pw.michael.harris
+
+#34833: [CI] Azure Pipeline: Initialize Agent failed
+https://bugs.python.org/issue34833  opened by vstinner
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#34832: "Short circuiting" in base64's b64decode, decode, decodebytes
+https://bugs.python.org/issue34832
+
+#34831: Asyncio Tutorial
+https://bugs.python.org/issue34831
+
+#34829: Add missing selection_ methods to tkinter Spinbox
+https://bugs.python.org/issue34829
+
+#34825: Add more entries to os module to pathlib reference table
+https://bugs.python.org/issue34825
+
+#34824: _ssl.c: Possible null pointer dereference
+https://bugs.python.org/issue34824
+
+#34823: libffi detection doesn???t work in my setup
+https://bugs.python.org/issue34823
+
+#34822: Simplify AST for slices
+https://bugs.python.org/issue34822
+
+#34812: support.args_from_interpreter_flags() doesn't inherit -I (isol
+https://bugs.python.org/issue34812
+
+#34807: pathlib.[r]glob fails when the toplevel directory is not reada
+https://bugs.python.org/issue34807
+
+#34805: Explicitly specify `MyClass.__subclasses__()` returns classes 
+https://bugs.python.org/issue34805
+
+#34801: codecs.getreader() splits lines containing control characters
+https://bugs.python.org/issue34801
+
+#34799: When function in tracing returns None, tracing continues.
+https://bugs.python.org/issue34799
+
+#34797: Convert heapq to the argument clinic
+https://bugs.python.org/issue34797
+
+#34796: Tkinter scrollbar issues on Mac.
+https://bugs.python.org/issue34796
+
+#34785: pty.spawn -- auto-termination after child process is dead (a z
+https://bugs.python.org/issue34785
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#34829: Add missing selection_ methods to tkinter Spinbox
+https://bugs.python.org/issue34829
+
+#34828: sqlite.iterdump does not work for (most) databases with autoin
+https://bugs.python.org/issue34828
+
+#34825: Add more entries to os module to pathlib reference table
+https://bugs.python.org/issue34825
+
+#34824: _ssl.c: Possible null pointer dereference
+https://bugs.python.org/issue34824
+
+#34822: Simplify AST for slices
+https://bugs.python.org/issue34822
+
+#34818: test.test_ssl.ThreadedTests.test_tls1_3 fails in 2.7 with Attr
+https://bugs.python.org/issue34818
+
+#34814: makesetup: must link C extensions to libpython when compiled i
+https://bugs.python.org/issue34814
+
+#34800: email.contentmanager raises error when policy.max_line_length=
+https://bugs.python.org/issue34800
+
+#34797: Convert heapq to the argument clinic
+https://bugs.python.org/issue34797
+
+#34794: memory leak in TkApp:_createbytearray
+https://bugs.python.org/issue34794
+
+#34791: xml package does not obey sys.flags.ignore_environment
+https://bugs.python.org/issue34791
+
+#34790: Deprecate passing coroutine objects to asyncio.wait()
+https://bugs.python.org/issue34790
+
+#34789: Make xml.sax.make_parser accept iterables
+https://bugs.python.org/issue34789
+
+#34785: pty.spawn -- auto-termination after child process is dead (a z
+https://bugs.python.org/issue34785
+
+#34784: Heap-allocated StructSequences
+https://bugs.python.org/issue34784
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#34751: Hash collisions for tuples
+https://bugs.python.org/issue34751  56 msgs
+
+#34814: makesetup: must link C extensions to libpython when compiled i
+https://bugs.python.org/issue34814  18 msgs
+
+#22490: Using realpath for __PYVENV_LAUNCHER__ makes Homebrew installs
+https://bugs.python.org/issue22490  12 msgs
+
+#32892: Remove specific constant AST types in favor of ast.Constant
+https://bugs.python.org/issue32892  12 msgs
+
+#34162: idlelib/NEWS.txt for 3.8.0 (and backports)
+https://bugs.python.org/issue34162   9 msgs
+
+#34521: Multiple tests (test_socket, test_multiprocessing_*) fail due 
+https://bugs.python.org/issue34521   9 msgs
+
+#34781: infinite waiting in multiprocessing.Pool
+https://bugs.python.org/issue34781   9 msgs
+
+#34806: distutils tests fail with recent 3.7 branch
+https://bugs.python.org/issue34806   9 msgs
+
+#28655: Tests altered the execution environment in isolated mode
+https://bugs.python.org/issue28655   8 msgs
+
+#31405: shutil.which doesn't find files without PATHEXT extension on W
+https://bugs.python.org/issue31405   7 msgs
+
+
+
+Issues closed (79)
+==================
+
+#5950: Make zipimport work with zipfile containing comments
+https://bugs.python.org/issue5950  closed by barry
+
+#12458: Tracebacks should contain the first line of continuation lines
+https://bugs.python.org/issue12458  closed by serhiy.storchaka
+
+#16360: argparse: comma in metavar causes assertion failure when forma
+https://bugs.python.org/issue16360  closed by paul.j3
+
+#23584: test_doctest lineendings fails in verbose mode
+https://bugs.python.org/issue23584  closed by xtreak
+
+#24937: Multiple problems in getters & setters in capsulethunk.h
+https://bugs.python.org/issue24937  closed by petr.viktorin
+
+#24997: mock.call_args compares as equal and not equal
+https://bugs.python.org/issue24997  closed by berker.peksag
+
+#26000: Crash in Tokenizer - Heap-use-after-free
+https://bugs.python.org/issue26000  closed by xtreak
+
+#26144: test_pkg test_4 and/or test_7 sometimes fail
+https://bugs.python.org/issue26144  closed by xtreak
+
+#26452: Wrong line number attributed to comprehension expressions
+https://bugs.python.org/issue26452  closed by xtreak
+
+#28418: Raise Deprecation warning for tokenize.generate_tokens
+https://bugs.python.org/issue28418  closed by xtreak
+
+#30350: devguide suggests to use VS 2008 to build Python 2.7, but VS 2
+https://bugs.python.org/issue30350  closed by vstinner
+
+#30964: Mention ensurepip in package installation docs
+https://bugs.python.org/issue30964  closed by brett.cannon
+
+#31007: ERROR: test_pipe_handle (test.test_asyncio.test_windows_utils.
+https://bugs.python.org/issue31007  closed by vstinner
+
+#31425: Expose AF_QIPCRTR in socket module
+https://bugs.python.org/issue31425  closed by taleinat
+
+#31511: test_normalization: test.support.open_urlresource() doesn't ha
+https://bugs.python.org/issue31511  closed by vstinner
+
+#31535: configparser unable to write comment with a upper cas letter
+https://bugs.python.org/issue31535  closed by xtreak
+
+#31737: Documentation renders incorrectly
+https://bugs.python.org/issue31737  closed by mdk
+
+#31837: ParseError in test_all_project_files()
+https://bugs.python.org/issue31837  closed by xtreak
+
+#31986: [2.7] test_urllib2net.test_sites_no_connection_close() randoml
+https://bugs.python.org/issue31986  closed by vstinner
+
+#32117: Tuple unpacking in return and yield statements
+https://bugs.python.org/issue32117  closed by gvanrossum
+
+#32282: When using a Windows XP compatible toolset, `socketmodule.c` f
+https://bugs.python.org/issue32282  closed by steve.dower
+
+#32533: SSLSocket read/write thread-unsafety
+https://bugs.python.org/issue32533  closed by steve.dower
+
+#32552: Improve text for file arguments in argparse.ArgumentDefaultsHe
+https://bugs.python.org/issue32552  closed by paul.j3
+
+#32556: support bytes paths in nt _getdiskusage, _getvolumepathname, a
+https://bugs.python.org/issue32556  closed by steve.dower
+
+#32557: allow shutil.disk_usage to take a file path on Windows also
+https://bugs.python.org/issue32557  closed by steve.dower
+
+#32718: Install PowerShell activation scripts for venv for all platfor
+https://bugs.python.org/issue32718  closed by brett.cannon
+
+#33016: nt._getfinalpathname may use uninitialized memory
+https://bugs.python.org/issue33016  closed by steve.dower
+
+#33091: ssl.SSLError: Invalid error code (_ssl.c:2217)
+https://bugs.python.org/issue33091  closed by steve.dower
+
+#33180: Flag for unusable sys.executable
+https://bugs.python.org/issue33180  closed by steve.dower
+
+#33309: Unittest Mock objects do not freeze arguments they are called 
+https://bugs.python.org/issue33309  closed by xtreak
+
+#33415: When add_mutually_exclusive_group is built without argument, t
+https://bugs.python.org/issue33415  closed by paul.j3
+
+#33442: Python 3 doc sidebar dosnt follow page scrolling like 2.7 doc 
+https://bugs.python.org/issue33442  closed by xtreak
+
+#33782: VSTS Windows-PR: internal error
+https://bugs.python.org/issue33782  closed by steve.dower
+
+#33871: Possible integer overflow in iov_setup()
+https://bugs.python.org/issue33871  closed by serhiy.storchaka
+
+#33937: test_socket: SendmsgSCTPStreamTest.testSendmsgTimeout() failed
+https://bugs.python.org/issue33937  closed by vstinner
+
+#33977: [Windows] test_compileall fails randomly with PermissionError:
+https://bugs.python.org/issue33977  closed by vstinner
+
+#34046: subparsers -> add_parser doesn't support hyphen char '-'
+https://bugs.python.org/issue34046  closed by paul.j3
+
+#34188: Allow dict choices to "transform" values in argpagse
+https://bugs.python.org/issue34188  closed by paul.j3
+
+#34223: PYTHONDUMPREFS=1 ./python -c pass does crash
+https://bugs.python.org/issue34223  closed by vstinner
+
+#34248: dbm errors should contain file names
+https://bugs.python.org/issue34248  closed by berker.peksag
+
+#34267: find_python.bat doesn't find installed Python 3.7
+https://bugs.python.org/issue34267  closed by steve.dower
+
+#34320: Creating dict from OrderedDict doesn't preserve order
+https://bugs.python.org/issue34320  closed by inada.naoki
+
+#34372: Parenthesized expression has incorrect line numbers
+https://bugs.python.org/issue34372  closed by serhiy.storchaka
+
+#34472: zipfile: does not include optional descriptor signature
+https://bugs.python.org/issue34472  closed by serhiy.storchaka
+
+#34533: Apply PEP384 to _csv module
+https://bugs.python.org/issue34533  closed by berker.peksag
+
+#34537: test_gdb fails with LC_ALL=C
+https://bugs.python.org/issue34537  closed by vstinner
+
+#34539: namedtuple's exec() throws segmentation fault
+https://bugs.python.org/issue34539  closed by xtreak
+
+#34548: IDLE: Make TextView use the configured theme colors
+https://bugs.python.org/issue34548  closed by taleinat
+
+#34575: Python 3.6 compilation fails on AppVeyor: libeay.lib was creat
+https://bugs.python.org/issue34575  closed by vstinner
+
+#34582: VSTS builds should use jobs, pools, and test results
+https://bugs.python.org/issue34582  closed by steve.dower
+
+#34609: Importing certain modules while debugging raises an exception
+https://bugs.python.org/issue34609  closed by terry.reedy
+
+#34610: Incorrect iteration of Manager.dict() method of the multiproce
+https://bugs.python.org/issue34610  closed by serhiy.storchaka
+
+#34659: Inconsistency between functools.reduce & itertools.accumulate
+https://bugs.python.org/issue34659  closed by lisroach
+
+#34683: Caret positioned wrong for SyntaxError reported by ast.c
+https://bugs.python.org/issue34683  closed by gvanrossum
+
+#34687: asyncio: is it time to make ProactorEventLoop as the default e
+https://bugs.python.org/issue34687  closed by vstinner
+
+#34728: deprecate *loop* argument for asyncio.sleep
+https://bugs.python.org/issue34728  closed by willingc
+
+#34734: Azure linux buildbot failure
+https://bugs.python.org/issue34734  closed by xtreak
+
+#34736: Confusing base64.b64decode output
+https://bugs.python.org/issue34736  closed by taleinat
+
+#34744: New %(flag)s format specifier for argparse.add_argument help s
+https://bugs.python.org/issue34744  closed by paul.j3
+
+#34759: Possible regression in ssl module in 3.7.1 and master
+https://bugs.python.org/issue34759  closed by njs
+
+#34760: Regression in abc in combination with passing a function to is
+https://bugs.python.org/issue34760  closed by levkivskyi
+
+#34761: str(super()) != super().__str__()
+https://bugs.python.org/issue34761  closed by eric.snow
+
+#34762: Change contextvars C API to use PyObject
+https://bugs.python.org/issue34762  closed by yselivanov
+
+#34770: pyshellext.cpp: Possible null pointer dereference
+https://bugs.python.org/issue34770  closed by xiang.zhang
+
+#34772: Python will suddenly not plot
+https://bugs.python.org/issue34772  closed by ammar2
+
+#34777: urllib.request accepts anything as a header parameter for some
+https://bugs.python.org/issue34777  closed by xtreak
+
+#34783: [3.7] segmentation-fault/core dump when try to run non-existin
+https://bugs.python.org/issue34783  closed by vstinner
+
+#34786: ProcessPoolExecutor documentation reports wrong exception bein
+https://bugs.python.org/issue34786  closed by xiang.zhang
+
+#34787: imghdr raise TypeError for PNG
+https://bugs.python.org/issue34787  closed by christian.heimes
+
+#34802: asyncio.iscoroutine() documentation is wrong
+https://bugs.python.org/issue34802  closed by yselivanov
+
+#34803: argparse int type does not accept scientific notation
+https://bugs.python.org/issue34803  closed by paul.j3
+
+#34808: bytes[0] != bytes[0:1]
+https://bugs.python.org/issue34808  closed by ucyo
+
+#34809: On MacOSX with 3.7 python getting "Symbol not found: _PyString
+https://bugs.python.org/issue34809  closed by zach.ware
+
+#34813: child process disappears when removing a print statement after
+https://bugs.python.org/issue34813  closed by calimeroteknik
+
+#34815: Change Py_Ellipse __str__ behavior.
+https://bugs.python.org/issue34815  closed by photofone
+
+#34819: Executor.map and as_completed timeouts are able to deviate
+https://bugs.python.org/issue34819  closed by pitrou
+
+#34827: Make argparse.NameSpace iterable
+https://bugs.python.org/issue34827  closed by serhiy.storchaka
+
+#34830: functools.partial is weak referncable
+https://bugs.python.org/issue34830  closed by mdk
+
+#1529353: Squeezer - squeeze large output in IDLE's shell
+https://bugs.python.org/issue1529353  closed by terry.reedy
+
+From seanharr11 at gmail.com  Fri Sep 28 17:07:33 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Fri, 28 Sep 2018 17:07:33 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension - Pass
+ Data to Workers w/o Globals
+Message-ID: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+
+I am proposing an extension to the multiprocessing.Pool API that allows for
+an alternative way to pass data to Pool worker processes, *without* using
+globals.
+
+A PR has been opened <https://github.com/python/cpython/pull/9627>,
+extensive test coverage is also included, with all tests & CI passing on
+github.
+
+Please see this blog post
+<https://thelaziestprogrammer.com/python/multiprocessing-pool-expect-initret-proposal>
+for details, motivation, and use cases of the API extension before reading
+on.
+
+In *short*, the implementation of the feature works as follows:
+
+   1. Exposes a kwarg on Pool.__init__ called `expect_initret`, that
+   defaults to False. When set to True:
+      1. Capture the return value of the initializer kwarg of Pool
+      2. Pass this value to the function being applied, as a kwarg.
+
+Again, in *short,* the motivation of the feature is to provide an explicit
+"flow of data" from parent process to worker process, and to avoid being
+*forced* to using the *global* keyword in initializer, or being *forced* to
+create global variables in the parent process.
+
+The interface is 100% backwards compatible through Python3.x (and perhaps
+beyond).
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180928/03fcc55f/attachment.html>
+
+From njs at pobox.com  Fri Sep 28 18:11:49 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 28 Sep 2018 15:11:49 -0700
+Subject: [Python-Dev] What is the purpose of the _PyThreadState_Current
+ symbol in Python 3?
+In-Reply-To: <CAGnuNNt9A57YdbjLOoT9NffNRTD+WNbtWTx6+FSkt6+0VsEWHQ@mail.gmail.com>
+References: <CAGnuNNt9A57YdbjLOoT9NffNRTD+WNbtWTx6+FSkt6+0VsEWHQ@mail.gmail.com>
+Message-ID: <CAPJVwBmNpV_SA6CP4sMY16Tj810CWc195=oMJ27OP2g65AoXug@mail.gmail.com>
+
+What information do you wish the interpreter provided, that would make your
+program simpler and more reliable?
+
+On Fri, Sep 28, 2018, 07:21 Gabriele <phoenix1987 at gmail.com> wrote:
+
+> Hi Victor,
+>
+> > I understand that you are writing a debugger and you can only *read*
+> > modify, not execute code, right?
+>
+> I'm working on a frame stack sampler that runs independently from the
+> Python process. The project is "Austin"
+> (https://github.com/P403n1x87/austin). Whilst I could, in principle,
+> execute code with other system calls, I prefer not to in this case.
+>
+> > In the master branch, it's now _PyRuntime.gilstate.tstate_current. If
+> > you run time.sleep(3600) and look into
+> > _PyRuntime.gilstate.tstate_current using gdb, you can a NULL pointer
+> > (tstate_current=0) because Python releases the GIL..
+>
+> I would like my application to make as few assumptions as possible.
+> The _PyRuntime symbol might not be available if all the symbols have
+> been stripped out of the binaries. That's why I was trying to rely on
+> _PyThreadState_Current, which is in the .dynsym section. Judging by
+> the output of nm -D `which python3` (I'm on Python 3.6.6 at the
+> moment) I cannot see anything more useful than that.
+>
+> My current strategy is to try and make something out of this symbol
+> and then fall back to a brute force approach to scan the .bss section
+> for valid PyInterpreterState instances (which works reliably well and
+> is quite fast too, but a bit ugly).
+>
+> > There is also _PyGILState_GetInterpreterStateUnsafe() which gives
+> > access to the current Python interpreter:
+> > _PyRuntime.gilstate.autoInterpreterState. From the interpreter, you
+> > can use the linked list of thread states from interp->tstate_head.
+> >
+> > I hope that I helped :-)
+>
+> Yes thanks! Your comment made me realise why I can use
+> PyThreadState_Current at the very beginning, and it is because Python
+> is going through the intensive startup process, which involves, among
+> other things, the loading of frozen modules (I can clearly see most if
+> not all the steps in the output of Austin, as mentioned in the repo's
+> README). During this phase, the main (and only thread) holds the GIL
+> and is quite busy doing stuff. The long-running applications that I
+> was trying to attach to have very long wait periods where they sit
+> idle waiting for a timer to trigger the next operations, that fire
+> very quickly and put the threads back to sleep again.
+>
+> If this is what the _PyThreadState_Current is designed for, then I
+> guess I cannot really rely on it, especially when attaching Austin to
+> another process.
+>
+> Best regards,
+> Gabriele
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180928/d6662e82/attachment.html>
+
+From phoenix1987 at gmail.com  Fri Sep 28 18:29:15 2018
+From: phoenix1987 at gmail.com (Gabriele)
+Date: Fri, 28 Sep 2018 23:29:15 +0100
+Subject: [Python-Dev] What is the purpose of the _PyThreadState_Current
+ symbol in Python 3?
+In-Reply-To: <CAPJVwBmNpV_SA6CP4sMY16Tj810CWc195=oMJ27OP2g65AoXug@mail.gmail.com>
+References: <CAGnuNNt9A57YdbjLOoT9NffNRTD+WNbtWTx6+FSkt6+0VsEWHQ@mail.gmail.com>
+ <CAPJVwBmNpV_SA6CP4sMY16Tj810CWc195=oMJ27OP2g65AoXug@mail.gmail.com>
+Message-ID: <CAGnuNNskb3RJw3V0zcatd0ugYfPwn83gKhHTTtbL0ArU5J6-2w@mail.gmail.com>
+
+On Fri, 28 Sep 2018 at 23:12, Nathaniel Smith <njs at pobox.com> wrote:
+> What information do you wish the interpreter provided, that would make your program simpler and more reliable?
+
+An exported global variable that points to the head of the
+PyInterpreterState linked list (i.e. the return value of
+PyInterpreterState_Head). This way my program could just look this up
+from the dynsym section instead of scanning a dump of the bss section
+in memory to find a possible candidate. It would be grand if also the
+string in the rodata section that gives the Python version could be
+dereferenced from dynsym, but that's a different question.
+
+From solipsis at pitrou.net  Fri Sep 28 18:44:54 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sat, 29 Sep 2018 00:44:54 +0200
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+Message-ID: <20180929004454.3715f0e8@fsol>
+
+
+Hi,
+
+On Fri, 28 Sep 2018 17:07:33 -0400
+Sean Harrington <seanharr11 at gmail.com> wrote:
+> 
+> In *short*, the implementation of the feature works as follows:
+> 
+>    1. Exposes a kwarg on Pool.__init__ called `expect_initret`, that
+>    defaults to False. When set to True:
+>       1. Capture the return value of the initializer kwarg of Pool
+>       2. Pass this value to the function being applied, as a kwarg.
+> 
+> Again, in *short,* the motivation of the feature is to provide an explicit
+> "flow of data" from parent process to worker process, and to avoid being
+> *forced* to using the *global* keyword in initializer, or being *forced* to
+> create global variables in the parent process.
+
+Thanks for taking the time to explain your use case and write a
+proposal.
+
+My reactions to this are:
+
+1. The proposed API is ugly.  This basically allows you to pass an
+argument which changes with which arguments another function is later
+called...
+2. A global variable seems like the adequate way to represent a
+process-global object (which is exactly your use case).
+3. If you don't like globals, you could probably do something like
+lazily-initialize the resource when a function needing it is executed;
+this also avoids creating the resource if the child doesn't use it at
+all.  Would that work for you?
+
+As a more general remark, I understand the desire to make the Pool
+object more flexible, but we can also not pile up features until it
+satisfies all use cases.
+
+As another general remark, concurrent.futures is IMHO the preferred API
+for the future, and where feature work should probably concentrate.
+
+Regards
+
+Antoine.
+
+
+
+From seanharr11 at gmail.com  Fri Sep 28 19:23:06 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Fri, 28 Sep 2018 19:23:06 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <20180929004454.3715f0e8@fsol>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <20180929004454.3715f0e8@fsol>
+Message-ID: <CAFbyWc2CGwtXqa004mGE_eUtE1qpvRB+jvgZa2ycGEZPEDP_+A@mail.gmail.com>
+
+Hi Antoine - see inline below for my response...thanks for your time!
+
+On Fri, Sep 28, 2018 at 6:45 PM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+>
+> Hi,
+>
+> On Fri, 28 Sep 2018 17:07:33 -0400
+> Sean Harrington <seanharr11 at gmail.com> wrote:
+> >
+> > In *short*, the implementation of the feature works as follows:
+> >
+> >    1. Exposes a kwarg on Pool.__init__ called `expect_initret`, that
+> >    defaults to False. When set to True:
+> >       1. Capture the return value of the initializer kwarg of Pool
+> >       2. Pass this value to the function being applied, as a kwarg.
+> >
+> > Again, in *short,* the motivation of the feature is to provide an
+> explicit
+> > "flow of data" from parent process to worker process, and to avoid being
+> > *forced* to using the *global* keyword in initializer, or being *forced*
+> to
+> > create global variables in the parent process.
+>
+> Thanks for taking the time to explain your use case and write a
+> proposal.
+>
+> My reactions to this are:
+>
+> 1. The proposed API is ugly.  This basically allows you to pass an
+> argument which changes with which arguments another function is later
+> called...
+
+> Yes I agree that this is a not-perfect contract, but isn't this also a
+concern with the current implementation? And isn't this pattern arguably
+more explicit than "The function-being-applied relying on the initializer
+to create a global variable from within it's lexical scope"?
+
+
+
+2. A global variable seems like the adequate way to represent a
+> process-global object (which is exactly your use case)
+
+> There is nothing wrong with using a global variable, especially in nearly
+every toy example found on the internet of using multiprocessing.Pool (i.e.
+optimizing a simple script). But what happens when you have lots of nested
+function calls in your applied function? My simple argument is that the
+developer should not be constrained to make the objects passed globally
+available in the process, as this MAY break encapsulation for large
+projects.
+
+
+
+3. If you don't like globals, you could probably do something like
+> lazily-initialize the resource when a function needing it is executed;
+> this also avoids creating the resource if the child doesn't use it at
+> all.  Would that work for you?
+>
+> I have nothing against globals, my gripe is with being enforced to use
+them for every Pool use case. Further, if initializing the resource is
+expensive, we only want to do this ONE time per worker process. So no, this
+will not ~always~ work.
+
+
+> As a more general remark, I understand the desire to make the Pool
+> object more flexible, but we can also not pile up features until it
+> satisfies all use cases.
+>
+> I understand that this is a legitimate concern, but this is about API
+approachability.  Python end-users of Pool are forced to declare a global
+from a lexical scope. Most Python end-users probably don't even know this
+is possible. Sure, this is adding a feature for a use case that I outlined,
+but really this is one of the two major use cases of "initializer" and
+"initargs" (see my blog post for the 2 generalized use cases
+<https://thelaziestprogrammer.com/python/multiprocessing-pool-expect-initret-proposal>),
+not some obscure use case. This is making that *very common* use case more
+approachable.
+
+
+> As another general remark, concurrent.futures is IMHO the preferred API
+> for the future, and where feature work should probably concentrate.
+>
+> This is good to hear and know. And will keep this mind moving forward!
+
+
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180928/91aefe08/attachment-0001.html>
+
+From mike at selik.org  Fri Sep 28 21:27:13 2018
+From: mike at selik.org (Michael Selik)
+Date: Fri, 28 Sep 2018 18:27:13 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+Message-ID: <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+
+On Fri, Sep 28, 2018 at 2:11 PM Sean Harrington <seanharr11 at gmail.com> wrote:
+> kwarg on Pool.__init__ called `expect_initret`, that defaults to False. When set to True:
+> Capture the return value of the initializer kwarg of Pool
+> Pass this value to the function being applied, as a kwarg.
+
+The parameter name you chose, "initret" is awkward, because nowhere
+else in Python does an initializer return a value. Initializers mutate
+an encapsulated scope. For a class __init__, that scope is an
+instance's attributes. For a subprocess managed by Pool, that
+encapsulated scope is its "globals". I'm using quotes to emphasize
+that these "globals" aren't shared.
+
+
+On Fri, Sep 28, 2018 at 4:39 PM Sean Harrington <seanharr11 at gmail.com> wrote:
+> On Fri, Sep 28, 2018 at 6:45 PM Antoine Pitrou <solipsis at pitrou.net> wrote:
+>> 3. If you don't like globals, you could probably do something like
+>> lazily-initialize the resource when a function needing it is executed
+>
+> if initializing the resource is expensive, we only want to do this ONE time per worker process.
+
+We must have a different concept of "lazily-initialize". I understood
+Antoine's suggestion to be a one-time initialize per worker process.
+
+
+On Fri, Sep 28, 2018 at 4:39 PM Sean Harrington <seanharr11 at gmail.com> wrote:
+> My simple argument is that the developer should not be constrained to make the objects passed globally available in the process, as this MAY break encapsulation for large projects.
+
+I could imagine someone switching from Pool to ThreadPool and getting
+into trouble, but in my mind using threads is caveat emptor. Are you
+worried about breaking encapsulation in a different scenario?
+
