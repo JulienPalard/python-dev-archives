@@ -19760,3 +19760,656 @@ I could imagine someone switching from Pool to ThreadPool and getting
 into trouble, but in my mind using threads is caveat emptor. Are you
 worried about breaking encapsulation in a different scenario?
 
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Sat Sep 29 03:43:14 2018
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Sat, 29 Sep 2018 16:43:14 +0900
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <5BAC70BB.2040707@canterbury.ac.nz>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+Message-ID: <23471.11538.998069.413468@turnbull.sk.tsukuba.ac.jp>
+
+Greg Ewing writes:
+
+ > (BTW, how do you provide a citation for "common knowledge"?-)
+
+Aumann, Robert J. [1976], "Agreeing to Disagree."  Annals of
+Statistics 4, pp. 1236-1239
+
+is what I usually use. :-)
+
+
+From njs at pobox.com  Sat Sep 29 06:00:27 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Sat, 29 Sep 2018 03:00:27 -0700
+Subject: [Python-Dev] What is the purpose of the _PyThreadState_Current
+ symbol in Python 3?
+In-Reply-To: <CAGnuNNskb3RJw3V0zcatd0ugYfPwn83gKhHTTtbL0ArU5J6-2w@mail.gmail.com>
+References: <CAGnuNNt9A57YdbjLOoT9NffNRTD+WNbtWTx6+FSkt6+0VsEWHQ@mail.gmail.com>
+ <CAPJVwBmNpV_SA6CP4sMY16Tj810CWc195=oMJ27OP2g65AoXug@mail.gmail.com>
+ <CAGnuNNskb3RJw3V0zcatd0ugYfPwn83gKhHTTtbL0ArU5J6-2w@mail.gmail.com>
+Message-ID: <CAPJVwBktnu3ja_N6zCGYRqX_YNxf_1sjxxfqSWQAc+yhpsH_Ew@mail.gmail.com>
+
+On Fri, Sep 28, 2018 at 3:29 PM, Gabriele <phoenix1987 at gmail.com> wrote:
+> On Fri, 28 Sep 2018 at 23:12, Nathaniel Smith <njs at pobox.com> wrote:
+>> What information do you wish the interpreter provided, that would make your program simpler and more reliable?
+>
+> An exported global variable that points to the head of the
+> PyInterpreterState linked list (i.e. the return value of
+> PyInterpreterState_Head). This way my program could just look this up
+> from the dynsym section instead of scanning a dump of the bss section
+> in memory to find a possible candidate.
+
+Hmm, it looks like in 3.7+, _PyRuntime is marked PyAPI_DATA, which I
+think should make it exported from dynsym?
+
+https://github.com/python/cpython/blob/4b430e5f6954ef4b248e95bfb4087635dcdefc6d/Include/internal/pystate.h#L206
+
+And PyInterpreterState_Head is just _PyRuntime.interpreters.head. So
+maybe this is already done...
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From solipsis at pitrou.net  Sat Sep 29 06:04:47 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sat, 29 Sep 2018 12:04:47 +0200
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc2CGwtXqa004mGE_eUtE1qpvRB+jvgZa2ycGEZPEDP_+A@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <20180929004454.3715f0e8@fsol>
+ <CAFbyWc2CGwtXqa004mGE_eUtE1qpvRB+jvgZa2ycGEZPEDP_+A@mail.gmail.com>
+Message-ID: <20180929120447.6f7cd478@fsol>
+
+
+Hi Sean,
+
+On Fri, 28 Sep 2018 19:23:06 -0400
+Sean Harrington <seanharr11 at gmail.com> wrote:
+> My simple argument is that the
+> developer should not be constrained to make the objects passed globally
+> available in the process, as this MAY break encapsulation for large
+> projects.
+
+IMHO, global variables don't break encapsulation if they remain private
+to the module where they actually play a role.
+
+Of course, there are also global-like alternatives to globals, such as
+class attributes...  The multiprocessing module itself uses globals (or
+quasi-globals) internally for various implementation details.
+
+> 3. If you don't like globals, you could probably do something like
+> > lazily-initialize the resource when a function needing it is executed;
+> > this also avoids creating the resource if the child doesn't use it at
+> > all.  Would that work for you?
+> >
+> > I have nothing against globals, my gripe is with being enforced to use  
+> them for every Pool use case. Further, if initializing the resource is
+> expensive, we only want to do this ONE time per worker process.
+
+That's what I meant with lazy initialization: initialize it if not
+already done, otherwise just use the already-initialized resource.
+It's a common pattern.
+
+(you can view it as a 1-element cache if you prefer)
+
+> > As a more general remark, I understand the desire to make the Pool
+> > object more flexible, but we can also not pile up features until it
+> > satisfies all use cases.
+> >
+> > I understand that this is a legitimate concern, but this is about API  
+> approachability.  Python end-users of Pool are forced to declare a global
+> from a lexical scope. Most Python end-users probably don't even know this
+> is possible.
+
+Hmm...  We might have a disagreement on the target audience of the
+multiprocessing module.  multiprocessing isn't very high-level, I would
+expect it to be used by experienced programmers who know how to mutate
+a global variable from a lexical scope.
+
+For non-programmer end-users, such as data scientists, there are
+higher-level libraries such as Celery (http://www.celeryproject.org/)
+and Dask distributed (https://distributed.readthedocs.io/en/latest/).
+Perhaps it would be worth mentioning them in the documentation.
+
+Regards
+
+Antoine.
+
+From seanharr11 at gmail.com  Sat Sep 29 08:13:19 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Sat, 29 Sep 2018 08:13:19 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <20180929120447.6f7cd478@fsol>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <20180929004454.3715f0e8@fsol>
+ <CAFbyWc2CGwtXqa004mGE_eUtE1qpvRB+jvgZa2ycGEZPEDP_+A@mail.gmail.com>
+ <20180929120447.6f7cd478@fsol>
+Message-ID: <CAFbyWc0UXKTvhYQofPUu-vMq3dzqSsFn-tCfy2LHoPBo3HU8bQ@mail.gmail.com>
+
+On Sat, Sep 29, 2018 at 6:24 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+>
+> Hi Sean,
+>
+> On Fri, 28 Sep 2018 19:23:06 -0400
+> Sean Harrington <seanharr11 at gmail.com> wrote:
+> > My simple argument is that the
+> > developer should not be constrained to make the objects passed globally
+> > available in the process, as this MAY break encapsulation for large
+> > projects.
+>
+> IMHO, global variables don't break encapsulation if they remain private
+> to the module where they actually play a role.
+>
+> Of course, there are also global-like alternatives to globals, such as
+> class attributes...  The multiprocessing module itself uses globals (or
+> quasi-globals) internally for various implementation details.
+>
+
+>>>  Yes, class attributes are a viable alternative. I've written about
+this here.
+<https://thelaziestprogrammer.com/python/multiprocessing-pool-a-global-solution>
+Still,
+the argument is not against global variables, class attributes or any close
+cousins -- it is simply that developers shouldn't be forced to use these.
+
+
+> > 3. If you don't like globals, you could probably do something like
+> > > lazily-initialize the resource when a function needing it is executed;
+> > > this also avoids creating the resource if the child doesn't use it at
+> > > all.  Would that work for you?
+> > >
+> > > I have nothing against globals, my gripe is with being enforced to
+> use
+> > them for every Pool use case. Further, if initializing the resource is
+> > expensive, we only want to do this ONE time per worker process.
+>
+> That's what I meant with lazy initialization: initialize it if not
+> already done, otherwise just use the already-initialized resource.
+> It's a common pattern.
+>
+> (you can view it as a 1-element cache if you prefer)
+>
+
+>>> Sorry - I wasn't following your initial suggestion. This is a valid
+solution for ONE of the general use cases (where we initialize objects in
+each worker post-fork). However it fails for the other Pool use case of
+"initializing a big object in your parent, and passing to each worker,
+without using globals."
+
+> > As a more general remark, I understand the desire to make the Pool
+> > > object more flexible, but we can also not pile up features until it
+> > > satisfies all use cases.
+> > >
+> > > I understand that this is a legitimate concern, but this is about API
+> > approachability.  Python end-users of Pool are forced to declare a global
+> > from a lexical scope. Most Python end-users probably don't even know this
+> > is possible.
+>
+> Hmm...  We might have a disagreement on the target audience of the
+> multiprocessing module.  multiprocessing isn't very high-level, I would
+> expect it to be used by experienced programmers who know how to mutate
+> a global variable from a lexical scope.
+>
+
+>>> It is one thing to MUTATE  a global from a lexical scope. No gripes
+there. The specific concept I'm referencing here, is "DECLARING a global
+variable, from within a lexical scope". This is not as a intuitive for most
+programmers.
+
+
+> For non-programmer end-users, such as data scientists, there are
+> higher-level libraries such as Celery (http://www.celeryproject.org/)
+> and Dask distributed (https://distributed.readthedocs.io/en/latest/).
+> Perhaps it would be worth mentioning them in the documentation.
+>
+
+
+>>> We likely do NOT have disagreements on the multiprocessing module.
+Multiprocessing is NOT high-level, I agree. But the beauty of the "Pool"
+API is that it gives non-programmer end-users (like data scientists) the
+ability to leverage multiple cores, without (in most cases) needing to know
+implementation details about multiprocessing. All they need to understand
+is the higher-order-function "map()", which is a very simple concept. (I
+even sound over-complicated myself calling it a "higher-order-function"...)
+
+
+> Regards
+>
+> Antoine.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180929/3c112d38/attachment.html>
+
+From solipsis at pitrou.net  Sat Sep 29 08:17:59 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sat, 29 Sep 2018 14:17:59 +0200
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc0UXKTvhYQofPUu-vMq3dzqSsFn-tCfy2LHoPBo3HU8bQ@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <20180929004454.3715f0e8@fsol>
+ <CAFbyWc2CGwtXqa004mGE_eUtE1qpvRB+jvgZa2ycGEZPEDP_+A@mail.gmail.com>
+ <20180929120447.6f7cd478@fsol>
+ <CAFbyWc0UXKTvhYQofPUu-vMq3dzqSsFn-tCfy2LHoPBo3HU8bQ@mail.gmail.com>
+Message-ID: <20180929141759.3d613436@fsol>
+
+On Sat, 29 Sep 2018 08:13:19 -0400
+Sean Harrington <seanharr11 at gmail.com> wrote:
+> >
+> > Hmm...  We might have a disagreement on the target audience of the
+> > multiprocessing module.  multiprocessing isn't very high-level, I would
+> > expect it to be used by experienced programmers who know how to mutate
+> > a global variable from a lexical scope.
+> >  
+> 
+> >>> It is one thing to MUTATE  a global from a lexical scope. No gripes  
+> there. The specific concept I'm referencing here, is "DECLARING a global
+> variable, from within a lexical scope". This is not as a intuitive for most
+> programmers.
+
+Well, you don't have to.  You can bind it to None in the top-level
+scope and then mutate it from the lexical scope:
+
+my_resource = None
+
+def do_work():
+    global my_resource
+    my_resource = ...
+
+Regards
+
+Antoine.
+
+From seanharr11 at gmail.com  Sat Sep 29 08:23:49 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Sat, 29 Sep 2018 08:23:49 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+Message-ID: <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+
+On Fri, Sep 28, 2018 at 9:27 PM Michael Selik <mike at selik.org> wrote:
+
+> On Fri, Sep 28, 2018 at 2:11 PM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+> > kwarg on Pool.__init__ called `expect_initret`, that defaults to False.
+> When set to True:
+> > Capture the return value of the initializer kwarg of Pool
+> > Pass this value to the function being applied, as a kwarg.
+>
+> The parameter name you chose, "initret" is awkward, because nowhere
+> else in Python does an initializer return a value. Initializers mutate
+> an encapsulated scope. For a class __init__, that scope is an
+> instance's attributes. For a subprocess managed by Pool, that
+> encapsulated scope is its "globals". I'm using quotes to emphasize
+> that these "globals" aren't shared.
+>
+
+>> Yes - if you bucket the "initializer" arg of Pool into the "Python
+initializers" then I see your point here. And yes initializer mutates the
+global scope of the worker subprocess. Again, my gripe is not with globals.
+I am looking for the ability to have a clear, explicit flow of data from
+parent -> child process, without being constrained to using globals.
+
+
+>
+> On Fri, Sep 28, 2018 at 4:39 PM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+> > On Fri, Sep 28, 2018 at 6:45 PM Antoine Pitrou <solipsis at pitrou.net>
+> wrote:
+> >> 3. If you don't like globals, you could probably do something like
+> >> lazily-initialize the resource when a function needing it is executed
+> >
+> > if initializing the resource is expensive, we only want to do this ONE
+> time per worker process.
+>
+> We must have a different concept of "lazily-initialize". I understood
+> Antoine's suggestion to be a one-time initialize per worker process.
+>
+
+>> See my response to Anotoine earlier. I missed the point made. This is a
+valid solution to the problem of "initializing objects after a worker has
+been forked", but fails to address the "create big object in parent, pass
+to each worker".
+
+
+>
+> On Fri, Sep 28, 2018 at 4:39 PM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+> > My simple argument is that the developer should not be constrained to
+> make the objects passed globally available in the process, as this MAY
+> break encapsulation for large projects.
+>
+> I could imagine someone switching from Pool to ThreadPool and getting
+> into trouble, but in my mind using threads is caveat emptor. Are you
+> worried about breaking encapsulation in a different scenario?
+>
+
+>> Without a specific example on-hand, you could imagine a tree of function
+calls that occur in the worker process (even newly created objects), that
+should not necessarily have access to objects passed from parent -> worker.
+In every case given the current implementation, they will.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180929/79ab1214/attachment.html>
+
+From seanharr11 at gmail.com  Sat Sep 29 08:26:06 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Sat, 29 Sep 2018 08:26:06 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <20180929141759.3d613436@fsol>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <20180929004454.3715f0e8@fsol>
+ <CAFbyWc2CGwtXqa004mGE_eUtE1qpvRB+jvgZa2ycGEZPEDP_+A@mail.gmail.com>
+ <20180929120447.6f7cd478@fsol>
+ <CAFbyWc0UXKTvhYQofPUu-vMq3dzqSsFn-tCfy2LHoPBo3HU8bQ@mail.gmail.com>
+ <20180929141759.3d613436@fsol>
+Message-ID: <CAFbyWc0Gj+0E2XyTOOPBNbB-fWBLC=k6xzT1UPr6Kn5H4gYtXA@mail.gmail.com>
+
+On Sat, Sep 29, 2018 at 8:18 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> On Sat, 29 Sep 2018 08:13:19 -0400
+> Sean Harrington <seanharr11 at gmail.com> wrote:
+> > >
+> > > Hmm...  We might have a disagreement on the target audience of the
+> > > multiprocessing module.  multiprocessing isn't very high-level, I would
+> > > expect it to be used by experienced programmers who know how to mutate
+> > > a global variable from a lexical scope.
+> > >
+> >
+> > >>> It is one thing to MUTATE  a global from a lexical scope. No gripes
+> > there. The specific concept I'm referencing here, is "DECLARING a global
+> > variable, from within a lexical scope". This is not as a intuitive for
+> most
+> > programmers.
+>
+> Well, you don't have to.  You can bind it to None in the top-level
+> scope and then mutate it from the lexical scope:
+>
+> my_resource = None
+>
+> def do_work():
+>     global my_resource
+>     my_resource = ...
+>
+> >>> Yes but this is even more constraining, as it forces the parent
+process to declare a global variable that it likely never uses!
+
+
+
+> Regards
+>
+> Antoine.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20180929/106083bb/attachment-0001.html>
+
+From steve at pearwood.info  Sat Sep 29 12:04:20 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Sun, 30 Sep 2018 02:04:20 +1000
+Subject: [Python-Dev] switch statement
+In-Reply-To: <CAP7+vJ+sbTWkByFff2b6_=QrGyZwgFCZsyb1fPNAZBp9vG9+HQ@mail.gmail.com>
+References: <87a6ff86-01f8-0355-8a8a-0ce0e64b5ccb@prolan-power.hu>
+ <CAP7+vJ+sbTWkByFff2b6_=QrGyZwgFCZsyb1fPNAZBp9vG9+HQ@mail.gmail.com>
+Message-ID: <20180929160420.GE19437@ando.pearwood.info>
+
+On Fri, Sep 21, 2018 at 02:10:00PM -0700, Guido van Rossum wrote:
+> There's already a rejected PEP about a switch statement:
+> https://www.python.org/dev/peps/pep-3103/. There's no point bringing this
+> up again unless you have a new use case.
+> 
+> There have been several promising posts to python-ideas about the much more
+> powerful idea of a "match" statement. Please search for those before
+> re-posting on python-ideas.
+
+The Coconut transpiler also includes some interesting ideas for a match 
+and case statement:
+
+http://coconut-lang.org/
+
+https://coconut.readthedocs.io/en/master/DOCS.html#match
+https://coconut.readthedocs.io/en/master/DOCS.html#case
+
+
+-- 
+Steve
+
+From phoenix1987 at gmail.com  Sat Sep 29 12:14:22 2018
+From: phoenix1987 at gmail.com (Gabriele)
+Date: Sat, 29 Sep 2018 17:14:22 +0100
+Subject: [Python-Dev] What is the purpose of the _PyThreadState_Current
+ symbol in Python 3?
+In-Reply-To: <CAPJVwBktnu3ja_N6zCGYRqX_YNxf_1sjxxfqSWQAc+yhpsH_Ew@mail.gmail.com>
+References: <CAGnuNNt9A57YdbjLOoT9NffNRTD+WNbtWTx6+FSkt6+0VsEWHQ@mail.gmail.com>
+ <CAPJVwBmNpV_SA6CP4sMY16Tj810CWc195=oMJ27OP2g65AoXug@mail.gmail.com>
+ <CAGnuNNskb3RJw3V0zcatd0ugYfPwn83gKhHTTtbL0ArU5J6-2w@mail.gmail.com>
+ <CAPJVwBktnu3ja_N6zCGYRqX_YNxf_1sjxxfqSWQAc+yhpsH_Ew@mail.gmail.com>
+Message-ID: <CAGnuNNsjo65daHJ+nzuxwpyZqEVWdtvYXJhGuX01E_HODLf=mA@mail.gmail.com>
+
+Ah ok, this might be related to Victor's observation based on the
+latest sources. I haven't tested 3.7 yet, but if _PyRuntime is
+available from dynsym then this is already enough.
+
+Thanks,
+Gabriele
+On Sat, 29 Sep 2018 at 11:00, Nathaniel Smith <njs at pobox.com> wrote:
+>
+> On Fri, Sep 28, 2018 at 3:29 PM, Gabriele <phoenix1987 at gmail.com> wrote:
+> > On Fri, 28 Sep 2018 at 23:12, Nathaniel Smith <njs at pobox.com> wrote:
+> >> What information do you wish the interpreter provided, that would make your program simpler and more reliable?
+> >
+> > An exported global variable that points to the head of the
+> > PyInterpreterState linked list (i.e. the return value of
+> > PyInterpreterState_Head). This way my program could just look this up
+> > from the dynsym section instead of scanning a dump of the bss section
+> > in memory to find a possible candidate.
+>
+> Hmm, it looks like in 3.7+, _PyRuntime is marked PyAPI_DATA, which I
+> think should make it exported from dynsym?
+>
+> https://github.com/python/cpython/blob/4b430e5f6954ef4b248e95bfb4087635dcdefc6d/Include/internal/pystate.h#L206
+>
+> And PyInterpreterState_Head is just _PyRuntime.interpreters.head. So
+> maybe this is already done...
+>
+> -n
+>
+> --
+> Nathaniel J. Smith -- https://vorpus.org
+
+
+
+-- 
+"Egli ? scritto in lingua matematica, e i caratteri son triangoli,
+cerchi, ed altre figure
+geometriche, senza i quali mezzi ? impossibile a intenderne umanamente parola;
+senza questi ? un aggirarsi vanamente per un oscuro laberinto."
+
+-- G. Galilei, Il saggiatore.
+
+From mike at selik.org  Sat Sep 29 15:00:09 2018
+From: mike at selik.org (Michael Selik)
+Date: Sat, 29 Sep 2018 12:00:09 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+Message-ID: <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+
+On Sat, Sep 29, 2018 at 5:24 AM Sean Harrington <seanharr11 at gmail.com> wrote:
+>> On Fri, Sep 28, 2018 at 4:39 PM Sean Harrington <seanharr11 at gmail.com> wrote:
+>> > My simple argument is that the developer should not be constrained to make the objects passed globally available in the process, as this MAY break encapsulation for large projects.
+>>
+>> I could imagine someone switching from Pool to ThreadPool and getting
+>> into trouble, but in my mind using threads is caveat emptor. Are you
+>> worried about breaking encapsulation in a different scenario?
+>
+> >> Without a specific example on-hand, you could imagine a tree of function calls that occur in the worker process (even newly created objects), that should not necessarily have access to objects passed from parent -> worker. In every case given the current implementation, they will.
+
+Echoing Antoine: If you want some functions to not have access to a
+module's globals, you can put those functions in a different module.
+Note that multiprocessing already encapsulates each subprocesses'
+globals in essentially a separate namespace.
+
+Without a specific example, this discussion is going to go around in
+circles. You have a clear aversion to globals. Antoine and I do not.
+No one else seems to have found this conversation interesting enough
+to participate, yet.
+
+From tritium-list at sdamon.com  Sat Sep 29 21:40:03 2018
+From: tritium-list at sdamon.com (Alex Walters)
+Date: Sat, 29 Sep 2018 21:40:03 -0400
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <20180927135327.GE19437@ando.pearwood.info>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+Message-ID: <234e01d4585e$829acc20$87d06460$@sdamon.com>
+
+
+
+> -----Original Message-----
+> From: Python-Dev <python-dev-bounces+tritium-
+> list=sdamon.com at python.org> On Behalf Of Steven D'Aprano
+> Sent: Thursday, September 27, 2018 9:54 AM
+> To: python-dev at python.org
+> Subject: Re: [Python-Dev] Change in Python 3's "round" behavior
+> 
+> On Thu, Sep 27, 2018 at 05:55:07PM +1200, Greg Ewing wrote:
+> > jab at math.brown.edu wrote:
+> > >I understand from
+> > >https://github.com/cosmologicon/pywat/pull/40#discussion_r219962259
+> > >that "to always round up... can theoretically skew the data"
+> >
+> > *Very* theoretically. If the number is even a whisker bigger than
+> > 2.5 it's going to get rounded up regardless:
+> >
+> > >>> round(2.500000000000001)
+> > 3
+> >
+> > That difference is on the order of the error you expect from
+> > representing decimal fractions in binary, so I would be surprised
+> > if anyone can actually measure this bias in a real application.
+> 
+> I think you may have misunderstood the nature of the bias. It's not
+> about individual roundings and it definitely has nothing to do with
+> binary representation.
+> 
+> Any one round operation will introduce a bias. You had a number, say
+> 2.3, and it gets rounded down to 2.0, introducing an error of -0.3. But
+> if you have lots of rounds, some will round up, and some will round
+> down, and we want the rounding errors to cancel.
+> 
+> The errors *almost* cancel using the naive rounding algorithm as most of
+> the digits pair up:
+> 
+> .1 rounds down, error = -0.1
+> .9 rounds up, error = +0.1
+> 
+> .2 rounds down, error = -0.2
+> .8 rounds up, error = +0.2
+> 
+> etc. If each digit is equally likely, then on average they'll cancel and
+> we're left with *almost* no overall error.
+> 
+> The problem is that while there are four digits rounding down (.1
+> through .4) there are FIVE which round up (.5 through .9). Two digits
+> don't pair up:
+> 
+> .0 stays unchanged, error = 0
+> .5 always rounds up, error = +0.5
+> 
+> Given that for many purposes, our data is recorded only to a fixed
+> number of decimal places, we're dealing with numbers like 0.5 rather
+> than 0.5000000001, so this can become a real issue. Every ten rounding
+> operations will introduce an average error of +0.05 instead of
+> cancelling out. Rounding introduces a small but real bias.
+> 
+> The most common (and, in many experts' opinion, the best default
+> behaviour) is Banker's Rounding, or round-to-even. All the other digits
+> round as per the usual rule, but .5 rounds UP half the time and DOWN the
+> rest of the time:
+> 
+> 0.5, 2.5, 3.5 etc round down, error = -0.5
+> 1.5, 3.5, 5.5 etc round up, error = +0.5
+> 
+> thus on average the .5 digit introduces no error and the bias goes away.
+> 
+> 
+
+...and we have a stats module that would be a great place for a round
+function that needs to cancel rounding errors.  The simple case should be
+the intuitive case for most users.  My experience and that of many users of
+the python irc channel on freenode is that round-half-to-even is not the
+intuitive, or even desired, behavior - round-half-up is.  This wouldn't be
+frustrating to the human user if the round built-in let you pick the method,
+instead you have to use the very complicated decimal module with a modified
+context to get intuitive behavior.
+
+I could live with `round(2.5) -> 2.0` if `round(2.5, method='up') -> 3.0`
+(or some similar spelling) was an option.  As it stands, this is a wart on
+the language.  "Statistically balanced rounding" is a special case, not the
+default case.
+
+> 
+> --
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/tritium-
+> list%40sdamon.com
+
+
+From greg.ewing at canterbury.ac.nz  Sat Sep 29 21:49:49 2018
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Sun, 30 Sep 2018 14:49:49 +1300
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <234e01d4585e$829acc20$87d06460$@sdamon.com>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+Message-ID: <5BB02BBD.5090804@canterbury.ac.nz>
+
+I don't really get the statistical argument. If you're doing something
+like calculating an average and care about accuracy, why are you rounding
+the values before averaging? Why not average first and then round the
+result if you need to?
+
+-- 
+Greg
+
+
