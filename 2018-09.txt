@@ -20413,3 +20413,573 @@ result if you need to?
 Greg
 
 
+From tritium-list at sdamon.com  Sun Sep 30 06:26:49 2018
+From: tritium-list at sdamon.com (Alex Walters)
+Date: Sun, 30 Sep 2018 06:26:49 -0400
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <5BB02BBD.5090804@canterbury.ac.nz>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+ <5BB02BBD.5090804@canterbury.ac.nz>
+Message-ID: <24b501d458a8$19962f90$4cc28eb0$@sdamon.com>
+
+
+
+> -----Original Message-----
+> From: Python-Dev <python-dev-bounces+tritium-
+> list=sdamon.com at python.org> On Behalf Of Greg Ewing
+> Sent: Saturday, September 29, 2018 9:50 PM
+> To: python-dev at python.org
+> Subject: Re: [Python-Dev] Change in Python 3's "round" behavior
+> 
+> I don't really get the statistical argument. If you're doing something
+> like calculating an average and care about accuracy, why are you rounding
+> the values before averaging? Why not average first and then round the
+> result if you need to?
+> 
+
+Other use case is finance, where you can end up with interest calculations
+that are fractional of the base unit of currency.  US$2.345 is impossible to
+represent in real currency, so it has to be rounded.  With
+half-towards-even, that rounds to $2.34, and $2.355 rounds to $2.36.  It
+evens out in the long run.  While that is very helpful for finance
+calculations, if you are doing finance with that level of precision, you
+should be using decimal instead of float anyways and decimal's round has
+configurable round method.
+
+> --
+> Greg
+> 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/tritium-
+> list%40sdamon.com
+
+
+From steve at pearwood.info  Sun Sep 30 08:17:03 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Sun, 30 Sep 2018 22:17:03 +1000
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <234e01d4585e$829acc20$87d06460$@sdamon.com>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+Message-ID: <20180930121703.GK19437@ando.pearwood.info>
+
+On Sat, Sep 29, 2018 at 09:40:03PM -0400, Alex Walters wrote:
+
+> ...and we have a stats module that would be a great place for a round
+> function that needs to cancel rounding errors.
+
+This has nothing to do with statistics.
+
+You should consider that this is often called "Banker's Rounding" and 
+what that tells you. (It's also called Dutch Rounding.)
+
+
+> The simple case should be the intuitive case for most users.
+
+Should it? I think that having the most correct behaviour should be the 
+default.
+
+Who decides what is "intuitive"?
+
+I asked my three year old nephew whether 1.5 should round to down to 1 
+or up to 2, and he said that he didn't care about numbers because he 
+was sailing across the ocean and I was standing in the way of his boat.
+
+
+> My experience and that of many users of
+> the python irc channel on freenode is that round-half-to-even is not the
+> intuitive, or even desired, behavior - round-half-up is.
+
+It would be very informative to ask *why* they want round-half-up.
+
+I expect that the reason given will boil down to "because it is the 
+rounding method I learned in school" even if they can't articulate it 
+that way, and start going on about it being "intuitive" as if rounding 
+ties upwards was more intuitive than rounding ties downward.
+
+Compatibility with "other languages" isn't the answer, because other 
+languages differ in how they do rounding and we can't match them all:
+
+# Javascript
+js> Math.round(2.5) + Math.round(-2.5)
+1
+
+# Ruby
+steve at orac ~ $ ruby -e 'puts (2.5).round() + (-2.5).round()'
+0
+
+
+VBScript is another language which uses Bankers Rounding:
+
+https://blogs.msdn.microsoft.com/ericlippert/2003/09/26/bankers-rounding/
+
+although the example given (calculating an average) is misleading, 
+because as I said this is not about statistics. Bankers Rounding 
+produces better *averages* because it produces better *sums* (to quote 
+one of the comments).
+
+Similarly for differences. If you perform many subtractions (let's say 
+you are paying off a loan, and calculating interest, then rounding to 
+the nearest cent) you have to care about bias. If each rounding 
+introduces a 0.5 cent bias (as round-half-up does) then the total bias 
+increases as the number of transactions increases.
+
+
+> This wouldn't be frustrating to the human user 
+
+Did you intend to imply I'm not human, or was it an accident?
+
+
+-- 
+Steve
+
+From rosuav at gmail.com  Sun Sep 30 10:14:26 2018
+From: rosuav at gmail.com (Chris Angelico)
+Date: Mon, 1 Oct 2018 00:14:26 +1000
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <20180930121703.GK19437@ando.pearwood.info>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+ <20180930121703.GK19437@ando.pearwood.info>
+Message-ID: <CAPTjJmr2cGbRs3Q8bYiLf1pSgfjbFMogXE3LRA-5d5Uh-jTB-w@mail.gmail.com>
+
+On Sun, Sep 30, 2018 at 10:18 PM Steven D'Aprano <steve at pearwood.info> wrote:
+>
+> On Sat, Sep 29, 2018 at 09:40:03PM -0400, Alex Walters wrote:
+> > My experience and that of many users of
+> > the python irc channel on freenode is that round-half-to-even is not the
+> > intuitive, or even desired, behavior - round-half-up is.
+>
+> It would be very informative to ask *why* they want round-half-up.
+>
+> I expect that the reason given will boil down to "because it is the
+> rounding method I learned in school" even if they can't articulate it
+> that way, and start going on about it being "intuitive" as if rounding
+> ties upwards was more intuitive than rounding ties downward.
+
+Let's start by assuming that real numbers are a perfectly continuous
+space of values, and that every actually-recorded value is *already*
+the result of rounding some number to fit within our available space
+(rather than assuming that recorded values are perfectly precise and
+correct). Further, assume that representable numbers are equally
+spaced - not strictly true, but extremely hard to compensate for. That
+means that any representable number actually has to indicate a range
+of values centered on that value. For the sake of argument, pretend we
+can represent one digit before the decimal and one after; in actual
+usage, this would occur at the extreme of precision, 53 bits down the
+line.
+
+So the number 2.0 actually means the range (1.95, 2.05), the number
+2.1 really means (2.05, 2.15), 2.5 means (2.45, 2.55), 2.9 means
+(2.85, 2.95), 3.0 means (2.95, 3.05).
+
+Now we take our values and round them to integer.
+
+If we round all 0.5 values up, that means that the rounded value 2
+will now catch all values in the range (1.45, 2.45), and the rounded
+value 3 catches (2.45, 3.45). In effect, our values are being skewed
+low by half a ULP.
+
+By using "round to even", you make the rounded value 2 catch all
+values in the range (1.45, 2.55), and the rounded value 3 now catches
+(2.55, 3.45). Values are now evenly spread around the stated value,
+but there is an entire ULP of discrepancy between the span of even
+numbers and the span of odd numbers.
+
+Which is more important? For a number's effective range to be centered
+around it, or for its range to be the same size as the range of every
+other number?
+
+ChrisA
+
+From greg.ewing at canterbury.ac.nz  Sun Sep 30 17:50:36 2018
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Mon, 01 Oct 2018 10:50:36 +1300
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <24b501d458a8$19962f90$4cc28eb0$@sdamon.com>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+ <5BB02BBD.5090804@canterbury.ac.nz>
+ <24b501d458a8$19962f90$4cc28eb0$@sdamon.com>
+Message-ID: <5BB1452C.5020402@canterbury.ac.nz>
+
+Alex Walters wrote:
+> Other use case is finance, where you can end up with interest calculations
+> that are fractional of the base unit of currency.  US$2.345 is impossible to
+> represent in real currency, so it has to be rounded.
+
+This brings us back to my original point about floating point
+accuracy. If you do your interest calculation in floating
+point binary, first it's very unlikely that it will come
+out ending in exactly 0.5 of a cent, and secondly if you
+care about the details that much, you should be calculating
+in decimal, and being explicit about exactly what kind of
+rounding you're doing.
+
+-- 
+Greg
+
+
+From greg.ewing at canterbury.ac.nz  Sun Sep 30 18:04:31 2018
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Mon, 01 Oct 2018 11:04:31 +1300
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <20180930121703.GK19437@ando.pearwood.info>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+ <20180930121703.GK19437@ando.pearwood.info>
+Message-ID: <5BB1486F.9060109@canterbury.ac.nz>
+
+Steven D'Aprano wrote:
+> (It's also called Dutch Rounding.)
+
+Oh, so *that's* why Python does it! Fair enough. :-)
+
+> Similarly for differences. If you perform many subtractions (let's say 
+> you are paying off a loan, and calculating interest, then rounding to 
+> the nearest cent) you have to care about bias.
+
+If I'm paying off a loan, it's what the bank calculates that
+matters, not what I calculate. And I hope the bank isn't
+relying on the vagaries of Python floating point arithmetic
+for its critical financial calculations.
+
+-- 
+Greg
+
+
+From greg.ewing at canterbury.ac.nz  Sun Sep 30 18:15:53 2018
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Mon, 01 Oct 2018 11:15:53 +1300
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <CAPTjJmr2cGbRs3Q8bYiLf1pSgfjbFMogXE3LRA-5d5Uh-jTB-w@mail.gmail.com>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+ <20180930121703.GK19437@ando.pearwood.info>
+ <CAPTjJmr2cGbRs3Q8bYiLf1pSgfjbFMogXE3LRA-5d5Uh-jTB-w@mail.gmail.com>
+Message-ID: <5BB14B19.5040208@canterbury.ac.nz>
+
+Chris Angelico wrote:
+> ]That
+> means that any representable number actually has to indicate a range
+> of values centered on that value.
+
+That's not always true -- it depends on the source of the
+information. For example, a reading of 5 seconds on a clock
+with 1 second resolution actually represents a value between
+5 and 6 seconds.
+
+So if you're fussy about rounding, you might want to round
+clock readings differently from measurements on a ruler.
+
+-- 
+Greg
+
+From rosuav at gmail.com  Sun Sep 30 18:27:36 2018
+From: rosuav at gmail.com (Chris Angelico)
+Date: Mon, 1 Oct 2018 08:27:36 +1000
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <5BB14B19.5040208@canterbury.ac.nz>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+ <20180930121703.GK19437@ando.pearwood.info>
+ <CAPTjJmr2cGbRs3Q8bYiLf1pSgfjbFMogXE3LRA-5d5Uh-jTB-w@mail.gmail.com>
+ <5BB14B19.5040208@canterbury.ac.nz>
+Message-ID: <CAPTjJmq8YwgMLestVjJLR3dnj_L5WhRQ=RaaPJUeb6yyeNoH+w@mail.gmail.com>
+
+On Mon, Oct 1, 2018 at 8:17 AM Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+>
+> Chris Angelico wrote:
+> > ]That
+> > means that any representable number actually has to indicate a range
+> > of values centered on that value.
+>
+> That's not always true -- it depends on the source of the
+> information. For example, a reading of 5 seconds on a clock
+> with 1 second resolution actually represents a value between
+> 5 and 6 seconds.
+>
+> So if you're fussy about rounding, you might want to round
+> clock readings differently from measurements on a ruler.
+
+True. I gave a number of assumptions, and if those assumptions don't
+hold, you may need to vary things. If you have something like you
+describe here, you probably want to round-to-zero or something.
+
+ChrisA
+
+From Richard at Damon-Family.org  Sun Sep 30 18:55:20 2018
+From: Richard at Damon-Family.org (Richard Damon)
+Date: Sun, 30 Sep 2018 18:55:20 -0400
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <5BB14B19.5040208@canterbury.ac.nz>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+ <20180930121703.GK19437@ando.pearwood.info>
+ <CAPTjJmr2cGbRs3Q8bYiLf1pSgfjbFMogXE3LRA-5d5Uh-jTB-w@mail.gmail.com>
+ <5BB14B19.5040208@canterbury.ac.nz>
+Message-ID: <7af22058-f6aa-ede9-26fb-d73686bcddd8@Damon-Family.org>
+
+On 9/30/18 6:15 PM, Greg Ewing wrote:
+> Chris Angelico wrote:
+>> ]That
+>> means that any representable number actually has to indicate a range
+>> of values centered on that value.
+>
+> That's not always true -- it depends on the source of the
+> information. For example, a reading of 5 seconds on a clock
+> with 1 second resolution actually represents a value between
+> 5 and 6 seconds.
+>
+> So if you're fussy about rounding, you might want to round
+> clock readings differently from measurements on a ruler.
+>
+Actually it could be from 4+ to 6- seconds, say the first reading is 1,
+that could be anything from 1.000 to 1.999 and the second reading be 6,
+that could be from 6.000 to 6.999, thus the interval be from 6.000 -
+1.999 = 4.001 tp 6.999 - 1.000 = 5.999 seconds. Now if you waited for
+the start time to roll over so you knew you were near 1.000, that would
+be different, but from just sampling you get ranges.
+
+Now if it was a stop watch that started at the beginning it depends on
+how it presents the time, it might respond 5 for 5.000 to 5.999 seconds,
+or it might intentionally round the data and say 5 from about 4.5 to 5.5.
+
+Now, one case where there is an intentional bias to the bottom is Map
+Grid Coordinate system, where you specify 1 meter resolution within a
+grid with 5 digits, but if you want to specify to less precision, the
+specification it to ALWAYS truncate so map coordinate 1234 represent the
+range from 12340.0000 to 12349.9999
+
+-- 
+Richard Damon
+
+
+From steve at pearwood.info  Sun Sep 30 19:35:30 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Mon, 1 Oct 2018 09:35:30 +1000
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <5BB1452C.5020402@canterbury.ac.nz>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+ <5BB02BBD.5090804@canterbury.ac.nz>
+ <24b501d458a8$19962f90$4cc28eb0$@sdamon.com>
+ <5BB1452C.5020402@canterbury.ac.nz>
+Message-ID: <20180930233529.GP19437@ando.pearwood.info>
+
+On Mon, Oct 01, 2018 at 10:50:36AM +1300, Greg Ewing wrote:
+> Alex Walters wrote:
+> >Other use case is finance, where you can end up with interest calculations
+> >that are fractional of the base unit of currency.  US$2.345 is impossible 
+> >to
+> >represent in real currency, so it has to be rounded.
+> 
+> This brings us back to my original point about floating point
+> accuracy. If you do your interest calculation in floating
+> point binary, first it's very unlikely that it will come
+> out ending in exactly 0.5 of a cent, 
+
+And yet people (Alex, and he says others) are complaining about this 
+change in behaviour. If getting exactly 0.5 is as unlikely as you claim, 
+how would they notice?
+
+
+> and secondly if you
+> care about the details that much, you should be calculating
+> in decimal, and being explicit about exactly what kind of
+> rounding you're doing.
+
+Why should people using float have a biased round just because "they 
+should be using Decimal"? The choice to use Decimal is not up to us and 
+there's nothing wrong with using float for many purposes. Those who do 
+shouldn't be burdened with a biased round.
+
+Regardless of whether it meets with the approval of the mathematically 
+naive who think that primary school rounding is the "intuitive" (or 
+only) way to round, the change was made something like a decade ago. It 
+matches the behaviour of Julia, .Net, VBScript and I expect other 
+languages and makes for a technically better default rounding mode.
+
+With no overwhelmingly strong case for reverting to a biased rounding 
+mode, I think this discussion is dead. If people want to discuss 
+something more productive, we could talk about adding an optional 
+argument to round() to take a rounding mode, or adding an equivalent to 
+the math library.
+
+I'll start off...
+
+How about we move the rounding mode constants out of the decimal module 
+and into the math module? That makes them more easily discoverable and 
+importable (the math module is lightweight, the decimal module is not).
+
+The decimal module would then import the constants from math (it already 
+imports math so that's no extra dependency).
+
+Then we can add a keyword only argument to round:
+
+    round(number, ndigits=0, *, mode=ROUND_HALF_EVEN)
+
+To use it, you can import the rounding mode you want from math:
+
+    from math import ROUND_CEILING
+    round(x, 3, mode=ROUND_CEILING)
+
+and everyone is happy (he says optimistically).
+
+It's a bit funny to have constants in the math module not actually used 
+there, for the benefit of a builtin and Decimal, but I prefer that to 
+either importing them from decimal or making them builtins.
+
+Thoughts?
+
+
+
+-- 
+Steve
+
+From rosuav at gmail.com  Sun Sep 30 19:41:22 2018
+From: rosuav at gmail.com (Chris Angelico)
+Date: Mon, 1 Oct 2018 09:41:22 +1000
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <20180930233529.GP19437@ando.pearwood.info>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+ <5BB02BBD.5090804@canterbury.ac.nz>
+ <24b501d458a8$19962f90$4cc28eb0$@sdamon.com>
+ <5BB1452C.5020402@canterbury.ac.nz>
+ <20180930233529.GP19437@ando.pearwood.info>
+Message-ID: <CAPTjJmrM+T-8AsNtR8QC+YuUFwJeYdF9kKjr1g+gZeE6h=t8xw@mail.gmail.com>
+
+On Mon, Oct 1, 2018 at 9:36 AM Steven D'Aprano <steve at pearwood.info> wrote:
+> Then we can add a keyword only argument to round:
+>
+>     round(number, ndigits=0, *, mode=ROUND_HALF_EVEN)
+>
+> To use it, you can import the rounding mode you want from math:
+>
+>     from math import ROUND_CEILING
+>     round(x, 3, mode=ROUND_CEILING)
+
+I have no problem with this.
+
+> and everyone is happy (he says optimistically).
+
+And I am as dubious as you are about this :)
+
+IMO, the biggest problem with round() is that it's TOO discoverable.
+People reach for it when what they really should be using is string
+formatting ("I want to display all these values to three decimal
+places"), and then sometimes get bitten when something doesn't
+actually display the way they think it will. When it's used correctly,
+it's usually fine.
+
+ChrisA
+
+From mansourmoufid at gmail.com  Sun Sep 30 21:23:26 2018
+From: mansourmoufid at gmail.com (Mansour Moufid)
+Date: Sun, 30 Sep 2018 21:23:26 -0400
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+Message-ID: <CALogXGWmxie=oMhc70A-v5=SG2RiQYENsu2w0DBG34AMcWBgdg@mail.gmail.com>
+
+On Wed, Sep 26, 2018 at 7:29 AM <jab at math.brown.edu> wrote:
+>
+> I recently found out about Python 3's round-to-even change (via
+> https://github.com/cosmologicon/pywat!) and am having trouble finding
+> where that change was discussed.
+
+That GitHub project is hilarious especially the NaN stuff...
+
+Rounding is from engineering so there is more than one definition, and
+one is not more correct than the others, it just depends on the
+specific application. Functions like ceiling and floor do have
+mathematical definitions. Whichever definition of rounding the Python
+standard library adopts, it should be very explicitly defined in the
+documentation in terms of ceiling and floor.
+
+In applications where rounding is actually important, it's a good idea
+to do calculations with one rounding function, and again with another,
+and compare results.
+
+From tjreedy at udel.edu  Sun Sep 30 23:11:29 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sun, 30 Sep 2018 23:11:29 -0400
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+Message-ID: <pos350$n7k$1@blaine.gmane.org>
+
+On 9/26/2018 7:26 AM, jab at math.brown.edu wrote:
+
+To paraphrase:
+1. Where was the 3.0 change discussed?
+2. What was the rationale?
+
+I think these have been answered as well as possible.
+
+3. Can the change be reverted?
+
+It 'could be', but will not be reverted?
+
+4. Should something be added to the doc?
+
+Maybe, but I don't see any enthusiasm from core devs.
+
+This list is for development of future Python and CPython.  The 
+continued discussion of what other languages do and how to best use 
+rounding are off-topic here (and given the above, on python-ideas). 
+Please take these comparison and use discussions to python-list.
+
+-- 
+Terry Jan Reedy
+
+
