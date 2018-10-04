@@ -581,3 +581,780 @@ djsAnitN3SjTt+xwDdnT2NvTs965wEjR
 -----END PGP SIGNATURE-----
 
 
+From aixtools at felt.demon.nl  Tue Oct  2 06:29:33 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Tue, 2 Oct 2018 12:29:33 +0200
+Subject: [Python-Dev] LDLAST variable in configure.ac
+In-Reply-To: <1538435240.4040554.1527177920.188EFF58@webmail.messagingengine.com>
+References: <a295bfb3-a102-947d-4c14-cdfa3259ff3a@felt.demon.nl>
+ <1538435240.4040554.1527177920.188EFF58@webmail.messagingengine.com>
+Message-ID: <B23E11B7-37BB-4B24-98B6-BFB7ECABD38A@felt.demon.nl>
+
+A non-text attachment was scrubbed...
+Name: mime-attachment
+Type: application/pgp-encrypted
+Size: 11 bytes
+Desc: not available
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181002/0064f3f8/attachment.pgp>
+-------------- next part --------------
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: encrypted.asc
+Type: application/octet-stream
+Size: 3238 bytes
+Desc: not available
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181002/0064f3f8/attachment.obj>
+
+From lukasz at langa.pl  Tue Oct  2 08:51:52 2018
+From: lukasz at langa.pl (=?utf-8?Q?=C5=81ukasz_Langa?=)
+Date: Tue, 2 Oct 2018 14:51:52 +0200
+Subject: [Python-Dev] LDLAST variable in configure.ac
+In-Reply-To: <B23E11B7-37BB-4B24-98B6-BFB7ECABD38A@felt.demon.nl>
+References: <a295bfb3-a102-947d-4c14-cdfa3259ff3a@felt.demon.nl>
+ <1538435240.4040554.1527177920.188EFF58@webmail.messagingengine.com>
+ <B23E11B7-37BB-4B24-98B6-BFB7ECABD38A@felt.demon.nl>
+Message-ID: <DD7CAA94-87F6-4637-93E3-089FF62A6C5C@langa.pl>
+
+
+> On 2 Oct 2018, at 12:29, Michael Felt <aixtools at felt.demon.nl> wrote:
+> 
+> <mime-attachment><encrypted.asc>
+
+Michael, this message looks encrypted on my end. For people without your public key, it's impossible to read. This was probably unintentional on your end. In either case I'd avoid encrypting messages that go to public mailing lists.
+
+- ?
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181002/e548cad0/attachment.sig>
+
+From erik.m.bray at gmail.com  Tue Oct  2 10:45:27 2018
+From: erik.m.bray at gmail.com (Erik Bray)
+Date: Tue, 2 Oct 2018 16:45:27 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+Message-ID: <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+
+On Tue, Oct 2, 2018 at 3:53 AM Tres Seaver <tseaver at palladion.com> wrote:
+>
+> -----BEGIN PGP SIGNED MESSAGE-----
+> Hash: SHA1
+>
+> On 10/01/2018 06:41 PM, Michael Felt wrote:
+>
+> > And, while you may not give a damn about anything other than Windows,
+> > macos and/or Linux - there are other platforms that would like a
+> > stable Python.
+>
+> Michael,
+>
+> I can understand the frustration you feel:  you have been putting effort
+> into a labor of love geting Python support on AIX (back?) into shape, and
+> feel that your efforts are unappreciated, or worse, that they will be waste
+> d.
+>
+> The key thing to realize about the various core developers (and the
+> broader Python and open source communities) is that their attention is a
+> heavily over-committed resource:  it isn't that folks here aren't
+> benevolent toward your efforts, but rather that each of them (us?) makes
+> decisions every day juggling which projects / tasks to give the minutes /
+> hours we have available.  In the common case, the "triage" involves
+> scrathing an itch:  this bug affects me / my work, that feature would
+> make my life / my employment simpler, etc.  Even where there are minutes
+> available, the "is reviewing this feasible for me?" question kicks in.
+>
+> Because AIX is relatively narrow in the scope of folks it impacts, the
+> average, overcommitted developer is likely to see a bug report, or even a
+> pull request, which makes stuff build on AIX and say, "Hmm, I don't know
+> enough to evalute that one, I'll leave it to folks who do know (and by
+> implication, who have some skin in the game)."  Even for more
+> consumer-focused platforms, it has historically been harder to get
+> attention for bugs / patches which affect only a single platform (Windows
+> file locking semantics, or the Mac installer, etc.)
+>
+> One key way to get past that hurdle is to slice the size of each "thing"
+> down as fine as possible:  e.g., a pull request adding a single "#ifdef
+> AIX" block to one file.  Anything more than a screenful of diff is likely
+> to trigger the "let someone else review it" pattern, whereas being able
+> to scan the patch at a glance lets even a non-itchy reviewer decide,
+> "well, at least it can't hurt anything, give it a shot."
+>
+> Once you've gotten a number of those small patches merged, you will find
+> that you've built a relationship with the folks who have been reviewing
+> them, and that they are more likely to pass them, and to review larger
+> ones, at least in part because *you* will have learned more about what is
+> needed in terms of code style, documentation, test coverage, etc., and
+> *they* will have learned to trust your judgement.
+>
+> I'm sorry it isn't easier,
+
+I have thought of writing an almost verbatim post w.r.t. my efforts to
+get Cygwin re-supported (which was never officially un-supported
+either).  Victor asked me to set up a buildbot for Cygwin as a
+prerequisite to much else, which I have done [1].  But it has been
+turning out broken build after broken build and is all but useless
+since, even at the time of setting it up, I pointed out that there are
+two major blocker issues [2] [3] that prevent an even
+partially-working build.  Naoki Inada provided some review of the
+first one a while ago, and while we had some (I think valid)
+disagreement on how to proceed, I updated the issue description with a
+checklist of issues he raised that need some clear direction on how
+they should be resolved (since at least on some of them we disagreed).
+I'd be happy to do pretty much whatever so long as I knew it was
+meeting a core dev's requirements while also meeting my own
+requirements.
+
+Obviously I'm sympathetic to the limited time and attention of core
+devs--I am a maintainer on several projects myself and I know how it
+goes, and I have tried not to make too much of a fuss about it.  But
+there's a chicken-egg problem in the specific area of platform
+support, which feels a little different from just "I need my pet bug
+fixed", for someone who is not already a core developer: In order to
+make any progress on the issue we need at least one core dev who is
+interested in the same platform.  But if we're the only ones willing
+to do the work who know or care anything about that platform, how are
+we supposed to progress in the first place?
+
+I, like Michael Felt, have a number of fixes waiting in the wings but
+can't really progress until a little bit of bare minimum ground work
+is at least done to get us up and running.
+
+Michael, if there are any PRs you want to point me to that I might be
+able to help review please do.  I don't know anything about AIX either
+and am not a core dev so I can't have a final say.  But I've been
+hacking on CPython for a long time anyways, and might be able to help
+at least with some initial review.
+
+
+[1] https://buildbot.python.org/all/#/builders/164
+[2] https://github.com/python/cpython/pull/4348
+[3] https://github.com/python/cpython/pull/8712
+
+From van.lindberg at gmail.com  Tue Oct  2 10:47:24 2018
+From: van.lindberg at gmail.com (VanL)
+Date: Tue, 2 Oct 2018 09:47:24 -0500
+Subject: [Python-Dev] Maintaining civility - the core of the Python community
+Message-ID: <CAFQvZEP9198jVULau3V3S+FnJZFdOXTdbrLCdS68dpAOOXo7WQ@mail.gmail.com>
+
+Hello everyone,
+
+You all have probably noted that there have been some contentious threads
+recently, ultimately ending in a few people being given a time-out from
+posting on these lists.
+
+I don't normally get into things on this list, but it has been generally
+discouraging to see a bunch of generally nice and reasonable people get
+sidetracked into unproductive, sarcastic, and unhelpful remarks. There are
+some efforts underway to formalize what is in and out of bounds - but I
+would suggest that we are losing our way when we need to get to explicit
+lists of things not to do.
+
+Unfortunately, we are getting there.
+
+I would like to reemphasize that we are bound together by the things that
+we share. We love working on Python. We love being in the community and
+seeing it grow. We can make our community stronger and more pleasant by
+choosing to emphasize the things that we have in common and by ignoring or
+avoiding topics that are more likely to generate unproductive discussion.
+
+We can and should also try to remember that not everyone is coming from the
+same place, and so we should actively assume the best of others and
+interpret what they say in the most charitable way possible. Think of it as
+Postel's law [1] as applied to people.
+
+I'd also suggest that generally, 1) use of profanity, 2) use of sexual
+terms and imagery, and 3) use of specifically denigrating terms to refer to
+a person [2][3][4] are completely out of bounds for the professional
+environment we want to maintain. It is ok to attack arguments, and ideas,
+but ad hominem arguments - those attack a person, rather than the person's
+argument - are also inappropriate. Use of sarcasm should be strongly
+moderated, as it is not correctly interpreted by many people.
+
+No reply is needed to this email. Instead, I'd prefer to see a continuation
+of solid technical discussion, rather than meta-discussion.
+
+Thanks,
+Van
+
+
+[1] https://en.wikipedia.org/wiki/Robustness_principle
+[2] https://en.wikipedia.org/wiki/List_of_ethnic_slurs
+[3] https://en.wikipedia.org/wiki/List_of_religious_slurs
+[4]
+https://en.wikipedia.org/wiki/List_of_disability-related_terms_with_negative_connotations
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181002/0769fd7c/attachment.html>
+
+From will at worrbase.com  Tue Oct  2 02:42:59 2018
+From: will at worrbase.com (William Orr)
+Date: Mon, 01 Oct 2018 23:42:59 -0700
+Subject: [Python-Dev] [PATCH] BSD extended attributes
+Message-ID: <87o9cc6e8c.fsf@locke.worr.haus>
+
+Hey,
+
+Can I get a review for GH-1690[1]? It fixes bpo-12978 and
+has been sitting for a handful of years now. This adds
+support for os.*xattr on DragonflyBSD, FreeBSD and NetBSD.
+
+Thanks!
+
+[1] https://github.com/python/cpython/pull/1690
+
+From hodgestar+pythondev at gmail.com  Tue Oct  2 12:41:15 2018
+From: hodgestar+pythondev at gmail.com (Simon Cross)
+Date: Tue, 2 Oct 2018 18:41:15 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+Message-ID: <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+
+Are there any core devs that Michael or Erik could collaborate with?
+Rather than rely on adhoc patch review from random core developers.
+
+Michael and Eric: Question -- are you interested in becoming core
+developers at least for the purposes of maintaining these platforms in
+future?
+
+From eelizondo at fb.com  Tue Oct  2 13:09:09 2018
+From: eelizondo at fb.com (Eddie Elizondo)
+Date: Tue, 2 Oct 2018 17:09:09 +0000
+Subject: [Python-Dev] Heap-allocated StructSequences
+In-Reply-To: <20180914063459.sqid2n6bera5or6l@python.ca>
+References: <EA6CC3C2-A371-4F24-AF5C-4401B57ED487@fb.com>
+ <20180914063459.sqid2n6bera5or6l@python.ca>
+Message-ID: <CAECB1F3-BC0F-4565-8C29-E75B60BA1FD1@fb.com>
+
+> We have to assess how 3rd party extension modules would be affected
+> by this change.
+
+This change is fully compatible with 3rd party extensions.
+The current change to InitType2 is only refactoring, there is no logic change there so that API remains unchanged.
+Also, there should not be any instances of PyStructSequence_NewType in use. Any usage of this API causes a crash. A quick Google and Github search show that this is true. Thus, modifying this function should have no conflicts.
+
+A more interesting question would be: "Is the migration of PyStructSequence_InitType2 to PyStructSequence_NewType backwards-compatible?" The answer is yes!
+
+Using gevent as an example (https://github.com/gevent/gevent). This library has a dependency on StatResultType from cpython/Modules/posixmodule.c. This type gets initialized with PyStructSequence_InitType2. After modifying posixmodule.c to use NewType instead of InitType2 gevent still builds and passes all tests. Example: https://github.com/python/cpython/pull/9665
+
+Thus, this change is backwards-compatible by itself and even after migrating to the NewType C-API.
+
+> Converting things to use PyType_FromSpec 
+> falls in there. As long as the old API still works, these changes should 
+> go in (but they might need a PEP).
+
+I agree that this change is standalone and should go in by itself. Yet, I'm open to whatever people thing might be the right approach to get this in. i.e: Have more people look at it, writing a PEP, etc.
+
+- Eddie
+
+
+From aixtools at felt.demon.nl  Tue Oct  2 14:41:57 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Tue, 2 Oct 2018 20:41:57 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+Message-ID: <400a6409-74bb-c7dd-345f-4a0c542c5401@felt.demon.nl>
+
+I am willing to assist as best I can with AIX - I seem to have the core
+requirements re: time available: (i.e., over-comitted at work, but
+'work' evenings and weekends on OSS :p)
+
+
+On 10/2/2018 6:41 PM, Simon Cross wrote:
+> Are there any core devs that Michael or Erik could collaborate with?
+> Rather than rely on adhoc patch review from random core developers.
+>
+> Michael and Eric: Question -- are you interested in becoming core
+> developers at least for the purposes of maintaining these platforms in
+> future?
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/aixtools%40felt.demon.nl
+
+
+From aixtools at felt.demon.nl  Tue Oct  2 14:52:25 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Tue, 2 Oct 2018 20:52:25 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+Message-ID: <7c67a954-9e1f-2187-f027-2695109986b4@felt.demon.nl>
+
+
+
+On 10/2/2018 4:45 PM, Erik Bray wrote:
+> Michael, if there are any PRs you want to point me to that I might be
+> able to help review please do.
+A little trick I learned:
+https://github.com/python/cpython/pulls?q=is%3Aopen+is%3Apr+author%3Aaixtools+sort%3Aupdated-desc
+lists them all.
+
+What "flipped my switch" yesterday was discovering a PR that I was
+gifted (by an ex? core-dev) and put in the system back in January is now
+broken by a patch merged about two weeks ago. Worse, pieces of
+test_ctypes(bitfields) that previously worked when using __xlc__ seem to
+be broken. Which highlighted the "time pressure" of getting tests to
+pass so that regressions can be seen.
+
+If you let me know what info you would need (I gave lots of debug info
+two years ago to get that initial fix).
+
+And, I guess the other "larger" change re: test_distutils. Also, some
+issues specific to xlc being different from gcc.
+
+Those two do not show on the gccfarm buildbot.
+
+Many thanks for the offer! I'll try to not take more than the hand offered!
+>   I don't know anything about AIX either
+> and am not a core dev so I can't have a final say.  But I've been
+> hacking on CPython for a long time anyways, and might be able to help
+> at least with some initial review.
+
+
+From aixtools at felt.demon.nl  Tue Oct  2 16:05:11 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Tue, 2 Oct 2018 22:05:11 +0200
+Subject: [Python-Dev] LDLAST variable in configure.ac
+In-Reply-To: <DD7CAA94-87F6-4637-93E3-089FF62A6C5C@langa.pl>
+References: <a295bfb3-a102-947d-4c14-cdfa3259ff3a@felt.demon.nl>
+ <1538435240.4040554.1527177920.188EFF58@webmail.messagingengine.com>
+ <B23E11B7-37BB-4B24-98B6-BFB7ECABD38A@felt.demon.nl>
+ <DD7CAA94-87F6-4637-93E3-089FF62A6C5C@langa.pl>
+Message-ID: <c09c6cde-54b3-9a08-f8f8-bb28f1d09a3d@felt.demon.nl>
+
+Yes, unintended. It was only supposed to be signed, but "Send Later"?
+encrypts it.
+
+Unpacked version:
+
+
+
+On 10/2/2018 1:07 AM, Benjamin Peterson wrote:
+> On Mon, Oct 1, 2018, at 12:12, Michael Felt wrote:
+>> Hi all,
+>>
+>> Before I submit a patch to increase the default MAXDATA setting for AIX
+>> when in 32-bit mode - I want to know if I can put this LDFLAG setting in
+>> LDLAST, or if I should introduce a new AC_SUBST() variable (e.g.,
+>> LDMAXDATA).
+> I think you should just put it in LDFLAGS.
+I was wanting to avoid that, as LDFLAGS is an environmental variable.
+
+At the surface, it appears Python is using PY_LDFLAGS (with
+CONFIGURE_LDFLAGS coming from LDFLAGS during the ./configure moment.
+
+A reason for a separate variable is that this particular option is only
+relevant for the python EXE, and not for shared libraries and "other
+things". IMHO, a reason for LDMAXDATA is because LDLAST is actually
+already too widely used:
+
+root at x066:[/data/prj/python/git/cpython-master]grep LDFLAGS *.in
+Makefile.pre.in:CONFIGURE_LDFLAGS=????? @LDFLAGS@
+Makefile.pre.in:# Avoid assigning CFLAGS, LDFLAGS, etc. so users can use
+them on the
+Makefile.pre.in:# Both CPPFLAGS and LDFLAGS need to contain the shell's
+value for setup.py to
+Makefile.pre.in:PY_LDFLAGS=???? $(CONFIGURE_LDFLAGS) $(LDFLAGS)
+Makefile.pre.in:LDSHARED=?????? @LDSHARED@ $(PY_LDFLAGS)
+Makefile.pre.in:BLDSHARED=????? @BLDSHARED@ $(PY_LDFLAGS)
+Makefile.pre.in:OPENSSL_LDFLAGS=@OPENSSL_LDFLAGS@
+Makefile.pre.in:??????? $(MAKE) @DEF_MAKE_RULE@ CFLAGS_NODIST="$(CFLAGS)
+$(PGO_PROF_GEN_FLAG)" LDFLAGS="$(LDFLAGS) $(PGO_PROF_GEN_FLAG)"
+LIBS="$(LIBS)"
+Makefile.pre.in:??????? $(MAKE) @DEF_MAKE_RULE@ CFLAGS_NODIST="$(CFLAGS)
+$(PGO_PROF_USE_FLAG)" LDFLAGS="$(LDFLAGS)"
+Makefile.pre.in:??????? $(LINKCC) $(PY_LDFLAGS) $(LINKFORSHARED) -o $@
+Programs/python.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST)
+Makefile.pre.in:???????? $(CC) -dynamiclib -Wl,-single_module
+$(PY_LDFLAGS) -undefined dynamic_lookup
+-Wl,-install_name,$(prefix)/lib/libpython$(LDVERSION).dylib
+-Wl,-compatibility_version,$(VERSION) -Wl,-current_version,$(VERSION) -o
+$@ $(LIBRARY_OBJS) $(SHLIBS) $(LIBC) $(LIBM) $(LDLAST); \
+Makefile.pre.in:??????? $(CC) -o $(LDLIBRARY) $(PY_LDFLAGS) -dynamiclib \
+Makefile.pre.in:??????? $(LINKCC) $(PY_LDFLAGS) $(LINKFORSHARED) -o $@
+Programs/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST)
+Makefile.pre.in:??????? $(LINKCC) $(PY_LDFLAGS) -o $@
+Programs/_freeze_importlib.o $(LIBRARY_OBJS_OMIT_FROZEN) $(LIBS)
+$(MODLIBS) $(SYSLIBS) $(LDLAST)
+Makefile.pre.in:??????????????? $(CC) $(OPT) $(PY_LDFLAGS) $(PGENOBJS)
+$(LIBS) -o $(PGEN)
+
+The ONLY line that needs $LDMAXDATA is:
+
+Makefile.pre.in:??????? $(LINKCC) $(PY_LDFLAGS) -o $@
+Programs/_freeze_importlib.o $(LIBRARY_OBJS_OMIT_FROZEN) $(LIBS)
+$(MODLIBS) $(SYSLIBS) $(LDLAST) $(LDMAXDATA)
+
+or set $(LDLAST) at the end rather than append $(LDMAXDATA)
+>> I have not looked yet, but I was thinking that MAYBE! LDLAST is intended
+>> as a last resort variable that can be modified in Makefile.
+> LDLAST looks vestigial from OSF/1 support and should probably be removed.
+
+
+On 10/2/2018 2:51 PM, ?ukasz Langa wrote:
+>> On 2 Oct 2018, at 12:29, Michael Felt <aixtools at felt.demon.nl> wrote:
+>>
+>> <mime-attachment><encrypted.asc>
+> Michael, this message looks encrypted on my end. For people without your public key, it's impossible to read. This was probably unintentional on your end. In either case I'd avoid encrypting messages that go to public mailing lists.
+>
+> - ?
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181002/af67fca3/attachment.html>
+
+From breamoreboy at gmail.com  Tue Oct  2 17:15:24 2018
+From: breamoreboy at gmail.com (Mark Lawrence)
+Date: Tue, 2 Oct 2018 22:15:24 +0100
+Subject: [Python-Dev] Change in Python 3's "round" behavior
+In-Reply-To: <dc0c48a7-3fd5-f6e2-3b9e-a47760fa808b@felt.demon.nl>
+References: <1519658635.56.0.467229070634.issue32956@psf.upfronthosting.co.za>
+ <1537960170.25.0.545547206417.issue32956@psf.upfronthosting.co.za>
+ <CANwREeUjUDTFmZ=hkMwsG6vxUvwYYEiuSaY4zF8SEL6J74FvoQ@mail.gmail.com>
+ <5BAC70BB.2040707@canterbury.ac.nz>
+ <20180927135327.GE19437@ando.pearwood.info>
+ <234e01d4585e$829acc20$87d06460$@sdamon.com>
+ <20180930121703.GK19437@ando.pearwood.info>
+ <dc0c48a7-3fd5-f6e2-3b9e-a47760fa808b@felt.demon.nl>
+Message-ID: <pp0n1a$1h4$1@blaine.gmane.org>
+
+On 01/10/18 21:45, Michael Felt wrote:
+> 
+> On 9/30/2018 2:17 PM, Steven D'Aprano wrote:
+>>   (It's also called Dutch Rounding.)
+> 
+> Ah - as to why - and from school! (as so-called intuitive! rather desired!).
+> 
+> A test score goes from 5.5 to 6.0 - which becomes passing.
+> 
+> Oh, do I recall my children's frustrations when they had a X.4Y score -
+> that became X.0. Tears!
+> 
+
+Please do not reply to any message from Steven D'Aprano as you are also 
+likely to get banned by the incompetent moderators.
+
+-- 
+My fellow Pythonistas, ask not what our language can do for you, ask
+what you can do for our language.
+
+Mark Lawrence
+
+
+From tjreedy at udel.edu  Tue Oct  2 17:34:43 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Tue, 2 Oct 2018 17:34:43 -0400
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+Message-ID: <pp0o5i$e2a$1@blaine.gmane.org>
+
+On 10/2/2018 12:41 PM, Simon Cross wrote:
+> Are there any core devs that Michael or Erik could collaborate with?
+> Rather than rely on adhoc patch review from random core developers.
+
+You two might collaborate with each other to the extent of reviewing 
+some of each other's PRs.  That still leaves the issue of merging.
+
+> Michael and Eric: Question -- are you interested in becoming core
+> developers at least for the purposes of maintaining these platforms in
+> future?
+
+Since adhoc is not working to get merges, I had this same suggestion. 
+Michael and Erik, I presume you have gotten some guidelines on what 
+modifications to C code might be accepted, and what concerns people have.
+
+I think for tests, a separate test_aix.py might be a good idea for 
+aix-only tests, while modification of other tests might be limited to 
+adding skips.  The idea would be to make it easy to remove aix stuff in 
+the future if it again became unsupported.  Ditto for other specialized 
+platforms.
+
+
+
+
+-- 
+Terry Jan Reedy
+
+
+From aixtools at felt.demon.nl  Tue Oct  2 19:16:46 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Wed, 3 Oct 2018 01:16:46 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <pp0o5i$e2a$1@blaine.gmane.org>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+ <pp0o5i$e2a$1@blaine.gmane.org>
+Message-ID: <d1a07423-d09a-626d-3f49-4e382d83e802@felt.demon.nl>
+
+
+
+On 10/2/2018 11:34 PM, Terry Reedy wrote:
+> On 10/2/2018 12:41 PM, Simon Cross wrote:
+>> Are there any core devs that Michael or Erik could collaborate with?
+>> Rather than rely on adhoc patch review from random core developers.
+>
+> You two might collaborate with each other to the extent of reviewing
+> some of each other's PRs. 
+Might be difficult. We both, or at least I, claim ignorance of the
+others platform. I still have a lot of PEP to learn, and my idea of a
+bug-fix (for Python2) was seen by core-dev as a feature change. I would
+not feel comfortable trying to mentor someone in things PEP, etc..
+> That still leaves the issue of merging.
+How much confidence is there in all the "CI" tests? Does that not offer
+sufficient confidence for a core-dev to press merge.
+How about "master" continuing to be what it is, but insert a new
+"pre-master" branch that the buildbots actually test on (e.g., what is
+now the 3.X) and have a 3.8 buildbot - for what is now the "master".
+
+PR would still be done based on master, but an "initial" merge would be
+via the pre-master aka 3.X buildbot tests.
+
+How "friendly" git is - that it not become such a workload to keep it
+clean - I cannot say. Still learning to use git. Better, but still do
+not want to assume it would be easy.
+
+My hope is that it would make it easier to consider a "merge" step that
+gets all the buildbots involved for even broader CI tests.
+
+>
+>> Michael and Eric: Question -- are you interested in becoming core
+>> developers at least for the purposes of maintaining these platforms in
+>> future?
+>
+> Since adhoc is not working to get merges, I had this same suggestion.
+> Michael and Erik, I presume you have gotten some guidelines on what
+> modifications to C code might be accepted, and what concerns people have.
+imho: guidelines - paraphrased - as little as possible :)
+
+I have many assumptions, and one of those is that my assumptions are
+probably incorrect.
+Goal: have AIX recognized as a Stable platform, even if not in the
+highest supported category.
+And that implies, support as far as I am able, to keep it "Stable".
+>
+> I think for tests, a separate test_aix.py might be a good idea for
+> aix-only tests
+Unclear to me how this would work. Too young in Python I guess (or just
+a very old dog), but what test would be needed for AIX, or any other
+platform, that would not need to be tested in some fashion for the
+'other' platforms. At a hunch, where there are many platform.system()
+dependencies expected (e.g., test_posix, maybe doing something in the
+class definition (is there a "Root" Object/Class that all inherit from.
+Maybe a (read-only) "root" attribute (or is property better?) could be
+the value of platform.system(), and iirc, might be used by as @property
+in unittest. (so, if not in "root" class, then in something like
+unittest/__init__.py.
+
+I hope to be "close" in "Python thinking" - enough that someone who
+actually knows how the pieces fit together could come with a better, and
+more appropriate guideline/implementation.
+
+> , while modification of other tests might be limited to adding skips.?
+> The idea would be to make it easy to remove aix stuff in the future if
+> it again became unsupported.
+IMHO: IBM and AIX do not mention it, but for openstack cloudmanagement
+(very specifically cloud-init) AIX needs a recognized stable Python
+implementation. I am "surprised" in the level of communication of IBM
+with Python community.
+
+Personally, I do not see AIX as a specialized platform. Feels more like
+the "last-standing" fully supported (commercial OEM) 'POSIX-UNIX'. Of
+course my focus is narrow - so maybe there is a lot of support for
+commercial platforms such as HPUX, Solaris, and other mainstream UNIXes.
+Feel free to correct me!!
+> Ditto for other specialized platforms.
+>
+>
+>
+>
+
+
+From nas-python at arctrix.com  Tue Oct  2 19:46:26 2018
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Tue, 2 Oct 2018 17:46:26 -0600
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+Message-ID: <20181002234626.uaz5qisonzseywiz@python.ca>
+
+On 2018-10-02, Michael Felt wrote:
+> I am sorry, for myself obviously - but also for Python. Obviously, I am
+> doing it all wrong - as I see lots of other issues being picked up
+> immediately.
+
+I'm not sure that's the case.  There are a lot of PRs or bugs that
+sit there without getting reviews.  The problem is that few (or no)
+core developers get paid to work on Python.  So, the time they spend
+is motivated by their specific "itch".  Getting reviews on any PR is
+difficult, even for core developers.  In their case, they have to
+option of forcing the issue, I guess.
+
+This is a problem we should try to deal with somehow.  Turning off
+valuable contributors like you is bad.  I'm not sure how to do it
+though.  At the core Python sprint in September there was some talk
+about how CPython developers might get funding.  Maybe that could
+help deal with the backlog of reviews required.
+
+> And, while you may not give a damn about anything other than Windows,
+> macos and/or Linux - there are other platforms that would like a stable
+> Python.
+
+There is probably some truth in not caring about other platforms.
+The problem from the reviewer perspective is the question of "what
+is the potential downsides of this PR vs what are the benefits?".
+The safest thing is to not approve the PR.  No core developer wants
+to be the person who broke CPython.  You must admit, AIX is an
+extremely niche platform at this point.  I bet if you picked 1000
+software developers at random, it would be likely that zero of them
+have ever used AIX.  So, it's not that we don't care at all about
+AIX but that the cost/benefit equation makes accepting AIX specific
+changes more difficult.
+
+One specific suggestion I have about your PR is to try to make your
+changes not AIX specific.  Or at least, make the AIX checking as
+localized as possible.  So, as an example, in test_uuid you have:
+
+    _notAIX = not sys.platform.startswith("aix")
+
+then later in the module you check that flag.  While that is the
+most direct approach to fixing the issue and making the test pass,
+it is not good for the long term maintainability of the code.  You
+end up with boolean flags like _notAIX spread about the logic.  Over
+time, code like that becomes a nightmare to maintain.
+
+Instead, I would suggest test_uuid is making platform specific
+assumptions that are not true on AIX and possibly other platforms.
+So, do something like:
+
+    
+    _IS_AIX = sys.platform.startswith("aix")
+
+    _HAVE_MACADDR = (os.name == 'posix' and not _IS_AIX)
+
+    @unittest.skipUnless(_HAVE_MACADDR, 'requires Posix with macaddr')
+    def test_arp_getnode(self):
+        ...
+
+The _HAVE_MACADDR test is relatively simple and clear, does this
+platform have this capability.  Later in the code, a check for
+_HAVE_MACADDR is also quite clear.  If someone comes along with
+another platform that doesn't support macaddr, they only have to
+change one line of code.
+
+This kind of capability checking is similar to what happened with
+web browsers.  In that case, people discovered that checking the
+User Agent header was a bad idea.  Instead, you should probe for
+specific functionality and not assume based on browser IDs.  For the
+macaddr case, is there some way to you probe the arp command to see
+if supports macaddr?  That way your test doesn't have to include any
+AIX specific check at all.  Further, it would have some hope of
+working on platforms other than AIX that also don't support macaddr
+but are POSIX and have 'arp'.  The code could be something like:
+
+_HAVE_MACADDR = False
+if os.name == 'posix':
+    if <check arp to see if it supports macaddr>:
+        _HAVE_MACADDR = True
+
+Hope that is helpful.
+
+  Neil
+
+From tjreedy at udel.edu  Tue Oct  2 20:48:11 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Tue, 2 Oct 2018 20:48:11 -0400
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <d1a07423-d09a-626d-3f49-4e382d83e802@felt.demon.nl>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+ <pp0o5i$e2a$1@blaine.gmane.org>
+ <d1a07423-d09a-626d-3f49-4e382d83e802@felt.demon.nl>
+Message-ID: <pp13ga$i2i$1@blaine.gmane.org>
+
+On 10/2/2018 7:16 PM, Michael Felt wrote:
+> 
+> 
+> On 10/2/2018 11:34 PM, Terry Reedy wrote:
+>> On 10/2/2018 12:41 PM, Simon Cross wrote:
+>>> Are there any core devs that Michael or Erik could collaborate with?
+>>> Rather than rely on adhoc patch review from random core developers.
+>>
+>> You two might collaborate with each other to the extent of reviewing
+>> some of each other's PRs.
+
+> Might be difficult. We both, or at least I, claim ignorance of the
+> others platform.
+
+Partial reviews, short of accept/change are better than no review and 
+can make a merge decision easier for a core dev.  You should each be or 
+become familiar with PEP 7 and somewhat familiar with local C idioms. 
+Do names follow local standards.  Do C-API calls make sense.
+
+ >>  I still have a lot of PEP to learn, and my idea of a
+ >> bug-fix (for Python2) was seen by core-dev as a feature change.
+
+Failures of current tests would seem to me to be bugs.  However, some 
+bug fixes require a feature change.  It is an awkward situation.  We are 
+increasingly reluctant to patch 2.7.
+
+>> That still leaves the issue of merging.
+> How much confidence is there in all the "CI" tests? Does that not offer
+> sufficient confidence for a core-dev to press merge.
+
+Code for new features or bugs that escaped the tests should have new 
+tests.  AIX-specific code should (as in must ;-) be tested before being 
+submitted, since it will not be properly tested by CI.  With CI now 
+covering Windows twice, Linux twice, and Mac, I believe it has become 
+rarer for buildbots to fail after CI passes.  Victor would know.
+
+I  believe that you are initially dealing with bugs that do not pass 
+current tests.
+
+> How about "master" continuing to be what it is, but insert a new
+> "pre-master" branch that the buildbots actually test on (e.g., what is
+> now the 3.X) and have a 3.8 buildbot - for what is now the "master".
+> 
+> PR would still be done based on master, but an "initial" merge would be
+> via the pre-master aka 3.X buildbot tests.
+> 
+> How "friendly" git is - that it not become such a workload to keep it
+> clean - I cannot say. Still learning to use git. Better, but still do
+> not want to assume it would be easy.
+
+Too complicated.
+
+> My hope is that it would make it easier to consider a "merge" step that
+> gets all the buildbots involved for even broader CI tests.
+
+I considered the wider buildbot fleet to be post-merge CI ;-).
+
+>> I think for tests, a separate test_aix.py might be a good idea for
+>> aix-only tests
+
+I may be wrong on this.
+
+
