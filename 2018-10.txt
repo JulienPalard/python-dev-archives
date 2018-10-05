@@ -1358,3 +1358,1271 @@ I considered the wider buildbot fleet to be post-merge CI ;-).
 I may be wrong on this.
 
 
+From erik.m.bray at gmail.com  Wed Oct  3 05:55:51 2018
+From: erik.m.bray at gmail.com (Erik Bray)
+Date: Wed, 3 Oct 2018 11:55:51 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+Message-ID: <CAOTD34ZR_86jKv5QiMX=FfTpih1xZpg7sOAhweMa+sX9fyCXgA@mail.gmail.com>
+
+On Tue, Oct 2, 2018 at 6:41 PM Simon Cross
+<hodgestar+pythondev at gmail.com> wrote:
+>
+> Are there any core devs that Michael or Erik could collaborate with?
+> Rather than rely on adhoc patch review from random core developers.
+>
+> Michael and Eric: Question -- are you interested in becoming core
+> developers at least for the purposes of maintaining these platforms in
+> future?
+
+I would be for the purposes of said platform maintenance.  I believe I
+already have some maintainer permissions on bpo for exactly this
+reason.
+
+That said, while I'm sure it would help, I'm not exactly sure what it
+would solve either.  I believe strongly in code review, and just
+having a "core developer" status does not necessarily free one from
+responsibility for obtaining code review.
+
+It also partly depends on the issue.  If it's a change that touches
+other parts of the code in ways that could impact it beyond the narrow
+scope of platform support, I believe it definitely should get a second
+pair of eyes.  Unfortunately many of the outstanding patches I have
+for review fall in that category.  Though in the future there will be
+fewer like that.  The majority of work needed for Cygwin, at least, is
+tweaking some areas of the tests that make assumptions that don't
+necessarily hold on that platform.*
+
+Thanks,
+E
+
+
+* For example, there are some tests that assume there is a user with
+UID 0.  While UID 0 is reserved for a "superuser", I don't know that
+there's any requirement that such a user *must* exist (on Cygwin it
+does not :)
+
+From erik.m.bray at gmail.com  Wed Oct  3 05:58:33 2018
+From: erik.m.bray at gmail.com (Erik Bray)
+Date: Wed, 3 Oct 2018 11:58:33 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <7c67a954-9e1f-2187-f027-2695109986b4@felt.demon.nl>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <7c67a954-9e1f-2187-f027-2695109986b4@felt.demon.nl>
+Message-ID: <CAOTD34bLkVKioZOdcQKZoT=nn22ZGs1b2PA1TaVg1AsZJVMi-Q@mail.gmail.com>
+
+On Tue, Oct 2, 2018 at 8:54 PM Michael Felt <aixtools at felt.demon.nl> wrote:
+>
+>
+>
+> On 10/2/2018 4:45 PM, Erik Bray wrote:
+> > Michael, if there are any PRs you want to point me to that I might be
+> > able to help review please do.
+> A little trick I learned:
+> https://github.com/python/cpython/pulls?q=is%3Aopen+is%3Apr+author%3Aaixtools+sort%3Aupdated-desc
+> lists them all.
+
+Cool, I'll have a look.
+
+> What "flipped my switch" yesterday was discovering a PR that I was
+> gifted (by an ex? core-dev) and put in the system back in January is now
+> broken by a patch merged about two weeks ago. Worse, pieces of
+> test_ctypes(bitfields) that previously worked when using __xlc__ seem to
+> be broken. Which highlighted the "time pressure" of getting tests to
+> pass so that regressions can be seen.
+
+Yes, that can certainly happen.  I have many PRs floating around on
+different projects that, you know, get stalled for months and months
+and inevitably break.  It's extremely frustrating, but we've all been
+there :)
+
+> If you let me know what info you would need (I gave lots of debug info
+> two years ago to get that initial fix).
+>
+> And, I guess the other "larger" change re: test_distutils. Also, some
+> issues specific to xlc being different from gcc.
+>
+> Those two do not show on the gccfarm buildbot.
+>
+> Many thanks for the offer! I'll try to not take more than the hand offered!
+> >   I don't know anything about AIX either
+> > and am not a core dev so I can't have a final say.  But I've been
+> > hacking on CPython for a long time anyways, and might be able to help
+> > at least with some initial review.
+
+I also about to ask if you have a buildbot for AIX, and I see now you
+have several. So step in the right direction!
+
+From J.Demeyer at UGent.be  Wed Oct  3 08:12:13 2018
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 3 Oct 2018 14:12:13 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+Message-ID: <5BB4B21D.2070302@UGent.be>
+
+Hello,
+
+I would like to propose Petr Viktorin as BDFL-Delegate for PEP 580, 
+titled "The C call protocol". He has co-authored several PEPs (PEP 394, 
+PEP 489, PEP 534, PEP 547, PEP 573), several of which involve extension 
+modules.
+
+Petr has agreed to become BDFL-Delegate for PEP 580 if asked. Also 
+Antoine Pitrou, INADA Naoki and Nick Coghlan have approved Petr being 
+BDFL-Delegate.
+
+I am well aware of the current governance issues, but several people 
+have mentioned that the BDFL-Delegate process can still continue for 
+now. I created a PR for the peps repository at 
+https://github.com/python/peps/pull/797
+
+
+Cheers,
+Jeroen Demeyer.
+
+From wes.turner at gmail.com  Wed Oct  3 09:29:16 2018
+From: wes.turner at gmail.com (Wes Turner)
+Date: Wed, 3 Oct 2018 09:29:16 -0400
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <5BB4B21D.2070302@UGent.be>
+References: <5BB4B21D.2070302@UGent.be>
+Message-ID: <CACfEFw_yaBuS1G6F7rG4qyfsHiRkFgErtswQDCpQap+zB90AAg@mail.gmail.com>
+
+On Wednesday, October 3, 2018, Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> Hello,
+>
+> I would like to propose Petr Viktorin as BDFL-Delegate for PEP 580, titled
+> "The C call protocol". He has co-authored several PEPs (PEP 394, PEP 489,
+> PEP 534, PEP 547, PEP 573), several of which involve extension modules.
+>
+> Petr has agreed to become BDFL-Delegate for PEP 580 if asked. Also Antoine
+> Pitrou, INADA Naoki and Nick Coghlan have approved Petr being BDFL-Delegate.
+>
+> I am well aware of the current governance issues, but several people have
+> mentioned that the BDFL-Delegate process can still continue for now. I
+> created a PR for the peps repository at https://github.com/python/peps
+> /pull/797
+
+
++1. Are we doing upvotes on the mailing list or on the GitHub PR and/or
+issue now?
+
+"[Python-ideas] PEPs: Theory of operation"
+https://markmail.org/thread/zr4o6l7ivnj4irtp
+
+"""
+Process suggestions that could minimize non-BDFL's BDFL legwork:
+
+[...]
+
+* Use GitHub reactions for voting on BDFL delegates, PEP final approval,
+and PEP sub issues?
+  * Specify a voting deadline?
+  * How to make a quorum call?
+  * Add '@core/team' as reviewers for every PEP?
+
+
+* Link to the mailing list thread(s) at the top of the PR
+  * [ ] Add unique message URLs to footers with mailman3
+
+
+* What type of communications are better suited for mailing lists over PEP
+pull-requests and PEP code reviews?
+[The original thread is probably a better place to discuss PEP process
+going forward]
+"""
+
+
+>
+>
+> Cheers,
+> Jeroen Demeyer.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/wes.
+> turner%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/460a8863/attachment.html>
+
+From songofacandy at gmail.com  Wed Oct  3 09:51:24 2018
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Wed, 3 Oct 2018 22:51:24 +0900
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <5BB4B21D.2070302@UGent.be>
+References: <5BB4B21D.2070302@UGent.be>
+Message-ID: <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+
+2018?10?3?(?) 21:24 Jeroen Demeyer <J.Demeyer at ugent.be>:
+
+> Hello,
+>
+>
+> I am well aware of the current governance issues, but several people
+> have mentioned that the BDFL-Delegate process can still continue for
+> now.
+
+
+Really?
+I don't know process to assign BDFL-delegate without BDFL.
+
+
+This PEP is mainly for third party tools.
+I want to get much feedback from them before new APIs become stable (e.g.
+3.8b1)
+
+So I want this PEP is approved (or
+Provisionally Accepted) and reference implementation is merged as fast as
+possible.
+
+Regards,
+
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/03b43b3a/attachment.html>
+
+From lukasz at langa.pl  Wed Oct  3 11:06:53 2018
+From: lukasz at langa.pl (=?utf-8?Q?=C5=81ukasz_Langa?=)
+Date: Wed, 3 Oct 2018 17:06:53 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+Message-ID: <08061C62-97C5-4245-81FA-DC624F4D8730@langa.pl>
+
+
+> On 3 Oct 2018, at 15:51, INADA Naoki <songofacandy at gmail.com> wrote:
+> 
+> 
+> 2018?10?3?(?) 21:24 Jeroen Demeyer <J.Demeyer at ugent.be <mailto:J.Demeyer at ugent.be>>:
+> Hello,
+> 
+> 
+> I am well aware of the current governance issues, but several people
+> have mentioned that the BDFL-Delegate process can still continue for
+> now.
+> 
+> Really?
+> I don't know process to assign BDFL-delegate without BDFL.
+
+My understand is that accepting *any* PEP by anyone is out of the question until the governance situation gets resolved. That's the only reason why PEP 544 is not yet accepted for example.
+
+- ?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/a29cde26/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/a29cde26/attachment.sig>
+
+From lukasz at langa.pl  Wed Oct  3 11:12:04 2018
+From: lukasz at langa.pl (=?utf-8?Q?=C5=81ukasz_Langa?=)
+Date: Wed, 3 Oct 2018 17:12:04 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <08061C62-97C5-4245-81FA-DC624F4D8730@langa.pl>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <08061C62-97C5-4245-81FA-DC624F4D8730@langa.pl>
+Message-ID: <820E6A21-6112-4956-8003-02F220277EEB@langa.pl>
+
+
+> On 3 Oct 2018, at 17:06, ?ukasz Langa <lukasz at langa.pl> wrote:
+> 
+> My understand is
+
+?????
+
+...and no ability to edit to correct it. It's like this forever now, my grand children will ridicule me for this.
+
+- ?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/36719557/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/36719557/attachment.sig>
+
+From wes.turner at gmail.com  Wed Oct  3 11:12:26 2018
+From: wes.turner at gmail.com (Wes Turner)
+Date: Wed, 3 Oct 2018 11:12:26 -0400
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+Message-ID: <CACfEFw-GgT9z-112z6izHho=LHphgYGUEzAiuxnVgOmE7SoZmw@mail.gmail.com>
+
+On Wednesday, October 3, 2018, INADA Naoki <songofacandy at gmail.com> wrote:
+
+>
+> 2018?10?3?(?) 21:24 Jeroen Demeyer <J.Demeyer at ugent.be>:
+>
+>> Hello,
+>>
+>>
+>> I am well aware of the current governance issues, but several people
+>> have mentioned that the BDFL-Delegate process can still continue for
+>> now.
+>
+>
+> Really?
+> I don't know process to assign BDFL-delegate without BDFL.
+>
+
+AFAIU, there is not yet a documented process for BDFL-delegate assignment.
+
+There's this in the devguide; which links to PEP1:
+
+"20.2. PEP Process?"
+https://devguide.python.org/langchanges/#pep-process
+https://github.com/python/devguide/blob/master/langchanges.rst
+
+
+And PEP 1:
+
+"PEP 1 -- PEP Purpose and Guidelines"
+  "PEP Workflow"
+https://www.python.org/dev/peps/pep-0001/#pep-workflow
+  "PEP Editors"
+https://www.python.org/dev/peps/pep-0001/#pep-editors
+  "PEP Editor Responsibilities & Workflow"
+https://www.python.org/dev/peps/pep-0001/#pep-editor-responsibilities-workflow
+
+https://github.com/python/peps/blob/master/pep-0001.txt
+
+And the devguide has a list of experts:
+https://devguide.python.org/experts/
+
+
+Maybe PEP1 is the place to list current BDFL-Delegates
+(in addition to in the PEP metadata as in the OT PR:
+python/peps#797
+"PEP 580: Petr Viktorin as BDFL-Delegate"
+)?
+
+
+Not to bikeshed, but is BDFL-Delegate still the current term because that's
+what's in all the other PEPs' metadata?
+
+
+>
+> This PEP is mainly for third party tools.
+> I want to get much feedback from them before new APIs become stable (e.g.
+> 3.8b1)
+>
+> So I want this PEP is approved (or
+> Provisionally Accepted) and reference implementation is merged as fast as
+> possible.
+>
+> Regards,
+>
+>>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/08746f6d/attachment-0001.html>
+
+From J.Demeyer at UGent.be  Wed Oct  3 11:19:05 2018
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 3 Oct 2018 17:19:05 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <d3999ce47a9242aba67500d1e4802c02@xmail103.UGent.be>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <d3999ce47a9242aba67500d1e4802c02@xmail103.UGent.be>
+Message-ID: <5BB4DDE9.5010309@UGent.be>
+
+On 2018-10-03 17:12, Wes Turner wrote:
+> AFAIU, there is not yet a documented process for BDFL-delegate assignment.
+
+PEP 1 says:
+
+"""
+However, whenever a new PEP is put forward, any core developer that
+believes they are suitably experienced to make the final decision on
+that PEP may offer to serve as the BDFL's delegate (or "PEP czar") for
+that PEP. If their self-nomination is accepted by the other core
+developers and the BDFL, then they will have the authority to approve
+(or reject) that PEP.
+"""
+
+I know that it says "core developers and the BDFL". However, if the core
+developers agree that Petr can become BDFL-Delegate, I don't see why
+that wouldn't be possible.
+
+
+Jeroen.
+
+From steve at pearwood.info  Wed Oct  3 11:59:37 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 4 Oct 2018 01:59:37 +1000
+Subject: [Python-Dev] Should assert continue to do a LOAD_GLOBAL on
+ AssertionError?
+Message-ID: <20181003155937.GM21220@ando.pearwood.info>
+
+On the bug tracker, there's a discussion about the current behaviour of 
+the assert statement, where shadowing AssertionError will change the 
+behaviour of the assertion.
+
+https://bugs.python.org/issue34880
+
+Currently, assert does a LOAD_GLOBAL on AssertionError, which means if 
+you shadow the name, you get a different exception. This behaviour goes 
+back to Python 1.5.
+
+I'm looking for guidance here, is this the intended behaviour, or an 
+accident? Should it be changed to better match other builtins?
+
+(For example, shadowing iter doesn't effect for loops.)
+
+
+Thanks,
+
+
+Steve
+
+From J.Demeyer at UGent.be  Wed Oct  3 12:08:59 2018
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 3 Oct 2018 18:08:59 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <0d922ba1b09b46ad8efc08056c6e5771@xmail103.UGent.be>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <0d922ba1b09b46ad8efc08056c6e5771@xmail103.UGent.be>
+Message-ID: <5BB4E99B.3000905@UGent.be>
+
+On 2018-10-03 17:06, ?ukasz Langa wrote:
+> That's the only
+> reason why PEP 544 is not yet accepted for example.
+
+Did you actually try to get PEP 544 accepted or to appoint a 
+BDFL-Delegate? I don't find any discussions about PEP 544 after the 
+stepping down of the BDFL.
+
+From guido at python.org  Wed Oct  3 12:41:41 2018
+From: guido at python.org (Guido van Rossum)
+Date: Wed, 3 Oct 2018 09:41:41 -0700
+Subject: [Python-Dev] PEP 544 status (forked off "Petr Viktorin as
+ BDFL-Delegate for PEP 580")
+In-Reply-To: <5BB4E99B.3000905@UGent.be>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <0d922ba1b09b46ad8efc08056c6e5771@xmail103.UGent.be>
+ <5BB4E99B.3000905@UGent.be>
+Message-ID: <CAP7+vJJfJugqYFBhP8Dtf0=X3ju7xGFh43BXrXxiS_5dvG1iug@mail.gmail.com>
+
+The process for PEP 544 is off-topic for that thread so I'm starting a new
+one.
+
+I have promised its author to approve it after certain minor changes (that
+we both agree on) have been made. It's not an example of how PEP acceptance
+in general will works until governance is sorted out though -- PEP 544 is a
+very unique special case. (For one, it's uncontroversial -- the reason it's
+not been accepted yet is that its author is busy with other things.)
+
+On Wed, Oct 3, 2018 at 9:12 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> On 2018-10-03 17:06, ?ukasz Langa wrote:
+> > That's the only
+> > reason why PEP 544 is not yet accepted for example.
+>
+> Did you actually try to get PEP 544 accepted or to appoint a
+> BDFL-Delegate? I don't find any discussions about PEP 544 after the
+> stepping down of the BDFL.
+>
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/50feaf28/attachment.html>
+
+From barry at python.org  Wed Oct  3 12:55:41 2018
+From: barry at python.org (Barry Warsaw)
+Date: Wed, 3 Oct 2018 09:55:41 -0700
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <08061C62-97C5-4245-81FA-DC624F4D8730@langa.pl>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <08061C62-97C5-4245-81FA-DC624F4D8730@langa.pl>
+Message-ID: <09935642-FB02-4183-A6D6-2F22126A5119@python.org>
+
+On Oct 3, 2018, at 08:06, ?ukasz Langa <lukasz at langa.pl> wrote:
+> 
+>> On 3 Oct 2018, at 15:51, INADA Naoki <songofacandy at gmail.com> wrote:
+>> 
+>> Really?
+>> I don't know process to assign BDFL-delegate without BDFL.
+> 
+> My understand is that accepting *any* PEP by anyone is out of the question until the governance situation gets resolved. That's the only reason why PEP 544 is not yet accepted for example.
+
+Correct.  It?s entirely possible that the different governance models will have different ways to pick delegates.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/14f025bb/attachment.sig>
+
+From aixtools at felt.demon.nl  Wed Oct  3 12:57:00 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Wed, 3 Oct 2018 18:57:00 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <pp13ga$i2i$1@blaine.gmane.org>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+ <pp0o5i$e2a$1@blaine.gmane.org>
+ <d1a07423-d09a-626d-3f49-4e382d83e802@felt.demon.nl>
+ <pp13ga$i2i$1@blaine.gmane.org>
+Message-ID: <a1f8f4eb-67b1-f7c7-c931-f218884363dc@felt.demon.nl>
+
+
+
+On 10/3/2018 2:48 AM, Terry Reedy wrote:
+> On 10/2/2018 7:16 PM, Michael Felt wrote:
+>>
+>>
+>> On 10/2/2018 11:34 PM, Terry Reedy wrote:
+>>> On 10/2/2018 12:41 PM, Simon Cross wrote:
+>>>> Are there any core devs that Michael or Erik could collaborate with?
+>>>> Rather than rely on adhoc patch review from random core developers.
+>>>
+>>> You two might collaborate with each other to the extent of reviewing
+>>> some of each other's PRs.
+>
+>> Might be difficult. We both, or at least I, claim ignorance of the
+>> others platform.
+>
+> Partial reviews, short of accept/change are better than no review and
+> can make a merge decision easier for a core dev.? You should each be
+> or become familiar with PEP 7 and somewhat familiar with local C
+> idioms. Do names follow local standards.? Do C-API calls make sense.
+Sounds simple enough. The tricky part is "the details".
+>
+> >>? I still have a lot of PEP to learn, and my idea of a
+> >> bug-fix (for Python2) was seen by core-dev as a feature change.
+>
+> Failures of current tests would seem to me to be bugs.? However, some
+> bug fixes require a feature change.? It is an awkward situation.? We
+> are increasingly reluctant to patch 2.7.
+Some are quite simple to fix, even if hard to find: such as:
+"elif cmd is None:" -> "elif notcmd orcmd is None:"
+
+Some are not bugs at all - very hard to find! Instead, "textual"
+differences because a library is overly optimized - the expected
+exception occurs - but no error message. Linking with a less optimized
+(libssl.a and libcrypto.a) resolved many reported test "failures".
+
+Nearly three years ago I was keen to see things in Python2(.7), but not
+so much now. I also feel the time is to push hard towards current
+Python3 versions.
+>
+>>> That still leaves the issue of merging.
+>> How much confidence is there in all the "CI" tests? Does that not offer
+>> sufficient confidence for a core-dev to press merge.
+>
+> Code for new features or bugs that escaped the tests should have new
+> tests.? AIX-specific code should (as in must ;-) be tested before
+> being submitted, since it will not be properly tested by CI.? With CI
+> now covering Windows twice, Linux twice, and Mac, I believe it has
+> become rarer for buildbots to fail after CI passes.? Victor would know.
+>
+> I? believe that you are initially dealing with bugs that do not pass
+> current tests.
+I am dealing with tests that do not pass. The dilemma: what is wrong -
+the test, or what it is testing? Generally speaking, I cannot call
+Python3 (master) broken. So I look for a "root cause" in a test
+assumption that is wrong, and find a way to correct that.
+
+Sometimes, it is a bit of both - and those are very hard to resolve
+without feedback.
+
+See the discussion, elsewhere, regarding MACADDR. It has never been that
+platform Y does not have a MACADDR - rather, platform Y formats it
+differently than (all) other platforms.
+
+>
+>> How about "master" continuing to be what it is, but insert a new
+>> "pre-master" branch that the buildbots actually test on (e.g., what is
+>> now the 3.X) and have a 3.8 buildbot - for what is now the "master".
+>>
+>> PR would still be done based on master, but an "initial" merge would be
+>> via the pre-master aka 3.X buildbot tests.
+>>
+>> How "friendly" git is - that it not become such a workload to keep it
+>> clean - I cannot say. Still learning to use git. Better, but still do
+>> not want to assume it would be easy.
+>
+> Too complicated.
+>
+>> My hope is that it would make it easier to consider a "merge" step that
+>> gets all the buildbots involved for even broader CI tests.
+>
+> I considered the wider buildbot fleet to be post-merge CI ;-).
+>
+>>> I think for tests, a separate test_aix.py might be a good idea for
+>>> aix-only tests
+>
+> I may be wrong on this.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/aixtools%40felt.demon.nl
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/d41874dd/attachment.html>
+
+From guido at python.org  Wed Oct  3 13:15:03 2018
+From: guido at python.org (Guido van Rossum)
+Date: Wed, 3 Oct 2018 10:15:03 -0700
+Subject: [Python-Dev] Should assert continue to do a LOAD_GLOBAL on
+ AssertionError?
+In-Reply-To: <20181003155937.GM21220@ando.pearwood.info>
+References: <20181003155937.GM21220@ando.pearwood.info>
+Message-ID: <CAP7+vJJ2j1X08TStEfZrYCwVHdD85DXjrsFabNSA=5gE+=mLNg@mail.gmail.com>
+
+Feels like an accident to me. Generally syntactic constructs should be
+unaffected by what's in any namespace except when the override is
+intentional (e.g. __import__).
+
+On Wed, Oct 3, 2018 at 9:02 AM Steven D'Aprano <steve at pearwood.info> wrote:
+
+> On the bug tracker, there's a discussion about the current behaviour of
+> the assert statement, where shadowing AssertionError will change the
+> behaviour of the assertion.
+>
+> https://bugs.python.org/issue34880
+>
+> Currently, assert does a LOAD_GLOBAL on AssertionError, which means if
+> you shadow the name, you get a different exception. This behaviour goes
+> back to Python 1.5.
+>
+> I'm looking for guidance here, is this the intended behaviour, or an
+> accident? Should it be changed to better match other builtins?
+>
+> (For example, shadowing iter doesn't effect for loops.)
+>
+>
+> Thanks,
+>
+>
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/e4dd9674/attachment.html>
+
+From aixtools at felt.demon.nl  Wed Oct  3 13:22:26 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Wed, 3 Oct 2018 19:22:26 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <20181002234626.uaz5qisonzseywiz@python.ca>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <20181002234626.uaz5qisonzseywiz@python.ca>
+Message-ID: <55451d2a-6f2d-c453-9d5a-c863c795f443@felt.demon.nl>
+
+
+
+On 10/3/2018 1:46 AM, Neil Schemenauer wrote:
+> On 2018-10-02, Michael Felt wrote:
+>> I am sorry, for myself obviously - but also for Python. Obviously, I am
+>> doing it all wrong - as I see lots of other issues being picked up
+>> immediately.
+> I'm not sure that's the case.  There are a lot of PRs or bugs that
+> sit there without getting reviews.  The problem is that few (or no)
+> core developers get paid to work on Python.  So, the time they spend
+> is motivated by their specific "itch".  Getting reviews on any PR is
+> difficult, even for core developers.  In their case, they have to
+> option of forcing the issue, I guess.
+>
+> This is a problem we should try to deal with somehow.  Turning off
+> valuable contributors like you is bad.  I'm not sure how to do it
+> though.  At the core Python sprint in September there was some talk
+> about how CPython developers might get funding.  Maybe that could
+> help deal with the backlog of reviews required.
+>
+>> And, while you may not give a damn about anything other than Windows,
+>> macos and/or Linux - there are other platforms that would like a stable
+>> Python.
+> There is probably some truth in not caring about other platforms.
+> The problem from the reviewer perspective is the question of "what
+> is the potential downsides of this PR vs what are the benefits?".
+> The safest thing is to not approve the PR.  No core developer wants
+> to be the person who broke CPython.  You must admit, AIX is an
+> extremely niche platform at this point.  I bet if you picked 1000
+> software developers at random, it would be likely that zero of them
+> have ever used AIX.  So, it's not that we don't care at all about
+> AIX but that the cost/benefit equation makes accepting AIX specific
+> changes more difficult.
+Nods. However - this is a chicken/egg issue (imho). AIX is seen a weak
+platform because noone has ever tackled these. When I started on this I
+had never expected to have found a resolution to them all.
+
+Platforms have differences and when the tests miss that difference that
+the tests give a false result. e.g., one accepted PR was because AIX
+libc printf() output for printf(NULL) is "" while other platforms output
+"(null)".
+
+
+>
+> One specific suggestion I have about your PR is to try to make your
+> changes not AIX specific.  Or at least, make the AIX checking as
+> localized as possible.  So, as an example, in test_uuid you have:
+>
+>     _notAIX = not sys.platform.startswith("aix")
+a) I thought/hoped this was better practice and performance - calling?
+sys.platform.startswith("aix")only once, rather than X times.
+b) more maintainable (e.g., change to not platform.system()
+c) iirc - this got changed to AIX = ...., and throughout the test is "if
+not AIX"...
+>
+> then later in the module you check that flag.  While that is the
+> most direct approach to fixing the issue and making the test pass,
+> it is not good for the long term maintainability of the code.  You
+> end up with boolean flags like _notAIX spread about the logic.  Over
+> time, code like that becomes a nightmare to maintain.
+>
+> Instead, I would suggest test_uuid is making platform specific
+> assumptions that are not true on AIX and possibly other platforms.
+> So, do something like:
+>
+>     
+>     _IS_AIX = sys.platform.startswith("aix")
+better name.
+>
+>     _HAVE_MACADDR = (os.name == 'posix' and not _IS_AIX)
+AIX has MACADDR, but formatted with '.' rather than ':' and uses a
+single hex-digit when value between dots is < 16 (decimal)
+>
+>     @unittest.skipUnless(_HAVE_MACADDR, 'requires Posix with macaddr')
+>     def test_arp_getnode(self):
+>         ...
+>
+> The _HAVE_MACADDR test is relatively simple and clear, does this
+> platform have this capability.  Later in the code, a check for
+> _HAVE_MACADDR is also quite clear.  If someone comes along with
+> another platform that doesn't support macaddr, they only have to
+> change one line of code.
+>
+> This kind of capability checking is similar to what happened with
+> web browsers.  In that case, people discovered that checking the
+> User Agent header was a bad idea.  Instead, you should probe for
+> specific functionality and not assume based on browser IDs.  For the
+> macaddr case, is there some way to you probe the arp command to see
+> if supports macaddr? 
+I suppose if someone had written the original test with "check program
+to see if ..." it would have worked already.
+I am trying to get current tests to work with minimal changes.
+
+I am certainly not "blaming" anyone for not knowing this unique behavior
+of this platform. Before debugging this I did not know of the difference
+either. I agree that wherever a generic resolution is possible - it
+should be done. However, as an "outsider" I do not feel empowered enough
+to propose such a change to existing (and well proven for other
+platforms) tests.
+>  That way your test doesn't have to include any
+> AIX specific check at all.  Further, it would have some hope of
+> working on platforms other than AIX that also don't support macaddr
+> but are POSIX and have 'arp'.  The code could be something like:
+>
+> _HAVE_MACADDR = False
+> if os.name == 'posix':
+>     if <check arp to see if it supports macaddr>:
+>         _HAVE_MACADDR = True
+>
+> Hope that is helpful.
+All feedback and constructive criticism is helpful. Thank you for taking
+the time to share!
+>
+>   Neil
+
+
+From solipsis at pitrou.net  Wed Oct  3 14:08:23 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 3 Oct 2018 20:08:23 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+Message-ID: <20181003200823.034802d9@fsol>
+
+On Wed, 3 Oct 2018 22:51:24 +0900
+INADA Naoki <songofacandy at gmail.com> wrote:
+> 2018?10?3?(?) 21:24 Jeroen Demeyer <J.Demeyer at ugent.be>:
+> 
+> > Hello,
+> >
+> >
+> > I am well aware of the current governance issues, but several people
+> > have mentioned that the BDFL-Delegate process can still continue for
+> > now.  
+> 
+> 
+> Really?
+> I don't know process to assign BDFL-delegate without BDFL.
+
+That's probably why we should call it "PEP-delegate" :-)
+
+Consensus would obviously work (if no-one opposes the proposed person,
+then surely we don't need an elaborate governance model to decree that
+said person can become the PEP delegate, no?).
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Wed Oct  3 14:09:42 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 3 Oct 2018 20:09:42 +0200
+Subject: [Python-Dev] Should assert continue to do a LOAD_GLOBAL on
+ AssertionError?
+References: <20181003155937.GM21220@ando.pearwood.info>
+Message-ID: <20181003200942.5360344e@fsol>
+
+On Thu, 4 Oct 2018 01:59:37 +1000
+Steven D'Aprano <steve at pearwood.info> wrote:
+> On the bug tracker, there's a discussion about the current behaviour of 
+> the assert statement, where shadowing AssertionError will change the 
+> behaviour of the assertion.
+> 
+> https://bugs.python.org/issue34880
+> 
+> Currently, assert does a LOAD_GLOBAL on AssertionError, which means if 
+> you shadow the name, you get a different exception. This behaviour goes 
+> back to Python 1.5.
+> 
+> I'm looking for guidance here, is this the intended behaviour, or an 
+> accident? Should it be changed to better match other builtins?
+
+I would make it an implementation detail myself, i.e. any
+implementation is free to make it work as it prefers.
+
+Regards
+
+Antoine.
+
+
+
+From tjreedy at udel.edu  Wed Oct  3 17:10:17 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 3 Oct 2018 17:10:17 -0400
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <5BB4B21D.2070302@UGent.be>
+References: <5BB4B21D.2070302@UGent.be>
+Message-ID: <pp3b3o$tl2$1@blaine.gmane.org>
+
+On 10/3/2018 8:12 AM, Jeroen Demeyer wrote:
+> Hello,
+> 
+> I would like to propose Petr Viktorin as BDFL-Delegate for PEP 580, 
+> titled "The C call protocol". He has co-authored several PEPs (PEP 394, 
+> PEP 489, PEP 534, PEP 547, PEP 573), several of which involve extension 
+> modules.
+> 
+> Petr has agreed to become BDFL-Delegate for PEP 580 if asked. Also 
+> Antoine Pitrou, INADA Naoki and Nick Coghlan have approved Petr being 
+> BDFL-Delegate.
+
+To me, three experienced core devs approving of a 4th person as 
+PEP-examiner is sufficient to proceed on a CPython implementation 
+proposal.  I don't think we need to be paralyzed on this.  And indeed, 
+when it comes to sub-PEP C-API changes, we seem not to be.  This change, 
+if made, should be early in the cycle for the next version, rather than 
+landing just before the first beta.
+
+A language syntax-change proposal would be something else.
+
+
+-- 
+Terry Jan Reedy
+
+
+From guido at python.org  Wed Oct  3 17:27:16 2018
+From: guido at python.org (Guido van Rossum)
+Date: Wed, 3 Oct 2018 14:27:16 -0700
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <pp3b3o$tl2$1@blaine.gmane.org>
+References: <5BB4B21D.2070302@UGent.be> <pp3b3o$tl2$1@blaine.gmane.org>
+Message-ID: <CAP7+vJJdC=05OBaHS4DKHbHQPn6K5SGCoTOg=M9t26v9m=QfpQ@mail.gmail.com>
+
+On Wed, Oct 3, 2018 at 2:13 PM Terry Reedy <tjreedy at udel.edu> wrote:
+
+> A language syntax-change proposal would be something else.
+>
+
+IMO changes to the C API should be taken just as seriously -- the potential
+for breaking the world is just about the same (since most serious Python
+applications use C extensions that risk breaking).
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/5372b3fa/attachment.html>
+
+From tjreedy at udel.edu  Wed Oct  3 18:14:47 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 3 Oct 2018 18:14:47 -0400
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <CAP7+vJJdC=05OBaHS4DKHbHQPn6K5SGCoTOg=M9t26v9m=QfpQ@mail.gmail.com>
+References: <5BB4B21D.2070302@UGent.be> <pp3b3o$tl2$1@blaine.gmane.org>
+ <CAP7+vJJdC=05OBaHS4DKHbHQPn6K5SGCoTOg=M9t26v9m=QfpQ@mail.gmail.com>
+Message-ID: <pp3esr$82t$1@blaine.gmane.org>
+
+On 10/3/2018 5:27 PM, Guido van Rossum wrote:
+> On Wed, Oct 3, 2018 at 2:13 PM Terry Reedy <tjreedy at udel.edu 
+> <mailto:tjreedy at udel.edu>> wrote:
+> 
+>     A language syntax-change proposal would be something else.
+> 
+> 
+> IMO changes to the C API should be taken just as seriously -- the 
+> potential for breaking the world is just about the same (since most 
+> serious Python applications use C extensions that risk breaking).
+
+I agree.  My observation is that PEP-delegates have taken their 
+responsibility *very* seriously, and I think that the evidence is that 
+Petr would.  If you think otherwise, please explain.  On reason for a 
+serious examination to start now is to allow adequate time.
+
+The difference I was referring to is the philosophical basis of and 
+technical evaluation skill needed for a decision.  I feel competent to 
+opine on syntax proposals, but not on technical details of CPyython 
+calls.  Moreover, as long as an internal change does not break anything, 
+and at least does not hinder writing C extensions, I have little reason 
+to care, whereas syntax changes will affect me, even if they are 'good' 
+changes.
+
+-- 
+Terry Jan Reedy
+
+
+From guido at python.org  Wed Oct  3 18:23:58 2018
+From: guido at python.org (Guido van Rossum)
+Date: Wed, 3 Oct 2018 15:23:58 -0700
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <pp3esr$82t$1@blaine.gmane.org>
+References: <5BB4B21D.2070302@UGent.be> <pp3b3o$tl2$1@blaine.gmane.org>
+ <CAP7+vJJdC=05OBaHS4DKHbHQPn6K5SGCoTOg=M9t26v9m=QfpQ@mail.gmail.com>
+ <pp3esr$82t$1@blaine.gmane.org>
+Message-ID: <CAP7+vJLSyAPrFFQPkW2rFE9viB21daEQ4Mj17vEYHJBzhrCXfA@mail.gmail.com>
+
+Well, it's not my call any more, so I'll happily stop arguing.
+
+On Wed, Oct 3, 2018 at 3:19 PM Terry Reedy <tjreedy at udel.edu> wrote:
+
+> On 10/3/2018 5:27 PM, Guido van Rossum wrote:
+> > On Wed, Oct 3, 2018 at 2:13 PM Terry Reedy <tjreedy at udel.edu
+> > <mailto:tjreedy at udel.edu>> wrote:
+> >
+> >     A language syntax-change proposal would be something else.
+> >
+> >
+> > IMO changes to the C API should be taken just as seriously -- the
+> > potential for breaking the world is just about the same (since most
+> > serious Python applications use C extensions that risk breaking).
+>
+> I agree.  My observation is that PEP-delegates have taken their
+> responsibility *very* seriously, and I think that the evidence is that
+> Petr would.  If you think otherwise, please explain.  On reason for a
+> serious examination to start now is to allow adequate time.
+>
+> The difference I was referring to is the philosophical basis of and
+> technical evaluation skill needed for a decision.  I feel competent to
+> opine on syntax proposals, but not on technical details of CPyython
+> calls.  Moreover, as long as an internal change does not break anything,
+> and at least does not hinder writing C extensions, I have little reason
+> to care, whereas syntax changes will affect me, even if they are 'good'
+> changes.
+>
+> --
+> Terry Jan Reedy
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/b2aa760f/attachment.html>
+
+From seanharr11 at gmail.com  Wed Oct  3 21:30:21 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Wed, 3 Oct 2018 21:30:21 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+Message-ID: <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+
+Hi guys -
+
+The solution to "lazily initialize" an expensive object in the worker
+process (i.e. via @lru_cache) is a great solution (that I must admit I did
+not think of). Additionally, in the second use case of "*passing a large
+object to each worker process*", I also agree with your suggestion to
+"shelter functions in a different module to avoid exposure to globals" as a
+good solution if one is wary of globals.
+
+That said, I still think "*passing a large object from parent process to
+worker processes*" should be easier when using Pool. Would either of you be
+open to something like the following?
+
+           def func(x, big_cache=None):
+               return big_cache[x]
+
+           big_cache =  { str(k): k for k in range(10000) }
+
+           ls = [ i for i in range(1000) ]
+
+with Pool(func_kwargs={"big_cache": big_cache}) as pool:
+
+    pool.map(func, ls)
+
+
+It's a much cleaner interface (which presumably requires a more difficult
+implementation) than my initial proposal. This also reads a lot better than
+the "initializer + global" recipe (clear flow of data), and is less
+constraining than the "define globals in parent" recipe. Most importantly,
+when taking sequential code and parallelizing via Pool.map, this does not
+force the user to re-implement "func" such that it consumes a global
+(rather than a kwarg). It allows "func" to be used elsewhere (i.e. in the
+parent process, from a different module, testing w/o globals, etc...)..
+
+This would essentially be an efficient implementation of Pool.starmap(),
+where kwargs are static, and passed to each application of "func" over our
+iterable.
+
+Thoughts?
+
+
+On Sat, Sep 29, 2018 at 3:00 PM Michael Selik <mike at selik.org> wrote:
+
+> On Sat, Sep 29, 2018 at 5:24 AM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+> >> On Fri, Sep 28, 2018 at 4:39 PM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+> >> > My simple argument is that the developer should not be constrained to
+> make the objects passed globally available in the process, as this MAY
+> break encapsulation for large projects.
+> >>
+> >> I could imagine someone switching from Pool to ThreadPool and getting
+> >> into trouble, but in my mind using threads is caveat emptor. Are you
+> >> worried about breaking encapsulation in a different scenario?
+> >
+> > >> Without a specific example on-hand, you could imagine a tree of
+> function calls that occur in the worker process (even newly created
+> objects), that should not necessarily have access to objects passed from
+> parent -> worker. In every case given the current implementation, they will.
+>
+> Echoing Antoine: If you want some functions to not have access to a
+> module's globals, you can put those functions in a different module.
+> Note that multiprocessing already encapsulates each subprocesses'
+> globals in essentially a separate namespace.
+>
+> Without a specific example, this discussion is going to go around in
+> circles. You have a clear aversion to globals. Antoine and I do not.
+> No one else seems to have found this conversation interesting enough
+> to participate, yet.
+
+
+>>>
+
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181003/d162a147/attachment.html>
+
+From benjamin at python.org  Wed Oct  3 22:38:34 2018
+From: benjamin at python.org (Benjamin Peterson)
+Date: Wed, 03 Oct 2018 19:38:34 -0700
+Subject: [Python-Dev] Should assert continue to do a LOAD_GLOBAL on
+ AssertionError?
+In-Reply-To: <20181003155937.GM21220@ando.pearwood.info>
+References: <20181003155937.GM21220@ando.pearwood.info>
+Message-ID: <1538620714.2141716.1530108600.48469F20@webmail.messagingengine.com>
+
+
+
+On Wed, Oct 3, 2018, at 08:59, Steven D'Aprano wrote:
+> On the bug tracker, there's a discussion about the current behaviour of 
+> the assert statement, where shadowing AssertionError will change the 
+> behaviour of the assertion.
+> 
+> https://bugs.python.org/issue34880
+> 
+> Currently, assert does a LOAD_GLOBAL on AssertionError, which means if 
+> you shadow the name, you get a different exception. This behaviour goes 
+> back to Python 1.5.
+> 
+> I'm looking for guidance here, is this the intended behaviour, or an 
+> accident? Should it be changed to better match other builtins?
+
+The behavior certainly has been relied on historically by py.test. By replacing builtins.AssertionError, you can improve the error message of the AssertionError by, e.g., inspecting the failing frame. py.test's code to do this was deleted in 2016, but other code bases may still be relying on this hack. It's probably okay to change the behavior in 3.8 with the understanding that a revert may be necessary if some clever hack surfaces.
+
+From ncoghlan at gmail.com  Thu Oct  4 02:14:53 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 4 Oct 2018 16:14:53 +1000
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <20181003200823.034802d9@fsol>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <20181003200823.034802d9@fsol>
+Message-ID: <CADiSq7fX=2bLU4noJAiwS4J3bKwcL2AztsQJQvswTa1Pid7ddg@mail.gmail.com>
+
+On Thu., 4 Oct. 2018, 4:12 am Antoine Pitrou, <solipsis at pitrou.net> wrote:
+
+> On Wed, 3 Oct 2018 22:51:24 +0900
+> INADA Naoki <songofacandy at gmail.com> wrote:
+> > 2018?10?3?(?) 21:24 Jeroen Demeyer <J.Demeyer at ugent.be>:
+> >
+> > > Hello,
+> > >
+> > >
+> > > I am well aware of the current governance issues, but several people
+> > > have mentioned that the BDFL-Delegate process can still continue for
+> > > now.
+> >
+> >
+> > Really?
+> > I don't know process to assign BDFL-delegate without BDFL.
+>
+> That's probably why we should call it "PEP-delegate" :-)
+>
+> Consensus would obviously work (if no-one opposes the proposed person,
+> then surely we don't need an elaborate governance model to decree that
+> said person can become the PEP delegate, no?).
+>
+
+I was figuring we could treat it as a caretaker mode governance: anything
+we do before the new governance model is formalised is subject to
+ratification by the new council members (or the new BDFL if that option
+ends up being chosen).
+
+In this case, I'd consider it unlikely for either the PEP delegate
+appointment or any decisions about the PEP itself to be overturned - while
+it's a complex topic that definitely needs to go through the PEP process in
+order to work out the technical details, it isn't especially controversial
+in its own right (the most controversial aspect is whether it needs a new C
+level slot or not, and the PEP should clearly lay out the pros and cons of
+that)
+
+Cheers,
+Nick.
+
+
+
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/ncoghlan%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181004/2baed804/attachment.html>
+
+From J.Demeyer at UGent.be  Thu Oct  4 02:14:41 2018
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 4 Oct 2018 08:14:41 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <16ccc51b3d0a46aebd544027fd81a6d1@xmail103.UGent.be>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <08061C62-97C5-4245-81FA-DC624F4D8730@langa.pl>
+ <16ccc51b3d0a46aebd544027fd81a6d1@xmail103.UGent.be>
+Message-ID: <5BB5AFD1.7010807@UGent.be>
+
+On 2018-10-03 18:55, Barry Warsaw wrote:
+> Correct.  It?s entirely possible that the different governance models will have different ways to pick delegates.
+
+And how does that affect *today*'s decision? The new governance model 
+will only take effect 1 January (assuming that everything goes as planned).
+
+As long as there is no new governance model yet, can't we just continue 
+the PEP 1 process which has worked for many years? I know that we cannot 
+literally apply PEP 1 because there is no BDFL, but we can certainly 
+continue the spirit of PEP 1 if the other core developers agree with the 
+BDFL-Delegate.
+
+From J.Demeyer at UGent.be  Thu Oct  4 02:29:41 2018
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 4 Oct 2018 08:29:41 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <6b168c8c3a1d46668f89d601c0cedaab@xmail103.UGent.be>
+References: <5BB4B21D.2070302@UGent.be> <pp3b3o$tl2$1@blaine.gmane.org>
+ <6b168c8c3a1d46668f89d601c0cedaab@xmail103.UGent.be>
+Message-ID: <5BB5B355.4040206@UGent.be>
+
+On 2018-10-03 23:27, Guido van Rossum wrote:
+> IMO changes to the C API should be taken just as seriously -- the
+> potential for breaking the world is just about the same (since most
+> serious Python applications use C extensions that risk breaking).
+
+Of course we are taking this seriously. I want this to be taken as 
+seriously as any other PEP and any other BDFL-Delegate appointment in 
+the past.
+
+To be clear: I'm not trying to rush my PEP though. It has been discussed 
+and I have made changes to it based on comments. In fact, this is the 
+second PEP with the same subject, I withdrew the first one, PEP 575. At 
+some point in the past I asked one person to become BDFL-Delegate but he 
+did not answer. And now recently Petr Viktorin made some insightful 
+comments on it, so I asked him and he agreed.
+
