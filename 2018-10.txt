@@ -2626,3 +2626,1034 @@ some point in the past I asked one person to become BDFL-Delegate but he
 did not answer. And now recently Petr Viktorin made some insightful 
 comments on it, so I asked him and he agreed.
 
+From vstinner at redhat.com  Thu Oct  4 03:34:56 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 4 Oct 2018 09:34:56 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <d1a07423-d09a-626d-3f49-4e382d83e802@felt.demon.nl>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+ <pp0o5i$e2a$1@blaine.gmane.org>
+ <d1a07423-d09a-626d-3f49-4e382d83e802@felt.demon.nl>
+Message-ID: <CA+3bQGGTeuRBY1ibxissRV=7oLGocyeE3NRFCPRuNtuYa19A_A@mail.gmail.com>
+
+Hi,
+
+If IBM wants a better Python support, it would help a lot if IBM pays for
+this development. With money, you can easily find core dev contractors.
+Antoine Pitrou has been paid in the past to enhance Python support in
+Solaris and it worked well.
+
+Victor
+
+Le mercredi 3 octobre 2018, Michael Felt <aixtools at felt.demon.nl> a ?crit :
+>
+>
+> On 10/2/2018 11:34 PM, Terry Reedy wrote:
+>> On 10/2/2018 12:41 PM, Simon Cross wrote:
+>>> Are there any core devs that Michael or Erik could collaborate with?
+>>> Rather than rely on adhoc patch review from random core developers.
+>>
+>> You two might collaborate with each other to the extent of reviewing
+>> some of each other's PRs.
+> Might be difficult. We both, or at least I, claim ignorance of the
+> others platform. I still have a lot of PEP to learn, and my idea of a
+> bug-fix (for Python2) was seen by core-dev as a feature change. I would
+> not feel comfortable trying to mentor someone in things PEP, etc..
+>> That still leaves the issue of merging.
+> How much confidence is there in all the "CI" tests? Does that not offer
+> sufficient confidence for a core-dev to press merge.
+> How about "master" continuing to be what it is, but insert a new
+> "pre-master" branch that the buildbots actually test on (e.g., what is
+> now the 3.X) and have a 3.8 buildbot - for what is now the "master".
+>
+> PR would still be done based on master, but an "initial" merge would be
+> via the pre-master aka 3.X buildbot tests.
+>
+> How "friendly" git is - that it not become such a workload to keep it
+> clean - I cannot say. Still learning to use git. Better, but still do
+> not want to assume it would be easy.
+>
+> My hope is that it would make it easier to consider a "merge" step that
+> gets all the buildbots involved for even broader CI tests.
+>
+>>
+>>> Michael and Eric: Question -- are you interested in becoming core
+>>> developers at least for the purposes of maintaining these platforms in
+>>> future?
+>>
+>> Since adhoc is not working to get merges, I had this same suggestion.
+>> Michael and Erik, I presume you have gotten some guidelines on what
+>> modifications to C code might be accepted, and what concerns people have.
+> imho: guidelines - paraphrased - as little as possible :)
+>
+> I have many assumptions, and one of those is that my assumptions are
+> probably incorrect.
+> Goal: have AIX recognized as a Stable platform, even if not in the
+> highest supported category.
+> And that implies, support as far as I am able, to keep it "Stable".
+>>
+>> I think for tests, a separate test_aix.py might be a good idea for
+>> aix-only tests
+> Unclear to me how this would work. Too young in Python I guess (or just
+> a very old dog), but what test would be needed for AIX, or any other
+> platform, that would not need to be tested in some fashion for the
+> 'other' platforms. At a hunch, where there are many platform.system()
+> dependencies expected (e.g., test_posix, maybe doing something in the
+> class definition (is there a "Root" Object/Class that all inherit from.
+> Maybe a (read-only) "root" attribute (or is property better?) could be
+> the value of platform.system(), and iirc, might be used by as @property
+> in unittest. (so, if not in "root" class, then in something like
+> unittest/__init__.py.
+>
+> I hope to be "close" in "Python thinking" - enough that someone who
+> actually knows how the pieces fit together could come with a better, and
+> more appropriate guideline/implementation.
+>
+>> , while modification of other tests might be limited to adding skips.
+>> The idea would be to make it easy to remove aix stuff in the future if
+>> it again became unsupported.
+> IMHO: IBM and AIX do not mention it, but for openstack cloudmanagement
+> (very specifically cloud-init) AIX needs a recognized stable Python
+> implementation. I am "surprised" in the level of communication of IBM
+> with Python community.
+>
+> Personally, I do not see AIX as a specialized platform. Feels more like
+> the "last-standing" fully supported (commercial OEM) 'POSIX-UNIX'. Of
+> course my focus is narrow - so maybe there is a lot of support for
+> commercial platforms such as HPUX, Solaris, and other mainstream UNIXes.
+> Feel free to correct me!!
+>> Ditto for other specialized platforms.
+>>
+>>
+>>
+>>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181004/e08d3de7/attachment-0001.html>
+
+From encukou at gmail.com  Thu Oct  4 03:45:41 2018
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 4 Oct 2018 09:45:41 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <5BB4B21D.2070302@UGent.be>
+References: <5BB4B21D.2070302@UGent.be>
+Message-ID: <9375c9a1-ed1b-697a-96b0-c74e5e66ff83@gmail.com>
+
+On 10/3/18 2:12 PM, Jeroen Demeyer wrote:
+> Hello,
+> 
+> I would like to propose Petr Viktorin as BDFL-Delegate for PEP 580, 
+> titled "The C call protocol". He has co-authored several PEPs (PEP 394, 
+> PEP 489, PEP 534, PEP 547, PEP 573), several of which involve extension 
+> modules.
+> 
+> Petr has agreed to become BDFL-Delegate for PEP 580 if asked. Also 
+> Antoine Pitrou, INADA Naoki and Nick Coghlan have approved Petr being 
+> BDFL-Delegate.
+> 
+> I am well aware of the current governance issues, but several people 
+> have mentioned that the BDFL-Delegate process can still continue for 
+> now. I created a PR for the peps repository at 
+> https://github.com/python/peps/pull/797
+> 
+
+Hello,
+I don't think it's formally possible to do that now, but the following 
+from elsewhere in the thread does make sense:
+
+Antoine Pitrou:
+> Consensus would obviously work (if no-one opposes the proposed person,
+> then surely we don't need an elaborate governance model to decree that
+> said person can become the PEP delegate, no?).
+
+Yes, it would feel very silly to have consensus and not be able to act 
+on it. But without a governance (and approval process) it's hard to 
+*ensure* we have consensus where all relevant voices have been heard.
+
+On the other hand, I don't agree with Nick Coghlan here:
+> In this case, I'd consider it unlikely for either the PEP delegate appointment or any decisions about the PEP itself to be overturned - while it's a complex topic that definitely needs to go through the PEP process in order to work out the technical details, it isn't especially controversial in its own right (the most controversial aspect is whether it needs a new C level slot or not, and the PEP should clearly lay out the pros and cons of that)
+
+PEP 580 *is* controversial -- there's the competing PEP 576 by Mark 
+Shannon, who hasn't commented on this recently. Either would be an 
+improvement, but choosing between them is a hard trade-off.
+I'll leave technical stuff to another thread and concentrate on the 
+process here.
+
+When I'm happy with the PEP *and* if Mark says he's OK with it, I'll 
+post a summary to Python-dev & Discourse with a special focus on the 
+cons (e.g. the size increase of classes, which will affect everyone). If 
+there are no "-1"s on the PEP itself or on the way it's discussed, let's 
+treat PEP 580 as *provisionally* accepted, to be reverted if the new 
+governance doesn't ratify it.
+
+If there is no consensus, we'll need to wait for the new governance to 
+decide.
+
+From encukou at gmail.com  Thu Oct  4 03:55:10 2018
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 4 Oct 2018 09:55:10 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <CA+3bQGGTeuRBY1ibxissRV=7oLGocyeE3NRFCPRuNtuYa19A_A@mail.gmail.com>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+ <pp0o5i$e2a$1@blaine.gmane.org>
+ <d1a07423-d09a-626d-3f49-4e382d83e802@felt.demon.nl>
+ <CA+3bQGGTeuRBY1ibxissRV=7oLGocyeE3NRFCPRuNtuYa19A_A@mail.gmail.com>
+Message-ID: <baaab3a3-02cf-cb6c-2f99-89e33d102899@gmail.com>
+
+On 10/4/18 9:34 AM, Victor Stinner wrote:
+> Hi,
+> 
+> If IBM wants a better Python support, it would help a lot if IBM pays 
+> for this development. With money, you can easily find core dev 
+> contractors. Antoine Pitrou has been paid in the past to enhance Python 
+> support in Solaris and it worked well.
+
+Michael explicitly said this is a personal effort. IBM or other big 
+money is not involved.
+
+Is paying the best way to get features into Python? Does becoming a core 
+dev mean you can now get paid for approving changes? Some of the 
+implications are quite disturbing :(
+
+
+> Le?mercredi 3 octobre 2018, Michael Felt <aixtools at felt.demon.nl 
+> <mailto:aixtools at felt.demon.nl>> a ?crit?:
+>  >
+>  >
+>  > On 10/2/2018 11:34 PM, Terry Reedy wrote:
+>  >> On 10/2/2018 12:41 PM, Simon Cross wrote:
+>  >>> Are there any core devs that Michael or Erik could collaborate with?
+>  >>> Rather than rely on adhoc patch review from random core developers.
+>  >>
+>  >> You two might collaborate with each other to the extent of reviewing
+>  >> some of each other's PRs.
+>  > Might be difficult. We both, or at least I, claim ignorance of the
+>  > others platform. I still have a lot of PEP to learn, and my idea of a
+>  > bug-fix (for Python2) was seen by core-dev as a feature change. I would
+>  > not feel comfortable trying to mentor someone in things PEP, etc..
+>  >> That still leaves the issue of merging.
+>  > How much confidence is there in all the "CI" tests? Does that not offer
+>  > sufficient confidence for a core-dev to press merge.
+>  > How about "master" continuing to be what it is, but insert a new
+>  > "pre-master" branch that the buildbots actually test on (e.g., what is
+>  > now the 3.X) and have a 3.8 buildbot - for what is now the "master".
+>  >
+>  > PR would still be done based on master, but an "initial" merge would be
+>  > via the pre-master aka 3.X buildbot tests.
+>  >
+>  > How "friendly" git is - that it not become such a workload to keep it
+>  > clean - I cannot say. Still learning to use git. Better, but still do
+>  > not want to assume it would be easy.
+>  >
+>  > My hope is that it would make it easier to consider a "merge" step that
+>  > gets all the buildbots involved for even broader CI tests.
+>  >
+>  >>
+>  >>> Michael and Eric: Question -- are you interested in becoming core
+>  >>> developers at least for the purposes of maintaining these platforms in
+>  >>> future?
+>  >>
+>  >> Since adhoc is not working to get merges, I had this same suggestion.
+>  >> Michael and Erik, I presume you have gotten some guidelines on what
+>  >> modifications to C code might be accepted, and what concerns people 
+> have.
+>  > imho: guidelines - paraphrased - as little as possible :)
+>  >
+>  > I have many assumptions, and one of those is that my assumptions are
+>  > probably incorrect.
+>  > Goal: have AIX recognized as a Stable platform, even if not in the
+>  > highest supported category.
+>  > And that implies, support as far as I am able, to keep it "Stable".
+>  >>
+>  >> I think for tests, a separate test_aix.py might be a good idea for
+>  >> aix-only tests
+>  > Unclear to me how this would work. Too young in Python I guess (or just
+>  > a very old dog), but what test would be needed for AIX, or any other
+>  > platform, that would not need to be tested in some fashion for the
+>  > 'other' platforms. At a hunch, where there are many platform.system()
+>  > dependencies expected (e.g., test_posix, maybe doing something in the
+>  > class definition (is there a "Root" Object/Class that all inherit from.
+>  > Maybe a (read-only) "root" attribute (or is property better?) could be
+>  > the value of platform.system(), and iirc, might be used by as @property
+>  > in unittest. (so, if not in "root" class, then in something like
+>  > unittest/__init__.py.
+>  >
+>  > I hope to be "close" in "Python thinking" - enough that someone who
+>  > actually knows how the pieces fit together could come with a better, and
+>  > more appropriate guideline/implementation.
+>  >
+>  >> , while modification of other tests might be limited to adding skips.
+>  >> The idea would be to make it easy to remove aix stuff in the future if
+>  >> it again became unsupported.
+>  > IMHO: IBM and AIX do not mention it, but for openstack cloudmanagement
+>  > (very specifically cloud-init) AIX needs a recognized stable Python
+>  > implementation. I am "surprised" in the level of communication of IBM
+>  > with Python community.
+>  >
+>  > Personally, I do not see AIX as a specialized platform. Feels more like
+>  > the "last-standing" fully supported (commercial OEM) 'POSIX-UNIX'. Of
+>  > course my focus is narrow - so maybe there is a lot of support for
+>  > commercial platforms such as HPUX, Solaris, and other mainstream UNIXes.
+>  > Feel free to correct me!!
+>  >> Ditto for other specialized platforms.
+>  >>
+>  >>
+>  >>
+>  >>
+>  >
+>  > _______________________________________________
+>  > Python-Dev mailing list
+>  > Python-Dev at python.org <mailto:Python-Dev at python.org>
+>  > https://mail.python.org/mailman/listinfo/python-dev
+>  > Unsubscribe: 
+> https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>  >
+> 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/encukou%40gmail.com
+> 
+
+From aixtools at felt.demon.nl  Thu Oct  4 04:11:29 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Thu, 4 Oct 2018 10:11:29 +0200
+Subject: [Python-Dev] AIX to stable, what does that take?
+Message-ID: <5cdbb644-4f1d-46a7-de0c-80beebb0822d@felt.demon.nl>
+
+In the buildbots AIX is marked as "unstable"? What is needed to get it
+marked as a "stable" platform - that being one of my short-term goals.
+
+My assumption is that it needs to (at least) pass all tests - and that
+is why I keep asking for attention. All the PRs to fix individual tests
+mean less if they are not merged, for whatever reason.
+
+However, maybe there is another way, or even something additional
+needed. Maybe something I cannot provide and then I can adjust my
+expectations and goals.
+
+Regards,
+
+Michael
+
+
+From mike at selik.org  Thu Oct  4 04:14:07 2018
+From: mike at selik.org (Michael Selik)
+Date: Thu, 4 Oct 2018 01:14:07 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+Message-ID: <CAGgTfkMXK=FejiEWyjGM-nRmd0W2dt3oveFHVF7cZgufxeaMhQ@mail.gmail.com>
+
+You don't like using Pool.starmap and itertools.repeat or a comprehension
+that repeats an object?
+
+
+On Wed, Oct 3, 2018, 6:30 PM Sean Harrington <seanharr11 at gmail.com> wrote:
+
+> Hi guys -
+>
+> The solution to "lazily initialize" an expensive object in the worker
+> process (i.e. via @lru_cache) is a great solution (that I must admit I did
+> not think of). Additionally, in the second use case of "*passing a large
+> object to each worker process*", I also agree with your suggestion to
+> "shelter functions in a different module to avoid exposure to globals" as a
+> good solution if one is wary of globals.
+>
+> That said, I still think "*passing a large object from parent process to
+> worker processes*" should be easier when using Pool. Would either of you
+> be open to something like the following?
+>
+>            def func(x, big_cache=None):
+>                return big_cache[x]
+>
+>            big_cache =  { str(k): k for k in range(10000) }
+>
+>            ls = [ i for i in range(1000) ]
+>
+> with Pool(func_kwargs={"big_cache": big_cache}) as pool:
+>
+>     pool.map(func, ls)
+>
+>
+> It's a much cleaner interface (which presumably requires a more difficult
+> implementation) than my initial proposal. This also reads a lot better than
+> the "initializer + global" recipe (clear flow of data), and is less
+> constraining than the "define globals in parent" recipe. Most importantly,
+> when taking sequential code and parallelizing via Pool.map, this does not
+> force the user to re-implement "func" such that it consumes a global
+> (rather than a kwarg). It allows "func" to be used elsewhere (i.e. in the
+> parent process, from a different module, testing w/o globals, etc...)..
+>
+> This would essentially be an efficient implementation of Pool.starmap(),
+> where kwargs are static, and passed to each application of "func" over our
+> iterable.
+>
+> Thoughts?
+>
+>
+> On Sat, Sep 29, 2018 at 3:00 PM Michael Selik <mike at selik.org> wrote:
+>
+>> On Sat, Sep 29, 2018 at 5:24 AM Sean Harrington <seanharr11 at gmail.com>
+>> wrote:
+>> >> On Fri, Sep 28, 2018 at 4:39 PM Sean Harrington <seanharr11 at gmail.com>
+>> wrote:
+>> >> > My simple argument is that the developer should not be constrained
+>> to make the objects passed globally available in the process, as this MAY
+>> break encapsulation for large projects.
+>> >>
+>> >> I could imagine someone switching from Pool to ThreadPool and getting
+>> >> into trouble, but in my mind using threads is caveat emptor. Are you
+>> >> worried about breaking encapsulation in a different scenario?
+>> >
+>> > >> Without a specific example on-hand, you could imagine a tree of
+>> function calls that occur in the worker process (even newly created
+>> objects), that should not necessarily have access to objects passed from
+>> parent -> worker. In every case given the current implementation, they will.
+>>
+>> Echoing Antoine: If you want some functions to not have access to a
+>> module's globals, you can put those functions in a different module.
+>> Note that multiprocessing already encapsulates each subprocesses'
+>> globals in essentially a separate namespace.
+>>
+>> Without a specific example, this discussion is going to go around in
+>> circles. You have a clear aversion to globals. Antoine and I do not.
+>> No one else seems to have found this conversation interesting enough
+>> to participate, yet.
+>
+>
+> >>>
+>
+>>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181004/4446352a/attachment.html>
+
+From aixtools at felt.demon.nl  Thu Oct  4 04:29:19 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Thu, 4 Oct 2018 10:29:19 +0200
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <baaab3a3-02cf-cb6c-2f99-89e33d102899@gmail.com>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+ <pp0o5i$e2a$1@blaine.gmane.org>
+ <d1a07423-d09a-626d-3f49-4e382d83e802@felt.demon.nl>
+ <CA+3bQGGTeuRBY1ibxissRV=7oLGocyeE3NRFCPRuNtuYa19A_A@mail.gmail.com>
+ <baaab3a3-02cf-cb6c-2f99-89e33d102899@gmail.com>
+Message-ID: <01cbe584-6c04-982e-4d35-d20f8d48dfb9@felt.demon.nl>
+
+
+
+On 10/4/2018 9:55 AM, Petr Viktorin wrote:
+> On 10/4/18 9:34 AM, Victor Stinner wrote:
+>> Hi,
+>>
+>> If IBM wants a better Python support, it would help a lot if IBM pays
+>> for this development.
+I agree. If IBM ...
+>> ... Antoine Pitrou has been paid in the past to enhance Python
+>> support in Solaris and it worked well.
+>
+FYI - as I now have access to the gccfarm, and in the spirit of more
+generalized "posix" additions I looked for an HPUX and a Solais system
+to build master on.
+
+make test never finished (one test was still hanging after over 20
+minutes, and I had to go. Of the 419, 17 or 18 had failed. Roughly where
+AIX plus xlc was at last July without my PRs for tests.
+
+So, while it worked - money stopped and Solaris is in no better
+numerical shape (test wise) than AIX.
+> Michael explicitly said this is a personal effort. IBM or other big
+> money is not involved.
+IBM is my employer. As I am not a developer (merely a systems and
+management consultant) I do not face losing my job by working on OSS. I
+have been called off certain OSS projects because IBM was providing
+money and/or developers. This is one of the reasons (being called off
+elsewhere) that I have been hesitant to be more involved than I was in
+2015-2017.
+
+So, let me be explicit - I can only speak for myself. And as long as no
+manager says "No, cannot work on that" I have given a commitment to work
+on this. "Some things cannot be bought" - such as un-biased (I call it
+"maverick" rather than merely independent.) On the one hand IBM policy
+is to encourage independent thought. The core goal is to help customers
+succeed. But individual managers up and down the line occasionally have
+additional business needs, and then workers as myself apologize and take
+a step back - in a word - adjust.
+
+Short answer: my involvement is mine to give at no price. I am
+considered one of the worlds AIX experts on matters of integration,
+performance and security.
+
+So, I have just simple questions for you? Do you value my expertise? May
+I assist?
+
+>
+> Is paying the best way to get features into Python? Does becoming a
+> core dev mean you can now get paid for approving changes? Some of the
+> implications are quite disturbing :(
+>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181004/4714c02d/attachment.html>
+
+From songofacandy at gmail.com  Thu Oct  4 04:30:40 2018
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Thu, 4 Oct 2018 17:30:40 +0900
+Subject: [Python-Dev] AIX to stable, what does that take?
+In-Reply-To: <5cdbb644-4f1d-46a7-de0c-80beebb0822d@felt.demon.nl>
+References: <5cdbb644-4f1d-46a7-de0c-80beebb0822d@felt.demon.nl>
+Message-ID: <CAEfz+TxGQ8rz55FSOYpN+JVHqUarvP9gv8h6F9723XPwwaUGzQ@mail.gmail.com>
+
+Hello,
+
+First of all, congratulations on passing all test on AIX.
+
+> My assumption is that it needs to (at least) pass all tests - and that
+> is why I keep asking for attention. All the PRs to fix individual tests
+> mean less if they are not merged, for whatever reason.
+>
+> However, maybe there is another way, or even something additional
+> needed. Maybe something I cannot provide and then I can adjust my
+> expectations and goals.
+
+As a one of core developer, I don't know anything about AIX.
+If my change breaks AIX build, I can't investigate what's happened.
+
+So I think we need following in devguide:
+
+* Brief description about AIX, from developer's point of view.
+* How to run AIX on (VirtualBox, AWS EC2, Azure, GCP) easily.
+* How to set up a development environment for Python.
+* How to build Python.
+* How to debug C code.
+
+And even though there is a developer guide, it will take more long time
+than fixing issues on AIX, compared Linux, macOS, and Windows.
+
+But without this guide, it feels almost impossible to maintain AIX build to me.
+
+Regards,
+
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+
+From steve at pearwood.info  Thu Oct  4 04:56:34 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 4 Oct 2018 18:56:34 +1000
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+Message-ID: <20181004085633.GP21220@ando.pearwood.info>
+
+While keyword arguments have to be identifiers, using **kwargs allows 
+arbitrary strings which aren't identifiers:
+
+py> def spam(**kwargs):
+...     print(kwargs)
+...
+py> spam(**{"something arbitrary": 1, '\n': 2})
+{'something arbitrary': 1, '\n': 2}
+
+
+There is some discussion on Python-Ideas on whether or not that 
+behaviour ought to be considered a language feature, an accident of 
+implementation, or a bug.
+
+Can we get some guidence on this please?
+
+
+Thanks,
+
+
+-- 
+Steve
+
+From aixtools at felt.demon.nl  Thu Oct  4 05:13:51 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Thu, 4 Oct 2018 11:13:51 +0200
+Subject: [Python-Dev] AIX to stable, what does that take?
+In-Reply-To: <CAEfz+TxGQ8rz55FSOYpN+JVHqUarvP9gv8h6F9723XPwwaUGzQ@mail.gmail.com>
+References: <5cdbb644-4f1d-46a7-de0c-80beebb0822d@felt.demon.nl>
+ <CAEfz+TxGQ8rz55FSOYpN+JVHqUarvP9gv8h6F9723XPwwaUGzQ@mail.gmail.com>
+Message-ID: <cd367b92-14a2-11b3-baa6-db9181407cbc@felt.demon.nl>
+
+
+
+On 10/4/2018 10:30 AM, INADA Naoki wrote:
+> Hello,
+>
+> First of all, congratulations on passing all test on AIX.
+>
+>> My assumption is that it needs to (at least) pass all tests - and that
+>> is why I keep asking for attention. All the PRs to fix individual tests
+>> mean less if they are not merged, for whatever reason.
+>>
+>> However, maybe there is another way, or even something additional
+>> needed. Maybe something I cannot provide and then I can adjust my
+>> expectations and goals.
+> As a one of core developer, I don't know anything about AIX.
+> If my change breaks AIX build, I can't investigate what's happened.
+>
+> So I think we need following in devguide:
+>
+> * Brief description about AIX, from developer's point of view.
+This I might be able to do. Bullet form:
+* Committed to POSIX standard (valid when release came out, so AIX 5.3
+confirms to a different standard than AIX 7.2)
+* While Linux affinity is recognized - GNU (or GNP - GNU not POSIX)
+integration is not guaranteed. - GNU rte is not provided under support.
+There is a so-called Toolbox, GNU an other OSS utilities supplied by
+many packaged as RPMs. Unfortunately, different RPM providers (Michael
+Perlz, BULL Freeware, IBM, and others) have different numbering (the
+part after the package version, e.g., python-2.7.10-XXX so they do not
+mix well). Headache for both admins and developers trying to develop in
+a GNU-like environment.
+* As a consultant, fedup with what is called the "RPM hell" by many AIX
+admins - I do not use any RPMs. I build everything myself, using xlc
+(gcc introduces the need for a GNU RTE, e.g., glibc). I package using
+installp (the "native") AIX package manager, and strive to make the
+packages independent (these days). When there are dependencies I try to
+build them as static libraries so that they do not become an additional
+install dependency.
+* finally, a bit deeper: while the AIX linker loader supports svr4
+shared libraries (it is the data, not the file name) it also supports
+having multiple shared libraries in a classic archive. So, rather that
+.../lib/libxxx.so and .../lib64/libxxx.so AIX prefers .../lib/libxxx.a
+with two so-called members, with same or different names. The one found
+is not it's name, but the symbol name and size of the ABI (32-bit or 64-bit)
+* Hope that is enough of the key issues for now.
+** In general, GNU autotools (autoreconf -f -v) works well, as does
+configure.ac et al. for createing OSS Makefiles.
+> * How to run AIX on (VirtualBox, AWS EC2, Azure, GCP) easily.
+Easily! ? :) - well, on a POWER server it was easy enough for me to
+follow the step by step instructions for creating a buildbot. If I had a
+POWER server with more resources I would examine using the AIX internal
+WPAR - however, a POWER server configured to use PowerVC uses "EC2" aka
+cloud-init for creating a virtual machine. With that environment it
+should be "easy" to provide additional instructions to cloud-init-ec2.
+
+Or, I provide you a login on my personal server that I run the buildbot
+on. etc. etc. - Where there is a will, there is a way.
+> * How to set up a development environment for Python.
+Again, follow the instructions for setting up a buildbot.
+> * How to build Python.
+git clone ...
+autoreconf -v -f (as needed)
+./configure --with-pydebug? #gcc compiler
+./configure --with-pydebug --without-computed-gotos # xlc compiler
+make
+make test
+> * How to debug C code.
+I learned, 40 years ago, using adb (a debugger) - I do a lot of
+single-stepping. gdb is not the default debugger. If I were a developer
+I would probably dig into the AIX debuggers (there are at least two, kdb
+(kernel debugger, which I do use occaisionally for performance issues)
+and another I try to avoid. I add fprintf statements and am looking at
+learning how to use probevue.
+
+In short, you probably have many much better ideas on how to debug C
+than I do :)
+>
+> And even though there is a developer guide, it will take more long time
+> than fixing issues on AIX, compared Linux, macOS, and Windows.
+>
+> But without this guide, it feels almost impossible to maintain AIX build to me.
+IMHO: The AIX build is stable, but this is unrecognized because it does
+have differences that cause tests to fail. I can think of one test that
+PASSes, but should fail. And another test that passes, but should have
+failed (in test_uuid) I have submitted a PR.
+
+I tried to fix "all" in one PR, which confused people - so redid it as
+two (got _uuid working in Python 3.7 ! yes!!) but the "original" to fix
+uuid.py and test_uuid.py is still "awaiting change review".
+
+My gut feeling to maintaining AIX is: a) all test pass so a potential
+regression is flagged; b) someone such as myself who knows the platform
+and can establish a "root cause" on why it is failing with AIX so that
+c) a developer becomes aware and can decide to ignore or adjust; d)
+alternatives - such as work around an implementation limitation (as I
+try to do, e.g., for test_time and the related _datetime.c) is yet
+another path.
+
+In other words - it needs to be a shared responsibility - some
+volunteers with a passion for platform stability (in this specific case
+AIX and me as "passionate-person" and perhaps someone as youself who
+wants to focus on the language itself - ideally without deep (or any!)
+concern for platform differences.
+>
+> Regards,
+My 6 bits!
+
+
+From storchaka at gmail.com  Thu Oct  4 05:18:43 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Thu, 4 Oct 2018 12:18:43 +0300
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <20181004085633.GP21220@ando.pearwood.info>
+References: <20181004085633.GP21220@ando.pearwood.info>
+Message-ID: <pp4lpg$8us$1@blaine.gmane.org>
+
+04.10.18 11:56, Steven D'Aprano ????:
+> While keyword arguments have to be identifiers, using **kwargs allows
+> arbitrary strings which aren't identifiers:
+> 
+> py> def spam(**kwargs):
+> ....     print(kwargs)
+> ....
+> py> spam(**{"something arbitrary": 1, '\n': 2})
+> {'something arbitrary': 1, '\n': 2}
+> 
+> 
+> There is some discussion on Python-Ideas on whether or not that
+> behaviour ought to be considered a language feature, an accident of
+> implementation, or a bug.
+> 
+> Can we get some guidence on this please?
+
+This is an implementation detail. Currently CPython doesn't ensure that 
+keyword argument names are identifiers for performance reasons. But this 
+can be changed in future versions or in other implementations.
+
+
+From seanharr11 at gmail.com  Thu Oct  4 05:55:29 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Thu, 4 Oct 2018 05:55:29 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAGgTfkMXK=FejiEWyjGM-nRmd0W2dt3oveFHVF7cZgufxeaMhQ@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAGgTfkMXK=FejiEWyjGM-nRmd0W2dt3oveFHVF7cZgufxeaMhQ@mail.gmail.com>
+Message-ID: <CAFbyWc2-=+P7yPzF07Re3Omdpbzgbh8TggBRzzum_o3ELmwvCg@mail.gmail.com>
+
+Starmap will serialize/deserialize the ?big object? once for each task
+created, so this is not performant. The goal is to pay the ?one time cost?
+of serialization of the ?big object?, and still pass this object to func at
+each iteration.
+On Thu, Oct 4, 2018 at 4:14 AM Michael Selik <mike at selik.org> wrote:
+
+> You don't like using Pool.starmap and itertools.repeat or a comprehension
+> that repeats an object?
+>
+>
+>
+> On Wed, Oct 3, 2018, 6:30 PM Sean Harrington <seanharr11 at gmail.com> wrote:
+>
+>> Hi guys -
+>>
+>> The solution to "lazily initialize" an expensive object in the worker
+>> process (i.e. via @lru_cache) is a great solution (that I must admit I did
+>> not think of). Additionally, in the second use case of "*passing a large
+>> object to each worker process*", I also agree with your suggestion to
+>> "shelter functions in a different module to avoid exposure to globals" as a
+>> good solution if one is wary of globals.
+>>
+>> That said, I still think "*passing a large object from parent process to
+>> worker processes*" should be easier when using Pool. Would either of you
+>> be open to something like the following?
+>>
+>>            def func(x, big_cache=None):
+>>                return big_cache[x]
+>>
+>>            big_cache =  { str(k): k for k in range(10000) }
+>>
+>>            ls = [ i for i in range(1000) ]
+>>
+>> with Pool(func_kwargs={"big_cache": big_cache}) as pool:
+>>
+>>     pool.map(func, ls)
+>>
+>>
+>> It's a much cleaner interface (which presumably requires a more difficult
+>> implementation) than my initial proposal. This also reads a lot better than
+>> the "initializer + global" recipe (clear flow of data), and is less
+>> constraining than the "define globals in parent" recipe. Most importantly,
+>> when taking sequential code and parallelizing via Pool.map, this does not
+>> force the user to re-implement "func" such that it consumes a global
+>> (rather than a kwarg). It allows "func" to be used elsewhere (i.e. in the
+>> parent process, from a different module, testing w/o globals, etc...)..
+>>
+>> This would essentially be an efficient implementation of Pool.starmap(),
+>> where kwargs are static, and passed to each application of "func" over our
+>> iterable.
+>>
+>> Thoughts?
+>>
+>>
+>> On Sat, Sep 29, 2018 at 3:00 PM Michael Selik <mike at selik.org> wrote:
+>>
+>>> On Sat, Sep 29, 2018 at 5:24 AM Sean Harrington <seanharr11 at gmail.com>
+>>> wrote:
+>>> >> On Fri, Sep 28, 2018 at 4:39 PM Sean Harrington <seanharr11 at gmail.com>
+>>> wrote:
+>>> >> > My simple argument is that the developer should not be constrained
+>>> to make the objects passed globally available in the process, as this MAY
+>>> break encapsulation for large projects.
+>>> >>
+>>> >> I could imagine someone switching from Pool to ThreadPool and getting
+>>> >> into trouble, but in my mind using threads is caveat emptor. Are you
+>>> >> worried about breaking encapsulation in a different scenario?
+>>> >
+>>> > >> Without a specific example on-hand, you could imagine a tree of
+>>> function calls that occur in the worker process (even newly created
+>>> objects), that should not necessarily have access to objects passed from
+>>> parent -> worker. In every case given the current implementation, they will.
+>>>
+>>> Echoing Antoine: If you want some functions to not have access to a
+>>> module's globals, you can put those functions in a different module.
+>>> Note that multiprocessing already encapsulates each subprocesses'
+>>> globals in essentially a separate namespace.
+>>>
+>>> Without a specific example, this discussion is going to go around in
+>>> circles. You have a clear aversion to globals. Antoine and I do not.
+>>> No one else seems to have found this conversation interesting enough
+>>> to participate, yet.
+>>
+>>
+>> >>>
+>>
+>>>
+>>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181004/59f10922/attachment.html>
+
+From njs at pobox.com  Thu Oct  4 06:15:31 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 4 Oct 2018 03:15:31 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+Message-ID: <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+
+On Wed, Oct 3, 2018 at 6:30 PM, Sean Harrington <seanharr11 at gmail.com> wrote:
+> with Pool(func_kwargs={"big_cache": big_cache}) as pool:
+>     pool.map(func, ls)
+
+I feel like it would be nicer to spell this:
+
+with Pool() as pool:
+    pool.map(functools.partial(func, big_cache=big_cache), ls)
+
+And this might also solve your problem, if pool.map is clever enough
+to only send the function object once to each worker?
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From steve at pearwood.info  Thu Oct  4 06:25:40 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 4 Oct 2018 20:25:40 +1000
+Subject: [Python-Dev] dear core-devs
+In-Reply-To: <baaab3a3-02cf-cb6c-2f99-89e33d102899@gmail.com>
+References: <4af231bd-6a84-5d2b-a832-4f1959e6bb8d@felt.demon.nl>
+ <e78c2c90-5c08-2b3d-f10c-7c240a806884@palladion.com>
+ <CAOTD34agkZ7DnOTYGjyyRUB8fuUt=ErOFhovDNhVwzGJTr1a6Q@mail.gmail.com>
+ <CAD5NRCH-n8+c+t+mD=gkUF1sJYgdGcZaN1ccuA9fjH8eMzifoQ@mail.gmail.com>
+ <pp0o5i$e2a$1@blaine.gmane.org>
+ <d1a07423-d09a-626d-3f49-4e382d83e802@felt.demon.nl>
+ <CA+3bQGGTeuRBY1ibxissRV=7oLGocyeE3NRFCPRuNtuYa19A_A@mail.gmail.com>
+ <baaab3a3-02cf-cb6c-2f99-89e33d102899@gmail.com>
+Message-ID: <20181004102540.GS21220@ando.pearwood.info>
+
+On Thu, Oct 04, 2018 at 09:55:10AM +0200, Petr Viktorin wrote:
+
+> Is paying the best way to get features into Python?
+
+No, but it is *a* way to get features into Python.
+
+It may be a good way to get a feature that is important to (generic) 
+you, but the core devs don't have enough time, interest or energy to add 
+in their own free time.
+
+It is not a way to get features that are opposed by the core devs.
+
+
+> Does becoming a core 
+> dev mean you can now get paid for approving changes? Some of the 
+> implications are quite disturbing :(
+
+Naturally whenever money is involved, there is the risks of a conflict 
+of interest, and of course we should be careful about such risks. But 
+they are small and manageable risks.
+
+We're unlikely to be talking about huge amounts of money, enough to 
+corrupt people, and so long as there is transparency about who does what 
+and why, open source and free software is compatible with payment for 
+work done. Even Richard Stallman accepts money for code :-)
+
+
+-- 
+Steve
+
+From lukasz at langa.pl  Thu Oct  4 07:38:12 2018
+From: lukasz at langa.pl (=?utf-8?Q?=C5=81ukasz_Langa?=)
+Date: Thu, 4 Oct 2018 13:38:12 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <pp3b3o$tl2$1@blaine.gmane.org>
+References: <5BB4B21D.2070302@UGent.be> <pp3b3o$tl2$1@blaine.gmane.org>
+Message-ID: <DE5EEA5F-9FDD-4AEF-BD39-01AFDFC9C4E6@langa.pl>
+
+
+> On 3 Oct 2018, at 23:10, Terry Reedy <tjreedy at udel.edu> wrote:
+> 
+> On 10/3/2018 8:12 AM, Jeroen Demeyer wrote:
+>> Hello,
+>> I would like to propose Petr Viktorin as BDFL-Delegate for PEP 580, titled "The C call protocol". He has co-authored several PEPs (PEP 394, PEP 489, PEP 534, PEP 547, PEP 573), several of which involve extension modules.
+>> Petr has agreed to become BDFL-Delegate for PEP 580 if asked. Also Antoine Pitrou, INADA Naoki and Nick Coghlan have approved Petr being BDFL-Delegate.
+> 
+> To me, three experienced core devs approving of a 4th person as PEP-examiner is sufficient to proceed on a CPython implementation proposal.  I don't think we need to be paralyzed on this.
+
+What you're saying is sensible, the team is small enough and tightly knit that we trust each other. However, trust is not the point. It's about clear expectations and avoiding anarchy. As Nick points out elsewhere, circumventing the lack of governance by "asking a few friends" on the core team creates a need for the new leadership to ratify those changes. Speaking frankly, it would be a major shit show if any of those changes were to be reverted. As the release manager of this version of Python, can I ask you please not to risk this?
+
+Ironically, the governance model I am championing is one that would closely resemble what you're describing. A community of experts, no kings: https://discuss.python.org/t/pep-8012-the-community-model/156/
+
+So it's really not that I disagree with you, I do. It's not that I don't trust Petr, I do. It's that I believe the core team needs to formalize how they want the project to proceed before they go run approving PEPs.
+
+
+> And indeed, when it comes to sub-PEP C-API changes, we seem not to be.
+
+Any sub-PEP changes are fair game at the moment.
+
+
+> This change, if made, should be early in the cycle for the next version, rather than landing just before the first beta.
+
+There is little to be gained in landing "early in the cycle" when alpha releases are not widely available anywhere and there is a 6-month long beta period. More importantly, using "we need to land fast" as an argument to rush things in is self-defeating.
+
+
+> A language syntax-change proposal would be something else.
+
+Anything that is big enough to require a PEP is by definition a substantial change and controversial that way. As somebody else here points out, there is even a competing PEP. That sounds controversial to me.
+
+- ?
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181004/143997ab/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181004/143997ab/attachment.sig>
+
+From lukasz at langa.pl  Thu Oct  4 07:39:57 2018
+From: lukasz at langa.pl (=?utf-8?Q?=C5=81ukasz_Langa?=)
+Date: Thu, 4 Oct 2018 13:39:57 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <CADiSq7fX=2bLU4noJAiwS4J3bKwcL2AztsQJQvswTa1Pid7ddg@mail.gmail.com>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <20181003200823.034802d9@fsol>
+ <CADiSq7fX=2bLU4noJAiwS4J3bKwcL2AztsQJQvswTa1Pid7ddg@mail.gmail.com>
+Message-ID: <35E5F735-5AE6-47BE-9977-AD3F83531575@langa.pl>
+
+
+> On 4 Oct 2018, at 08:14, Nick Coghlan <ncoghlan at gmail.com> wrote:
+> 
+> I was figuring we could treat it as a caretaker mode governance: anything we do before the new governance model is formalised is subject to ratification by the new council members (or the new BDFL if that option ends up being chosen).
+
+Unless we end up with neither a BDFL nor a council... *cough* PEP 8012 *cough* ;-)
+
+- ?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181004/7cc9dd22/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181004/7cc9dd22/attachment.sig>
+
+From encukou at gmail.com  Thu Oct  4 08:00:19 2018
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 4 Oct 2018 14:00:19 +0200
+Subject: [Python-Dev] Petr Viktorin as BDFL-Delegate for PEP 580
+In-Reply-To: <DE5EEA5F-9FDD-4AEF-BD39-01AFDFC9C4E6@langa.pl>
+References: <5BB4B21D.2070302@UGent.be> <pp3b3o$tl2$1@blaine.gmane.org>
+ <DE5EEA5F-9FDD-4AEF-BD39-01AFDFC9C4E6@langa.pl>
+Message-ID: <a90ba50b-4bf8-8111-b40e-b9a1bda620d2@gmail.com>
+
+On 10/4/18 1:38 PM, ?ukasz Langa wrote:
+> 
+>> On 3 Oct 2018, at 23:10, Terry Reedy <tjreedy at udel.edu 
+>> <mailto:tjreedy at udel.edu>> wrote:
+>>
+>> On 10/3/2018 8:12 AM, Jeroen Demeyer wrote:
+>>> Hello,
+>>> I would like to propose Petr Viktorin as BDFL-Delegate for PEP 580, 
+>>> titled "The C call protocol". He has co-authored several PEPs (PEP 
+>>> 394, PEP 489, PEP 534, PEP 547, PEP 573), several of which involve 
+>>> extension modules.
+>>> Petr has agreed to become BDFL-Delegate for PEP 580 if asked. Also 
+>>> Antoine Pitrou, INADA Naoki and Nick Coghlan have approved Petr being 
+>>> BDFL-Delegate.
+>>
+>> To me, three experienced core devs approving of a 4th person as 
+>> PEP-examiner is sufficient to proceed on a CPython implementation 
+>> proposal. ?I don't think we need to be paralyzed on this.
+> 
+> What you're saying is sensible, the team is small enough and tightly 
+> knit that we trust each other. However, trust is not the point. It's 
+> about clear expectations and avoiding anarchy. As Nick points out 
+> elsewhere, circumventing the lack of governance by "asking a few 
+> friends" on the core team creates a need for the new leadership to 
+> ratify those changes. Speaking frankly, it would be a major shit show if 
+> any of those changes were to be reverted. As the release manager of this 
+> version of Python, can I ask you please not to risk this?
+> 
+> Ironically, the governance model I am championing is one that would 
+> closely resemble what you're describing. A community of experts, no 
+> kings: https://discuss.python.org/t/pep-8012-the-community-model/156/
+> 
+> So it's really not that I disagree with you, I do. It's not that I don't 
+> trust Petr, I do. It's that I believe the core team needs to formalize 
+> how they want the project to proceed *before* they go run approving PEPs.
+
+?ukasz, as the release manager for 3.8 you're the closest we have to an 
+authority, so I defer to your judgment. No PEPs can currently be accepted.
+
+
+Anyway, even if I was a *-delegate here, I would need to hear Mark 
+Shannon's opinion on the PEP. Convincing him will probably be harder 
+than convincing me.
+
