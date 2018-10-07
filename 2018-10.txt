@@ -3657,3 +3657,824 @@ Anyway, even if I was a *-delegate here, I would need to hear Mark
 Shannon's opinion on the PEP. Convincing him will probably be harder 
 than convincing me.
 
+From michael.haubenwallner at ssi-schaefer.com  Fri Oct  5 10:15:29 2018
+From: michael.haubenwallner at ssi-schaefer.com (Michael Haubenwallner)
+Date: Fri, 5 Oct 2018 16:15:29 +0200
+Subject: [Python-Dev] AIX to stable, what does that take?
+In-Reply-To: <cd367b92-14a2-11b3-baa6-db9181407cbc@felt.demon.nl>
+References: <5cdbb644-4f1d-46a7-de0c-80beebb0822d@felt.demon.nl>
+ <CAEfz+TxGQ8rz55FSOYpN+JVHqUarvP9gv8h6F9723XPwwaUGzQ@mail.gmail.com>
+ <cd367b92-14a2-11b3-baa6-db9181407cbc@felt.demon.nl>
+Message-ID: <bd343118-a8d3-0a56-518b-48220157c760@ssi-schaefer.com>
+
+Hi Michael,
+
+being on a similar road with Gentoo Prefix, I really do appreciate
+your AIX related work!
+
+However, for two (not so minor) topics I've got a little different
+experience, which I think should be mentioned here for completion:
+
+On 10/04/2018 11:13 AM, Michael Felt wrote:
+> On 10/4/2018 10:30 AM, INADA Naoki wrote:
+>> Hello,
+>>
+>> First of all, congratulations on passing all test on AIX.
+
+>> As a one of core developer, I don't know anything about AIX.
+>> If my change breaks AIX build, I can't investigate what's happened.
+>>
+>> So I think we need following in devguide:
+>>
+>> * Brief description about AIX, from developer's point of view.
+> This I might be able to do. Bullet form:
+
+> ... I build everything myself, using xlc
+> (gcc introduces the need for a GNU RTE, e.g., glibc).
+
+Using gcc does *not* require to use glibc or even GNU binutils at all.
+Except for gcc's own runtime libraries, there's no need for a GNU RTE.
+In fact, in Gentoo Prefix I do use gcc as the compiler, configured to
+use AIX provided binutils (as, ld, nm, ...), with AIX libc as RTE.
+
+> * finally, a bit deeper: while the AIX linker loader supports svr4
+> shared libraries (it is the data, not the file name) it also supports
+> having multiple shared libraries in a classic archive. So, rather that
+> .../lib/libxxx.so and .../lib64/libxxx.so AIX prefers .../lib/libxxx.a
+> with two so-called members, with same or different names. The one found
+> is not it's name, but the symbol name and size of the ABI (32-bit or 64-bit)
+
+While this all is true, having multiple *versions* of one shared library in
+one single file is a PITA for package managers - both human or software.
+
+But fortunately, the AIX linker does support so called "Import Files",
+allowing for *filename based* shared library versioning like on Linux,
+while still allowing for both ABIs in a single library archive file.
+
+For example, libtool provides the --with-aix-soname={aix|svr4|both}
+configure flag since libtool-2.4.4.  Although the default will stay
+at 'aix' here, in Gentoo Prefix I do use 'svr4' only.  This actually
+is a package manager's decision, ideally for all depending packages.
+As gcc does use libtool, for more information please refer to
+https://gcc.gnu.org/install/configure.html#WithAixSoname
+But note that "Import Files" should work with xlc as well.
+
+Thanks!
+/haubi/
+
+From status at bugs.python.org  Fri Oct  5 12:10:07 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri,  5 Oct 2018 18:10:07 +0200 (CEST)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20181005161007.EC73B11683A@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-09-28 - 2018-10-05)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6813 (+32)
+  closed 39845 (+42)
+  total  46658 (+74)
+
+Open issues with patches: 2722 
+
+
+Issues opened (53)
+==================
+
+#18291: codecs.open interprets FS, RS, GS as line ends
+https://bugs.python.org/issue18291  reopened by serhiy.storchaka
+
+#31310: semaphore tracker isn't protected against crashes
+https://bugs.python.org/issue31310  reopened by serhiy.storchaka
+
+#32117: Tuple unpacking in return and yield statements
+https://bugs.python.org/issue32117  reopened by serhiy.storchaka
+
+#34811: test_gdb fails with latest gdb
+https://bugs.python.org/issue34811  reopened by vstinner
+
+#34834: test_ssl.test_options does not correctly account for built-in 
+https://bugs.python.org/issue34834  opened by xnox
+
+#34836: test_ssl.test_default_ecdh_curve needs no tls1.3 flag in 2.7, 
+https://bugs.python.org/issue34836  opened by xnox
+
+#34837: Multiprocessing.pool API Extension - Pass Data to Workers w/o 
+https://bugs.python.org/issue34837  opened by seanharr11
+
+#34838: Improve arg clinic code generation for cases with type checkin
+https://bugs.python.org/issue34838  opened by rhettinger
+
+#34839: doctest: Change example under warnings section
+https://bugs.python.org/issue34839  opened by cheryl.sabella
+
+#34840: dlopen() error with no error message from dlerror()
+https://bugs.python.org/issue34840  opened by shuoz
+
+#34841: Script???s directory not in sys.path with embeddable Windows d
+https://bugs.python.org/issue34841  opened by ssapin
+
+#34844: logging.Formatter enhancement - Checking on style and fmt fiel
+https://bugs.python.org/issue34844  opened by BNMetrics
+
+#34846: Runtime failure with Failed to import site module
+https://bugs.python.org/issue34846  opened by sat.tho at gmail.com
+
+#34847: asyncio: Add PHA for TLS 1.3
+https://bugs.python.org/issue34847  opened by fantix
+
+#34848: range.index only takes one argument when it's documented as ta
+https://bugs.python.org/issue34848  opened by bup
+
+#34849: Drop logging when asyncio waits in selector.select()
+https://bugs.python.org/issue34849  opened by asvetlov
+
+#34850: Emit a syntax warning for "is" with a literal
+https://bugs.python.org/issue34850  opened by serhiy.storchaka
+
+#34852: Counter-intuitive behavior of Server.close() / wait_closed()
+https://bugs.python.org/issue34852  opened by aymeric.augustin
+
+#34855: batch file variables
+https://bugs.python.org/issue34855  opened by lindblad
+
+#34856: Make the repr of lambda containing the signature and body expr
+https://bugs.python.org/issue34856  opened by serhiy.storchaka
+
+#34857: IDLE: SyntaxWarning not handled properly
+https://bugs.python.org/issue34857  opened by terry.reedy
+
+#34858: MappingProxy objects should JSON serialize just like a diction
+https://bugs.python.org/issue34858  opened by Michael Smith2
+
+#34861: Improve cProfile standard output
+https://bugs.python.org/issue34861  opened by Anders.Hovm??ller
+
+#34864: In Idle, Mac tabs make editor status line disappear.
+https://bugs.python.org/issue34864  opened by andyharrington
+
+#34866: CGI DOS vulnerability via long post list
+https://bugs.python.org/issue34866  opened by Matthew Belisle
+
+#34867: Add mode to disable small integer and interned string caches
+https://bugs.python.org/issue34867  opened by steven.daprano
+
+#34870: Core dump when Python VSCode debugger is attached
+https://bugs.python.org/issue34870  opened by Per Lundberg
+
+#34872: investigate task/future cancellation in asynciomodule.c
+https://bugs.python.org/issue34872  opened by yselivanov
+
+#34876: Python3.8 changes how decorators are traced
+https://bugs.python.org/issue34876  opened by nedbat
+
+#34877: Inconsistent Behavior Of futures.ProcessPoolExecutor
+https://bugs.python.org/issue34877  opened by TensorTom
+
+#34880: About the "assert" bytecode
+https://bugs.python.org/issue34880  opened by vtheno athena
+
+#34881: unnecessary encoded-words usage breaks DKIM signatures
+https://bugs.python.org/issue34881  opened by bryced
+
+#34882: f(a=1, *args) should be a SyntaxError
+https://bugs.python.org/issue34882  opened by metaxm
+
+#34883: test_lzma: Multiple test failures when liblzma is built withou
+https://bugs.python.org/issue34883  opened by mgorny
+
+#34884: Python loads incorrect libraries
+https://bugs.python.org/issue34884  opened by Tim Hutt
+
+#34885: asyncio documention has lost its paragraph about cancellation
+https://bugs.python.org/issue34885  opened by abki
+
+#34886: subprocess.run throws exception when input and stdin are passe
+https://bugs.python.org/issue34886  opened by aecant
+
+#34888: Python3.8 optimizes away a "while" line
+https://bugs.python.org/issue34888  opened by nedbat
+
+#34890: Support functools.partial in inspect.is*function() checks
+https://bugs.python.org/issue34890  opened by asvetlov
+
+#34891: Multi-processing example inaccurate warning
+https://bugs.python.org/issue34891  opened by anthony-flury
+
+#34893: Add 2to3 fixer to change send and recv methods of socket objec
+https://bugs.python.org/issue34893  opened by devarakondapranav
+
+#34895: Mark optional stdlib modules in documentation
+https://bugs.python.org/issue34895  opened by of4tvziy
+
+#34897: distutils test errors when CXX is not set
+https://bugs.python.org/issue34897  opened by Michael.Felt
+
+#34898: add mtime argument to gzip.compress
+https://bugs.python.org/issue34898  opened by guoci
+
+#34899: Possible assertion failure due to int_from_bytes_impl()
+https://bugs.python.org/issue34899  opened by ZackerySpytz
+
+#34900: unittest subTests() fails when called from debug()
+https://bugs.python.org/issue34900  opened by Bruno Oliveira
+
+#34901: Missing isolated (-I) flag in sys.flags table
+https://bugs.python.org/issue34901  opened by danishprakash
+
+#34902: Azure pipelines PR build fails with "Unexpected vmImage 'vs201
+https://bugs.python.org/issue34902  opened by xtreak
+
+#34903: strptime %d handling of single digit day of month
+https://bugs.python.org/issue34903  opened by Mike Gleen
+
+#34904: Crash in ZipFile.close() when writing zip file to /dev/null
+https://bugs.python.org/issue34904  opened by erik.bray
+
+#34905: Cannot assign memoryview values from array.array
+https://bugs.python.org/issue34905  opened by aparamon
+
+#34906: Fix typo in the documentation
+https://bugs.python.org/issue34906  opened by matrixise
+
+#34907: calculation not working properly
+https://bugs.python.org/issue34907  opened by hwk_un1te
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#34907: calculation not working properly
+https://bugs.python.org/issue34907
+
+#34905: Cannot assign memoryview values from array.array
+https://bugs.python.org/issue34905
+
+#34902: Azure pipelines PR build fails with "Unexpected vmImage 'vs201
+https://bugs.python.org/issue34902
+
+#34899: Possible assertion failure due to int_from_bytes_impl()
+https://bugs.python.org/issue34899
+
+#34898: add mtime argument to gzip.compress
+https://bugs.python.org/issue34898
+
+#34897: distutils test errors when CXX is not set
+https://bugs.python.org/issue34897
+
+#34895: Mark optional stdlib modules in documentation
+https://bugs.python.org/issue34895
+
+#34884: Python loads incorrect libraries
+https://bugs.python.org/issue34884
+
+#34883: test_lzma: Multiple test failures when liblzma is built withou
+https://bugs.python.org/issue34883
+
+#34877: Inconsistent Behavior Of futures.ProcessPoolExecutor
+https://bugs.python.org/issue34877
+
+#34870: Core dump when Python VSCode debugger is attached
+https://bugs.python.org/issue34870
+
+#34866: CGI DOS vulnerability via long post list
+https://bugs.python.org/issue34866
+
+#34861: Improve cProfile standard output
+https://bugs.python.org/issue34861
+
+#34857: IDLE: SyntaxWarning not handled properly
+https://bugs.python.org/issue34857
+
+#34855: batch file variables
+https://bugs.python.org/issue34855
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#34906: Fix typo in the documentation
+https://bugs.python.org/issue34906
+
+#34901: Missing isolated (-I) flag in sys.flags table
+https://bugs.python.org/issue34901
+
+#34900: unittest subTests() fails when called from debug()
+https://bugs.python.org/issue34900
+
+#34899: Possible assertion failure due to int_from_bytes_impl()
+https://bugs.python.org/issue34899
+
+#34898: add mtime argument to gzip.compress
+https://bugs.python.org/issue34898
+
+#34897: distutils test errors when CXX is not set
+https://bugs.python.org/issue34897
+
+#34872: investigate task/future cancellation in asynciomodule.c
+https://bugs.python.org/issue34872
+
+#34866: CGI DOS vulnerability via long post list
+https://bugs.python.org/issue34866
+
+#34861: Improve cProfile standard output
+https://bugs.python.org/issue34861
+
+#34856: Make the repr of lambda containing the signature and body expr
+https://bugs.python.org/issue34856
+
+#34850: Emit a syntax warning for "is" with a literal
+https://bugs.python.org/issue34850
+
+#34849: Drop logging when asyncio waits in selector.select()
+https://bugs.python.org/issue34849
+
+#34847: asyncio: Add PHA for TLS 1.3
+https://bugs.python.org/issue34847
+
+#34844: logging.Formatter enhancement - Checking on style and fmt fiel
+https://bugs.python.org/issue34844
+
+#34838: Improve arg clinic code generation for cases with type checkin
+https://bugs.python.org/issue34838
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#34751: Hash collisions for tuples
+https://bugs.python.org/issue34751  39 msgs
+
+#34850: Emit a syntax warning for "is" with a literal
+https://bugs.python.org/issue34850  21 msgs
+
+#18291: codecs.open interprets FS, RS, GS as line ends
+https://bugs.python.org/issue18291  11 msgs
+
+#34711: Lib/http/server.py: Return HTTPStatus.NOT_FOUND if path.endswi
+https://bugs.python.org/issue34711  10 msgs
+
+#34880: About the "assert" bytecode
+https://bugs.python.org/issue34880  10 msgs
+
+#34313: IDLE crashes with Tk-related error on macOS with ActiveTcl 8.6
+https://bugs.python.org/issue34313   9 msgs
+
+#34872: investigate task/future cancellation in asynciomodule.c
+https://bugs.python.org/issue34872   9 msgs
+
+#34812: [EASY] support.args_from_interpreter_flags() doesn't inherit -
+https://bugs.python.org/issue34812   8 msgs
+
+#34867: Add mode to disable small integer and interned string caches
+https://bugs.python.org/issue34867   8 msgs
+
+#34014: loop.run_in_executor should propagate current contextvars
+https://bugs.python.org/issue34014   7 msgs
+
+
+
+Issues closed (42)
+==================
+
+#25300: Enable Intel MPX (Memory protection Extensions) feature
+https://bugs.python.org/issue25300  closed by benjamin.peterson
+
+#26005: Denial of Service in SimpleHTTPServer and BaseHTTPServer
+https://bugs.python.org/issue26005  closed by martin.panter
+
+#28441: Change sys.executable to include executable suffix
+https://bugs.python.org/issue28441  closed by inada.naoki
+
+#29551: unittest: TestSuite.debug() does not like subTest()
+https://bugs.python.org/issue29551  closed by berker.peksag
+
+#30156: PYTHONDUMPREFS segfaults on exit
+https://bugs.python.org/issue30156  closed by vstinner
+
+#31660: sys.executable different in os.execv'd python3.6 virtualenv se
+https://bugs.python.org/issue31660  closed by cheryl.sabella
+
+#31865: html.unescape does not work as per documentation
+https://bugs.python.org/issue31865  closed by ezio.melotti
+
+#32756: argparse: parse_known_args: raising exception on unknown arg f
+https://bugs.python.org/issue32756  closed by paul.j3
+
+#32833: argparse doesn't recognise two option aliases as equal
+https://bugs.python.org/issue32833  closed by paul.j3
+
+#33117: asyncio example uses non-existing/documented method
+https://bugs.python.org/issue33117  closed by asvetlov
+
+#34172: multiprocessing.Pool and ThreadPool leak resources after being
+https://bugs.python.org/issue34172  closed by pitrou
+
+#34476: asyncio.sleep(0) not documented
+https://bugs.python.org/issue34476  closed by asvetlov
+
+#34739: Get rid of tp_getattro in xml.etree.ElementTree.XMLParser
+https://bugs.python.org/issue34739  closed by serhiy.storchaka
+
+#34740: Get rid of tp_getattro in ossaudiodev.oss_audio_device
+https://bugs.python.org/issue34740  closed by serhiy.storchaka
+
+#34779: IDLE internals show up in tracebacks when returning objects th
+https://bugs.python.org/issue34779  closed by terry.reedy
+
+#34797: Convert heapq to the argument clinic
+https://bugs.python.org/issue34797  closed by rhettinger
+
+#34801: codecs.getreader() splits lines containing control characters
+https://bugs.python.org/issue34801  closed by serhiy.storchaka
+
+#34835: Multiprocessing module update fails with pip3
+https://bugs.python.org/issue34835  closed by steven.daprano
+
+#34842: Incorrect error messages in bisect
+https://bugs.python.org/issue34842  closed by rhettinger
+
+#34843: logging cookbook docs: remove 'recent' when referring to multi
+https://bugs.python.org/issue34843  closed by rhettinger
+
+#34845: allow exprlist as the iterators of comprehensions to be consis
+https://bugs.python.org/issue34845  closed by gvanrossum
+
+#34851: re.error - for the search function in the re module
+https://bugs.python.org/issue34851  closed by ronaldoussoren
+
+#34853: Python django cors
+https://bugs.python.org/issue34853  closed by ammar2
+
+#34854: Crash in string annotations in lambda with keyword-only argume
+https://bugs.python.org/issue34854  closed by serhiy.storchaka
+
+#34859: python core in string substring search
+https://bugs.python.org/issue34859  closed by ammar2
+
+#34860: fix test_sqlite for AIX
+https://bugs.python.org/issue34860  closed by Michael.Felt
+
+#34862: No longer builds on OpenBSD due to missing definition of conve
+https://bugs.python.org/issue34862  closed by benjamin.peterson
+
+#34863: Idle Mac scrolling only down
+https://bugs.python.org/issue34863  closed by terry.reedy
+
+#34865: Incorrect assignment of optional argument when partial match w
+https://bugs.python.org/issue34865  closed by eric.smith
+
+#34868: bad error message when combining _ grouping specifier with inv
+https://bugs.python.org/issue34868  closed by benjamin.peterson
+
+#34869: remove LDLAST
+https://bugs.python.org/issue34869  closed by benjamin.peterson
+
+#34871: test_site fails if run after test_inspect
+https://bugs.python.org/issue34871  closed by yselivanov
+
+#34873: re.finditer behaviour in re.MULTILINE mode fails to match firs
+https://bugs.python.org/issue34873  closed by tdawes
+
+#34874: Python 3.6.3 command script wrapped in single quotes produces 
+https://bugs.python.org/issue34874  closed by Tim McDonough
+
+#34875: Change .js mime to "text/javascript"
+https://bugs.python.org/issue34875  closed by asvetlov
+
+#34878: Lock Objects documentation bug
+https://bugs.python.org/issue34878  closed by benjamin.peterson
+
+#34879: bytesobject.c: Possible null pointer dereference due to format
+https://bugs.python.org/issue34879  closed by serhiy.storchaka
+
+#34887: bytes subclass __repr__ raise SystemError when set to bytes.de
+https://bugs.python.org/issue34887  closed by benjamin.peterson
+
+#34889: int.to_bytes and int.from_bytes should default to the system b
+https://bugs.python.org/issue34889  closed by benjamin.peterson
+
+#34892: persistence of attributes with new instance
+https://bugs.python.org/issue34892  closed by serhiy.storchaka
+
+#34894: Unexpected error while unpickling lxml.etree.Element object
+https://bugs.python.org/issue34894  closed by serhiy.storchaka
+
+#34896: Unable to install Python 3.5
+https://bugs.python.org/issue34896  closed by zach.ware
+
+From robb at datalogics.com  Fri Oct  5 16:01:02 2018
+From: robb at datalogics.com (Rob Boehne)
+Date: Fri, 5 Oct 2018 20:01:02 +0000
+Subject: [Python-Dev] AIX to stable, what does that take?
+Message-ID: <C8704FD8-F421-4050-9767-E879A5152C36@datalogics.com>
+
+
+
+?On 10/5/18, 10:33 AM, "Python-Dev on behalf of Michael Haubenwallner" <python-dev-bounces+robb=datalogics.com at python.org on behalf of michael.haubenwallner at ssi-schaefer.com> wrote:
+
+    >
+    >... I build everything myself, using xlc
+    >(gcc introduces the need for a GNU RTE, e.g., glibc).
+    
+    Using gcc does *not* require to use glibc or even GNU binutils at all.
+    Except for gcc's own runtime libraries, there's no need for a GNU RTE.
+    In fact, in Gentoo Prefix I do use gcc as the compiler, configured to
+    use AIX provided binutils (as, ld, nm, ...), with AIX libc as RTE.
+    
+I think the author was referring to the dependency on libgcc_s when using gcc.
+It's typical for native UNIX package builders to use gcc only when necessary because the correct runtime is always installed (if the os running it is newer) and therefore won't clash when something else in the process space is using a different version of libgcc_s (I'm not sure what the ABI guarantees are with libgcc_s specifically, and neither are UNIX packagers - not necessarily anyway)
+It also eliminates the need to ship a version of libgcc_s as a shared library.
+
+
+
+From aixtools at felt.demon.nl  Fri Oct  5 16:17:31 2018
+From: aixtools at felt.demon.nl (Michael)
+Date: Fri, 5 Oct 2018 22:17:31 +0200
+Subject: [Python-Dev] AIX to stable, what does that take?
+In-Reply-To: <bd343118-a8d3-0a56-518b-48220157c760@ssi-schaefer.com>
+References: <5cdbb644-4f1d-46a7-de0c-80beebb0822d@felt.demon.nl>
+ <CAEfz+TxGQ8rz55FSOYpN+JVHqUarvP9gv8h6F9723XPwwaUGzQ@mail.gmail.com>
+ <cd367b92-14a2-11b3-baa6-db9181407cbc@felt.demon.nl>
+ <bd343118-a8d3-0a56-518b-48220157c760@ssi-schaefer.com>
+Message-ID: <3f623b24-68d5-67a3-f83f-ef97c7a630b7@felt.demon.nl>
+
+On 05/10/2018 16:15, Michael Haubenwallner wrote:
+> Hi Michael,
+>
+> being on a similar road with Gentoo Prefix, I really do appreciate
+> your AIX related work!
+>
+> However, for two (not so minor) topics I've got a little different
+> experience, which I think should be mentioned here for completion:
+Always.
+>
+> On 10/04/2018 11:13 AM, Michael Felt wrote:
+>> On 10/4/2018 10:30 AM, INADA Naoki wrote:
+>>> Hello,
+>>>
+>>> First of all, congratulations on passing all test on AIX.
+>>> As a one of core developer, I don't know anything about AIX.
+>>> If my change breaks AIX build, I can't investigate what's happened.
+>>>
+>>> So I think we need following in devguide:
+>>>
+>>> * Brief description about AIX, from developer's point of view.
+>> This I might be able to do. Bullet form:
+>> ... I build everything myself, using xlc
+>> (gcc introduces the need for a GNU RTE, e.g., glibc).
+> Using gcc does *not* require to use glibc or even GNU binutils at all.
+> Except for gcc's own runtime libraries, there's no need for a GNU RTE.
+> In fact, in Gentoo Prefix I do use gcc as the compiler, configured to
+> use AIX provided binutils (as, ld, nm, ...), with AIX libc as RTE.
+Well, this is something I learned - second hand - from someone who
+worked hard to make much more OSS available than I. Probably wrong then
+- in how I came to my conclusion - but the few things I tried to compile
+"asis" to shared libraries would not work without also a lot of the gcc
+compiler libraries. While I could have bitten the bullet and just found
+a way to add those I was warned that different versions of gcc need
+different level of supporting files.
+>> * finally, a bit deeper: while the AIX linker loader supports svr4
+>> shared libraries (it is the data, not the file name) it also supports
+>> having multiple shared libraries in a classic archive. So, rather that
+>> .../lib/libxxx.so and .../lib64/libxxx.so AIX prefers .../lib/libxxx.a
+>> with two so-called members, with same or different names. The one found
+>> is not it's name, but the symbol name and size of the ABI (32-bit or 64-bit)
+> While this all is true, having multiple *versions* of one shared library in
+> one single file is a PITA for package managers - both human or software.
+Yes, it is a necessary pain. My secret is a) do not touch /usr/lib -
+leave what is as it is, and in the few situations where it must be in
+/usr/lib I add/replace named archive members with my new ones - and all
+the other ones get extracted, modify a flag in their respective header -
+so that the linker knows they are only to be used for applications that
+expect them - not for new applications.
+> But fortunately, the AIX linker does support so called "Import Files",
+> allowing for *filename based* shared library versioning like on Linux,
+> while still allowing for both ABIs in a single library archive file.
+>
+> For example, libtool provides the --with-aix-soname={aix|svr4|both}
+> configure flag since libtool-2.4.4.  Although the default will stay
+> at 'aix' here, in Gentoo Prefix I do use 'svr4' only.  This actually
+> is a package manager's decision, ideally for all depending packages.
+> As gcc does use libtool, for more information please refer to
+> https://gcc.gnu.org/install/configure.html#WithAixSoname
+> But note that "Import Files" should work with xlc as well.
+Actually, more detail than I really want to know. I recall the day when
+a library was a collection of "static" .o files, and ranlib was nearly
+always needed - Or you told the linker to link against that library
+multiple times. And I recall going to my first conference where "RPC"
+was the next greatest thing, and shared libraries were going to be such
+a space savior - both on disk and in memory. And I was always more of a
+bsd fan having schooled myself on UNIX v7, then bsd (2.9 iirc) and bsd
+4.1, 4.2 (in comes tcpip) and 4.3. But I diverge :p
+
+To return briefly to the question of what is AIX for the developer -
+very flexible. You can choose your architecture and it generally, just
+works. I wrote some scripts as a front-end for packaging and most
+packages are a one-liner - that runs configure, make, makeinstall (using
+DESTDIR) and then packaging the DESTDIR.
+
+As far as python development and AIX goes I am open to helping others.
+Been doing that for more years than I care to count. :)
+>
+> Thanks!
+> /haubi/
+
+
+
+
+From aixtools at felt.demon.nl  Fri Oct  5 16:27:20 2018
+From: aixtools at felt.demon.nl (Michael)
+Date: Fri, 5 Oct 2018 22:27:20 +0200
+Subject: [Python-Dev] AIX to stable, what does that take?
+In-Reply-To: <C8704FD8-F421-4050-9767-E879A5152C36@datalogics.com>
+References: <C8704FD8-F421-4050-9767-E879A5152C36@datalogics.com>
+Message-ID: <da3ffa9b-1e3d-6d47-0f89-a308727fa305@felt.demon.nl>
+
+On 05/10/2018 22:01, Rob Boehne wrote:
+> ?On 10/5/18, 10:33 AM, "Python-Dev on behalf of Michael Haubenwallner" <python-dev-bounces+robb=datalogics.com at python.org on behalf of michael.haubenwallner at ssi-schaefer.com> wrote:
+>
+>     >
+>     >... I build everything myself, using xlc
+>     >(gcc introduces the need for a GNU RTE, e.g., glibc).
+>     
+>     Using gcc does *not* require to use glibc or even GNU binutils at all.
+>     Except for gcc's own runtime libraries, there's no need for a GNU RTE.
+>     In fact, in Gentoo Prefix I do use gcc as the compiler, configured to
+>     use AIX provided binutils (as, ld, nm, ...), with AIX libc as RTE.
+>     
+> I think the author was referring to the dependency on libgcc_s when using gcc.
+> It's typical for native UNIX package builders to use gcc only when necessary because the correct runtime is always installed (if the os running it is newer) and therefore won't clash when something else in the process space is using a different version of libgcc_s (I'm not sure what the ABI guarantees are with libgcc_s specifically, and neither are UNIX packagers - not necessarily anyway)
+Thank you Rob. My core mistake is calling it glibc (that is the gnome
+libc not that I think back), and libgcc* are something else entirely.
+
+In any case, I need to get my facts more accurate.
+> It also eliminates the need to ship a version of libgcc_s as a shared library.
+That would make life easier. Would probably have to package gcc on my
+own to get it work that way though.
+>
+>
+>
+
+
+From brett at python.org  Fri Oct  5 17:49:27 2018
+From: brett at python.org (Brett Cannon)
+Date: Fri, 5 Oct 2018 14:49:27 -0700
+Subject: [Python-Dev] PEP 544 status (forked off "Petr Viktorin as
+ BDFL-Delegate for PEP 580")
+In-Reply-To: <CAP7+vJJfJugqYFBhP8Dtf0=X3ju7xGFh43BXrXxiS_5dvG1iug@mail.gmail.com>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <0d922ba1b09b46ad8efc08056c6e5771@xmail103.UGent.be>
+ <5BB4E99B.3000905@UGent.be>
+ <CAP7+vJJfJugqYFBhP8Dtf0=X3ju7xGFh43BXrXxiS_5dvG1iug@mail.gmail.com>
+Message-ID: <CAP1=2W6Xbw6CwsaKW9_gaFSdrBSqm9cooHMu_nxxpxpBETjxww@mail.gmail.com>
+
+I think whatever governance we end up with would have named you
+BDFL-delegate anyway, Guido, so I think you're just taking the time machine
+for a spin again. ;)
+
+On Wed, 3 Oct 2018 at 09:40, Guido van Rossum <guido at python.org> wrote:
+
+> The process for PEP 544 is off-topic for that thread so I'm starting a new
+> one.
+>
+> I have promised its author to approve it after certain minor changes (that
+> we both agree on) have been made. It's not an example of how PEP acceptance
+> in general will works until governance is sorted out though -- PEP 544 is a
+> very unique special case. (For one, it's uncontroversial -- the reason it's
+> not been accepted yet is that its author is busy with other things.)
+>
+> On Wed, Oct 3, 2018 at 9:12 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+>
+>> On 2018-10-03 17:06, ?ukasz Langa wrote:
+>> > That's the only
+>> > reason why PEP 544 is not yet accepted for example.
+>>
+>> Did you actually try to get PEP 544 accepted or to appoint a
+>> BDFL-Delegate? I don't find any discussions about PEP 544 after the
+>> stepping down of the BDFL.
+>>
+>
+> --
+> --Guido van Rossum (python.org/~guido)
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181005/f3decadc/attachment.html>
+
+From brett at python.org  Fri Oct  5 17:50:30 2018
+From: brett at python.org (Brett Cannon)
+Date: Fri, 5 Oct 2018 14:50:30 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <pp4lpg$8us$1@blaine.gmane.org>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+Message-ID: <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+
+I'm also fine with saying that keys in **kwargs that are not proper
+identifiers is an implementation detail.
+
+On Thu, 4 Oct 2018 at 02:20, Serhiy Storchaka <storchaka at gmail.com> wrote:
+
+> 04.10.18 11:56, Steven D'Aprano ????:
+> > While keyword arguments have to be identifiers, using **kwargs allows
+> > arbitrary strings which aren't identifiers:
+> >
+> > py> def spam(**kwargs):
+> > ....     print(kwargs)
+> > ....
+> > py> spam(**{"something arbitrary": 1, '\n': 2})
+> > {'something arbitrary': 1, '\n': 2}
+> >
+> >
+> > There is some discussion on Python-Ideas on whether or not that
+> > behaviour ought to be considered a language feature, an accident of
+> > implementation, or a bug.
+> >
+> > Can we get some guidence on this please?
+>
+> This is an implementation detail. Currently CPython doesn't ensure that
+> keyword argument names are identifiers for performance reasons. But this
+> can be changed in future versions or in other implementations.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181005/aa9b7ff3/attachment-0001.html>
+
+From brett at python.org  Fri Oct  5 17:52:39 2018
+From: brett at python.org (Brett Cannon)
+Date: Fri, 5 Oct 2018 14:52:39 -0700
+Subject: [Python-Dev] Should assert continue to do a LOAD_GLOBAL on
+ AssertionError?
+In-Reply-To: <1538620714.2141716.1530108600.48469F20@webmail.messagingengine.com>
+References: <20181003155937.GM21220@ando.pearwood.info>
+ <1538620714.2141716.1530108600.48469F20@webmail.messagingengine.com>
+Message-ID: <CAP1=2W5+48UkZ8rs-fNk1AQ4XQ5YXLGo4v1kzeDjvYks79YdrA@mail.gmail.com>
+
+On Wed, 3 Oct 2018 at 19:39, Benjamin Peterson <benjamin at python.org> wrote:
+
+>
+>
+> On Wed, Oct 3, 2018, at 08:59, Steven D'Aprano wrote:
+> > On the bug tracker, there's a discussion about the current behaviour of
+> > the assert statement, where shadowing AssertionError will change the
+> > behaviour of the assertion.
+> >
+> > https://bugs.python.org/issue34880
+> >
+> > Currently, assert does a LOAD_GLOBAL on AssertionError, which means if
+> > you shadow the name, you get a different exception. This behaviour goes
+> > back to Python 1.5.
+> >
+> > I'm looking for guidance here, is this the intended behaviour, or an
+> > accident? Should it be changed to better match other builtins?
+>
+> The behavior certainly has been relied on historically by py.test. By
+> replacing builtins.AssertionError, you can improve the error message of the
+> AssertionError by, e.g., inspecting the failing frame. py.test's code to do
+> this was deleted in 2016, but other code bases may still be relying on this
+> hack. It's probably okay to change the behavior in 3.8 with the
+> understanding that a revert may be necessary if some clever hack surfaces.
+>
+
+I like Guido's reasoning that syntax probably shouldn't be affected by
+overloads unless otherwise documented as so, and Benjamin's approach to
+solving it for 3.8 and then potentially reverting if it breaks too much.
+
+-Brett
+
+
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181005/d65f4af2/attachment.html>
+
