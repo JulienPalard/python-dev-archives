@@ -4478,3 +4478,120 @@ solving it for 3.8 and then potentially reverting if it breaks too much.
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181005/d65f4af2/attachment.html>
 
+From ncoghlan at gmail.com  Sat Oct  6 10:54:43 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 7 Oct 2018 00:54:43 +1000
+Subject: [Python-Dev] PEP 544 status (forked off "Petr Viktorin as
+ BDFL-Delegate for PEP 580")
+In-Reply-To: <CAP1=2W6Xbw6CwsaKW9_gaFSdrBSqm9cooHMu_nxxpxpBETjxww@mail.gmail.com>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <0d922ba1b09b46ad8efc08056c6e5771@xmail103.UGent.be>
+ <5BB4E99B.3000905@UGent.be>
+ <CAP7+vJJfJugqYFBhP8Dtf0=X3ju7xGFh43BXrXxiS_5dvG1iug@mail.gmail.com>
+ <CAP1=2W6Xbw6CwsaKW9_gaFSdrBSqm9cooHMu_nxxpxpBETjxww@mail.gmail.com>
+Message-ID: <CADiSq7eyXECxANCWe1+HZ8zsRpZdZpK8NoPrAvfMV8HePQzg0A@mail.gmail.com>
+
+On Sat, 6 Oct 2018 at 07:57, Brett Cannon <brett at python.org> wrote:
+>
+> I think whatever governance we end up with would have named you BDFL-delegate anyway, Guido, so I think you're just taking the time machine for a spin again. ;)
+
+I was going to suggest that Guido list himself as BDFL-Delegate as
+then it could follow the same caretaker model we're suggesting for the
+fast C calling API.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From guido at python.org  Sat Oct  6 16:53:06 2018
+From: guido at python.org (Guido van Rossum)
+Date: Sat, 6 Oct 2018 13:53:06 -0700
+Subject: [Python-Dev] PEP 544 status (forked off "Petr Viktorin as
+ BDFL-Delegate for PEP 580")
+In-Reply-To: <CADiSq7eyXECxANCWe1+HZ8zsRpZdZpK8NoPrAvfMV8HePQzg0A@mail.gmail.com>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <0d922ba1b09b46ad8efc08056c6e5771@xmail103.UGent.be>
+ <5BB4E99B.3000905@UGent.be>
+ <CAP7+vJJfJugqYFBhP8Dtf0=X3ju7xGFh43BXrXxiS_5dvG1iug@mail.gmail.com>
+ <CAP1=2W6Xbw6CwsaKW9_gaFSdrBSqm9cooHMu_nxxpxpBETjxww@mail.gmail.com>
+ <CADiSq7eyXECxANCWe1+HZ8zsRpZdZpK8NoPrAvfMV8HePQzg0A@mail.gmail.com>
+Message-ID: <CAP7+vJ+RVMsujnsdnSO79ay5EkBKdOC6guVj-TtZimHHnXJ5HA@mail.gmail.com>
+
+OK, then maybe someone (not me) can merge
+https://github.com/python/peps/pull/799 for me.
+
+
+On Sat, Oct 6, 2018 at 7:54 AM Nick Coghlan <ncoghlan at gmail.com> wrote:
+
+> On Sat, 6 Oct 2018 at 07:57, Brett Cannon <brett at python.org> wrote:
+> >
+> > I think whatever governance we end up with would have named you
+> BDFL-delegate anyway, Guido, so I think you're just taking the time machine
+> for a spin again. ;)
+>
+> I was going to suggest that Guido list himself as BDFL-Delegate as
+> then it could follow the same caretaker model we're suggesting for the
+> fast C calling API.
+>
+> Cheers,
+> Nick.
+>
+> --
+> Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181006/9184361c/attachment.html>
+
+From rosuav at gmail.com  Sat Oct  6 16:56:17 2018
+From: rosuav at gmail.com (Chris Angelico)
+Date: Sun, 7 Oct 2018 07:56:17 +1100
+Subject: [Python-Dev] PEP 544 status (forked off "Petr Viktorin as
+ BDFL-Delegate for PEP 580")
+In-Reply-To: <CAP7+vJ+RVMsujnsdnSO79ay5EkBKdOC6guVj-TtZimHHnXJ5HA@mail.gmail.com>
+References: <5BB4B21D.2070302@UGent.be>
+ <CAEfz+TyMjHbE7LvM=RYnGcKhm1VbQ5BnY6kL-BLopQmOFCe9dw@mail.gmail.com>
+ <0d922ba1b09b46ad8efc08056c6e5771@xmail103.UGent.be>
+ <5BB4E99B.3000905@UGent.be>
+ <CAP7+vJJfJugqYFBhP8Dtf0=X3ju7xGFh43BXrXxiS_5dvG1iug@mail.gmail.com>
+ <CAP1=2W6Xbw6CwsaKW9_gaFSdrBSqm9cooHMu_nxxpxpBETjxww@mail.gmail.com>
+ <CADiSq7eyXECxANCWe1+HZ8zsRpZdZpK8NoPrAvfMV8HePQzg0A@mail.gmail.com>
+ <CAP7+vJ+RVMsujnsdnSO79ay5EkBKdOC6guVj-TtZimHHnXJ5HA@mail.gmail.com>
+Message-ID: <CAPTjJmpnY=nmCnSu98dqVTc=kDXKq0BWw4ORzoS6DdXOnXM0Vw@mail.gmail.com>
+
+On Sun, Oct 7, 2018 at 7:55 AM Guido van Rossum <guido at python.org> wrote:
+>
+> OK, then maybe someone (not me) can merge https://github.com/python/peps/pull/799 for me.
+>
+
+Per discussion, merged.
+
+ChrisA
+
+From nad at python.org  Sun Oct  7 01:34:19 2018
+From: nad at python.org (Ned Deily)
+Date: Sun, 7 Oct 2018 01:34:19 -0400
+Subject: [Python-Dev] 3.7.1 and 3.6.7 Release Update
+Message-ID: <E4F22DD5-4C14-4EB8-971E-302184351533@python.org>
+
+[duplicated from https://discuss.python.org/c/committers]
+
+We issued the 3.7.1rc1 and 3.6.7rc1 release candidates a little over 11 days ago with the plan to have final releases for each available by today, assuming no new issues arose since the rc1 cutoffs.  While the good news is that, to the best of my knowledge, no regressions have been reported for the release candidates (or remain unfixed), several critical and security-related issues have identified during the rc phase.  Most of these have already been addressed (thanks for the quick responses!) but there remain a couple that still need to be finalized.  Since there is a non-zero amount of fixes going in after rc1, I think we need to do another set of release candidates once everything is resolved.  Because a number of core developers are right now attending various Python-related events, I am going to aim for tagging 3.7.1rc2 and 3.6.7rc2 after 2018-10-09 23:59 AoE, if at all possible, with final releases targeted for about 10 days later.  I will send out an update as we approach that time.
+
+Just a reminder to core developers: as always please try to get fixes merged in to all relevant branches as soon as you feel they are ready.  There is no need to hold off during a release candidate phase.  Release managers will cherry pick as necessary appropriate fixes from the release branches into subsequent release candidates or final releases.  The sooner changes are merged, the sooner they will get buildbot exposure and potential exposure in the wider community.
+
+Thanks!
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
