@@ -4595,3 +4595,452 @@ Thanks!
   nad at python.org -- []
 
 
+From chris.barker at noaa.gov  Sun Oct  7 13:34:57 2018
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Sun, 7 Oct 2018 10:34:57 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+Message-ID: <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+
+On Fri, Oct 5, 2018 at 3:01 PM Brett Cannon <brett at python.org> wrote:
+
+> I'm also fine with saying that keys in **kwargs that are not proper
+> identifiers is an implementation detail.
+>
+
+It's not just **kwargs -- you can also use arbitrary names with setattr() /
+getattr() :
+
+In [6]: setattr(foo, "4 not an identifier", "this works")
+
+In [7]: getattr(foo, "4 not an identifier")
+Out[7]: 'this works'
+
+Which brings up a question I've had for years -- is the fact that cPython
+uses a regular old dict for namespaces (and **kwargs) part of the language
+spec, or an implementation detail?
+
+I would say that for the get/setattr() example, it is kinda handy when you
+want to use a class instance to model some external data structure that may
+have different identifier rules. Though I tend to think that's mingling
+data and code too much.
+
+-CHB
+
+
+>
+> On Thu, 4 Oct 2018 at 02:20, Serhiy Storchaka <storchaka at gmail.com> wrote:
+>
+>> 04.10.18 11:56, Steven D'Aprano ????:
+>> > While keyword arguments have to be identifiers, using **kwargs allows
+>> > arbitrary strings which aren't identifiers:
+>> >
+>> > py> def spam(**kwargs):
+>> > ....     print(kwargs)
+>> > ....
+>> > py> spam(**{"something arbitrary": 1, '\n': 2})
+>> > {'something arbitrary': 1, '\n': 2}
+>> >
+>> >
+>> > There is some discussion on Python-Ideas on whether or not that
+>> > behaviour ought to be considered a language feature, an accident of
+>> > implementation, or a bug.
+>> >
+>> > Can we get some guidence on this please?
+>>
+>> This is an implementation detail. Currently CPython doesn't ensure that
+>> keyword argument names are identifiers for performance reasons. But this
+>> can be changed in future versions or in other implementations.
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/chris.barker%40noaa.gov
+>
+
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181007/0c685d69/attachment.html>
+
+From jmcs at jsantos.eu  Sun Oct  7 14:42:02 2018
+From: jmcs at jsantos.eu (=?UTF-8?B?Sm/Do28gU2FudG9z?=)
+Date: Sun, 7 Oct 2018 20:42:02 +0200
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+Message-ID: <CAH_XWH3uLdu++iU9dteztTiqq2W0s+iG_WLusod33gyk+2+JEw@mail.gmail.com>
+
+*locals *and *globals* are documented as dictionaries (for example exec's
+documentation states that " If only *globals* is provided, it must be a
+dictionary") but __dict__ is described as " [a] dictionary or other mapping
+object".
+
+
+On Sun, 7 Oct 2018 at 19:38, Chris Barker via Python-Dev <
+python-dev at python.org> wrote:
+
+> On Fri, Oct 5, 2018 at 3:01 PM Brett Cannon <brett at python.org> wrote:
+>
+>> I'm also fine with saying that keys in **kwargs that are not proper
+>> identifiers is an implementation detail.
+>>
+>
+> It's not just **kwargs -- you can also use arbitrary names with setattr()
+> / getattr() :
+>
+> In [6]: setattr(foo, "4 not an identifier", "this works")
+>
+> In [7]: getattr(foo, "4 not an identifier")
+> Out[7]: 'this works'
+>
+> Which brings up a question I've had for years -- is the fact that cPython
+> uses a regular old dict for namespaces (and **kwargs) part of the language
+> spec, or an implementation detail?
+>
+> I would say that for the get/setattr() example, it is kinda handy when you
+> want to use a class instance to model some external data structure that may
+> have different identifier rules. Though I tend to think that's mingling
+> data and code too much.
+>
+> -CHB
+>
+>
+>>
+>> On Thu, 4 Oct 2018 at 02:20, Serhiy Storchaka <storchaka at gmail.com>
+>> wrote:
+>>
+>>> 04.10.18 11:56, Steven D'Aprano ????:
+>>> > While keyword arguments have to be identifiers, using **kwargs allows
+>>> > arbitrary strings which aren't identifiers:
+>>> >
+>>> > py> def spam(**kwargs):
+>>> > ....     print(kwargs)
+>>> > ....
+>>> > py> spam(**{"something arbitrary": 1, '\n': 2})
+>>> > {'something arbitrary': 1, '\n': 2}
+>>> >
+>>> >
+>>> > There is some discussion on Python-Ideas on whether or not that
+>>> > behaviour ought to be considered a language feature, an accident of
+>>> > implementation, or a bug.
+>>> >
+>>> > Can we get some guidence on this please?
+>>>
+>>> This is an implementation detail. Currently CPython doesn't ensure that
+>>> keyword argument names are identifiers for performance reasons. But this
+>>> can be changed in future versions or in other implementations.
+>>>
+>>> _______________________________________________
+>>> Python-Dev mailing list
+>>> Python-Dev at python.org
+>>> https://mail.python.org/mailman/listinfo/python-dev
+>>> Unsubscribe:
+>>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/chris.barker%40noaa.gov
+>>
+>
+>
+> --
+>
+> Christopher Barker, Ph.D.
+> Oceanographer
+>
+> Emergency Response Division
+> NOAA/NOS/OR&R            (206) 526-6959   voice
+> 7600 Sand Point Way NE   (206) 526-6329   fax
+> Seattle, WA  98115       (206) 526-6317   main reception
+>
+> Chris.Barker at noaa.gov
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/jmcs%40jsantos.eu
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181007/abe7dfd6/attachment.html>
+
+From hodgestar+pythondev at gmail.com  Sun Oct  7 14:45:18 2018
+From: hodgestar+pythondev at gmail.com (Simon Cross)
+Date: Sun, 7 Oct 2018 20:45:18 +0200
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <20181004085633.GP21220@ando.pearwood.info>
+References: <20181004085633.GP21220@ando.pearwood.info>
+Message-ID: <CAD5NRCERhWLK+mcg6-rq9FYmkV21wHYGkqt6aqh3mLGW8KWrVA@mail.gmail.com>
+
+I would consider it a feature. My reasoning is that the restriction on
+what can be used as an identifier is a syntax restriction, not a
+general restriction on what attributes or names can be.
+
+From chris.barker at noaa.gov  Sun Oct  7 15:48:54 2018
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Sun, 7 Oct 2018 12:48:54 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CAH_XWH3uLdu++iU9dteztTiqq2W0s+iG_WLusod33gyk+2+JEw@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <CAH_XWH3uLdu++iU9dteztTiqq2W0s+iG_WLusod33gyk+2+JEw@mail.gmail.com>
+Message-ID: <CALGmxEJZ425JyMn9AmmpHFzekiK06sqGbj2jEmT2QD0aH3eD_Q@mail.gmail.com>
+
+On Sun, Oct 7, 2018 at 11:42 AM Jo?o Santos <jmcs at jsantos.eu> wrote:
+
+> *locals *and *globals* are documented as dictionaries (for example exec's
+> documentation states that " If only *globals* is provided, it must be a
+> dictionary")
+>
+
+well, that is specifically about exec() -- it may or may not apply to
+everywhere nameapaces are used in the interpreter...
+
+
+> but __dict__ is described as " [a] dictionary or other mapping object".
+>
+
+exactly.
+
+-CHB
+
+On Sun, 7 Oct 2018 at 19:38, Chris Barker via Python-Dev <
+> python-dev at python.org> wrote:
+>
+>> On Fri, Oct 5, 2018 at 3:01 PM Brett Cannon <brett at python.org> wrote:
+>>
+>>> I'm also fine with saying that keys in **kwargs that are not proper
+>>> identifiers is an implementation detail.
+>>>
+>>
+>> It's not just **kwargs -- you can also use arbitrary names with setattr()
+>> / getattr() :
+>>
+>> In [6]: setattr(foo, "4 not an identifier", "this works")
+>>
+>> In [7]: getattr(foo, "4 not an identifier")
+>> Out[7]: 'this works'
+>>
+>> Which brings up a question I've had for years -- is the fact that cPython
+>> uses a regular old dict for namespaces (and **kwargs) part of the language
+>> spec, or an implementation detail?
+>>
+>> I would say that for the get/setattr() example, it is kinda handy when
+>> you want to use a class instance to model some external data structure that
+>> may have different identifier rules. Though I tend to think that's mingling
+>> data and code too much.
+>>
+>> -CHB
+>>
+>>
+>>>
+>>> On Thu, 4 Oct 2018 at 02:20, Serhiy Storchaka <storchaka at gmail.com>
+>>> wrote:
+>>>
+>>>> 04.10.18 11:56, Steven D'Aprano ????:
+>>>> > While keyword arguments have to be identifiers, using **kwargs allows
+>>>> > arbitrary strings which aren't identifiers:
+>>>> >
+>>>> > py> def spam(**kwargs):
+>>>> > ....     print(kwargs)
+>>>> > ....
+>>>> > py> spam(**{"something arbitrary": 1, '\n': 2})
+>>>> > {'something arbitrary': 1, '\n': 2}
+>>>> >
+>>>> >
+>>>> > There is some discussion on Python-Ideas on whether or not that
+>>>> > behaviour ought to be considered a language feature, an accident of
+>>>> > implementation, or a bug.
+>>>> >
+>>>> > Can we get some guidence on this please?
+>>>>
+>>>> This is an implementation detail. Currently CPython doesn't ensure that
+>>>> keyword argument names are identifiers for performance reasons. But
+>>>> this
+>>>> can be changed in future versions or in other implementations.
+>>>>
+>>>> _______________________________________________
+>>>> Python-Dev mailing list
+>>>> Python-Dev at python.org
+>>>> https://mail.python.org/mailman/listinfo/python-dev
+>>>> Unsubscribe:
+>>>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>>>
+>>> _______________________________________________
+>>> Python-Dev mailing list
+>>> Python-Dev at python.org
+>>> https://mail.python.org/mailman/listinfo/python-dev
+>>> Unsubscribe:
+>>> https://mail.python.org/mailman/options/python-dev/chris.barker%40noaa.gov
+>>>
+>>
+>>
+>> --
+>>
+>> Christopher Barker, Ph.D.
+>> Oceanographer
+>>
+>> Emergency Response Division
+>> NOAA/NOS/OR&R            (206) 526-6959   voice
+>> 7600 Sand Point Way NE   (206) 526-6329   fax
+>> Seattle, WA  98115       (206) 526-6317   main reception
+>>
+>> Chris.Barker at noaa.gov
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/jmcs%40jsantos.eu
+>>
+>
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181007/7fce87df/attachment.html>
+
+From tjreedy at udel.edu  Sun Oct  7 18:44:54 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sun, 7 Oct 2018 18:44:54 -0400
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+Message-ID: <ppe253$oie$1@blaine.gmane.org>
+
+On 10/7/2018 1:34 PM, Chris Barker via Python-Dev wrote:
+> On Fri, Oct 5, 2018 at 3:01 PM Brett Cannon <brett at python.org 
+> <mailto:brett at python.org>> wrote:
+> 
+>     I'm also fine with saying that keys in **kwargs that are not proper
+>     identifiers is an implementation detail.
+> 
+> 
+> It's not just **kwargs -- you can also use arbitrary names with 
+> setattr() / getattr() :
+> 
+> In [6]: setattr(foo, "4 not an identifier", "this works")
+> 
+> In [7]: getattr(foo, "4 not an identifier")
+> Out[7]: 'this works'
+
+When this behavior of set/getattr was discussed a decade or so ago, 
+Guido said not to disable it, but I believe he said it should not be 
+considered a language feature.  There are other situations where CPython 
+is 'looser' than the spec.
+
+-- 
+Terry Jan Reedy
+
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Sun Oct  7 22:22:32 2018
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Mon, 8 Oct 2018 11:22:32 +0900
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <ppe253$oie$1@blaine.gmane.org>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+Message-ID: <23482.49000.212708.744665@turnbull.sk.tsukuba.ac.jp>
+
+Terry Reedy writes:
+
+ > When this behavior of set/getattr was discussed a decade or so ago,
+ > Guido said not to disable it, but I believe he said it should not
+ > be considered a language feature.  There are other situations where
+ > CPython is 'looser' than the spec.
+
+I'm pretty sure that all of these mappings that create namespaces are
+*not* specified to be dicts.  globals() and locals() need to return
+*something*, and dict is the only builtin mapping.  On the other hand,
+it is explicit that changes to these dicts need not be reflected in the
+namespace.
+
+Note that the namespace defined by a class is *not* a dict, it's a
+union (it may be a dict, or it may be slots):
+
+    >>> class Foo:
+    ...  __slots__ = ('a')
+    ...  def __init__(self, x):
+    ...   self.a = x
+    ...   self.b = (x,)
+    ... 
+    >>> fu = Foo(1)
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      File "<stdin>", line 6, in __init__
+    AttributeError: 'Foo' object has no attribute 'c'
+    >>> class Foo:
+    ...  __slots__ = ('a')
+    ...  def __init__(self, x):
+    ...   self.a = x
+    ... 
+    >>> fu = Foo(1)
+    >>> print(fu.a)
+    1
+    >>> print(fu.__dict__)
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    AttributeError: 'Foo' object has no attribute '__dict__'
+
+This is a useful optimization if there are a lot of Foo objects, and
+is somewhat faster.  As I understand it, while nobody has yet found a
+reason to optimize other namespaces in such a way (or extend them in
+some way, for that matter), the option is intentionally open.
+
+Steve
+
