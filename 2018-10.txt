@@ -5044,3 +5044,86 @@ some way, for that matter), the option is intentionally open.
 
 Steve
 
+From mingw.android at gmail.com  Tue Oct  9 02:58:53 2018
+From: mingw.android at gmail.com (Ray Donnelly)
+Date: Tue, 9 Oct 2018 07:58:53 +0100
+Subject: [Python-Dev] Use of objdump within ctypes _get_soname()
+Message-ID: <CAOYw7dswp8KHAQby-DD8wARi6paj9owYv_6PtDP-2O6MjkZiZw@mail.gmail.com>
+
+Hi,
+
+We ran into an issue on the Anaconda Distribution recently where we
+added libarchive-c to conda-build (so we can un-compress more source
+archive formats than tarfile supports) and everything was good a few
+hours, until it hit various CI systems where objdump is not installed.
+
+I was a bit surprised by this dependency and wondered if there'd be
+interest in a fallback path that inspects the elf with some fairly
+simple python code to determine the soname instead? I have code that
+works already - though it could do with and a tidy up - and has been
+tested on a variety of architectures. Would CPython be interested in
+an attempt to upstream this?
+
+Is it documented anywhere that objdump is needed to load some
+extension modules on Linux?
+
+
+Best regards,
+
+Ray Donnelly,
+Anaconda Inc,
+
+From greg at krypto.org  Tue Oct  9 03:12:55 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Tue, 9 Oct 2018 00:12:55 -0700
+Subject: [Python-Dev] Use of objdump within ctypes _get_soname()
+In-Reply-To: <CAOYw7dswp8KHAQby-DD8wARi6paj9owYv_6PtDP-2O6MjkZiZw@mail.gmail.com>
+References: <CAOYw7dswp8KHAQby-DD8wARi6paj9owYv_6PtDP-2O6MjkZiZw@mail.gmail.com>
+Message-ID: <CAGE7PNJgNyan7DC9NmHj8tR+mWLf6rk8OFZfmgPFpqKewxKq4g@mail.gmail.com>
+
+On Mon, Oct 8, 2018 at 11:59 PM Ray Donnelly <mingw.android at gmail.com>
+wrote:
+
+> Hi,
+>
+> We ran into an issue on the Anaconda Distribution recently where we
+> added libarchive-c to conda-build (so we can un-compress more source
+> archive formats than tarfile supports) and everything was good a few
+> hours, until it hit various CI systems where objdump is not installed.
+>
+> I was a bit surprised by this dependency and wondered if there'd be
+> interest in a fallback path that inspects the elf with some fairly
+> simple python code to determine the soname instead? I have code that
+> works already - though it could do with and a tidy up - and has been
+> tested on a variety of architectures. Would CPython be interested in
+> an attempt to upstream this?
+>
+> Is it documented anywhere that objdump is needed to load some
+> extension modules on Linux?
+>
+
+Wow, that looks like gross code buried within ctypes.util (which
+libarchive-c uses) that calls various platforms versions of objdump or
+equivalent.  File a bugs.python.org issue and submit a PR, native ELF
+header reading code for this makes sense.
+
+-G
+
+
+>
+>
+> Best regards,
+>
+> Ray Donnelly,
+> Anaconda Inc,
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181009/393f9a66/attachment.html>
+
