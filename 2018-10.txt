@@ -5127,3 +5127,801 @@ header reading code for this makes sense.
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181009/393f9a66/attachment.html>
 
+From jdhardy at gmail.com  Tue Oct  9 12:37:48 2018
+From: jdhardy at gmail.com (Jeff Hardy)
+Date: Tue, 9 Oct 2018 09:37:48 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <ppe253$oie$1@blaine.gmane.org>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+Message-ID: <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+
+On Sun, Oct 7, 2018 at 3:45 PM Terry Reedy <tjreedy at udel.edu> wrote:
+>
+> On 10/7/2018 1:34 PM, Chris Barker via Python-Dev wrote:
+> > On Fri, Oct 5, 2018 at 3:01 PM Brett Cannon <brett at python.org
+> > <mailto:brett at python.org>> wrote:
+> >
+> >     I'm also fine with saying that keys in **kwargs that are not proper
+> >     identifiers is an implementation detail.
+> >
+> >
+> > It's not just **kwargs -- you can also use arbitrary names with
+> > setattr() / getattr() :
+> >
+> > In [6]: setattr(foo, "4 not an identifier", "this works")
+> >
+> > In [7]: getattr(foo, "4 not an identifier")
+> > Out[7]: 'this works'
+>
+> When this behavior of set/getattr was discussed a decade or so ago,
+> Guido said not to disable it, but I believe he said it should not be
+> considered a language feature.  There are other situations where CPython
+> is 'looser' than the spec.
+
+>From an alternative implementation point of view, CPython's behaviour
+*is* the spec. Practicality beats purity and all that.
+
+- Jeff
+
+From guido at python.org  Tue Oct  9 13:26:50 2018
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 9 Oct 2018 10:26:50 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+Message-ID: <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+
+My feeling is that limiting it to strings is fine, but checking those
+strings for resembling identifiers is pointless and wasteful.
+
+On Tue, Oct 9, 2018 at 9:40 AM Jeff Hardy <jdhardy at gmail.com> wrote:
+
+> On Sun, Oct 7, 2018 at 3:45 PM Terry Reedy <tjreedy at udel.edu> wrote:
+> >
+> > On 10/7/2018 1:34 PM, Chris Barker via Python-Dev wrote:
+> > > On Fri, Oct 5, 2018 at 3:01 PM Brett Cannon <brett at python.org
+> > > <mailto:brett at python.org>> wrote:
+> > >
+> > >     I'm also fine with saying that keys in **kwargs that are not proper
+> > >     identifiers is an implementation detail.
+> > >
+> > >
+> > > It's not just **kwargs -- you can also use arbitrary names with
+> > > setattr() / getattr() :
+> > >
+> > > In [6]: setattr(foo, "4 not an identifier", "this works")
+> > >
+> > > In [7]: getattr(foo, "4 not an identifier")
+> > > Out[7]: 'this works'
+> >
+> > When this behavior of set/getattr was discussed a decade or so ago,
+> > Guido said not to disable it, but I believe he said it should not be
+> > considered a language feature.  There are other situations where CPython
+> > is 'looser' than the spec.
+>
+> From an alternative implementation point of view, CPython's behaviour
+> *is* the spec. Practicality beats purity and all that.
+>
+> - Jeff
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+-- 
+--Guido (mobile)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181009/d39ba8a1/attachment.html>
+
+From gregory.szorc at gmail.com  Tue Oct  9 17:02:02 2018
+From: gregory.szorc at gmail.com (Gregory Szorc)
+Date: Tue, 9 Oct 2018 14:02:02 -0700
+Subject: [Python-Dev] Python startup time
+In-Reply-To: <de448a2e-89c1-9fe2-f9e7-1c88c484bc2e@gmail.com>
+References: <CAMpsgwY5-DgeXByK4FkCvWsvoOL_Ke1Aid20P+GC7MkJ+H6K7g@mail.gmail.com>
+ <12e547e7-de6f-2dca-d3fe-47b63e108a8b@hastings.org>
+ <de448a2e-89c1-9fe2-f9e7-1c88c484bc2e@gmail.com>
+Message-ID: <6c2836f3-cc30-9d3b-569a-825b6dd0e25c@gmail.com>
+
+On 5/1/2018 8:26 PM, Gregory Szorc wrote:
+> On 7/19/2017 12:15 PM, Larry Hastings wrote:
+>>
+>>
+>> On 07/19/2017 05:59 AM, Victor Stinner wrote:
+>>> Mercurial startup time is already 45.8x slower than Git whereas tested
+>>> Mercurial runs on Python 2.7.12. Now try to sell Python 3 to Mercurial
+>>> developers, with a startup time 2x - 3x slower...
+>>
+>> When Matt Mackall spoke at the Python Language Summit some years back, I
+>> recall that he specifically complained about Python startup time.? He
+>> said Python 3 "didn't solve any problems for [them]"--they'd already
+>> solved their Unicode hygiene problems--and that Python's slow startup
+>> time was already a big problem for them.? Python 3 being /even slower/
+>> to start was absolutely one of the reasons why they didn't want to upgrade.
+>>
+>> You might think "what's a few milliseconds matter".? But if you run
+>> hundreds of commands in a shell script it adds up.? git's speed is one
+>> of the few bright spots in its UX, and hg's comparative slowness here is
+>> a palpable disadvantage.
+>>
+>>
+>>> So please continue efforts for make Python startup even faster to beat
+>>> all other programming languages, and finally convince Mercurial to
+>>> upgrade ;-)
+>>
+>> I believe Mercurial is, finally, slowly porting to Python 3.
+>>
+>>     https://www.mercurial-scm.org/wiki/Python3
+>>
+>> Nevertheless, I can't really be annoyed or upset at them moving slowly
+>> to adopt Python 3, as Matt's objections were entirely legitimate.
+> 
+> I just now found found this thread when searching the archive for
+> threads about startup time. And I was searching for threads about
+> startup time because Mercurial's startup time has been getting slower
+> over the past few months and this is causing substantial pain.
+> 
+> As I posted back in 2014 [1], CPython's startup overhead was >10% of the
+> total CPU time in Mercurial's test suite. And when you factor in the
+> time to import modules that get Mercurial to a point where it can run
+> commands, it was more like 30%!
+> 
+> Mercurial's full test suite currently runs `hg` ~25,000 times. Using
+> Victor's startup time numbers of 6.4ms for 2.7 and 14.5ms for
+> 3.7/master, Python startup overhead contributes ~160s on 2.7 and ~360s
+> on 3.7/master. Even if you divide this by the number of available CPU
+> cores, we're talking dozens of seconds of wall time just waiting for
+> CPython to get to a place where Mercurial's first bytecode can execute.
+> 
+> And the problem is worse when you factor in the time it takes to import
+> Mercurial's own modules.
+> 
+> As a concrete example, I recently landed a Mercurial patch [2] that
+> stubs out zope.interface to prevent the import of 9 modules on every
+> `hg` invocation. This "only" saved ~6.94ms for a typical `hg`
+> invocation. But this decreased the CPU time required to run the test
+> suite on my i7-6700K from ~4450s to ~3980s (~89.5% of original) - a
+> reduction of almost 8 minutes of CPU time (and over 1 minute of wall time)!
+> 
+> By the time CPython gets Mercurial to a point where we can run useful
+> code, we've already blown most of or past the time budget where humans
+> perceive an action/command as instantaneous. If you ignore startup
+> overhead, Mercurial's performance compares quite well to Git's for many
+> operations. But the reality is that CPython startup overhead makes it
+> look like Mercurial is non-instantaneous before Mercurial even has the
+> opportunity to execute meaningful code!
+> 
+> Mercurial provides a `chg` program that essentially spins up a daemon
+> `hg` process running a "command server" so the `chg` program [written in
+> C - no startup overhead] can dispatch commands to an already-running
+> Python/`hg` process and avoid paying the startup overhead cost. When you
+> run Mercurial's test suite using `chg`, it completes *minutes* faster.
+> `chg` exists mainly as a workaround for slow startup overhead.
+> 
+> Changing gears, my day job is maintaining Firefox's build system. We use
+> Python heavily in the build system. And again, Python startup overhead
+> is problematic. I don't have numbers offhand, but we invoke likely a few
+> hundred Python processes as part of building Firefox. It should be
+> several thousand. But, we've had to "hack" parts of the build system to
+> "batch" certain build actions in single process invocations in order to
+> avoid Python startup overhead. This undermines the ability of some build
+> tools to formulate a reasonable understanding of the DAG and it causes a
+> bit of pain for build system developers and makes it difficult to
+> achieve "no-op" and fast incremental builds because we're always
+> invoking certain Python processes because we've had to move DAG
+> awareness out of the build backend and into Python. At some point, we'll
+> likely replace Python code with Rust so the build system is more "pure"
+> and easier to maintain and reason about.
+> 
+> I've seen posts in this thread and elsewhere in the CPython development
+> universe that challenge whether milliseconds in startup time matter.
+> Speaking as a Mercurial and Firefox build system developer,
+> *milliseconds absolutely matter*. Going further, *fractions of
+> milliseconds matter*. For Mercurial's test suite with its ~25,000 Python
+> process invocations, 1ms translates to ~25s of CPU time. With 2.7,
+> Mercurial can dispatch commands in ~50ms. When you load common
+> extensions, it isn't uncommon to see process startup overhead of
+> 100-150ms! A millisecond here. A millisecond there. Before you know it,
+> we're talking *minutes* of CPU (and potentially wall) time in order to
+> run Mercurial's test suite (or build Firefox, or ...).
+> 
+> From my perspective, Python process startup and module import overhead
+> is a severe problem for Python. I don't say this lightly, but in my mind
+> the problem causes me to question the viability of Python for popular
+> use cases, such as CLI applications. When choosing a programming
+> language, I want one that will scale as a project grows. Vanilla process
+> overhead has Python starting off significantly slower than compiled code
+> (or even Perl) and adding module import overhead into the mix makes
+> Python slower and slower as projects grow. As someone who has to deal
+> with this slowness on a daily basis, I can tell you that it is extremely
+> frustrating and it does matter. I hope that the importance of the
+> problem will be acknowledged (milliseconds *do* matter) and that
+> creative minds will band together to address it. Since I am
+> disproportionately impacted by this issue, if there's anything I can do
+> to help, let me know.
+
+We were debugging abysmally slow execution of Mercurial's test harness
+on macOS and we discovered a new wrinkle to the startup time problem.
+
+It appears that APFS acquires some shared locks/mutexes in the kernel
+when executing readdir() and other filesystem system calls. When you
+have several Python processes all starting at the same time, I/O
+attached to module importing (import.c:case_ok() by the looks of it for
+Python 2.7) becomes a stress test of sorts for this lock acquisition. On
+my 6+6 core MacBook Pro, ~75% of overall system CPU is spent in the
+kernel when executing the test harness with 12 parallel tests.
+
+If we run the test harness with the persistent `chg` command server
+(which eliminates Python process startup overhead), wall execution time
+drops from ~37:43s to ~9:06s.
+
+This problem of shared locks on read-only operations appears to be
+similar to that of AUFS, which I've blogged about [1].
+
+It is pretty common for non-compiled languages (like Python, Ruby, PHP,
+Perl, etc) to stat() the world as part of looking for modules to load.
+Typically, the filesystem's stat cache will save you and the overhead
+from hundreds or thousands of lookups is trivial (after first load). But
+it appears APFS is quite sensitive to it. Any work to reduce the number
+of filesystem API calls during Python startup will likely have a
+profound impact on APFS when multiple Python processes are starting. A
+"frozen" application where modules are in a shared container file is
+probably ideal.
+
+Python 3.7 doesn't exhibit as much of a problem. But it is still there.
+A brief audit of the importer code and call stacks confirms it is the
+same problem - just less prevalent. Wall time execution of the test
+harness from Python 2.7 to Python 3.7 drops from ~37:43s to ~20:39.
+Overall kernel CPU time drops from ~75% to ~19%. And that wall time
+improvement is despite Python 3's slower process startup. So locking in
+the kernel is really a killer on Python 2.7.
+
+While we're here, CPython might want to look into getdirentriesattr() as
+a replacement for readdir(). We switched to it in Mercurial several
+years ago to make `hg status` operations significantly faster [2]. I'm
+not sure if it will yield a speedup on APFS though. But it's worth a
+try. (If it does, you could probably make
+os.listdir()/os.scandir()/os.walk() significantly faster on macOS.)
+
+I hope someone finds this information useful to further improving
+[startup] performance. (And given that Python 3.7 is substantially
+faster by avoiding excessive readdir(), I wouldn't be surprised if this
+problem is already known!)
+
+[1] https://gregoryszorc.com/blog/2017/12/08/good-riddance-to-aufs/
+[2] https://www.mercurial-scm.org/repo/hg/rev/05ccfe6763f1
+
+From solipsis at pitrou.net  Tue Oct  9 17:23:42 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 9 Oct 2018 23:23:42 +0200
+Subject: [Python-Dev] Python startup time
+References: <CAMpsgwY5-DgeXByK4FkCvWsvoOL_Ke1Aid20P+GC7MkJ+H6K7g@mail.gmail.com>
+ <12e547e7-de6f-2dca-d3fe-47b63e108a8b@hastings.org>
+ <de448a2e-89c1-9fe2-f9e7-1c88c484bc2e@gmail.com>
+ <6c2836f3-cc30-9d3b-569a-825b6dd0e25c@gmail.com>
+Message-ID: <20181009232342.666c2b48@fsol>
+
+
+Hi,
+
+On Tue, 9 Oct 2018 14:02:02 -0700
+Gregory Szorc <gregory.szorc at gmail.com> wrote:
+> 
+> Python 3.7 doesn't exhibit as much of a problem. But it is still there.
+> A brief audit of the importer code and call stacks confirms it is the
+> same problem - just less prevalent. Wall time execution of the test
+> harness from Python 2.7 to Python 3.7 drops from ~37:43s to ~20:39.
+> Overall kernel CPU time drops from ~75% to ~19%. And that wall time
+> improvement is despite Python 3's slower process startup. So locking in
+> the kernel is really a killer on Python 2.7.
+
+Thanks for the detailed feedback.
+
+> I hope someone finds this information useful to further improving
+> [startup] performance. (And given that Python 3.7 is substantially
+> faster by avoiding excessive readdir(), I wouldn't be surprised if this
+> problem is already known!)
+
+The macOS problem wasn't known, but the general problem of filesystem
+calls was (in relation with e.g. networked filesystems).
+
+Significant work went into improving Python 3 in that regard after the
+import mechanism was rewritten in pure Python.  Nowadays Python caches
+the contents of all sys.path directories, so (once the cache is primed)
+it's mostly a single stat() call per directory to check whether the
+cache is up-to-date.  This is not entirely free, but massively better
+than what Python 2 did, which was to stat() many filename patterns in
+each sys.path directory.
+
+(of course, the fact that Python 3 imports many more modules at startup
+mitigates the end result a bit)
+
+
+As a sidenote, I was always shocked with how the Mercurial test suite
+was architected.  You're wasting so much time launching processes that
+I wonder why you kept it that way for so long :-)
+
+Regards
+
+Antoine.
+
+
+
+From steve at pearwood.info  Tue Oct  9 19:06:05 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 10 Oct 2018 10:06:05 +1100
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+Message-ID: <20181009230605.GV3817@ando.pearwood.info>
+
+On Tue, Oct 09, 2018 at 09:37:48AM -0700, Jeff Hardy wrote:
+
+> > When this behavior of set/getattr was discussed a decade or so ago,
+> > Guido said not to disable it, but I believe he said it should not be
+> > considered a language feature.  There are other situations where CPython
+> > is 'looser' than the spec.
+> 
+> From an alternative implementation point of view, CPython's behaviour
+> *is* the spec. Practicality beats purity and all that.
+
+Are you speaking on behalf of all authors of alternate implementations, 
+or even of some of them?
+
+It certainly is not true that CPython's behaviour "is" the spec. PyPy 
+keeps a list of CPython behaviour they don't match, either because they 
+choose not to for other reasons, or because they believe that the 
+CPython behaviour is buggy. I daresay IronPython and Jython have 
+similar.
+
+And this especially applies when CPython explicitly states that certain 
+behaviour is implementation-dependent and could change in the future.
+
+
+-- 
+Steve
+
+From steve at pearwood.info  Tue Oct  9 19:21:35 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 10 Oct 2018 10:21:35 +1100
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+Message-ID: <20181009232134.GW3817@ando.pearwood.info>
+
+On Tue, Oct 09, 2018 at 10:26:50AM -0700, Guido van Rossum wrote:
+> My feeling is that limiting it to strings is fine, but checking those
+> strings for resembling identifiers is pointless and wasteful.
+
+Sure. The question is, do we have to support uses where people 
+intentionally smuggle non-identifier strings as keys via **kwargs?
+
+I'm not saying we need to guard against it, only asking if we need to 
+officially support it. The discussion on Python-Ideas is (partly) about 
+making this a language feature.
+
+
+-- 
+Steve
+
+From barry at python.org  Tue Oct  9 20:14:14 2018
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 9 Oct 2018 17:14:14 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <20181009232134.GW3817@ando.pearwood.info>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+ <20181009232134.GW3817@ando.pearwood.info>
+Message-ID: <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+
+On Oct 9, 2018, at 16:21, Steven D'Aprano <steve at pearwood.info> wrote:
+> 
+> On Tue, Oct 09, 2018 at 10:26:50AM -0700, Guido van Rossum wrote:
+>> My feeling is that limiting it to strings is fine, but checking those
+>> strings for resembling identifiers is pointless and wasteful.
+> 
+> Sure. The question is, do we have to support uses where people
+> intentionally smuggle non-identifier strings as keys via **kwargs?
+
+I would not be in favor of that.  I think it doesn?t make sense to be able to smuggle those in via **kwargs when it?s not supported by Python?s grammar/syntax.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181009/1a5fc5fe/attachment.sig>
+
+From guido at python.org  Tue Oct  9 20:26:11 2018
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 9 Oct 2018 17:26:11 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+ <20181009232134.GW3817@ando.pearwood.info>
+ <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+Message-ID: <CAP7+vJ+8xvrje_VT6ORtoms+HL4dMhD7S4T0YKD9xAJS9vNs+Q@mail.gmail.com>
+
+On Tue, Oct 9, 2018 at 5:17 PM Barry Warsaw <barry at python.org> wrote:
+
+> On Oct 9, 2018, at 16:21, Steven D'Aprano <steve at pearwood.info> wrote:
+> >
+> > On Tue, Oct 09, 2018 at 10:26:50AM -0700, Guido van Rossum wrote:
+> >> My feeling is that limiting it to strings is fine, but checking those
+> >> strings for resembling identifiers is pointless and wasteful.
+> >
+> > Sure. The question is, do we have to support uses where people
+> > intentionally smuggle non-identifier strings as keys via **kwargs?
+>
+> I would not be in favor of that.  I think it doesn?t make sense to be able
+> to smuggle those in via **kwargs when it?s not supported by Python?s
+> grammar/syntax.
+>
+
+Well, it currently works in all Python implementations (definitely in
+CPython, and presumably in PyPy and Jython because they tend to follow
+CPython carefully). The less the spec leaves undefined the better, IMO, and
+I fully expect we'll be breaking code that is doing this. So we might as
+well make it the law.
+
+For example, in some code bases it's a pretty common pattern to pass dicts
+around using **kwds several levels deep, with no intention to unpack it
+into individual keyword arguments -- the caller sends a dict, and the
+receiver accepts a dict and does dict-y things to it. Sure, they probably
+shouldn't be abusing **kwds, but they are, and I can't really blame them --
+possibly this code evolved from a situation that did use keyword args.
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181009/b406d4ac/attachment-0001.html>
+
+From benjamin at python.org  Tue Oct  9 22:12:16 2018
+From: benjamin at python.org (Benjamin Peterson)
+Date: Tue, 09 Oct 2018 19:12:16 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+ <20181009232134.GW3817@ando.pearwood.info>
+ <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+Message-ID: <1539137536.2690467.1536683584.3C4799A8@webmail.messagingengine.com>
+
+
+
+On Tue, Oct 9, 2018, at 17:14, Barry Warsaw wrote:
+> On Oct 9, 2018, at 16:21, Steven D'Aprano <steve at pearwood.info> wrote:
+> > 
+> > On Tue, Oct 09, 2018 at 10:26:50AM -0700, Guido van Rossum wrote:
+> >> My feeling is that limiting it to strings is fine, but checking those
+> >> strings for resembling identifiers is pointless and wasteful.
+> > 
+> > Sure. The question is, do we have to support uses where people
+> > intentionally smuggle non-identifier strings as keys via **kwargs?
+> 
+> I would not be in favor of that.  I think it doesn?t make sense to be 
+> able to smuggle those in via **kwargs when it?s not supported by 
+> Python?s grammar/syntax.
+
+Can anyone think of a situation where it would be advantageous for an implementation to reject non-identifier string kwargs? I can't.
+
+I agree with Guido?banning it would be too much trouble for no benefit.
+
+From chris.jerdonek at gmail.com  Tue Oct  9 22:46:56 2018
+From: chris.jerdonek at gmail.com (Chris Jerdonek)
+Date: Tue, 9 Oct 2018 19:46:56 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <1539137536.2690467.1536683584.3C4799A8@webmail.messagingengine.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+ <20181009232134.GW3817@ando.pearwood.info>
+ <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+ <1539137536.2690467.1536683584.3C4799A8@webmail.messagingengine.com>
+Message-ID: <CAOTb1weprvDBMTiHs4_HdBw2vK+hnrSaxj+mj8RFk5Fxmta24Q@mail.gmail.com>
+
+On Tue, Oct 9, 2018 at 7:13 PM Benjamin Peterson <benjamin at python.org> wrote:
+> On Tue, Oct 9, 2018, at 17:14, Barry Warsaw wrote:
+> > On Oct 9, 2018, at 16:21, Steven D'Aprano <steve at pearwood.info> wrote:
+> > >
+> > > On Tue, Oct 09, 2018 at 10:26:50AM -0700, Guido van Rossum wrote:
+> > >> My feeling is that limiting it to strings is fine, but checking those
+> > >> strings for resembling identifiers is pointless and wasteful.
+> > >
+> > > Sure. The question is, do we have to support uses where people
+> > > intentionally smuggle non-identifier strings as keys via **kwargs?
+> >
+> > I would not be in favor of that.  I think it doesn?t make sense to be
+> > able to smuggle those in via **kwargs when it?s not supported by
+> > Python?s grammar/syntax.
+>
+> Can anyone think of a situation where it would be advantageous for an implementation to reject non-identifier string kwargs? I can't.
+
+One possibility is that it could foreclose certain security bugs from
+happening. For example, if someone has an API that accepts **kwargs,
+they might have the mistaken assumption that the keys are identifiers
+without special characters like ";" etc, and so they could make the
+mistake of thinking they don't need to escape / sanitize them.
+
+--Chris
+
+>
+> I agree with Guido?banning it would be too much trouble for no benefit.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/chris.jerdonek%40gmail.com
+
+From guido at python.org  Tue Oct  9 23:56:16 2018
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 9 Oct 2018 20:56:16 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CAOTb1weprvDBMTiHs4_HdBw2vK+hnrSaxj+mj8RFk5Fxmta24Q@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+ <20181009232134.GW3817@ando.pearwood.info>
+ <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+ <1539137536.2690467.1536683584.3C4799A8@webmail.messagingengine.com>
+ <CAOTb1weprvDBMTiHs4_HdBw2vK+hnrSaxj+mj8RFk5Fxmta24Q@mail.gmail.com>
+Message-ID: <CAP7+vJLJ4FjuU1CG42oCgjg8fikmm7JC_2QOWMSm1RBkOq2zHA@mail.gmail.com>
+
+On Tue, Oct 9, 2018 at 7:49 PM Chris Jerdonek <chris.jerdonek at gmail.com>
+wrote:
+
+> On Tue, Oct 9, 2018 at 7:13 PM Benjamin Peterson <benjamin at python.org>
+> wrote:
+> > On Tue, Oct 9, 2018, at 17:14, Barry Warsaw wrote:
+> > > On Oct 9, 2018, at 16:21, Steven D'Aprano <steve at pearwood.info> wrote:
+> > > >
+> > > > On Tue, Oct 09, 2018 at 10:26:50AM -0700, Guido van Rossum wrote:
+> > > >> My feeling is that limiting it to strings is fine, but checking
+> those
+> > > >> strings for resembling identifiers is pointless and wasteful.
+> > > >
+> > > > Sure. The question is, do we have to support uses where people
+> > > > intentionally smuggle non-identifier strings as keys via **kwargs?
+> > >
+> > > I would not be in favor of that.  I think it doesn?t make sense to be
+> > > able to smuggle those in via **kwargs when it?s not supported by
+> > > Python?s grammar/syntax.
+> >
+> > Can anyone think of a situation where it would be advantageous for an
+> implementation to reject non-identifier string kwargs? I can't.
+>
+> One possibility is that it could foreclose certain security bugs from
+> happening. For example, if someone has an API that accepts **kwargs,
+> they might have the mistaken assumption that the keys are identifiers
+> without special characters like ";" etc, and so they could make the
+> mistake of thinking they don't need to escape / sanitize them.
+>
+
+Hm, that's not an entirely unreasonable concern. How would an attacker get
+such keys *into* the dict? One possible scenario would be something that
+parses a traditional web query string into a dict, passes it down through
+**kwds, and then turns it back into another query string without proper
+quoting. But the most common (and easiest) way to turn a dict into a query
+string is calling urlencode(), which quotes unsafe characters.
+
+I think we needn't rush this (and when in doubt, status quo wins, esp. when
+there's no BDFL :-).
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181009/80527f7f/attachment.html>
+
+From v+python at g.nevcal.com  Tue Oct  9 23:53:56 2018
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Tue, 9 Oct 2018 20:53:56 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CAOTb1weprvDBMTiHs4_HdBw2vK+hnrSaxj+mj8RFk5Fxmta24Q@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+ <20181009232134.GW3817@ando.pearwood.info>
+ <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+ <1539137536.2690467.1536683584.3C4799A8@webmail.messagingengine.com>
+ <CAOTb1weprvDBMTiHs4_HdBw2vK+hnrSaxj+mj8RFk5Fxmta24Q@mail.gmail.com>
+Message-ID: <92cb458e-00e0-54aa-2510-17fba330ab67@g.nevcal.com>
+
+On 10/9/2018 7:46 PM, Chris Jerdonek wrote:
+> On Tue, Oct 9, 2018 at 7:13 PM Benjamin Peterson <benjamin at python.org> wrote:
+>> On Tue, Oct 9, 2018, at 17:14, Barry Warsaw wrote:
+>>> On Oct 9, 2018, at 16:21, Steven D'Aprano <steve at pearwood.info> wrote:
+>>>> On Tue, Oct 09, 2018 at 10:26:50AM -0700, Guido van Rossum wrote:
+>>>>> My feeling is that limiting it to strings is fine, but checking those
+>>>>> strings for resembling identifiers is pointless and wasteful.
+>>>> Sure. The question is, do we have to support uses where people
+>>>> intentionally smuggle non-identifier strings as keys via **kwargs?
+>>> I would not be in favor of that.  I think it doesn?t make sense to be
+>>> able to smuggle those in via **kwargs when it?s not supported by
+>>> Python?s grammar/syntax.
+>> Can anyone think of a situation where it would be advantageous for an implementation to reject non-identifier string kwargs? I can't.
+> One possibility is that it could foreclose certain security bugs from
+> happening. For example, if someone has an API that accepts **kwargs,
+> they might have the mistaken assumption that the keys are identifiers
+> without special characters like ";" etc, and so they could make the
+> mistake of thinking they don't need to escape / sanitize them.
+>
+> --Chris
+With that line of reasoning, one should make sure the data are 
+identifiers too :)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181009/7f067eea/attachment.html>
+
+From chris.jerdonek at gmail.com  Wed Oct 10 02:41:32 2018
+From: chris.jerdonek at gmail.com (Chris Jerdonek)
+Date: Tue, 9 Oct 2018 23:41:32 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CAP7+vJLJ4FjuU1CG42oCgjg8fikmm7JC_2QOWMSm1RBkOq2zHA@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+ <20181009232134.GW3817@ando.pearwood.info>
+ <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+ <1539137536.2690467.1536683584.3C4799A8@webmail.messagingengine.com>
+ <CAOTb1weprvDBMTiHs4_HdBw2vK+hnrSaxj+mj8RFk5Fxmta24Q@mail.gmail.com>
+ <CAP7+vJLJ4FjuU1CG42oCgjg8fikmm7JC_2QOWMSm1RBkOq2zHA@mail.gmail.com>
+Message-ID: <CAOTb1wdBAaJdw8j7MNnDKVCUtcKNN5wf=aTP94+iUd+WTg-wRg@mail.gmail.com>
+
+On Tue, Oct 9, 2018 at 8:55 PM Guido van Rossum <guido at python.org> wrote:
+> On Tue, Oct 9, 2018 at 7:49 PM Chris Jerdonek <chris.jerdonek at gmail.com> wrote:
+>> On Tue, Oct 9, 2018 at 7:13 PM Benjamin Peterson <benjamin at python.org> wrote:
+>> > Can anyone think of a situation where it would be advantageous for an implementation to reject non-identifier string kwargs? I can't.
+>>
+>> One possibility is that it could foreclose certain security bugs from
+>> happening. For example, if someone has an API that accepts **kwargs,
+>> they might have the mistaken assumption that the keys are identifiers
+>> without special characters like ";" etc, and so they could make the
+>> mistake of thinking they don't need to escape / sanitize them.
+>
+>
+> Hm, that's not an entirely unreasonable concern. How would an attacker get such keys *into* the dict?
+
+I was just thinking json. It could be a config-file type situation, or
+a web API that accepts json.
+
+For example, there are JSON-RPC implementations in Python:
+https://pypi.org/project/json-rpc/
+that translate json dicts directly into **kwargs:
+https://github.com/pavlov99/json-rpc/blob/f1b4e5e96661efd4026cb6143dc3acd75c6c4682/jsonrpc/manager.py#L112
+
+On the server side, the application could be doing something like
+assuming that the kwargs are e.g. column names paired with values to
+construct a string in SQL or in some other language or format.
+
+--Chris
+
+
+
+> One possible scenario would be something that parses a traditional web query string into a dict, passes it down through **kwds, and then turns it back into another query string without proper quoting. But the most common (and easiest) way to turn a dict into a query string is calling urlencode(), which quotes unsafe characters.
+>
+> I think we needn't rush this (and when in doubt, status quo wins, esp. when there's no BDFL :-).
+>
+> --
+> --Guido van Rossum (python.org/~guido)
+
+From storchaka at gmail.com  Wed Oct 10 02:48:42 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Wed, 10 Oct 2018 09:48:42 +0300
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <1539137536.2690467.1536683584.3C4799A8@webmail.messagingengine.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+ <20181009232134.GW3817@ando.pearwood.info>
+ <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+ <1539137536.2690467.1536683584.3C4799A8@webmail.messagingengine.com>
+Message-ID: <ppk787$pq0$1@blaine.gmane.org>
+
+10.10.18 05:12, Benjamin Peterson ????:
+> On Tue, Oct 9, 2018, at 17:14, Barry Warsaw wrote:
+>> On Oct 9, 2018, at 16:21, Steven D'Aprano <steve at pearwood.info> wrote:
+>>>
+>>> On Tue, Oct 09, 2018 at 10:26:50AM -0700, Guido van Rossum wrote:
+>>>> My feeling is that limiting it to strings is fine, but checking those
+>>>> strings for resembling identifiers is pointless and wasteful.
+>>>
+>>> Sure. The question is, do we have to support uses where people
+>>> intentionally smuggle non-identifier strings as keys via **kwargs?
+>>
+>> I would not be in favor of that.  I think it doesn?t make sense to be
+>> able to smuggle those in via **kwargs when it?s not supported by
+>> Python?s grammar/syntax.
+> 
+> Can anyone think of a situation where it would be advantageous for an implementation to reject non-identifier string kwargs? I can't.
+
+I can. The space of identifiers is smaller than the space of all 
+strings. We need just 6 bits per character for ASCII identifiers and 16 
+bits per character for Unicode identifiers. We could use a special kind 
+of strings for more compact representation of identifiers. It may be 
+even possible to encode all identifiers used in the stdlib and in the 
+program as a tagged 64-bit pointer. Currently dict has specialized code 
+for string keys, it could have specialization for identifiers (used only 
+for keyword arguments, instance dicts, etc). Argument parsing code can 
+also utilize the fact that a special hash for short identifiers doesn't 
+have collizions and compare just hashes.
+
+All this looks fantastic, but I would not close doors for future 
+optimizations.
+
+
