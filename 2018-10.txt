@@ -5925,3 +5925,100 @@ All this looks fantastic, but I would not close doors for future
 optimizations.
 
 
+From ronaldoussoren at mac.com  Wed Oct 10 04:10:01 2018
+From: ronaldoussoren at mac.com (Ronald Oussoren)
+Date: Wed, 10 Oct 2018 10:10:01 +0200
+Subject: [Python-Dev] Python startup time
+In-Reply-To: <6c2836f3-cc30-9d3b-569a-825b6dd0e25c@gmail.com>
+References: <CAMpsgwY5-DgeXByK4FkCvWsvoOL_Ke1Aid20P+GC7MkJ+H6K7g@mail.gmail.com>
+ <12e547e7-de6f-2dca-d3fe-47b63e108a8b@hastings.org>
+ <de448a2e-89c1-9fe2-f9e7-1c88c484bc2e@gmail.com>
+ <6c2836f3-cc30-9d3b-569a-825b6dd0e25c@gmail.com>
+Message-ID: <2EDEFB52-D93B-42A4-9921-B56109984F44@mac.com>
+
+
+
+> On 9 Oct 2018, at 23:02, Gregory Szorc <gregory.szorc at gmail.com> wrote:
+> 
+> 
+> 
+> While we're here, CPython might want to look into getdirentriesattr() as
+> a replacement for readdir(). We switched to it in Mercurial several
+> years ago to make `hg status` operations significantly faster [2]. I'm
+> not sure if it will yield a speedup on APFS though. But it's worth a
+> try. (If it does, you could probably make
+> os.listdir()/os.scandir()/os.walk() significantly faster on macOS.)
+
+Note that getdirentriesattr is deprecated as of macOS 10.10, getattrlistbulk
+is the non-deprecated replacement (introduced in 10.10). 
+
+Ronald
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181010/29b6ee4c/attachment.html>
+
+From mingw.android at gmail.com  Wed Oct 10 07:24:54 2018
+From: mingw.android at gmail.com (Ray Donnelly)
+Date: Wed, 10 Oct 2018 12:24:54 +0100
+Subject: [Python-Dev] Use of objdump within ctypes _get_soname()
+In-Reply-To: <CAGE7PNJgNyan7DC9NmHj8tR+mWLf6rk8OFZfmgPFpqKewxKq4g@mail.gmail.com>
+References: <CAOYw7dswp8KHAQby-DD8wARi6paj9owYv_6PtDP-2O6MjkZiZw@mail.gmail.com>
+ <CAGE7PNJgNyan7DC9NmHj8tR+mWLf6rk8OFZfmgPFpqKewxKq4g@mail.gmail.com>
+Message-ID: <CAOYw7dvdg3FpiBe2kWPoGU1BVByXJS-c3fY2sWzC91YrmPbU8w@mail.gmail.com>
+
+I've looked into this more and it is more subtle than my initial
+report suggests (as usual).
+
+We have some custom code in AD around find_library() so it looks in
+sys.prefix/lib (on Unix) and I had a bug in that code when _get_soname
+returned None. I've fixed that now.
+
+I believe there is a condition under which this could go wrong which
+is if the soname returned by objdump differs from the filename and
+then the filename is not found. This would happen to people with
+objdump installed but not to people without it installed, so I feel
+the behaviour here should be unified. If you think we should unify it
+by implementing a python replacement for this functionality then I'll
+get on with a PR (and file that bug report too), the other option is
+to just remove this part and have just the fallbacks happen instead?
+On Tue, Oct 9, 2018 at 8:13 AM Gregory P. Smith <greg at krypto.org> wrote:
+>
+>
+>
+> On Mon, Oct 8, 2018 at 11:59 PM Ray Donnelly <mingw.android at gmail.com> wrote:
+>>
+>> Hi,
+>>
+>> We ran into an issue on the Anaconda Distribution recently where we
+>> added libarchive-c to conda-build (so we can un-compress more source
+>> archive formats than tarfile supports) and everything was good a few
+>> hours, until it hit various CI systems where objdump is not installed.
+>>
+>> I was a bit surprised by this dependency and wondered if there'd be
+>> interest in a fallback path that inspects the elf with some fairly
+>> simple python code to determine the soname instead? I have code that
+>> works already - though it could do with and a tidy up - and has been
+>> tested on a variety of architectures. Would CPython be interested in
+>> an attempt to upstream this?
+>>
+>> Is it documented anywhere that objdump is needed to load some
+>> extension modules on Linux?
+>
+>
+> Wow, that looks like gross code buried within ctypes.util (which libarchive-c uses) that calls various platforms versions of objdump or equivalent.  File a bugs.python.org issue and submit a PR, native ELF header reading code for this makes sense.
+>
+> -G
+>
+>>
+>>
+>>
+>> Best regards,
+>>
+>> Ray Donnelly,
+>> Anaconda Inc,
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+
