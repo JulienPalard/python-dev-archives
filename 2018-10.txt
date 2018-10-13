@@ -6022,3 +6022,79 @@ On Tue, Oct 9, 2018 at 8:13 AM Gregory P. Smith <greg at krypto.org> wrote:
 >> https://mail.python.org/mailman/listinfo/python-dev
 >> Unsubscribe: https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
 
+From chris.barker at noaa.gov  Thu Oct 11 13:27:08 2018
+From: chris.barker at noaa.gov (Chris Barker - NOAA Federal)
+Date: Thu, 11 Oct 2018 13:27:08 -0400
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CAOTb1wdBAaJdw8j7MNnDKVCUtcKNN5wf=aTP94+iUd+WTg-wRg@mail.gmail.com>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+ <20181009232134.GW3817@ando.pearwood.info>
+ <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+ <1539137536.2690467.1536683584.3C4799A8@webmail.messagingengine.com>
+ <CAOTb1weprvDBMTiHs4_HdBw2vK+hnrSaxj+mj8RFk5Fxmta24Q@mail.gmail.com>
+ <CAP7+vJLJ4FjuU1CG42oCgjg8fikmm7JC_2QOWMSm1RBkOq2zHA@mail.gmail.com>
+ <CAOTb1wdBAaJdw8j7MNnDKVCUtcKNN5wf=aTP94+iUd+WTg-wRg@mail.gmail.com>
+Message-ID: <CALGmxELdxWE-Zhf5Z5OHQ+tCEg9a7+3g7WPz1zUEzav0z7wZ-Q@mail.gmail.com>
+
+> On the server side, the application could be doing something like
+> assuming that the kwargs are e.g. column names
+
+This is exactly a use-case for non-identifier strings in kwargs. The
+rules for valid field names could very well be different than Python?s
+rules.
+
+The kwargs implementation is not the place for sanitizing to take
+place ? each app will need different sanitization rules.
+
+-CHB
+
+From samuele.pedroni at gmail.com  Fri Oct 12 03:08:32 2018
+From: samuele.pedroni at gmail.com (Samuele Pedroni)
+Date: Fri, 12 Oct 2018 09:08:32 +0200
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <20181004085633.GP21220@ando.pearwood.info>
+References: <20181004085633.GP21220@ando.pearwood.info>
+Message-ID: <CAGwLUHai7SKxO4=GAa0PGXNgd0G8Lr9Jd180dQiMr02ZQ_VVng@mail.gmail.com>
+
+On Thu, Oct 4, 2018 at 10:58 AM Steven D'Aprano <steve at pearwood.info> wrote:
+
+> While keyword arguments have to be identifiers, using **kwargs allows
+> arbitrary strings which aren't identifiers:
+>
+> py> def spam(**kwargs):
+> ...     print(kwargs)
+> ...
+> py> spam(**{"something arbitrary": 1, '\n': 2})
+> {'something arbitrary': 1, '\n': 2}
+>
+>
+> There is some discussion on Python-Ideas on whether or not that
+> behaviour ought to be considered a language feature, an accident of
+> implementation, or a bug.
+>
+>
+I would expect this to be costly/annoying for implementations to enforce,
+doing it at call time is probably too late to be efficient, it would need
+help from dicts themselves or even strings.
+
+A hack that currently works because of this is with dict itself:
+
+>>> d = {'a-1': 1, 'a-2': 2, 'a-3': 3}
+>>> d1 = dict(d, **{'a-2': -2, 'a-1': -1})
+>>> d1 is d
+False
+>>> d1
+{'a-1': -1, 'a-2': -2, 'a-3': 3}
+>>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181012/eecd4783/attachment.html>
+
