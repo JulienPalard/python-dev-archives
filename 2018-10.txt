@@ -6098,3 +6098,1181 @@ False
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181012/eecd4783/attachment.html>
 
+From steve at pearwood.info  Fri Oct 12 06:41:11 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 12 Oct 2018 21:41:11 +1100
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <CALGmxELdxWE-Zhf5Z5OHQ+tCEg9a7+3g7WPz1zUEzav0z7wZ-Q@mail.gmail.com>
+References: <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <CAP7+vJJCSsibBW5o02F+-jXNKCWshOWgrAWevv9OFwNhjusZvA@mail.gmail.com>
+ <20181009232134.GW3817@ando.pearwood.info>
+ <364D8E29-B1FF-4082-AFFC-05F2BB6C295C@python.org>
+ <1539137536.2690467.1536683584.3C4799A8@webmail.messagingengine.com>
+ <CAOTb1weprvDBMTiHs4_HdBw2vK+hnrSaxj+mj8RFk5Fxmta24Q@mail.gmail.com>
+ <CAP7+vJLJ4FjuU1CG42oCgjg8fikmm7JC_2QOWMSm1RBkOq2zHA@mail.gmail.com>
+ <CAOTb1wdBAaJdw8j7MNnDKVCUtcKNN5wf=aTP94+iUd+WTg-wRg@mail.gmail.com>
+ <CALGmxELdxWE-Zhf5Z5OHQ+tCEg9a7+3g7WPz1zUEzav0z7wZ-Q@mail.gmail.com>
+Message-ID: <20181012104110.GE3817@ando.pearwood.info>
+
+On Thu, Oct 11, 2018 at 01:27:08PM -0400, Chris Barker - NOAA Federal via Python-Dev wrote:
+> > On the server side, the application could be doing something like
+> > assuming that the kwargs are e.g. column names
+> 
+> This is exactly a use-case for non-identifier strings in kwargs.
+
+Why not just pass a dict as an argument, rather than (ab)using kwargs?
+
+Instead of:
+
+- building a dict containing non-identifiers;
+- unpacking it in the function call;
+- have the interpreter re-pack it to a **kwargs;
+- and then process it as a dict
+
+we can cut out the two middle steps. So I must admit, I'm perplexed as 
+to why people use an extra (superfluous?) ** to unpack a dict that's 
+just going to be packed again. I just don't get it. *shrug*
+
+I also wonder whether the use-cases for this would be reduced if we 
+introduced verbatim names? 
+
+https://mail.python.org/pipermail/python-ideas/2018-May/050791.html
+
+Keys containing non-identifier characters like spaces and hyphens would 
+still need the kwargs trick, but for reserved words you could just 
+escape the argument:
+
+def spam(eggs, \while=None):
+    ...
+
+spam(eggs=1234, \while=5678)
+
+
+which frankly looks much better to me than 
+
+spam(eggs=1234, **{"while": 5678})
+
+
+
+-- 
+Steve
+
+From eric at trueblade.com  Fri Oct 12 07:32:31 2018
+From: eric at trueblade.com (Eric V. Smith)
+Date: Fri, 12 Oct 2018 07:32:31 -0400
+Subject: [Python-Dev] [Python-checkins] bpo-34203: FAQ now recommends
+ python 3.x over 2.x (GH-9796)
+In-Reply-To: <42Wj0P517lzFrcx@mail.python.org>
+References: <42Wj0P517lzFrcx@mail.python.org>
+Message-ID: <125297d6-545f-3052-0900-9df2072f0057@trueblade.com>
+
+On 10/12/2018 5:17 AM, Tal Einat wrote:
+
+>   The latest stable releases can always be found on the `Python download page
+> -<https://www.python.org/downloads/>`_.  There are two recommended production-ready
+> -versions at this point in time, because at the moment there are two branches of
+> -stable releases: 2.x and 3.x.  Python 3.x may be less useful than 2.x, since
+> -currently there is more third party software available for Python 2 than for
+> -Python 3.  Python 2 code will generally not run unchanged in Python 3.
+> +<https://www.python.org/downloads/>`_.  There are two production-ready version
+> +of Python: 2.x and 3.x, but the recommended one at this times is Python 3.x.
+
+This should be "time", not "times". I'd fix it, but I'm unsure if this 
+is being backported or not, and I don't want to mess up any merges 
+before they're done.
+
+I do think this should backported to 3.7, 3.6, and 2.7.
+
+> +Although Python 2.x is still widely used, `it will not be
+> +maintained after January 1, 2020 <https://www.python.org/dev/peps/pep-0373/>`_.
+> +Python 2.x was known for having more third-party libraries available, however,
+> +by the time of this writing, most of the widely used libraries support Python 3.x,
+
+Should probably be "at the time of this writing".
+
+> +and some are even dropping the Python 2.x support.
+
+And this would read better as "are even dropping support for Python 2.x".
+
+Eric
+
+From seanharr11 at gmail.com  Fri Oct 12 08:33:32 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Fri, 12 Oct 2018 08:33:32 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+Message-ID: <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+
+Hi Nathaniel - this if this solution can be made performant, than I would
+be more than satisfied.
+
+I think this would require removing "func" from the "task tuple", and
+storing the "func" "once per worker" somewhere globally (maybe a class
+attribute set post-fork?).
+
+This also has the beneficial outcome of increasing general performance of
+Pool.map and friends. I've seen MANY folks across the interwebs doing
+things like passing instance methods to map, resulting in "big" tasks, and
+slower-than-sequential parallelized code. Parallelizing "instance methods"
+by passing them to map, w/o needing to wrangle with staticmethods and
+globals, would be a GREAT feature! It'd just be as easy as:
+
+    Pool.map(self.func, ls)
+
+What do you think about this idea? This is something I'd be able to take
+on, assuming I get a few core dev blessings...
+
+On Thu, Oct 4, 2018 at 6:15 AM Nathaniel Smith <njs at pobox.com> wrote:
+
+> On Wed, Oct 3, 2018 at 6:30 PM, Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+> > with Pool(func_kwargs={"big_cache": big_cache}) as pool:
+> >     pool.map(func, ls)
+>
+> I feel like it would be nicer to spell this:
+>
+> with Pool() as pool:
+>     pool.map(functools.partial(func, big_cache=big_cache), ls)
+>
+> And this might also solve your problem, if pool.map is clever enough
+> to only send the function object once to each worker?
+>
+> -n
+>
+> --
+> Nathaniel J. Smith -- https://vorpus.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181012/003ab385/attachment.html>
+
+From solipsis at pitrou.net  Fri Oct 12 08:48:47 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 12 Oct 2018 14:48:47 +0200
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+Message-ID: <20181012144847.7280967b@fsol>
+
+On Fri, 12 Oct 2018 08:33:32 -0400
+Sean Harrington <seanharr11 at gmail.com> wrote:
+> Hi Nathaniel - this if this solution can be made performant, than I would
+> be more than satisfied.
+> 
+> I think this would require removing "func" from the "task tuple", and
+> storing the "func" "once per worker" somewhere globally (maybe a class
+> attribute set post-fork?).
+> 
+> This also has the beneficial outcome of increasing general performance of
+> Pool.map and friends. I've seen MANY folks across the interwebs doing
+> things like passing instance methods to map, resulting in "big" tasks, and
+> slower-than-sequential parallelized code. Parallelizing "instance methods"
+> by passing them to map, w/o needing to wrangle with staticmethods and
+> globals, would be a GREAT feature! It'd just be as easy as:
+> 
+>     Pool.map(self.func, ls)
+> 
+> What do you think about this idea? This is something I'd be able to take
+> on, assuming I get a few core dev blessings...
+
+Well, I'm not sure how it would work, so it's difficult to give an
+opinion.  How do you plan to avoid passing "self"?  By caching (by
+equality? by identity?)?  Something else?  But what happens if "self"
+changed value (in the case of a mutable object) in the parent?  Do you
+keep using the stale version in the child?  That would break
+compatibility...
+
+Regards
+
+Antoine.
+
+From seanharr11 at gmail.com  Fri Oct 12 09:17:59 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Fri, 12 Oct 2018 09:17:59 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <20181012144847.7280967b@fsol>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+Message-ID: <CAFbyWc1P-OFs9qWq6=tH8UpNKxmSEUbUse8nJpfDWMgDgJKcKA@mail.gmail.com>
+
+The implementation details need to be flushed out, but agnostic of these,
+do you believe this a valid solution to the initial problem? Do you also
+see it as a beneficial optimization to Pool, given that we don't need to
+store funcs/bound-methods/partials on the tasks themselves?
+
+The latter concern about "what happens if `self` changed value in the
+parent" is the same concern as "what happens if `func` changes in the
+parent?" given the current implementation. This is an assumption that is
+currently made with Pool.map_async(func, ls). If "func" changes in the
+parent, there is no communication with the child. So one just needs to be
+aware that calling "map_async(self.func, ls)" while the state of "self" is
+changing, will not communicate changes to each worker. The state is frozen
+when Pool.map is called, just as is the case now.
+
+On Fri, Oct 12, 2018 at 9:07 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> On Fri, 12 Oct 2018 08:33:32 -0400
+> Sean Harrington <seanharr11 at gmail.com> wrote:
+> > Hi Nathaniel - this if this solution can be made performant, than I would
+> > be more than satisfied.
+> >
+> > I think this would require removing "func" from the "task tuple", and
+> > storing the "func" "once per worker" somewhere globally (maybe a class
+> > attribute set post-fork?).
+> >
+> > This also has the beneficial outcome of increasing general performance of
+> > Pool.map and friends. I've seen MANY folks across the interwebs doing
+> > things like passing instance methods to map, resulting in "big" tasks,
+> and
+> > slower-than-sequential parallelized code. Parallelizing "instance
+> methods"
+> > by passing them to map, w/o needing to wrangle with staticmethods and
+> > globals, would be a GREAT feature! It'd just be as easy as:
+> >
+> >     Pool.map(self.func, ls)
+> >
+> > What do you think about this idea? This is something I'd be able to take
+> > on, assuming I get a few core dev blessings...
+>
+> Well, I'm not sure how it would work, so it's difficult to give an
+> opinion.  How do you plan to avoid passing "self"?  By caching (by
+> equality? by identity?)?  Something else?  But what happens if "self"
+> changed value (in the case of a mutable object) in the parent?  Do you
+> keep using the stale version in the child?  That would break
+> compatibility...
+>
+> Regards
+>
+> Antoine.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181012/fc0f7d8a/attachment.html>
+
+From antoine at python.org  Fri Oct 12 09:24:18 2018
+From: antoine at python.org (Antoine Pitrou)
+Date: Fri, 12 Oct 2018 15:24:18 +0200
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc1P-OFs9qWq6=tH8UpNKxmSEUbUse8nJpfDWMgDgJKcKA@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAFbyWc1P-OFs9qWq6=tH8UpNKxmSEUbUse8nJpfDWMgDgJKcKA@mail.gmail.com>
+Message-ID: <48b08a39-3d6a-3c4b-385e-fafe645f011a@python.org>
+
+
+Le 12/10/2018 ? 15:17, Sean Harrington a ?crit?:
+> The implementation details need to be flushed out, but agnostic of
+> these, do you believe this a valid solution to the initial problem? Do
+> you also see it as a beneficial optimization to Pool, given that we
+> don't need to store funcs/bound-methods/partials on the tasks themselves?
+
+I'm not sure, TBH.  I also think it may be better to leave this to
+higher levels (for example Dask will intelligently distribute data on
+workers and let you work with a kind of proxy object in the main
+process, transfering data only when necessary).
+
+> The latter concern about "what happens if `self` changed value in the
+> parent" is the same concern as "what happens if `func` changes in the
+> parent?" given the current implementation. This is an assumption that is
+> currently made with Pool.map_async(func, ls). If "func" changes in the
+> parent, there is no communication with the child. So one just needs to
+> be aware that calling "map_async(self.func, ls)" while the state of
+> "self" is changing, will not communicate changes to each worker. The
+> state is frozen when Pool.map is called, just as is the case now.
+
+If you cache "self" between pool.map calls, then the question is not
+"what happens if self changes *during* a map() call" but "what happens
+if self changes *between* two map() calls"?  While the former is
+intuitively undefined, current users would expect the latter to have a
+clear answer, which is: the latest version of self when map() is called
+is taken into account.
+
+Regards
+
+Antoine.
+
+From seanharr11 at gmail.com  Fri Oct 12 09:42:50 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Fri, 12 Oct 2018 09:42:50 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <48b08a39-3d6a-3c4b-385e-fafe645f011a@python.org>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAFbyWc1P-OFs9qWq6=tH8UpNKxmSEUbUse8nJpfDWMgDgJKcKA@mail.gmail.com>
+ <48b08a39-3d6a-3c4b-385e-fafe645f011a@python.org>
+Message-ID: <CAFbyWc2=eeGy2Y06unRJ6ua-ZSwBY45Z-4qfuwHVPsk2F5vZDA@mail.gmail.com>
+
+I would contend that this is much more granular than Dask - this is just an
+optimization of Pool.map() to avoid redundantly passing the same `func`
+repeatedly, once per task, to each worker, with the primary goal of
+eliminating redundant serialization of large-memory-footprinted Callables.
+This is a different use case than Dask - I don't intend to approach the
+shared memory or distributed computing realms.
+
+And the second call to Pool.map would update the cached "self" as a part of
+its initialization workflow, s.t. "the latest version of self when map() is
+called is taken into account".
+
+Do you see a difficulty in accomplishing the second behavior?
+
+On Fri, Oct 12, 2018 at 9:25 AM Antoine Pitrou <antoine at python.org> wrote:
+
+>
+> Le 12/10/2018 ? 15:17, Sean Harrington a ?crit :
+> > The implementation details need to be flushed out, but agnostic of
+> > these, do you believe this a valid solution to the initial problem? Do
+> > you also see it as a beneficial optimization to Pool, given that we
+> > don't need to store funcs/bound-methods/partials on the tasks themselves?
+>
+> I'm not sure, TBH.  I also think it may be better to leave this to
+> higher levels (for example Dask will intelligently distribute data on
+> workers and let you work with a kind of proxy object in the main
+> process, transfering data only when necessary).
+>
+> > The latter concern about "what happens if `self` changed value in the
+> > parent" is the same concern as "what happens if `func` changes in the
+> > parent?" given the current implementation. This is an assumption that is
+> > currently made with Pool.map_async(func, ls). If "func" changes in the
+> > parent, there is no communication with the child. So one just needs to
+> > be aware that calling "map_async(self.func, ls)" while the state of
+> > "self" is changing, will not communicate changes to each worker. The
+> > state is frozen when Pool.map is called, just as is the case now.
+>
+> If you cache "self" between pool.map calls, then the question is not
+> "what happens if self changes *during* a map() call" but "what happens
+> if self changes *between* two map() calls"?  While the former is
+> intuitively undefined, current users would expect the latter to have a
+> clear answer, which is: the latest version of self when map() is called
+> is taken into account.
+>
+> Regards
+>
+> Antoine.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181012/c1c83eb7/attachment-0001.html>
+
+From solipsis at pitrou.net  Fri Oct 12 10:41:04 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 12 Oct 2018 16:41:04 +0200
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAFbyWc1P-OFs9qWq6=tH8UpNKxmSEUbUse8nJpfDWMgDgJKcKA@mail.gmail.com>
+ <48b08a39-3d6a-3c4b-385e-fafe645f011a@python.org>
+ <CAFbyWc2=eeGy2Y06unRJ6ua-ZSwBY45Z-4qfuwHVPsk2F5vZDA@mail.gmail.com>
+Message-ID: <20181012164104.54ee303e@fsol>
+
+On Fri, 12 Oct 2018 09:42:50 -0400
+Sean Harrington <seanharr11 at gmail.com> wrote:
+> I would contend that this is much more granular than Dask - this is just an
+> optimization of Pool.map() to avoid redundantly passing the same `func`
+> repeatedly, once per task, to each worker, with the primary goal of
+> eliminating redundant serialization of large-memory-footprinted Callables.
+> This is a different use case than Dask - I don't intend to approach the
+> shared memory or distributed computing realms.
+> 
+> And the second call to Pool.map would update the cached "self" as a part of
+> its initialization workflow, s.t. "the latest version of self when map() is
+> called is taken into account".
+
+I still don't understand how that works.  If you "updated the cached
+self", then surely you must transmit it to the child, right?
+
+Regards
+
+Antoine.
+
+
+
+From seanharr11 at gmail.com  Fri Oct 12 10:49:28 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Fri, 12 Oct 2018 10:49:28 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <20181012164104.54ee303e@fsol>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAFbyWc1P-OFs9qWq6=tH8UpNKxmSEUbUse8nJpfDWMgDgJKcKA@mail.gmail.com>
+ <48b08a39-3d6a-3c4b-385e-fafe645f011a@python.org>
+ <CAFbyWc2=eeGy2Y06unRJ6ua-ZSwBY45Z-4qfuwHVPsk2F5vZDA@mail.gmail.com>
+ <20181012164104.54ee303e@fsol>
+Message-ID: <CAFbyWc3X1-iYDdrPc7uiQWivezP6Z9nWr12TSLmV9=1vRxs1Kw@mail.gmail.com>
+
+Yes - ?func? (and ?self? which func is bound to) would be copied to each
+child worker process, where they are stored and applied to each element of
+the iterable being mapped over.
+On Fri, Oct 12, 2018 at 10:41 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> On Fri, 12 Oct 2018 09:42:50 -0400
+> Sean Harrington <seanharr11 at gmail.com> wrote:
+> > I would contend that this is much more granular than Dask - this is just
+> an
+> > optimization of Pool.map() to avoid redundantly passing the same `func`
+> > repeatedly, once per task, to each worker, with the primary goal of
+> > eliminating redundant serialization of large-memory-footprinted
+> Callables.
+> > This is a different use case than Dask - I don't intend to approach the
+> > shared memory or distributed computing realms.
+> >
+> > And the second call to Pool.map would update the cached "self" as a part
+> of
+> > its initialization workflow, s.t. "the latest version of self when map()
+> is
+> > called is taken into account".
+>
+> I still don't understand how that works.  If you "updated the cached
+> self", then surely you must transmit it to the child, right?
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181012/ac9abaa6/attachment.html>
+
+From antoine at python.org  Fri Oct 12 10:54:48 2018
+From: antoine at python.org (Antoine Pitrou)
+Date: Fri, 12 Oct 2018 16:54:48 +0200
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc3X1-iYDdrPc7uiQWivezP6Z9nWr12TSLmV9=1vRxs1Kw@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAFbyWc1P-OFs9qWq6=tH8UpNKxmSEUbUse8nJpfDWMgDgJKcKA@mail.gmail.com>
+ <48b08a39-3d6a-3c4b-385e-fafe645f011a@python.org>
+ <CAFbyWc2=eeGy2Y06unRJ6ua-ZSwBY45Z-4qfuwHVPsk2F5vZDA@mail.gmail.com>
+ <20181012164104.54ee303e@fsol>
+ <CAFbyWc3X1-iYDdrPc7uiQWivezP6Z9nWr12TSLmV9=1vRxs1Kw@mail.gmail.com>
+Message-ID: <d5b35db4-b8d0-425e-0e4c-03c1960bb91c@python.org>
+
+
+Le 12/10/2018 ? 16:49, Sean Harrington a ?crit?:
+> Yes - ?func? (and ?self? which func is bound to) would be copied to each
+> child worker process, where they are stored and applied to each element
+> of the iterable being mapped over.
+
+Only if it has changed, then, right?
+
+I suspect that would work, but it will break compatibility in some cases
+(think of a mutable object that hasn't defined equality - so it defaults
+to identity).  It's also introducing a complication in the API which
+people didn't have to think of before.
+
+The fact that you're doing all this in order to eschew global variables
+for global resources doesn't warm me much to the idea.  Unless other
+core developers are enthusiastic I'm not willing to integrate such a change.
+
+Regards
+
+Antoine.
+
+
+> On Fri, Oct 12, 2018 at 10:41 AM Antoine Pitrou <solipsis at pitrou.net
+> <mailto:solipsis at pitrou.net>> wrote:
+> 
+>     On Fri, 12 Oct 2018 09:42:50 -0400
+>     Sean Harrington <seanharr11 at gmail.com <mailto:seanharr11 at gmail.com>>
+>     wrote:
+>     > I would contend that this is much more granular than Dask - this
+>     is just an
+>     > optimization of Pool.map() to avoid redundantly passing the same
+>     `func`
+>     > repeatedly, once per task, to each worker, with the primary goal of
+>     > eliminating redundant serialization of large-memory-footprinted
+>     Callables.
+>     > This is a different use case than Dask - I don't intend to
+>     approach the
+>     > shared memory or distributed computing realms.
+>     >
+>     > And the second call to Pool.map would update the cached "self" as
+>     a part of
+>     > its initialization workflow, s.t. "the latest version of self when
+>     map() is
+>     > called is taken into account".
+> 
+>     I still don't understand how that works.? If you "updated the cached
+>     self", then surely you must transmit it to the child, right?
+> 
+>     Regards
+> 
+>     Antoine.
+> 
+> 
+>     _______________________________________________
+>     Python-Dev mailing list
+>     Python-Dev at python.org <mailto:Python-Dev at python.org>
+>     https://mail.python.org/mailman/listinfo/python-dev
+>     Unsubscribe:
+>     https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+> 
+
+From status at bugs.python.org  Fri Oct 12 12:10:04 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 12 Oct 2018 18:10:04 +0200 (CEST)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20181012161004.4103457B51@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-10-05 - 2018-10-12)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6824 (+10)
+  closed 39893 (+49)
+  total  46717 (+59)
+
+Open issues with patches: 2721 
+
+
+Issues opened (38)
+==================
+
+#34908: netrc parsing is overly strict
+https://bugs.python.org/issue34908  opened by ianwremmel
+
+#34912: Update overflow checks in resize_buffer
+https://bugs.python.org/issue34912  opened by Windson Yang
+
+#34914: Clarify text encoding used to enable UTF-8 mode
+https://bugs.python.org/issue34914  opened by ncoghlan
+
+#34915: LWPCookieJar.save() creates *.lwp file in 644 mode
+https://bugs.python.org/issue34915  opened by aleskva
+
+#34916: include sqlite-3.25+ (with window functions)
+https://bugs.python.org/issue34916  opened by Big Stone
+
+#34918: Python 3 tkinter measurement problem
+https://bugs.python.org/issue34918  opened by Ackbach
+
+#34919: Crash caused by certain characters in a string
+https://bugs.python.org/issue34919  opened by cwickens
+
+#34920: PYTHONWARNINGS entries are escaped
+https://bugs.python.org/issue34920  opened by nikratio
+
+#34922: hashlib segmentation fault
+https://bugs.python.org/issue34922  opened by shuoz
+
+#34924: inspect.signature isn't aware that types.MethodType can wrap a
+https://bugs.python.org/issue34924  opened by bup
+
+#34927: Tkinter-related segfault on macOS (regression between 3.7.0 an
+https://bugs.python.org/issue34927  opened by aivarannamaa
+
+#34930: sha1module: Switch sha1 implementation to sha1dc/hardened sha1
+https://bugs.python.org/issue34930  opened by antoine.pietri
+
+#34931: os.path.splitext with more dots
+https://bugs.python.org/issue34931  opened by xnovakj
+
+#34932: Add macOS TCP_KEEPALIVE to available socket options
+https://bugs.python.org/issue34932  opened by llawall
+
+#34934: Consider making Windows select.select interruptible using WSAE
+https://bugs.python.org/issue34934  opened by ondrej.kutal
+
+#34936: tkinter.Spinbox.selection_element() raises TclError
+https://bugs.python.org/issue34936  opened by j-4321-i
+
+#34938: Fix mimetype.init() to account for from import
+https://bugs.python.org/issue34938  opened by YoSTEALTH
+
+#34939: Possibly spurious SyntaxError: annotated name can't be global
+https://bugs.python.org/issue34939  opened by rohanpadhye
+
+#34941: xml.etree.ElementTree findall() fails when using custom TreeBu
+https://bugs.python.org/issue34941  opened by jackjansen
+
+#34943: sched cancel (wrong item removed from queue)
+https://bugs.python.org/issue34943  opened by ajneu
+
+#34944: Update _dirnameW to accept long path names
+https://bugs.python.org/issue34944  opened by jopamer
+
+#34945: regression with ./python -m test and pdb
+https://bugs.python.org/issue34945  opened by matrixise
+
+#34946: inspect.getcallargs is marked as deprecated in documentation, 
+https://bugs.python.org/issue34946  opened by chrisjbremner
+
+#34947: inspect.getclosurevars() does not get all globals
+https://bugs.python.org/issue34947  opened by azag0
+
+#34948: Document __warningregister__
+https://bugs.python.org/issue34948  opened by steven.daprano
+
+#34949: ntpath.abspath no longer uses normpath
+https://bugs.python.org/issue34949  opened by rhwlo
+
+#34950: Parse trusted and signature information from X509 certificate
+https://bugs.python.org/issue34950  opened by famendola
+
+#34951: cookielib/cookiejar cookies' Expires date parse fails with lon
+https://bugs.python.org/issue34951  opened by alb_moral
+
+#34952: Problems with the warningregistry() decorator in Lib/unittest/
+https://bugs.python.org/issue34952  opened by serhiy.storchaka
+
+#34953: Implement `mmap.mmap.__repr__`
+https://bugs.python.org/issue34953  opened by cool-RR
+
+#34956: _tkinter built on macOS 10.14 does not link to Tcl and Tk in /
+https://bugs.python.org/issue34956  opened by wordtech
+
+#34957: Segementation faults on ARM and ARM64
+https://bugs.python.org/issue34957  opened by stefanrink at yahoo.com
+
+#34958: urllib.error.HTTPError.fp is not closed when error is finalize
+https://bugs.python.org/issue34958  opened by puxlit
+
+#34960: macOS builds expose stack_size option in LINKEDFOORSHARED and 
+https://bugs.python.org/issue34960  opened by xzcvczx
+
+#34961: Global scoping when shadowing local names in class definitions
+https://bugs.python.org/issue34961  opened by multun
+
+#34963: String representation for types created with typing.NewType(??
+https://bugs.python.org/issue34963  opened by fish2000
+
+#34965: Python on Docker container using flask is going down after som
+https://bugs.python.org/issue34965  opened by sri_spl
+
+#34966: Pydoc: better support of method aliases
+https://bugs.python.org/issue34966  opened by serhiy.storchaka
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#34966: Pydoc: better support of method aliases
+https://bugs.python.org/issue34966
+
+#34963: String representation for types created with typing.NewType(??
+https://bugs.python.org/issue34963
+
+#34958: urllib.error.HTTPError.fp is not closed when error is finalize
+https://bugs.python.org/issue34958
+
+#34950: Parse trusted and signature information from X509 certificate
+https://bugs.python.org/issue34950
+
+#34949: ntpath.abspath no longer uses normpath
+https://bugs.python.org/issue34949
+
+#34944: Update _dirnameW to accept long path names
+https://bugs.python.org/issue34944
+
+#34938: Fix mimetype.init() to account for from import
+https://bugs.python.org/issue34938
+
+#34934: Consider making Windows select.select interruptible using WSAE
+https://bugs.python.org/issue34934
+
+#34931: os.path.splitext with more dots
+https://bugs.python.org/issue34931
+
+#34924: inspect.signature isn't aware that types.MethodType can wrap a
+https://bugs.python.org/issue34924
+
+#34918: Python 3 tkinter measurement problem
+https://bugs.python.org/issue34918
+
+#34915: LWPCookieJar.save() creates *.lwp file in 644 mode
+https://bugs.python.org/issue34915
+
+#34912: Update overflow checks in resize_buffer
+https://bugs.python.org/issue34912
+
+#34898: add mtime argument to gzip.compress
+https://bugs.python.org/issue34898
+
+#34897: distutils test errors when CXX is not set
+https://bugs.python.org/issue34897
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#34966: Pydoc: better support of method aliases
+https://bugs.python.org/issue34966
+
+#34963: String representation for types created with typing.NewType(??
+https://bugs.python.org/issue34963
+
+#34944: Update _dirnameW to accept long path names
+https://bugs.python.org/issue34944
+
+#34941: xml.etree.ElementTree findall() fails when using custom TreeBu
+https://bugs.python.org/issue34941
+
+#34936: tkinter.Spinbox.selection_element() raises TclError
+https://bugs.python.org/issue34936
+
+#34932: Add macOS TCP_KEEPALIVE to available socket options
+https://bugs.python.org/issue34932
+
+#34922: hashlib segmentation fault
+https://bugs.python.org/issue34922
+
+#34903: strptime %d handling of single digit day of month
+https://bugs.python.org/issue34903
+
+#34901: Missing isolated (-I) flag in sys.flags table
+https://bugs.python.org/issue34901
+
+#34898: add mtime argument to gzip.compress
+https://bugs.python.org/issue34898
+
+#34897: distutils test errors when CXX is not set
+https://bugs.python.org/issue34897
+
+#34876: Python3.8 changes how decorators are traced
+https://bugs.python.org/issue34876
+
+#34866: CGI DOS vulnerability via long post list
+https://bugs.python.org/issue34866
+
+#34861: Improve cProfile standard output
+https://bugs.python.org/issue34861
+
+#34856: Make the repr of lambda contain signature and body expression.
+https://bugs.python.org/issue34856
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#34839: doctest: Change example under warnings section
+https://bugs.python.org/issue34839  12 msgs
+
+#34751: Hash collisions for tuples
+https://bugs.python.org/issue34751  10 msgs
+
+#34922: hashlib segmentation fault
+https://bugs.python.org/issue34922  10 msgs
+
+#25592: distutils docs: data_files always uses sys.prefix
+https://bugs.python.org/issue25592   8 msgs
+
+#34893: Add 2to3 fixer to change send and recv methods of socket objec
+https://bugs.python.org/issue34893   8 msgs
+
+#33729: Hashlib/blake2* missing 'data' keyword argument
+https://bugs.python.org/issue33729   7 msgs
+
+#34927: Tkinter-related segfault on macOS (regression between 3.7.0 an
+https://bugs.python.org/issue34927   7 msgs
+
+#34939: Possibly spurious SyntaxError: annotated name can't be global
+https://bugs.python.org/issue34939   6 msgs
+
+#34957: Segementation faults on ARM and ARM64
+https://bugs.python.org/issue34957   6 msgs
+
+#34960: macOS builds expose stack_size option in LINKEDFOORSHARED and 
+https://bugs.python.org/issue34960   6 msgs
+
+
+
+Issues closed (45)
+==================
+
+#20304: Argument Clinic: char convertor should use default values of t
+https://bugs.python.org/issue20304  closed by taleinat
+
+#23596: gzip argparse interface
+https://bugs.python.org/issue23596  closed by matrixise
+
+#31715: Add mimetype for extension .mjs
+https://bugs.python.org/issue31715  closed by asvetlov
+
+#32174: nonASCII punctuation characters can not display in python363.c
+https://bugs.python.org/issue32174  closed by steve.dower
+
+#32680: smtplib SMTP instances missing a default sock attribute
+https://bugs.python.org/issue32680  closed by giampaolo.rodola
+
+#32962: test_gdb fails in debug build with `-mcet -fcf-protection -O0`
+https://bugs.python.org/issue32962  closed by vstinner
+
+#33643: Mock functions with autospec STILL don't support assert_called
+https://bugs.python.org/issue33643  closed by matrixise
+
+#34334: QueueHandler logs exc_info twice
+https://bugs.python.org/issue34334  closed by ned.deily
+
+#34383: asyncio passes SSL certificate error to loop.call_exception_ha
+https://bugs.python.org/issue34383  closed by asvetlov
+
+#34445: asyncio support in doctests
+https://bugs.python.org/issue34445  closed by asvetlov
+
+#34630: Don't log ssl cert errors in asyncio
+https://bugs.python.org/issue34630  closed by asvetlov
+
+#34758: http.server module sets incorrect mimetype for WebAssembly fil
+https://bugs.python.org/issue34758  closed by asvetlov
+
+#34769: _asyncgen_finalizer_hook running in wrong thread
+https://bugs.python.org/issue34769  closed by yselivanov
+
+#34825: Add more entries to os module to pathlib reference table
+https://bugs.python.org/issue34825  closed by asvetlov
+
+#34829: Add missing selection_ methods to tkinter Spinbox
+https://bugs.python.org/issue34829  closed by serhiy.storchaka
+
+#34849: Drop logging when asyncio waits in selector.select()
+https://bugs.python.org/issue34849  closed by asvetlov
+
+#34870: Core dump when Python VSCode debugger is attached
+https://bugs.python.org/issue34870  closed by terry.reedy
+
+#34872: investigate task/future cancellation in asynciomodule.c
+https://bugs.python.org/issue34872  closed by yselivanov
+
+#34899: Possible assertion failure due to int_from_bytes_impl()
+https://bugs.python.org/issue34899  closed by ZackerySpytz
+
+#34900: unittest subTests() fails when called from debug()
+https://bugs.python.org/issue34900  closed by berker.peksag
+
+#34902: Azure pipelines PR build fails with "Unexpected vmImage 'vs201
+https://bugs.python.org/issue34902  closed by steve.dower
+
+#34905: Cannot assign memoryview values from array.array
+https://bugs.python.org/issue34905  closed by skrah
+
+#34906: Fix typo in the documentation
+https://bugs.python.org/issue34906  closed by mdk
+
+#34907: calculation not working properly
+https://bugs.python.org/issue34907  closed by matrixise
+
+#34909: StrEnum subclasses cannot be created
+https://bugs.python.org/issue34909  closed by ethan.furman
+
+#34910: PyObject_Print() doesn't always return -1 on error
+https://bugs.python.org/issue34910  closed by serhiy.storchaka
+
+#34911: Allow Cookies for Secure WebSockets
+https://bugs.python.org/issue34911  closed by asvetlov
+
+#34913: Document gzip command line interface
+https://bugs.python.org/issue34913  closed by mdk
+
+#34917: add time decorator to timeit.py
+https://bugs.python.org/issue34917  closed by ezio.melotti
+
+#34921: NoReturn not allowed by get_type_hints when future import anno
+https://bugs.python.org/issue34921  closed by levkivskyi
+
+#34923: Decimal Multiplication problems: Wrong solution
+https://bugs.python.org/issue34923  closed by Shadow Raven
+
+#34925: 25% speed-up to common case for bisect()
+https://bugs.python.org/issue34925  closed by rhettinger
+
+#34926: Allow querying a Path's mime-type
+https://bugs.python.org/issue34926  closed by xtreak
+
+#34928: string method .upper() converts '??' to 'SS' instead of '???'
+https://bugs.python.org/issue34928  closed by xtreak
+
+#34929: Extract asyncio sendfile tests into a separate test file
+https://bugs.python.org/issue34929  closed by asvetlov
+
+#34933: json.dumps serializes double quotes incorrectly
+https://bugs.python.org/issue34933  closed by serhiy.storchaka
+
+#34935: Misleading error message in str.decode()
+https://bugs.python.org/issue34935  closed by ezio.melotti
+
+#34937: Extract asyncio tests for sock_*() methods into a separate tes
+https://bugs.python.org/issue34937  closed by asvetlov
+
+#34940: Possible assertion failure due to _check_for_legacy_statements
+https://bugs.python.org/issue34940  closed by serhiy.storchaka
+
+#34942: Add an FAQ note about floating point representation
+https://bugs.python.org/issue34942  closed by xtreak
+
+#34954: Getting an email's subject is error-prone
+https://bugs.python.org/issue34954  closed by r.david.murray
+
+#34955: passing a dict to bytes() gives unhelpful error message
+https://bugs.python.org/issue34955  closed by rhettinger
+
+#34959: Are the tests optional on travis?
+https://bugs.python.org/issue34959  closed by matrixise
+
+#34962: make doctest does not pass :/
+https://bugs.python.org/issue34962  closed by mdk
+
+#34964: Make Tkinter sources more readable by adding blank lines
+https://bugs.python.org/issue34964  closed by serhiy.storchaka
+
+From njs at pobox.com  Fri Oct 12 15:34:17 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 12 Oct 2018 12:34:17 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <20181012144847.7280967b@fsol>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+Message-ID: <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+
+On Fri, Oct 12, 2018, 06:09 Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> On Fri, 12 Oct 2018 08:33:32 -0400
+> Sean Harrington <seanharr11 at gmail.com> wrote:
+> > Hi Nathaniel - this if this solution can be made performant, than I would
+> > be more than satisfied.
+> >
+> > I think this would require removing "func" from the "task tuple", and
+> > storing the "func" "once per worker" somewhere globally (maybe a class
+> > attribute set post-fork?).
+> >
+> > This also has the beneficial outcome of increasing general performance of
+> > Pool.map and friends. I've seen MANY folks across the interwebs doing
+> > things like passing instance methods to map, resulting in "big" tasks,
+> and
+> > slower-than-sequential parallelized code. Parallelizing "instance
+> methods"
+> > by passing them to map, w/o needing to wrangle with staticmethods and
+> > globals, would be a GREAT feature! It'd just be as easy as:
+> >
+> >     Pool.map(self.func, ls)
+> >
+> > What do you think about this idea? This is something I'd be able to take
+> > on, assuming I get a few core dev blessings...
+>
+> Well, I'm not sure how it would work, so it's difficult to give an
+> opinion.  How do you plan to avoid passing "self"?  By caching (by
+> equality? by identity?)?  Something else?  But what happens if "self"
+> changed value (in the case of a mutable object) in the parent?  Do you
+> keep using the stale version in the child?  That would break
+> compatibility...
+>
+
+I was just suggesting that within a single call to Pool.map, it would be
+reasonable optimization to only send the fn once to each worker. So e.g. if
+you have 5 workers and 1000 items, you'd only pickle fn 5 times, rather
+than 1000 times like we do now. I wouldn't want to get any fancier than
+that with caching data between different map calls or anything.
+
+Of course even this may turn out to be too complicated to implement in a
+reasonable way, since it would require managing some extra state on the
+workers. But semantically it would be purely an optimization of current
+semantics.
+
+-n
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181012/814918c5/attachment.html>
+
+From vadmium+py at gmail.com  Fri Oct 12 19:03:20 2018
+From: vadmium+py at gmail.com (Martin Panter)
+Date: Fri, 12 Oct 2018 23:03:20 +0000
+Subject: [Python-Dev] [Python-checkins] bpo-34203: FAQ now recommends
+ python 3.x over 2.x (GH-9796)
+In-Reply-To: <125297d6-545f-3052-0900-9df2072f0057@trueblade.com>
+References: <42Wj0P517lzFrcx@mail.python.org>
+ <125297d6-545f-3052-0900-9df2072f0057@trueblade.com>
+Message-ID: <CA+eR4cFzge7eZnMEDZ7v20MURUD0i853ZyMQHDSriuZy8D3eGg@mail.gmail.com>
+
+On 12/10/2018, Eric V. Smith <eric at trueblade.com> wrote:
+> On 10/12/2018 5:17 AM, Tal Einat wrote:
+>
+>>   The latest stable releases can always be found on the `Python download page
+>> -<https://www.python.org/downloads/>`_.  There are two recommended production-ready
+>> -versions at this point in time, because at the moment there are two branches of
+>> -stable releases: 2.x and 3.x.  Python 3.x may be less useful than 2.x, since
+>> -currently there is more third party software available for Python 2 than for
+>> -Python 3.  Python 2 code will generally not run unchanged in Python 3.
+>> +<https://www.python.org/downloads/>`_.  There are two production-ready version
+>> +of Python: 2.x and 3.x, but the recommended one at this times is Python 3.x.
+>
+> This should be "time", not "times". I'd fix it, but I'm unsure if this
+> is being backported or not, and I don't want to mess up any merges
+> before they're done.
+
+Or just remove ?at this time[s]?; it doesn?t add much.
+
+Also, ?two . . . version? should be changed back to plural: ?two . . .
+versions?.
+
+> I do think this should backported to 3.7, 3.6, and 2.7.
+>
+>> +Although Python 2.x is still widely used, `it will not be
+>> +maintained after January 1, 2020
+>> <https://www.python.org/dev/peps/pep-0373/>`_.
+>> +Python 2.x was known for having more third-party libraries available,
+>> however,
+>> +by the time of this writing, most of the widely used libraries support
+>> Python 3.x,
+>
+> Should probably be "at the time of this writing".
+>
+>> +and some are even dropping the Python 2.x support.
+>
+> And this would read better as "are even dropping support for Python 2.x".
+
+From eric at trueblade.com  Fri Oct 12 20:05:33 2018
+From: eric at trueblade.com (Eric V. Smith)
+Date: Fri, 12 Oct 2018 20:05:33 -0400
+Subject: [Python-Dev] [Python-checkins] bpo-34203: FAQ now recommends
+ python 3.x over 2.x (GH-9796)
+In-Reply-To: <CA+eR4cFzge7eZnMEDZ7v20MURUD0i853ZyMQHDSriuZy8D3eGg@mail.gmail.com>
+References: <42Wj0P517lzFrcx@mail.python.org>
+ <125297d6-545f-3052-0900-9df2072f0057@trueblade.com>
+ <CA+eR4cFzge7eZnMEDZ7v20MURUD0i853ZyMQHDSriuZy8D3eGg@mail.gmail.com>
+Message-ID: <9C0147D2-E70D-4C08-93C3-D40DF4DB51C6@trueblade.com>
+
+
+> On Oct 12, 2018, at 7:03 PM, Martin Panter <vadmium+py at gmail.com> wrote:
+> 
+>> On 12/10/2018, Eric V. Smith <eric at trueblade.com> wrote:
+>>> On 10/12/2018 5:17 AM, Tal Einat wrote:
+>>> 
+>>>  The latest stable releases can always be found on the `Python download page
+>>> -<https://www.python.org/downloads/>`_.  There are two recommended production-ready
+>>> -versions at this point in time, because at the moment there are two branches of
+>>> -stable releases: 2.x and 3.x.  Python 3.x may be less useful than 2.x, since
+>>> -currently there is more third party software available for Python 2 than for
+>>> -Python 3.  Python 2 code will generally not run unchanged in Python 3.
+>>> +<https://www.python.org/downloads/>`_.  There are two production-ready version
+>>> +of Python: 2.x and 3.x, but the recommended one at this times is Python 3.x.
+>> 
+>> This should be "time", not "times". I'd fix it, but I'm unsure if this
+>> is being backported or not, and I don't want to mess up any merges
+>> before they're done.
+> 
+> Or just remove ?at this time[s]?; it doesn?t add much.
+> 
+> Also, ?two . . . version? should be changed back to plural: ?two . . .
+> versions?.
+
+See https://github.com/python/cpython/pull/9821 for some updates. 
+
+Eric 
+
+> 
+>> I do think this should backported to 3.7, 3.6, and 2.7.
+>> 
+>>> +Although Python 2.x is still widely used, `it will not be
+>>> +maintained after January 1, 2020
+>>> <https://www.python.org/dev/peps/pep-0373/>`_.
+>>> +Python 2.x was known for having more third-party libraries available,
+>>> however,
+>>> +by the time of this writing, most of the widely used libraries support
+>>> Python 3.x,
+>> 
+>> Should probably be "at the time of this writing".
+>> 
+>>> +and some are even dropping the Python 2.x support.
+>> 
+>> And this would read better as "are even dropping support for Python 2.x".
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/eric%2Ba-python-dev%40trueblade.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181012/ce803a1f/attachment.html>
+
