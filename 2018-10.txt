@@ -7305,3 +7305,47 @@ You can find these releases and more information here:
   nad at python.org -- []
 
 
+From ja.py at farowl.co.uk  Sun Oct 14 14:51:02 2018
+From: ja.py at farowl.co.uk (Jeff Allen)
+Date: Sun, 14 Oct 2018 19:51:02 +0100
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <20181009230605.GV3817@ando.pearwood.info>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <20181009230605.GV3817@ando.pearwood.info>
+Message-ID: <b69bf75c-2e90-e344-de46-eb6e3701a90c@farowl.co.uk>
+
+
+On 10/10/2018 00:06, Steven D'Aprano wrote:
+> On Tue, Oct 09, 2018 at 09:37:48AM -0700, Jeff Hardy wrote:
+>
+>> ...
+>>  From an alternative implementation point of view, CPython's behaviour
+>> *is* the spec. Practicality beats purity and all that.
+> Are you speaking on behalf of all authors of alternate implementations,
+> or even of some of them?
+>
+> It certainly is not true that CPython's behaviour "is" the spec. PyPy
+> keeps a list of CPython behaviour they don't match, either because they
+> choose not to for other reasons, or because they believe that the
+> CPython behaviour is buggy. I daresay IronPython and Jython have
+> similar.
+While agreeing with the principle, unless it is one of the fundamental 
+differences (GC, GIL), Jython usually lets practicality beat purity. 
+When faced with a certain combination of objects, one has to do 
+something, and it is least surprising to do what CPython does. It's also 
+easier than keeping a record.
+
+Rarely, we manage to exceed CPython (in consistency or coverage) by a 
+tiny amount.
+
+Jeff Allen
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181014/a4fb69e7/attachment.html>
+
