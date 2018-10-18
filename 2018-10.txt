@@ -7349,3 +7349,441 @@ Jeff Allen
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181014/a4fb69e7/attachment.html>
 
+From seanharr11 at gmail.com  Tue Oct 16 08:06:16 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Tue, 16 Oct 2018 08:06:16 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+Message-ID: <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+
+@Nataniel this is what I am suggesting as well. No cacheing - just storing
+the `fn` on each worker, rather than pickling it for each item in our
+iterable.
+
+As long as we store the `fn` post-fork on the worker process (perhaps as
+global), subsequent calls to Pool.map shouldn't be effected (referencing
+Antoine's & Michael's points that "multiprocessing encapsulates each
+subprocesses globals in a separate namespace").
+
+@Antoine - I'm making an effort to take everything you've said into
+consideration here.  My initial PR and talk
+<https://www.youtube.com/watch?v=DH0JVSXvxu0> was intended to shed light on
+a couple of pitfalls that I often see Python end-users encounter with Pool.
+Moving beyond my naive first attempt, and the onslaught of deserved
+criticism, it seems that we have an opportunity here: No changes to the
+interface, just an optimization to reduce the frequency of pickling.
+
+Raymond Hettinger may also be interested in this optimization, as he speaks
+(with great analogies) about different ways you can misuse concurrency in
+Python <https://www.youtube.com/watch?v=9zinZmE3Ogk>. This would address
+one of the pitfalls that he outlines: the "size of the
+serialized/deserialized data".
+
+Is this an optimization that either of you would be willing to review, and
+accept, if I find there is a *reasonable way* to implement it?
+
+
+On Fri, Oct 12, 2018 at 3:40 PM Nathaniel Smith <njs at pobox.com> wrote:
+
+> On Fri, Oct 12, 2018, 06:09 Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+>> On Fri, 12 Oct 2018 08:33:32 -0400
+>> Sean Harrington <seanharr11 at gmail.com> wrote:
+>> > Hi Nathaniel - this if this solution can be made performant, than I
+>> would
+>> > be more than satisfied.
+>> >
+>> > I think this would require removing "func" from the "task tuple", and
+>> > storing the "func" "once per worker" somewhere globally (maybe a class
+>> > attribute set post-fork?).
+>> >
+>> > This also has the beneficial outcome of increasing general performance
+>> of
+>> > Pool.map and friends. I've seen MANY folks across the interwebs doing
+>> > things like passing instance methods to map, resulting in "big" tasks,
+>> and
+>> > slower-than-sequential parallelized code. Parallelizing "instance
+>> methods"
+>> > by passing them to map, w/o needing to wrangle with staticmethods and
+>> > globals, would be a GREAT feature! It'd just be as easy as:
+>> >
+>> >     Pool.map(self.func, ls)
+>> >
+>> > What do you think about this idea? This is something I'd be able to take
+>> > on, assuming I get a few core dev blessings...
+>>
+>> Well, I'm not sure how it would work, so it's difficult to give an
+>> opinion.  How do you plan to avoid passing "self"?  By caching (by
+>> equality? by identity?)?  Something else?  But what happens if "self"
+>> changed value (in the case of a mutable object) in the parent?  Do you
+>> keep using the stale version in the child?  That would break
+>> compatibility...
+>>
+>
+> I was just suggesting that within a single call to Pool.map, it would be
+> reasonable optimization to only send the fn once to each worker. So e.g. if
+> you have 5 workers and 1000 items, you'd only pickle fn 5 times, rather
+> than 1000 times like we do now. I wouldn't want to get any fancier than
+> that with caching data between different map calls or anything.
+>
+> Of course even this may turn out to be too complicated to implement in a
+> reasonable way, since it would require managing some extra state on the
+> workers. But semantically it would be purely an optimization of current
+> semantics.
+>
+> -n
+>
+>> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181016/d70f7635/attachment.html>
+
+From michael.selik at gmail.com  Tue Oct 16 09:27:32 2018
+From: michael.selik at gmail.com (Michael Selik)
+Date: Tue, 16 Oct 2018 06:27:32 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+Message-ID: <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+
+Would this change the other pool method behavior in some way if the user,
+for whatever reason, mixed techniques?
+
+imap_unordered will only block when nexting the generator. If the user
+mingles nexting that generator with, say, apply_async, could the change
+you're proposing have some side-effect?
+
+On Tue, Oct 16, 2018, 5:09 AM Sean Harrington <seanharr11 at gmail.com> wrote:
+
+> @Nataniel this is what I am suggesting as well. No cacheing - just storing
+> the `fn` on each worker, rather than pickling it for each item in our
+> iterable.
+>
+> As long as we store the `fn` post-fork on the worker process (perhaps as
+> global), subsequent calls to Pool.map shouldn't be effected (referencing
+> Antoine's & Michael's points that "multiprocessing encapsulates each
+> subprocesses globals in a separate namespace").
+>
+> @Antoine - I'm making an effort to take everything you've said into
+> consideration here.  My initial PR and talk
+> <https://www.youtube.com/watch?v=DH0JVSXvxu0> was intended to shed light
+> on a couple of pitfalls that I often see Python end-users encounter with
+> Pool. Moving beyond my naive first attempt, and the onslaught of deserved
+> criticism, it seems that we have an opportunity here: No changes to the
+> interface, just an optimization to reduce the frequency of pickling.
+>
+> Raymond Hettinger may also be interested in this optimization, as he
+> speaks (with great analogies) about different ways you can misuse
+> concurrency in Python <https://www.youtube.com/watch?v=9zinZmE3Ogk>. This
+> would address one of the pitfalls that he outlines: the "size of the
+> serialized/deserialized data".
+>
+> Is this an optimization that either of you would be willing to review, and
+> accept, if I find there is a *reasonable way* to implement it?
+>
+>
+> On Fri, Oct 12, 2018 at 3:40 PM Nathaniel Smith <njs at pobox.com> wrote:
+>
+>> On Fri, Oct 12, 2018, 06:09 Antoine Pitrou <solipsis at pitrou.net> wrote:
+>>
+>>> On Fri, 12 Oct 2018 08:33:32 -0400
+>>> Sean Harrington <seanharr11 at gmail.com> wrote:
+>>> > Hi Nathaniel - this if this solution can be made performant, than I
+>>> would
+>>> > be more than satisfied.
+>>> >
+>>> > I think this would require removing "func" from the "task tuple", and
+>>> > storing the "func" "once per worker" somewhere globally (maybe a class
+>>> > attribute set post-fork?).
+>>> >
+>>> > This also has the beneficial outcome of increasing general performance
+>>> of
+>>> > Pool.map and friends. I've seen MANY folks across the interwebs doing
+>>> > things like passing instance methods to map, resulting in "big" tasks,
+>>> and
+>>> > slower-than-sequential parallelized code. Parallelizing "instance
+>>> methods"
+>>> > by passing them to map, w/o needing to wrangle with staticmethods and
+>>> > globals, would be a GREAT feature! It'd just be as easy as:
+>>> >
+>>> >     Pool.map(self.func, ls)
+>>> >
+>>> > What do you think about this idea? This is something I'd be able to
+>>> take
+>>> > on, assuming I get a few core dev blessings...
+>>>
+>>> Well, I'm not sure how it would work, so it's difficult to give an
+>>> opinion.  How do you plan to avoid passing "self"?  By caching (by
+>>> equality? by identity?)?  Something else?  But what happens if "self"
+>>> changed value (in the case of a mutable object) in the parent?  Do you
+>>> keep using the stale version in the child?  That would break
+>>> compatibility...
+>>>
+>>
+>> I was just suggesting that within a single call to Pool.map, it would be
+>> reasonable optimization to only send the fn once to each worker. So e.g. if
+>> you have 5 workers and 1000 items, you'd only pickle fn 5 times, rather
+>> than 1000 times like we do now. I wouldn't want to get any fancier than
+>> that with caching data between different map calls or anything.
+>>
+>> Of course even this may turn out to be too complicated to implement in a
+>> reasonable way, since it would require managing some extra state on the
+>> workers. But semantically it would be purely an optimization of current
+>> semantics.
+>>
+>> -n
+>>
+>>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mike%40selik.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181016/549cd6e3/attachment.html>
+
+From jdhardy at gmail.com  Tue Oct 16 12:35:51 2018
+From: jdhardy at gmail.com (Jeff Hardy)
+Date: Tue, 16 Oct 2018 09:35:51 -0700
+Subject: [Python-Dev] Arbitrary non-identifier string keys when using
+ **kwargs
+In-Reply-To: <b69bf75c-2e90-e344-de46-eb6e3701a90c@farowl.co.uk>
+References: <20181004085633.GP21220@ando.pearwood.info>
+ <pp4lpg$8us$1@blaine.gmane.org>
+ <CAP1=2W6CrF6-mP3ZHkHWwniEK+6bYn1XvMzeGJtyGTGs9-SeyA@mail.gmail.com>
+ <CALGmxEKWXUuyEPZbkJb0EnGYmNHEc+scSokh8AVpW030oqbrCA@mail.gmail.com>
+ <ppe253$oie$1@blaine.gmane.org>
+ <CAF7AXFGos0-GqFvv+J1HTZkqBiq1MfMwX=s5YzpRi-jfn=n92Q@mail.gmail.com>
+ <20181009230605.GV3817@ando.pearwood.info>
+ <b69bf75c-2e90-e344-de46-eb6e3701a90c@farowl.co.uk>
+Message-ID: <CAF7AXFHejpRkgNn6S_-ksSKpfHMbgt0hUe-8EnBwiS5_eL=4Bg@mail.gmail.com>
+
+On Sun, Oct 14, 2018 at 12:15 PM Jeff Allen <ja.py at farowl.co.uk> wrote:
+>
+>
+> On 10/10/2018 00:06, Steven D'Aprano wrote:
+>
+> On Tue, Oct 09, 2018 at 09:37:48AM -0700, Jeff Hardy wrote:
+>
+> ...
+>
+> From an alternative implementation point of view, CPython's behaviour
+> *is* the spec. Practicality beats purity and all that.
+>
+> Are you speaking on behalf of all authors of alternate implementations,
+> or even of some of them?
+>
+> It certainly is not true that CPython's behaviour "is" the spec. PyPy
+> keeps a list of CPython behaviour they don't match, either because they
+> choose not to for other reasons, or because they believe that the
+> CPython behaviour is buggy. I daresay IronPython and Jython have
+> similar.
+>
+> While agreeing with the principle, unless it is one of the fundamental differences (GC, GIL), Jython usually lets practicality beat purity. When faced with a certain combination of objects, one has to do something, and it is least surprising to do what CPython does. It's also easier than keeping a record.
+
+This is how it is for IronPython as well. When the pool of potential
+users is already small, one cannot afford to get too pedantic about
+whether something is in the spec or not. Matching what CPython does is
+the easiest way to make sure as many people as possible can use an
+alternative implementation.
+
+- Jeff
+
+From seanharr11 at gmail.com  Tue Oct 16 17:53:19 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Tue, 16 Oct 2018 17:53:19 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+Message-ID: <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+
+Is your concern something like the following?
+
+with Pool(8) as p:
+    gen = p.imap_unordered(func, ls)
+    first_elem = next(gen)
+    p.apply_async(long_func, x)
+    remaining_elems = [elem for elem in gen]
+
+...here, if we store "func" on each worker Process as a global, and execute
+this pattern above, we will likely alter state of one of the worker
+processes s.t. it stores "long_func" in place of the initial "func".
+
+So yes, this could break things. *A potential solution*:
+
+Replace "func" in the task tuple with an identifier (maybe, *perhaps
+> naively*, func.__qualname__), and store the "identifier => func map"
+> somewhere globally accessible, maybe as a class attribute on Pool. On any
+> call to Pool.map, Pool.apply, etc... this map is updated. Then, in the
+> worker process, as each task is processed, we use the "func identifier" on
+> the task to recover the globally mapped 'func', and apply it.
+
+
+This would avoid the weird stateful bug above. We could also do something
+slightly different to this if folks are averse to the "Pool class-attribute
+func map" (i.e. averse to globals), and store this map as an Instance
+Attribute on the Pool object, and wrap the "initializer" func to make the
+map globally available in the worker via the "global" keyword.
+
+One note: this isn't a "cache", it's just a global map which has its keys &
+values updated *blindly* with every call to Pool.<public_method>. It serves
+as a way to bypass repeated serialization of functions in Pool, which can
+be large when bound to big objects (like large class instances, or
+functools.partial objects).
+
+On Tue, Oct 16, 2018 at 9:27 AM Michael Selik <michael.selik at gmail.com>
+wrote:
+
+> Would this change the other pool method behavior in some way if the user,
+> for whatever reason, mixed techniques?
+>
+> imap_unordered will only block when nexting the generator. If the user
+> mingles nexting that generator with, say, apply_async, could the change
+> you're proposing have some side-effect?
+>
+> On Tue, Oct 16, 2018, 5:09 AM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+>
+>> @Nataniel this is what I am suggesting as well. No cacheing - just
+>> storing the `fn` on each worker, rather than pickling it for each item in
+>> our iterable.
+>>
+>> As long as we store the `fn` post-fork on the worker process (perhaps as
+>> global), subsequent calls to Pool.map shouldn't be effected (referencing
+>> Antoine's & Michael's points that "multiprocessing encapsulates each
+>> subprocesses globals in a separate namespace").
+>>
+>> @Antoine - I'm making an effort to take everything you've said into
+>> consideration here.  My initial PR and talk
+>> <https://www.youtube.com/watch?v=DH0JVSXvxu0> was intended to shed light
+>> on a couple of pitfalls that I often see Python end-users encounter with
+>> Pool. Moving beyond my naive first attempt, and the onslaught of deserved
+>> criticism, it seems that we have an opportunity here: No changes to the
+>> interface, just an optimization to reduce the frequency of pickling.
+>>
+>> Raymond Hettinger may also be interested in this optimization, as he
+>> speaks (with great analogies) about different ways you can misuse
+>> concurrency in Python <https://www.youtube.com/watch?v=9zinZmE3Ogk>.
+>> This would address one of the pitfalls that he outlines: the "size of the
+>> serialized/deserialized data".
+>>
+>> Is this an optimization that either of you would be willing to review,
+>> and accept, if I find there is a *reasonable way* to implement it?
+>>
+>>
+>> On Fri, Oct 12, 2018 at 3:40 PM Nathaniel Smith <njs at pobox.com> wrote:
+>>
+>>> On Fri, Oct 12, 2018, 06:09 Antoine Pitrou <solipsis at pitrou.net> wrote:
+>>>
+>>>> On Fri, 12 Oct 2018 08:33:32 -0400
+>>>> Sean Harrington <seanharr11 at gmail.com> wrote:
+>>>> > Hi Nathaniel - this if this solution can be made performant, than I
+>>>> would
+>>>> > be more than satisfied.
+>>>> >
+>>>> > I think this would require removing "func" from the "task tuple", and
+>>>> > storing the "func" "once per worker" somewhere globally (maybe a class
+>>>> > attribute set post-fork?).
+>>>> >
+>>>> > This also has the beneficial outcome of increasing general
+>>>> performance of
+>>>> > Pool.map and friends. I've seen MANY folks across the interwebs doing
+>>>> > things like passing instance methods to map, resulting in "big"
+>>>> tasks, and
+>>>> > slower-than-sequential parallelized code. Parallelizing "instance
+>>>> methods"
+>>>> > by passing them to map, w/o needing to wrangle with staticmethods and
+>>>> > globals, would be a GREAT feature! It'd just be as easy as:
+>>>> >
+>>>> >     Pool.map(self.func, ls)
+>>>> >
+>>>> > What do you think about this idea? This is something I'd be able to
+>>>> take
+>>>> > on, assuming I get a few core dev blessings...
+>>>>
+>>>> Well, I'm not sure how it would work, so it's difficult to give an
+>>>> opinion.  How do you plan to avoid passing "self"?  By caching (by
+>>>> equality? by identity?)?  Something else?  But what happens if "self"
+>>>> changed value (in the case of a mutable object) in the parent?  Do you
+>>>> keep using the stale version in the child?  That would break
+>>>> compatibility...
+>>>>
+>>>
+>>> I was just suggesting that within a single call to Pool.map, it would be
+>>> reasonable optimization to only send the fn once to each worker. So e.g. if
+>>> you have 5 workers and 1000 items, you'd only pickle fn 5 times, rather
+>>> than 1000 times like we do now. I wouldn't want to get any fancier than
+>>> that with caching data between different map calls or anything.
+>>>
+>>> Of course even this may turn out to be too complicated to implement in a
+>>> reasonable way, since it would require managing some extra state on the
+>>> workers. But semantically it would be purely an optimization of current
+>>> semantics.
+>>>
+>>> -n
+>>>
+>>>> _______________________________________________
+>>> Python-Dev mailing list
+>>> Python-Dev at python.org
+>>> https://mail.python.org/mailman/listinfo/python-dev
+>>> Unsubscribe:
+>>> https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+>>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/mike%40selik.org
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181016/33e7b9f6/attachment.html>
+
