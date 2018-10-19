@@ -7787,3 +7787,211 @@ wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181016/33e7b9f6/attachment.html>
 
+From facundobatista at gmail.com  Wed Oct 17 20:32:14 2018
+From: facundobatista at gmail.com (Facundo Batista)
+Date: Wed, 17 Oct 2018 21:32:14 -0300
+Subject: [Python-Dev] Servicing pypi.python.org
+Message-ID: <CAM09pzSJe2Zy6C+FhQRGTSnKLBEpPKuR2HQzLCTeSSRB7HP27Q@mail.gmail.com>
+
+Hola!
+
+tl;dr: can we have a (semi)permanent redirect from pypi.python.org to pypi.org?
+
+I own/maintain a project called `fades`, which is an automatic
+virtualenv creator/manager [0].
+
+While it relies on `pip` itself for the heavy work on the virtualenv
+itself, `fades` checks if all required dependencies can be served [1]
+*before* starting to do the rest of the work, which saves a lot of
+time.
+
+I just noticed that this is broken, because `pypi.python.org` is dead,
+and the service should be queried under `pypi.org` directly.
+
+We probably should have switched to the new domain months ago, but you
+know how it's open source, it frequently happens that one has to live
+first and that leaves no time for fun work.
+
+So, can we have a (semi)permanent redirect from pypi.python.org to pypi.org?
+
+This will help `fades` directly (even if we fix this and release soon,
+there will be a lot of older fades in the wild hitting the de[recated
+URL) and probably other projects using the old URL.
+
+I suspect that having a generic redirect will not be burdensome server side.
+
+Can we? Can we? P-p-please??? :)
+
+Thanks in advance.
+
+[0] fades.readthedocs.io
+[1] using URLs like `https://pypi.python.org/pypi/Twisted/json`
+
+-- 
+.    Facundo
+
+Blog: http://www.taniquetil.com.ar/plog/
+PyAr: http://www.python.org.ar/
+Twitter: @facundobatista
+
+From tjreedy at udel.edu  Wed Oct 17 23:00:54 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 17 Oct 2018 23:00:54 -0400
+Subject: [Python-Dev] Servicing pypi.python.org
+In-Reply-To: <CAM09pzSJe2Zy6C+FhQRGTSnKLBEpPKuR2HQzLCTeSSRB7HP27Q@mail.gmail.com>
+References: <CAM09pzSJe2Zy6C+FhQRGTSnKLBEpPKuR2HQzLCTeSSRB7HP27Q@mail.gmail.com>
+Message-ID: <pq8st6$9i2$1@blaine.gmane.org>
+
+On 10/17/2018 8:32 PM, Facundo Batista wrote:
+> Hola!
+> 
+> tl;dr: can we have a (semi)permanent redirect from pypi.python.org to pypi.org?
+
+pypi is run by a different group from pydev core developers.
+Maybe someone here know what the current list is.
+
+-- 
+Terry Jan Reedy
+
+
+From donald at stufft.io  Wed Oct 17 23:07:35 2018
+From: donald at stufft.io (Donald Stufft)
+Date: Wed, 17 Oct 2018 23:07:35 -0400
+Subject: [Python-Dev] Servicing pypi.python.org
+In-Reply-To: <CAM09pzSJe2Zy6C+FhQRGTSnKLBEpPKuR2HQzLCTeSSRB7HP27Q@mail.gmail.com>
+References: <CAM09pzSJe2Zy6C+FhQRGTSnKLBEpPKuR2HQzLCTeSSRB7HP27Q@mail.gmail.com>
+Message-ID: <C560340E-7722-49E0-9F98-C7D81BF25375@stufft.io>
+
+
+
+> On Oct 17, 2018, at 8:32 PM, Facundo Batista <facundobatista at gmail.com> wrote:
+> 
+> tl;dr: can we have a (semi)permanent redirect from pypi.python.org <http://pypi.python.org/> to pypi.org <http://pypi.org/>?
+
+
+This already exists:
+
+$ curl -I https://pypi.python.org/project/Twisted/json
+HTTP/2 301
+server: Varnish
+retry-after: 0
+location: https://pypi.org/project/Twisted/json
+content-type: text/html; charset=UTF-8
+accept-ranges: bytes
+date: Thu, 18 Oct 2018 03:06:12 GMT
+x-served-by: cache-iad2626-IAD
+x-cache: HIT
+x-cache-hits: 0
+x-timer: S1539831972.243137,VS0,VE0
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+x-frame-options: deny
+x-xss-protection: 1; mode=block
+x-content-type-options: nosniff
+x-permitted-cross-domain-policies: none
+content-length: 122
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181017/554e9bdd/attachment.html>
+
+From michael.selik at gmail.com  Thu Oct 18 00:49:12 2018
+From: michael.selik at gmail.com (Michael Selik)
+Date: Wed, 17 Oct 2018 21:49:12 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+Message-ID: <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+
+If imap_unordered is currently re-pickling and sending func each time it's
+called on the worker, I have to suspect there was some reason to do that
+and not cache it after the first call. Rather than assuming that's an
+opportunity for an optimization, I'd want to be certain it won't have edge
+case negative effects.
+
+
+On Tue, Oct 16, 2018 at 2:53 PM Sean Harrington <seanharr11 at gmail.com>
+wrote:
+
+> Is your concern something like the following?
+>
+> with Pool(8) as p:
+>     gen = p.imap_unordered(func, ls)
+>     first_elem = next(gen)
+>     p.apply_async(long_func, x)
+>     remaining_elems = [elem for elem in gen]
+>
+
+My concern was passing the same function (or a function with the same
+qualname). You're suggesting caching functions and identifying them by
+qualname to avoid re-pickling a large stateful object that's shoved into
+the function's defaults or closure. Is that a correct summary?
+
+If so, how would the function cache distinguish between two functions with
+the same name? Would it need to examine the defaults and closure as well?
+If so, that means it's pickling the second one anyway, so there's no
+efficiency gain.
+
+In [1]: def foo(a):
+   ...:     def bar():
+   ...:         print(a)
+   ...:     return bar
+In [2]: f = foo(1)
+In [3]: g = foo(2)
+In [4]: f
+Out[4]: <function __main__.foo.<locals>.bar()>
+In [5]: g
+Out[5]: <function __main__.foo.<locals>.bar()>
+
+If we say pool.apply_async(f) and pool.apply_async(g), would you want the
+latter one to avoid serialization, letting the worker make a second call
+with the first function object?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181017/1d30bec3/attachment.html>
+
+From 1benediktwerner at gmail.com  Thu Oct 18 01:11:45 2018
+From: 1benediktwerner at gmail.com (Benedikt Werner)
+Date: Thu, 18 Oct 2018 07:11:45 +0200
+Subject: [Python-Dev] Servicing pypi.python.org
+In-Reply-To: <C560340E-7722-49E0-9F98-C7D81BF25375@stufft.io>
+References: <CAM09pzSJe2Zy6C+FhQRGTSnKLBEpPKuR2HQzLCTeSSRB7HP27Q@mail.gmail.com>
+ <C560340E-7722-49E0-9F98-C7D81BF25375@stufft.io>
+Message-ID: <de5a7105-c282-9d66-882a-9d808c6bafbd@gmail.com>
+
+> This already exists:
+>
+> $ curl -I https://pypi.python.org/project/Twisted/json
+> HTTP/2 301
+> server: Varnish
+> retry-after: 0
+> location: https://pypi.org/project/Twisted/json
+> content-type: text/html; charset=UTF-8
+> accept-ranges: bytes
+> date: Thu, 18 Oct 2018 03:06:12 GMT
+> x-served-by: cache-iad2626-IAD
+> x-cache: HIT
+> x-cache-hits: 0
+> x-timer: S1539831972.243137,VS0,VE0
+> strict-transport-security: max-age=31536000; includeSubDomains; preload
+> x-frame-options: deny
+> x-xss-protection: 1; mode=block
+> x-content-type-options: nosniff
+> x-permitted-cross-domain-policies: none
+> content-length: 122
+Especially if you use a project that actually exists like 
+https://pypi.python.org/pypi/numpy ;)
+Then you don't get a 404 after the redirect which probably was your problem.
+
