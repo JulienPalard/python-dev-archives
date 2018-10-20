@@ -7995,3 +7995,709 @@ Especially if you use a project that actually exists like
 https://pypi.python.org/pypi/numpy ;)
 Then you don't get a 404 after the redirect which probably was your problem.
 
+From van.lindberg at gmail.com  Thu Oct 18 10:07:13 2018
+From: van.lindberg at gmail.com (VanL)
+Date: Thu, 18 Oct 2018 09:07:13 -0500
+Subject: [Python-Dev] wininst-*.exe files in Lib/distutils/command
+Message-ID: <CAFQvZEPmGVscWNYF+Bng61LMdwpEgkjLqyhG3nogBedkG_u2KQ@mail.gmail.com>
+
+Hi all,
+
+I am looking into an issue associated with the wininst-*.exe files in the
+distutils/command subdirectory. It looks like these are the executable
+stubs used to create self-extracting zips for installation - but I am not
+100% sure. It also looks like they include the calls to standard Windows
+functions to display the installer window.
+
+I have a couple questions I need help with:
+1) Am I correct about the function, and if not, what are they?
+2) Where did these come from, and where is their source code?
+
+Thanks,
+Van
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181018/09802cfd/attachment.html>
+
+From p.f.moore at gmail.com  Thu Oct 18 10:36:23 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 18 Oct 2018 15:36:23 +0100
+Subject: [Python-Dev] wininst-*.exe files in Lib/distutils/command
+In-Reply-To: <CAFQvZEPmGVscWNYF+Bng61LMdwpEgkjLqyhG3nogBedkG_u2KQ@mail.gmail.com>
+References: <CAFQvZEPmGVscWNYF+Bng61LMdwpEgkjLqyhG3nogBedkG_u2KQ@mail.gmail.com>
+Message-ID: <CACac1F_ddGsvGHun9V9VJcyFJ=aaGXT2bpMNi-J7U=tHNUBCyQ@mail.gmail.com>
+
+They are for the distutils bdist_wininst command (mostly obsolete now,
+wheels are the preferred binary distribution format these days). The
+source appears to be in PC\bdist_wininst in the CPython repository.
+
+Paul
+On Thu, 18 Oct 2018 at 15:10, VanL <van.lindberg at gmail.com> wrote:
+>
+> Hi all,
+>
+> I am looking into an issue associated with the wininst-*.exe files in the distutils/command subdirectory. It looks like these are the executable stubs used to create self-extracting zips for installation - but I am not 100% sure. It also looks like they include the calls to standard Windows functions to display the installer window.
+>
+> I have a couple questions I need help with:
+> 1) Am I correct about the function, and if not, what are they?
+> 2) Where did these come from, and where is their source code?
+>
+> Thanks,
+> Van
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/p.f.moore%40gmail.com
+
+From zachary.ware+pydev at gmail.com  Thu Oct 18 10:40:53 2018
+From: zachary.ware+pydev at gmail.com (Zachary Ware)
+Date: Thu, 18 Oct 2018 09:40:53 -0500
+Subject: [Python-Dev] wininst-*.exe files in Lib/distutils/command
+In-Reply-To: <CAFQvZEPmGVscWNYF+Bng61LMdwpEgkjLqyhG3nogBedkG_u2KQ@mail.gmail.com>
+References: <CAFQvZEPmGVscWNYF+Bng61LMdwpEgkjLqyhG3nogBedkG_u2KQ@mail.gmail.com>
+Message-ID: <CAKJDb-ODjg6YkXOooz2crKKaz4n9u6gxgEVp_Z=qEf8U2+xLCQ@mail.gmail.com>
+
+On Thu, Oct 18, 2018 at 9:09 AM VanL <van.lindberg at gmail.com> wrote:
+> Hi all,
+>
+> I am looking into an issue associated with the wininst-*.exe files in the distutils/command subdirectory. It looks like these are the executable stubs used to create self-extracting zips for installation - but I am not 100% sure. It also looks like they include the calls to standard Windows functions to display the installer window.
+>
+> I have a couple questions I need help with:
+> 1) Am I correct about the function, and if not, what are they?
+
+You are correct.  IIUC, they are checked in to allow creating those
+installers from non-Windows platforms.
+
+> 2) Where did these come from, and where is their source code?
+
+Source can be found here:
+https://github.com/python/cpython/tree/master/PC/bdist_wininst
+
+The individual checked-in .exe files were each originally built by
+whoever updated the Windows toolchain to a new version of MSVC
+(Christian Heimes, Brian Curtin, or Steve Dower; though the oldest
+ones were added by Thomas Heller, presumably using whatever the
+current toolchain(s) was (were) at the time).  A few of them have been
+rebuilt after bug fixes in the source since they were added, mostly by
+the same people, though I also see Mark Hammond and Raymond Hettinger
+in the history (and Georg Brandl via svnmerge).  I notice that there
+are a few very minor code cleanups (the three latest commits here
+https://github.com/python/cpython/commits/master/PC/bdist_wininst/install.c)
+that have not made it into a rebuilt exe yet.
+
+FTR, we really ought to remove all but the 14.0 version from the
+master branch.  We don't support building Python with any toolchain
+older than 14.0 anymore, and the older toolchains are nigh impossible
+to find anymore anyway.
+
+--
+Zach
+
+From van.lindberg at gmail.com  Thu Oct 18 10:48:10 2018
+From: van.lindberg at gmail.com (VanL)
+Date: Thu, 18 Oct 2018 09:48:10 -0500
+Subject: [Python-Dev] wininst-*.exe files in Lib/distutils/command
+In-Reply-To: <CAKJDb-ODjg6YkXOooz2crKKaz4n9u6gxgEVp_Z=qEf8U2+xLCQ@mail.gmail.com>
+References: <CAFQvZEPmGVscWNYF+Bng61LMdwpEgkjLqyhG3nogBedkG_u2KQ@mail.gmail.com>
+ <CAKJDb-ODjg6YkXOooz2crKKaz4n9u6gxgEVp_Z=qEf8U2+xLCQ@mail.gmail.com>
+Message-ID: <CAFQvZEM05+0a5hmyJAX_A2+sfahrNUDJhpi1UM_kf4hRhSOikw@mail.gmail.com>
+
+Thank you all, this gives me what I need. Sorry I missed the source in the
+the PC/ directory.
+
+Thanks,
+Van
+
+On Thu, Oct 18, 2018 at 9:41 AM Zachary Ware <zachary.ware+pydev at gmail.com>
+wrote:
+
+> On Thu, Oct 18, 2018 at 9:09 AM VanL <van.lindberg at gmail.com> wrote:
+> > Hi all,
+> >
+> > I am looking into an issue associated with the wininst-*.exe files in
+> the distutils/command subdirectory. It looks like these are the executable
+> stubs used to create self-extracting zips for installation - but I am not
+> 100% sure. It also looks like they include the calls to standard Windows
+> functions to display the installer window.
+> >
+> > I have a couple questions I need help with:
+> > 1) Am I correct about the function, and if not, what are they?
+>
+> You are correct.  IIUC, they are checked in to allow creating those
+> installers from non-Windows platforms.
+>
+> > 2) Where did these come from, and where is their source code?
+>
+> Source can be found here:
+> https://github.com/python/cpython/tree/master/PC/bdist_wininst
+>
+> The individual checked-in .exe files were each originally built by
+> whoever updated the Windows toolchain to a new version of MSVC
+> (Christian Heimes, Brian Curtin, or Steve Dower; though the oldest
+> ones were added by Thomas Heller, presumably using whatever the
+> current toolchain(s) was (were) at the time).  A few of them have been
+> rebuilt after bug fixes in the source since they were added, mostly by
+> the same people, though I also see Mark Hammond and Raymond Hettinger
+> in the history (and Georg Brandl via svnmerge).  I notice that there
+> are a few very minor code cleanups (the three latest commits here
+> https://github.com/python/cpython/commits/master/PC/bdist_wininst/install.c
+> )
+> that have not made it into a rebuilt exe yet.
+>
+> FTR, we really ought to remove all but the 14.0 version from the
+> master branch.  We don't support building Python with any toolchain
+> older than 14.0 anymore, and the older toolchains are nigh impossible
+> to find anymore anyway.
+>
+> --
+> Zach
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181018/78b0b0f4/attachment-0001.html>
+
+From seanharr11 at gmail.com  Thu Oct 18 11:35:16 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Thu, 18 Oct 2018 11:35:16 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+Message-ID: <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+
+You have correctly identified the summary of my intentions, and I agree
+with your reasoning & concern - however there is a somewhat reasonable
+answer as to why this optimization has never been implemented:
+
+In Pool, the `task` tuple consists of (result_job, func, (x,), {}) .  This
+is the object that is serialized/deserialized b/t processes.  The only
+thing we really care about here is the tuple `(x,)`, confusingly, not
+`func` (func is ACTUALLY either mapstar() or starmapstar(), which is called
+with (x,) as its *args). Our element of interest is `(x,)` - a tuple of
+(func, iterable). Because we need to temper the size of the `iterable`
+bundled in each task, to avoid de/serialization slowness, we usually end up
+with multiple tasks per worker, and thus multiple `func`s per worker. Thus,
+this is really only an optimization in the case of really big
+functions/closures/partials (or REALLY big iterables with an unreasonably
+small chunksize passed to map()). The most common use case comes up when
+passing instance methods (of really big objects!) to Pool.map().
+
+This post
+<https://thelaziestprogrammer.com/python/a-multiprocessing-pool-pickle#stuck-in-a-pickle>
+may
+color in the above with more details.
+
+Further, let me pivot on my idea of __qualname__...we can use the `id` of
+`func` as the cache key to address your concern, and store this `id` on the
+`task` tuple (i.e. an integer in-lieu of the `func` previously stored
+there).
+
+
+On Thu, Oct 18, 2018 at 12:49 AM Michael Selik <michael.selik at gmail.com>
+wrote:
+
+> If imap_unordered is currently re-pickling and sending func each time it's
+> called on the worker, I have to suspect there was some reason to do that
+> and not cache it after the first call. Rather than assuming that's an
+> opportunity for an optimization, I'd want to be certain it won't have edge
+> case negative effects.
+>
+>
+> On Tue, Oct 16, 2018 at 2:53 PM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+>
+>> Is your concern something like the following?
+>>
+>> with Pool(8) as p:
+>>     gen = p.imap_unordered(func, ls)
+>>     first_elem = next(gen)
+>>     p.apply_async(long_func, x)
+>>     remaining_elems = [elem for elem in gen]
+>>
+>
+> My concern was passing the same function (or a function with the same
+> qualname). You're suggesting caching functions and identifying them by
+> qualname to avoid re-pickling a large stateful object that's shoved into
+> the function's defaults or closure. Is that a correct summary?
+>
+> If so, how would the function cache distinguish between two functions with
+> the same name? Would it need to examine the defaults and closure as well?
+> If so, that means it's pickling the second one anyway, so there's no
+> efficiency gain.
+>
+> In [1]: def foo(a):
+>    ...:     def bar():
+>    ...:         print(a)
+>    ...:     return bar
+> In [2]: f = foo(1)
+> In [3]: g = foo(2)
+> In [4]: f
+> Out[4]: <function __main__.foo.<locals>.bar()>
+> In [5]: g
+> Out[5]: <function __main__.foo.<locals>.bar()>
+>
+> If we say pool.apply_async(f) and pool.apply_async(g), would you want the
+> latter one to avoid serialization, letting the worker make a second call
+> with the first function object?
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181018/999d3aa6/attachment.html>
+
+From michael.selik at gmail.com  Thu Oct 18 12:00:11 2018
+From: michael.selik at gmail.com (Michael Selik)
+Date: Thu, 18 Oct 2018 09:00:11 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+ <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+Message-ID: <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+
+On Thu, Oct 18, 2018 at 8:35 AM Sean Harrington <seanharr11 at gmail.com>
+wrote:
+
+> The most common use case comes up when passing instance methods (of really
+> big objects!) to Pool.map().
+>
+
+This reminds me of that old joke: "A patient says to the doctor, 'Doctor,
+it hurts when I ...!' The doctor replies, 'Well, don't do that.'"
+
+Further, let me pivot on my idea of __qualname__...we can use the `id` of
+> `func` as the cache key to address your concern, and store this `id` on the
+> `task` tuple (i.e. an integer in-lieu of the `func` previously stored
+> there).
+>
+
+Possible. Does the Pool keep a reference to the passed function in the main
+process? If not, couldn't the garbage collector free that memory location
+and a new function could replace it? Then it could have the same qualname
+and id in CPython. Edge case, for sure. Worse, it'd be hard to reproduce as
+it'd be dependent on the vagaries of memory allocation.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181018/d98e0307/attachment.html>
+
+From encukou at gmail.com  Thu Oct 18 12:26:34 2018
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 18 Oct 2018 18:26:34 +0200
+Subject: [Python-Dev] wininst-*.exe files in Lib/distutils/command
+In-Reply-To: <CAKJDb-ODjg6YkXOooz2crKKaz4n9u6gxgEVp_Z=qEf8U2+xLCQ@mail.gmail.com>
+References: <CAFQvZEPmGVscWNYF+Bng61LMdwpEgkjLqyhG3nogBedkG_u2KQ@mail.gmail.com>
+ <CAKJDb-ODjg6YkXOooz2crKKaz4n9u6gxgEVp_Z=qEf8U2+xLCQ@mail.gmail.com>
+Message-ID: <5e5e14f2-b4f2-d904-ffc4-b825794d1600@gmail.com>
+
+On 10/18/18 4:40 PM, Zachary Ware wrote:
+> On Thu, Oct 18, 2018 at 9:09 AM VanL <van.lindberg at gmail.com> wrote:
+>> Hi all,
+>>
+>> I am looking into an issue associated with the wininst-*.exe files in the distutils/command subdirectory. It looks like these are the executable stubs used to create self-extracting zips for installation - but I am not 100% sure. It also looks like they include the calls to standard Windows functions to display the installer window.
+>>
+>> I have a couple questions I need help with:
+>> 1) Am I correct about the function, and if not, what are they?
+> 
+> You are correct.  IIUC, they are checked in to allow creating those
+> installers from non-Windows platforms.
+
+Is that the only reason for them?
+At least on Linux, bdist_wininst does not work since at least Python 
+3.2, as it tries to use a Windows-only encoding internally.
+https://bugs.python.org/issue10945
+
+If they're only there for non-Windows platforms, they're useless.
+
+>> 2) Where did these come from, and where is their source code?
+> 
+> Source can be found here:
+> https://github.com/python/cpython/tree/master/PC/bdist_wininst
+> 
+> The individual checked-in .exe files were each originally built by
+> whoever updated the Windows toolchain to a new version of MSVC
+> (Christian Heimes, Brian Curtin, or Steve Dower; though the oldest
+> ones were added by Thomas Heller, presumably using whatever the
+> current toolchain(s) was (were) at the time).  A few of them have been
+> rebuilt after bug fixes in the source since they were added, mostly by
+> the same people, though I also see Mark Hammond and Raymond Hettinger
+> in the history (and Georg Brandl via svnmerge).  I notice that there
+> are a few very minor code cleanups (the three latest commits here
+> https://github.com/python/cpython/commits/master/PC/bdist_wininst/install.c)
+> that have not made it into a rebuilt exe yet.
+> 
+> FTR, we really ought to remove all but the 14.0 version from the
+> master branch.  We don't support building Python with any toolchain
+> older than 14.0 anymore, and the older toolchains are nigh impossible
+> to find anymore anyway.
+
+
+From python at mrabarnett.plus.com  Thu Oct 18 12:41:29 2018
+From: python at mrabarnett.plus.com (MRAB)
+Date: Thu, 18 Oct 2018 17:41:29 +0100
+Subject: [Python-Dev] LibSSH Vulnerability
+Message-ID: <503eca89-f6c9-cf81-9c47-34e45abd6cff@mrabarnett.plus.com>
+
+I wondered if any of you have heard of this:
+
+Hacker: I'm logged in. New LibSSH Vulnerability: OK! I believe you.
+https://www.bleepingcomputer.com/news/security/hacker-im-logged-in-new-libssh-vulnerability-ok-i-believe-you/
+
+From michael.selik at gmail.com  Thu Oct 18 12:39:34 2018
+From: michael.selik at gmail.com (Michael Selik)
+Date: Thu, 18 Oct 2018 09:39:34 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+ <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+ <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+Message-ID: <CAGgTfkObGn5L=oX9-K6-JjLfQX4b9ZGWsaoVm5xo6R3j7viUKg@mail.gmail.com>
+
+One idea would be for the Pool method to generate a uuid and slap it on the
+function as an attribute. If a function being passed in doesn't have one,
+generate one. If it already has one, just pass that instead of pickling.
+The child process will keep a cache mapping uuids to functions.
+
+I'm still worried about unintended consequences.
+
+
+On Thu, Oct 18, 2018 at 9:00 AM Michael Selik <michael.selik at gmail.com>
+wrote:
+
+> On Thu, Oct 18, 2018 at 8:35 AM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+>
+>> The most common use case comes up when passing instance methods (of
+>> really big objects!) to Pool.map().
+>>
+>
+> This reminds me of that old joke: "A patient says to the doctor, 'Doctor,
+> it hurts when I ...!' The doctor replies, 'Well, don't do that.'"
+>
+> Further, let me pivot on my idea of __qualname__...we can use the `id` of
+>> `func` as the cache key to address your concern, and store this `id` on the
+>> `task` tuple (i.e. an integer in-lieu of the `func` previously stored
+>> there).
+>>
+>
+> Possible. Does the Pool keep a reference to the passed function in the
+> main process? If not, couldn't the garbage collector free that memory
+> location and a new function could replace it? Then it could have the same
+> qualname and id in CPython. Edge case, for sure. Worse, it'd be hard to
+> reproduce as it'd be dependent on the vagaries of memory allocation.
+>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181018/4d2b7599/attachment.html>
+
+From solipsis at pitrou.net  Thu Oct 18 12:51:58 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 18 Oct 2018 18:51:58 +0200
+Subject: [Python-Dev] LibSSH Vulnerability
+References: <503eca89-f6c9-cf81-9c47-34e45abd6cff@mrabarnett.plus.com>
+Message-ID: <20181018185158.30749a9c@fsol>
+
+On Thu, 18 Oct 2018 17:41:29 +0100
+MRAB <python at mrabarnett.plus.com> wrote:
+> I wondered if any of you have heard of this:
+> 
+> Hacker: I'm logged in. New LibSSH Vulnerability: OK! I believe you.
+> https://www.bleepingcomputer.com/news/security/hacker-im-logged-in-new-libssh-vulnerability-ok-i-believe-you/
+
+AFAIK, this doesn't have any to do with OpenSSH, which practically
+everyone uses on Unix.
+
+Regards
+
+Antoine.
+
+
+
+From van.lindberg at gmail.com  Thu Oct 18 13:44:19 2018
+From: van.lindberg at gmail.com (VanL)
+Date: Thu, 18 Oct 2018 12:44:19 -0500
+Subject: [Python-Dev] wininst-*.exe files in Lib/distutils/command
+In-Reply-To: <5e5e14f2-b4f2-d904-ffc4-b825794d1600@gmail.com>
+References: <CAFQvZEPmGVscWNYF+Bng61LMdwpEgkjLqyhG3nogBedkG_u2KQ@mail.gmail.com>
+ <CAKJDb-ODjg6YkXOooz2crKKaz4n9u6gxgEVp_Z=qEf8U2+xLCQ@mail.gmail.com>
+ <5e5e14f2-b4f2-d904-ffc4-b825794d1600@gmail.com>
+Message-ID: <CAFQvZEPRFqhia_y0f9CGpRgTBPsRiRVkiK=Ek4MphBYPe-aX9g@mail.gmail.com>
+
+Primarily for non-windows platforms, but I also think for Windows users
+without any compilers or similar tools installed. There is also some
+discussion of removing some of the older toolchain-specific versions
+(leaving only -14), but that is a subject for another day.
+
+Also I am not sure that bug report applies to 3.5/3.6/3.7.
+
+Thanks,
+Van
+
+
+On Thu, Oct 18, 2018 at 11:26 AM Petr Viktorin <encukou at gmail.com> wrote:
+
+> On 10/18/18 4:40 PM, Zachary Ware wrote:
+> > On Thu, Oct 18, 2018 at 9:09 AM VanL <van.lindberg at gmail.com> wrote:
+> >> Hi all,
+> >>
+> >> I am looking into an issue associated with the wininst-*.exe files in
+> the distutils/command subdirectory. It looks like these are the executable
+> stubs used to create self-extracting zips for installation - but I am not
+> 100% sure. It also looks like they include the calls to standard Windows
+> functions to display the installer window.
+> >>
+> >> I have a couple questions I need help with:
+> >> 1) Am I correct about the function, and if not, what are they?
+> >
+> > You are correct.  IIUC, they are checked in to allow creating those
+> > installers from non-Windows platforms.
+>
+> Is that the only reason for them?
+> At least on Linux, bdist_wininst does not work since at least Python
+> 3.2, as it tries to use a Windows-only encoding internally.
+> https://bugs.python.org/issue10945
+>
+> If they're only there for non-Windows platforms, they're useless.
+>
+> >> 2) Where did these come from, and where is their source code?
+> >
+> > Source can be found here:
+> > https://github.com/python/cpython/tree/master/PC/bdist_wininst
+> >
+> > The individual checked-in .exe files were each originally built by
+> > whoever updated the Windows toolchain to a new version of MSVC
+> > (Christian Heimes, Brian Curtin, or Steve Dower; though the oldest
+> > ones were added by Thomas Heller, presumably using whatever the
+> > current toolchain(s) was (were) at the time).  A few of them have been
+> > rebuilt after bug fixes in the source since they were added, mostly by
+> > the same people, though I also see Mark Hammond and Raymond Hettinger
+> > in the history (and Georg Brandl via svnmerge).  I notice that there
+> > are a few very minor code cleanups (the three latest commits here
+> >
+> https://github.com/python/cpython/commits/master/PC/bdist_wininst/install.c
+> )
+> > that have not made it into a rebuilt exe yet.
+> >
+> > FTR, we really ought to remove all but the 14.0 version from the
+> > master branch.  We don't support building Python with any toolchain
+> > older than 14.0 anymore, and the older toolchains are nigh impossible
+> > to find anymore anyway.
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181018/59f057b4/attachment.html>
+
+From jmcs at jsantos.eu  Thu Oct 18 15:16:29 2018
+From: jmcs at jsantos.eu (=?UTF-8?B?Sm/Do28gU2FudG9z?=)
+Date: Thu, 18 Oct 2018 21:16:29 +0200
+Subject: [Python-Dev] LibSSH Vulnerability
+In-Reply-To: <20181018185158.30749a9c@fsol>
+References: <503eca89-f6c9-cf81-9c47-34e45abd6cff@mrabarnett.plus.com>
+ <20181018185158.30749a9c@fsol>
+Message-ID: <CAH_XWH1BT4pdNoSSv9Gxt5hv-fy_YQKJ5QbxTyUVT1W+Wopn1Q@mail.gmail.com>
+
+Slightly Off-Topic, but more relevant for python developers. Paramiko also
+had a very similar vulnerability:
+https://github.com/paramiko/paramiko/issues/1283.
+
+On Thu, 18 Oct 2018 at 18:56, Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> On Thu, 18 Oct 2018 17:41:29 +0100
+> MRAB <python at mrabarnett.plus.com> wrote:
+> > I wondered if any of you have heard of this:
+> >
+> > Hacker: I'm logged in. New LibSSH Vulnerability: OK! I believe you.
+> >
+> https://www.bleepingcomputer.com/news/security/hacker-im-logged-in-new-libssh-vulnerability-ok-i-believe-you/
+>
+> AFAIK, this doesn't have any to do with OpenSSH, which practically
+> everyone uses on Unix.
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/jmcs%40jsantos.eu
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181018/5a2cf06f/attachment.html>
+
+From chris.jerdonek at gmail.com  Thu Oct 18 16:16:57 2018
+From: chris.jerdonek at gmail.com (Chris Jerdonek)
+Date: Thu, 18 Oct 2018 13:16:57 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+ <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+ <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+Message-ID: <CAOTb1wc_gTuTC2Tmi6NYYLpzrtH6V=gKOjK5eF25QLC-kPkWgA@mail.gmail.com>
+
+On Thu, Oct 18, 2018 at 9:11 AM Michael Selik <michael.selik at gmail.com> wrote:
+> On Thu, Oct 18, 2018 at 8:35 AM Sean Harrington <seanharr11 at gmail.com> wrote:
+>> Further, let me pivot on my idea of __qualname__...we can use the `id` of `func` as the cache key to address your concern, and store this `id` on the `task` tuple (i.e. an integer in-lieu of the `func` previously stored there).
+>
+>
+> Possible. Does the Pool keep a reference to the passed function in the main process? If not, couldn't the garbage collector free that memory location and a new function could replace it? Then it could have the same qualname and id in CPython. Edge case, for sure. Worse, it'd be hard to reproduce as it'd be dependent on the vagaries of memory allocation.
+
+I'm not following this thread closely, but I just wanted to point out
+that __qualname__ won't necessarily be an attribute of the object if
+the API accepts any callable. (I happen to be following an issue on
+the tracker where this came up.)
+
+--Chris
+
+From thomas.moreau.2010 at gmail.com  Fri Oct 19 02:57:35 2018
+From: thomas.moreau.2010 at gmail.com (Thomas Moreau)
+Date: Fri, 19 Oct 2018 08:57:35 +0200
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAOTb1wc_gTuTC2Tmi6NYYLpzrtH6V=gKOjK5eF25QLC-kPkWgA@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+ <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+ <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+ <CAOTb1wc_gTuTC2Tmi6NYYLpzrtH6V=gKOjK5eF25QLC-kPkWgA@mail.gmail.com>
+Message-ID: <CAOh-wgBc91w_D5OmryTdkp3tUk7BqQ=HgDEiUF99LG9fvCLoqA@mail.gmail.com>
+
+Hello,
+
+I have been working on the concurent.futures module lately and I think this
+optimization should be avoided in the context of python Pools.
+
+This is an interesting idea, however its implementation will bring many
+complicated issues as it breaks the basic paradigm of a Pool: the tasks are
+independent and you don't know which worker is going to run which task.
+
+The function is serialized with each task because of this paradigm. This
+ensure that any worker picking the task will be able to perform it
+independently from the tasks it has run before, given that it as been
+initialized correctly at the beginning. This makes it simple to run each
+task.
+
+As the Pool comes with no scheduler, with your idea, you would need a
+synchronization step to send the function to all workers before you can
+launch your task. But if there is already one worker performing a long
+running task, does the Pool wait for it to be done before it sends the
+function? If the Pool doesn't wait, how does it ensure that this worker
+will be able to get the definition of the function before running it?
+Also, the multiprocessing.Pool has some features where a worker can shut
+itself down after a given number of tasks or a timeout. How does it ensure
+that the new worker will have the definition of the function?
+It is unsafe to try such a feature (sending only once an object) anywhere
+else than in the initializer which is guaranteed to be run once per worker.
+
+On the other hand, you mentioned an interesting point being that making
+globals available in the workers could be made simpler. A possible solution
+would be to add a "globals" argument in the Pool which would instanciate
+global variables in the workers. I have no specific idea but on the
+implementation of such features but it would be safer as it would be an
+initialization feature.
+
+Regards,
+Thomas Moreau
+
+On Thu, Oct 18, 2018, 22:20 Chris Jerdonek <chris.jerdonek at gmail.com> wrote:
+
+> On Thu, Oct 18, 2018 at 9:11 AM Michael Selik <michael.selik at gmail.com>
+> wrote:
+> > On Thu, Oct 18, 2018 at 8:35 AM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+> >> Further, let me pivot on my idea of __qualname__...we can use the `id`
+> of `func` as the cache key to address your concern, and store this `id` on
+> the `task` tuple (i.e. an integer in-lieu of the `func` previously stored
+> there).
+> >
+> >
+> > Possible. Does the Pool keep a reference to the passed function in the
+> main process? If not, couldn't the garbage collector free that memory
+> location and a new function could replace it? Then it could have the same
+> qualname and id in CPython. Edge case, for sure. Worse, it'd be hard to
+> reproduce as it'd be dependent on the vagaries of memory allocation.
+>
+> I'm not following this thread closely, but I just wanted to point out
+> that __qualname__ won't necessarily be an attribute of the object if
+> the API accepts any callable. (I happen to be following an issue on
+> the tracker where this came up.)
+>
+> --Chris
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/thomas.moreau.2010%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181019/ef763de8/attachment-0001.html>
+
