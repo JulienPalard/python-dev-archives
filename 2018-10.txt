@@ -8701,3 +8701,861 @@ On Thu, Oct 18, 2018, 22:20 Chris Jerdonek <chris.jerdonek at gmail.com> wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181019/ef763de8/attachment-0001.html>
 
+From j.orponen at 4teamwork.ch  Fri Oct 19 07:31:46 2018
+From: j.orponen at 4teamwork.ch (Joni Orponen)
+Date: Fri, 19 Oct 2018 13:31:46 +0200
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAOh-wgBc91w_D5OmryTdkp3tUk7BqQ=HgDEiUF99LG9fvCLoqA@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+ <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+ <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+ <CAOTb1wc_gTuTC2Tmi6NYYLpzrtH6V=gKOjK5eF25QLC-kPkWgA@mail.gmail.com>
+ <CAOh-wgBc91w_D5OmryTdkp3tUk7BqQ=HgDEiUF99LG9fvCLoqA@mail.gmail.com>
+Message-ID: <CA+LW3i0uoUhZvW9DeGCo9TT73JgManuf9kBmC67HHksNkwRavg@mail.gmail.com>
+
+On Fri, Oct 19, 2018 at 9:09 AM Thomas Moreau <thomas.moreau.2010 at gmail.com>
+wrote:
+
+> Hello,
+>
+> I have been working on the concurent.futures module lately and I think
+> this optimization should be avoided in the context of python Pools.
+>
+> This is an interesting idea, however its implementation will bring many
+> complicated issues as it breaks the basic paradigm of a Pool: the tasks are
+> independent and you don't know which worker is going to run which task.
+>
+> The function is serialized with each task because of this paradigm. This
+> ensure that any worker picking the task will be able to perform it
+> independently from the tasks it has run before, given that it as been
+> initialized correctly at the beginning. This makes it simple to run each
+> task.
+>
+
+I would not mind if there would be a subtype of Pool where you can only
+apply one kind of task to. This is a very common use mode.
+
+Though the question there is 'should this live in Python itself'? I'd be
+fine with a package on PyPi.
+
+As the Pool comes with no scheduler, with your idea, you would need a
+> synchronization step to send the function to all workers before you can
+> launch your task. But if there is already one worker performing a long
+> running task, does the Pool wait for it to be done before it sends the
+> function? If the Pool doesn't wait, how does it ensure that this worker
+> will be able to get the definition of the function before running it?
+> Also, the multiprocessing.Pool has some features where a worker can shut
+> itself down after a given number of tasks or a timeout. How does it ensure
+> that the new worker will have the definition of the function?
+> It is unsafe to try such a feature (sending only once an object) anywhere
+> else than in the initializer which is guaranteed to be run once per worker.
+>
+> On the other hand, you mentioned an interesting point being that making
+> globals available in the workers could be made simpler. A possible solution
+> would be to add a "globals" argument in the Pool which would instanciate
+> global variables in the workers. I have no specific idea but on the
+> implementation of such features but it would be safer as it would be an
+> initialization feature.
+>
+
+Would this also mean one could use a Pool in a context where threading is
+used? Currently using threading side effects unpicklables into the globals.
+
+Also being able to pass in globals=None would be optimal for a lot of use
+cases.
+
+-- 
+Joni Orponen
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181019/3a30c4bc/attachment.html>
+
+From seanharr11 at gmail.com  Fri Oct 19 07:58:27 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Fri, 19 Oct 2018 07:58:27 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CA+LW3i0uoUhZvW9DeGCo9TT73JgManuf9kBmC67HHksNkwRavg@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+ <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+ <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+ <CAOTb1wc_gTuTC2Tmi6NYYLpzrtH6V=gKOjK5eF25QLC-kPkWgA@mail.gmail.com>
+ <CAOh-wgBc91w_D5OmryTdkp3tUk7BqQ=HgDEiUF99LG9fvCLoqA@mail.gmail.com>
+ <CA+LW3i0uoUhZvW9DeGCo9TT73JgManuf9kBmC67HHksNkwRavg@mail.gmail.com>
+Message-ID: <CAFbyWc0X95an_kOC-QQ7g_VhUKUioM=kMu+=2N1ZLXhWXThhyw@mail.gmail.com>
+
+On Fri, Oct 19, 2018 at 7:32 AM Joni Orponen <j.orponen at 4teamwork.ch> wrote:
+
+> On Fri, Oct 19, 2018 at 9:09 AM Thomas Moreau <
+> thomas.moreau.2010 at gmail.com> wrote:
+>
+>> Hello,
+>>
+>> I have been working on the concurent.futures module lately and I think
+>> this optimization should be avoided in the context of python Pools.
+>>
+>> This is an interesting idea, however its implementation will bring many
+>> complicated issues as it breaks the basic paradigm of a Pool: the tasks are
+>> independent and you don't know which worker is going to run which task.
+>>
+>> The function is serialized with each task because of this paradigm. This
+>> ensure that any worker picking the task will be able to perform it
+>> independently from the tasks it has run before, given that it as been
+>> initialized correctly at the beginning. This makes it simple to run each
+>> task.
+>>
+>
+> I would not mind if there would be a subtype of Pool where you can only
+> apply one kind of task to. This is a very common use mode.
+>
+>
+Though the question there is 'should this live in Python itself'? I'd be
+> fine with a package on PyPi.
+>
+
+Thomas makes a good point: despite the common user mode of calling
+Pool.map() once, blocking, and returning, the need for serialization of
+functions within tasks arises when calling Pool.map() (and friends) while
+workers are still running (i.e. there was a previous call to
+Pool.async_map()).
+
+However this is an uncommon user mode, as Joni points out. The most common
+user mode is that your Pool workers are only ever executing one type of
+task at a given time.  This opens up optimization opportunities, so long as
+we store state on the subclassed Pool object of whether or not a SingleTask
+is running, or has been completed(SingleTaskPool?), to prevent the user
+from getting in this funky state above.
+
+I would rather see this included in the multiprocessing stdlib, as it
+seemingly will not introduce a lot of new code, would benefit from existing
+tests. Most importantly it optimizes (in my opinion) the most common user
+mode of Pool.
+
+
+> As the Pool comes with no scheduler, with your idea, you would need a
+>> synchronization step to send the function to all workers before you can
+>> launch your task. But if there is already one worker performing a long
+>> running task, does the Pool wait for it to be done before it sends the
+>> function? If the Pool doesn't wait, how does it ensure that this worker
+>> will be able to get the definition of the function before running it?
+>> Also, the multiprocessing.Pool has some features where a worker can shut
+>> itself down after a given number of tasks or a timeout. How does it ensure
+>> that the new worker will have the definition of the function?
+>> It is unsafe to try such a feature (sending only once an object) anywhere
+>> else than in the initializer which is guaranteed to be run once per worker.
+>>
+>> On the other hand, you mentioned an interesting point being that making
+>> globals available in the workers could be made simpler. A possible solution
+>> would be to add a "globals" argument in the Pool which would instanciate
+>> global variables in the workers. I have no specific idea but on the
+>> implementation of such features but it would be safer as it would be an
+>> initialization feature.
+>>
+>
+> Would this also mean one could use a Pool in a context where threading is
+> used? Currently using threading side effects unpicklables into the globals.
+>
+> Also being able to pass in globals=None would be optimal for a lot of use
+> cases.
+>
+
+We could do this - but we can easily get the same behavior by declaring a
+"global" in "initializer" (albeit a pattern which I do not like).  I like
+the idea to extend the Pool class a bit more, but this is also my opinion.
+
+
+>
+> --
+> Joni Orponen
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/seanharr11%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181019/220eb360/attachment.html>
+
+From status at bugs.python.org  Fri Oct 19 12:10:06 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 19 Oct 2018 18:10:06 +0200 (CEST)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20181019161006.4AEE6116829@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-10-12 - 2018-10-19)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6835 (+11)
+  closed 39943 (+50)
+  total  46778 (+61)
+
+Open issues with patches: 2737 
+
+
+Issues opened (41)
+==================
+
+#34783: [3.7] segmentation-fault/core dump when try to run non-existin
+https://bugs.python.org/issue34783  reopened by ned.deily
+
+#34909: StrEnum subclasses cannot be created
+https://bugs.python.org/issue34909  reopened by ned.deily
+
+#34968: loop.call_soon_threadsafe should be documented to be re-entran
+https://bugs.python.org/issue34968  opened by njs
+
+#34969: Add --fast, --best to the gzip CLI
+https://bugs.python.org/issue34969  opened by matrixise
+
+#34970: Protect tasks weak set manipulation in asyncio.all_tasks()
+https://bugs.python.org/issue34970  opened by asvetlov
+
+#34971: add support for tls/ssl sessions in asyncio
+https://bugs.python.org/issue34971  opened by RemiCardona
+
+#34973: Crash in bytes constructor with mutating list
+https://bugs.python.org/issue34973  opened by serhiy.storchaka
+
+#34975: start_tls() difficult when using asyncio.start_server()
+https://bugs.python.org/issue34975  opened by icgood
+
+#34976: IDLE: Replace the search dialog with a search bar
+https://bugs.python.org/issue34976  opened by taleinat
+
+#34977: Release Windows Store app containing Python
+https://bugs.python.org/issue34977  opened by steve.dower
+
+#34978: check type of object in fix_dict.py in 2to3
+https://bugs.python.org/issue34978  opened by devarakondapranav
+
+#34979: Python throws ???SyntaxError: Non-UTF-8 code start with \xe8..
+https://bugs.python.org/issue34979  opened by ausaki
+
+#34980: KillPython target doesn't detect 64-bit processes
+https://bugs.python.org/issue34980  opened by jkloth
+
+#34981: Unable to install Python from web-based installer and executab
+https://bugs.python.org/issue34981  opened by skycraper
+
+#34983: expose symtable.Symbol.is_nonlocal()
+https://bugs.python.org/issue34983  opened by pablogsal
+
+#34984: Improve error messages in bytes and bytearray constructors
+https://bugs.python.org/issue34984  opened by serhiy.storchaka
+
+#34985: python finds test modules from the wrong directory during PGO 
+https://bugs.python.org/issue34985  opened by Kal Sze2
+
+#34987: A possible null pointer dereference in _pickle.c's save_reduce
+https://bugs.python.org/issue34987  opened by ZackerySpytz
+
+#34990: year 2038 problem in compileall.py
+https://bugs.python.org/issue34990  opened by bmwiedemann
+
+#34991: variable type list [] referential integrity data loss
+https://bugs.python.org/issue34991  opened by alan.pan
+
+#34993: asyncio.streams.FlowControlMixin should be part of the API
+https://bugs.python.org/issue34993  opened by xitop
+
+#34995: functools.cached_property does not maintain the wrapped method
+https://bugs.python.org/issue34995  opened by mwilbz
+
+#34996: Add name to process and thread pool
+https://bugs.python.org/issue34996  opened by Raz Manor
+
+#35000: aexit called after loop close
+https://bugs.python.org/issue35000  opened by pdxjohnny
+
+#35003: Provide an option to venv to put files in a bin/ directory on 
+https://bugs.python.org/issue35003  opened by brett.cannon
+
+#35004: Odd behavior when using datetime.timedelta under cProfile
+https://bugs.python.org/issue35004  opened by beaugunderson
+
+#35005: argparse should accept json and yaml argument types
+https://bugs.python.org/issue35005  opened by derelbenkoenig
+
+#35007: Minor change to weakref docs
+https://bugs.python.org/issue35007  opened by frankmillman
+
+#35009: argparse throws UnicodeEncodeError for printing help with unic
+https://bugs.python.org/issue35009  opened by xtreak
+
+#35012: [3.7] test_multiprocessing_spawn hangs randomly on AppVeyor
+https://bugs.python.org/issue35012  opened by vstinner
+
+#35015: availability directive breaks po files
+https://bugs.python.org/issue35015  opened by mdk
+
+#35017: socketserver accept a last request after shutdown
+https://bugs.python.org/issue35017  opened by beledouxdenis
+
+#35018: Sax parser provides no user access to lexical handlers
+https://bugs.python.org/issue35018  opened by Jonathan.Gossage
+
+#35019: Minor Bug found in asyncio - Python 3.5.3
+https://bugs.python.org/issue35019  opened by bassford
+
+#35020: Add multisort recipe to sorting docs
+https://bugs.python.org/issue35020  opened by xtreak
+
+#35021: Assertion failures in datetimemodule.c.
+https://bugs.python.org/issue35021  opened by twouters
+
+#35022: MagicMock should support `__fspath__`
+https://bugs.python.org/issue35022  opened by Maxime Belanger
+
+#35024: Incorrect logging in importlib when '.pyc' file creation fails
+https://bugs.python.org/issue35024  opened by qagren
+
+#35025: Compiling `timemodule.c` can fail on macOS due to availability
+https://bugs.python.org/issue35025  opened by Maxime Belanger
+
+#35026: Winreg's documentation lacks mentioning required permission at
+https://bugs.python.org/issue35026  opened by georgefischhof
+
+#35027: distutils.core.setup does not raise TypeError when if classifi
+https://bugs.python.org/issue35027  opened by TilmanKrummeck
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#35027: distutils.core.setup does not raise TypeError when if classifi
+https://bugs.python.org/issue35027
+
+#35026: Winreg's documentation lacks mentioning required permission at
+https://bugs.python.org/issue35026
+
+#35025: Compiling `timemodule.c` can fail on macOS due to availability
+https://bugs.python.org/issue35025
+
+#35024: Incorrect logging in importlib when '.pyc' file creation fails
+https://bugs.python.org/issue35024
+
+#35022: MagicMock should support `__fspath__`
+https://bugs.python.org/issue35022
+
+#35020: Add multisort recipe to sorting docs
+https://bugs.python.org/issue35020
+
+#35018: Sax parser provides no user access to lexical handlers
+https://bugs.python.org/issue35018
+
+#35017: socketserver accept a last request after shutdown
+https://bugs.python.org/issue35017
+
+#35009: argparse throws UnicodeEncodeError for printing help with unic
+https://bugs.python.org/issue35009
+
+#35007: Minor change to weakref docs
+https://bugs.python.org/issue35007
+
+#35003: Provide an option to venv to put files in a bin/ directory on 
+https://bugs.python.org/issue35003
+
+#35000: aexit called after loop close
+https://bugs.python.org/issue35000
+
+#34984: Improve error messages in bytes and bytearray constructors
+https://bugs.python.org/issue34984
+
+#34983: expose symtable.Symbol.is_nonlocal()
+https://bugs.python.org/issue34983
+
+#34958: urllib.error.HTTPError.fp is not closed when error is finalize
+https://bugs.python.org/issue34958
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#35025: Compiling `timemodule.c` can fail on macOS due to availability
+https://bugs.python.org/issue35025
+
+#35022: MagicMock should support `__fspath__`
+https://bugs.python.org/issue35022
+
+#35021: Assertion failures in datetimemodule.c.
+https://bugs.python.org/issue35021
+
+#35020: Add multisort recipe to sorting docs
+https://bugs.python.org/issue35020
+
+#35019: Minor Bug found in asyncio - Python 3.5.3
+https://bugs.python.org/issue35019
+
+#35017: socketserver accept a last request after shutdown
+https://bugs.python.org/issue35017
+
+#34996: Add name to process and thread pool
+https://bugs.python.org/issue34996
+
+#34995: functools.cached_property does not maintain the wrapped method
+https://bugs.python.org/issue34995
+
+#34990: year 2038 problem in compileall.py
+https://bugs.python.org/issue34990
+
+#34987: A possible null pointer dereference in _pickle.c's save_reduce
+https://bugs.python.org/issue34987
+
+#34984: Improve error messages in bytes and bytearray constructors
+https://bugs.python.org/issue34984
+
+#34983: expose symtable.Symbol.is_nonlocal()
+https://bugs.python.org/issue34983
+
+#34980: KillPython target doesn't detect 64-bit processes
+https://bugs.python.org/issue34980
+
+#34979: Python throws ???SyntaxError: Non-UTF-8 code start with \xe8..
+https://bugs.python.org/issue34979
+
+#34976: IDLE: Replace the search dialog with a search bar
+https://bugs.python.org/issue34976
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#34970: Protect tasks weak set manipulation in asyncio.all_tasks()
+https://bugs.python.org/issue34970  10 msgs
+
+#35005: argparse should accept json and yaml argument types
+https://bugs.python.org/issue35005  10 msgs
+
+#34953: Implement `mmap.mmap.__repr__`
+https://bugs.python.org/issue34953   7 msgs
+
+#34979: Python throws ???SyntaxError: Non-UTF-8 code start with \xe8..
+https://bugs.python.org/issue34979   7 msgs
+
+#34990: year 2038 problem in compileall.py
+https://bugs.python.org/issue34990   7 msgs
+
+#35015: availability directive breaks po files
+https://bugs.python.org/issue35015   7 msgs
+
+#34919: Crash caused by certain characters in a string
+https://bugs.python.org/issue34919   6 msgs
+
+#34995: functools.cached_property does not maintain the wrapped method
+https://bugs.python.org/issue34995   6 msgs
+
+#34095: [2.7] Seg fault on archlinux 32 when run tests with xvfb-run
+https://bugs.python.org/issue34095   5 msgs
+
+#34783: [3.7] segmentation-fault/core dump when try to run non-existin
+https://bugs.python.org/issue34783   5 msgs
+
+
+
+Issues closed (48)
+==================
+
+#12572: HP/UX compiler workarounds
+https://bugs.python.org/issue12572  closed by terry.reedy
+
+#16965: 2to3 should rewrite execfile() to open in 'rb' mode
+https://bugs.python.org/issue16965  closed by serhiy.storchaka
+
+#17837: Support for building on ppc64p7
+https://bugs.python.org/issue17837  closed by vstinner
+
+#22851: 2.7 core crashes with generator.gi_frame.f_restricted
+https://bugs.python.org/issue22851  closed by serhiy.storchaka
+
+#22872: multiprocessing.Queue raises AssertionError
+https://bugs.python.org/issue22872  closed by serhiy.storchaka
+
+#23420: python -m cProfile -s fails with non informative message
+https://bugs.python.org/issue23420  closed by vstinner
+
+#23554: EchoServerClientProtocol class should be called EchoServerProt
+https://bugs.python.org/issue23554  closed by yselivanov
+
+#23831: tkinter canvas lacks of moveto method.
+https://bugs.python.org/issue23831  closed by serhiy.storchaka
+
+#26441: email.charset: to_splittable and from_splittable are not there
+https://bugs.python.org/issue26441  closed by r.david.murray
+
+#30220: Why are custom messages for ValueError, TypeError suppressed i
+https://bugs.python.org/issue30220  closed by paul.j3
+
+#32789: Note missing from logging.debug() docs
+https://bugs.python.org/issue32789  closed by vinay.sajip
+
+#32912: Raise non-silent warning for invalid escape sequences
+https://bugs.python.org/issue32912  closed by serhiy.storchaka
+
+#34158: Documentation of datetime  '%z' format code is odd
+https://bugs.python.org/issue34158  closed by ned.deily
+
+#34475: functools.partial objects have no __qualname__ attribute
+https://bugs.python.org/issue34475  closed by serhiy.storchaka
+
+#34565: Launcher does not validate major versions
+https://bugs.python.org/issue34565  closed by ned.deily
+
+#34590: "Logging HOWTO" should share an example of best practices for 
+https://bugs.python.org/issue34590  closed by vinay.sajip
+
+#34741: Get rid of tp_getattro and tp_setattro in pyexpat.xmlparser
+https://bugs.python.org/issue34741  closed by serhiy.storchaka
+
+#34765: Update install-sh
+https://bugs.python.org/issue34765  closed by vstinner
+
+#34844: logging.Formatter enhancement - Checking on style and fmt fiel
+https://bugs.python.org/issue34844  closed by vinay.sajip
+
+#34918: Python 3 tkinter measurement problem
+https://bugs.python.org/issue34918  closed by serhiy.storchaka
+
+#34920: PYTHONWARNINGS entries are escaped
+https://bugs.python.org/issue34920  closed by martin.panter
+
+#34927: Tkinter-related segfault on macOS (regression between 3.7.0 an
+https://bugs.python.org/issue34927  closed by ned.deily
+
+#34930: sha1module: Switch sha1 implementation to sha1dc/hardened sha1
+https://bugs.python.org/issue34930  closed by antoine.pietri
+
+#34939: Possibly spurious SyntaxError: annotated name can't be global
+https://bugs.python.org/issue34939  closed by pablogsal
+
+#34941: xml.etree.ElementTree findall() fails when using custom TreeBu
+https://bugs.python.org/issue34941  closed by serhiy.storchaka
+
+#34961: Global scoping when shadowing local names in class definitions
+https://bugs.python.org/issue34961  closed by multun
+
+#34967: Sphinx is deprecating add_description_unit
+https://bugs.python.org/issue34967  closed by mdk
+
+#34972: json dump silently converts int keys to string
+https://bugs.python.org/issue34972  closed by steve.dower
+
+#34974: bytes and bytearray constructors replace unexpected exceptions
+https://bugs.python.org/issue34974  closed by serhiy.storchaka
+
+#34982: re.sub() different behavior in 3.7
+https://bugs.python.org/issue34982  closed by serhiy.storchaka
+
+#34986: python finds test modules from the wrong directory during PGO 
+https://bugs.python.org/issue34986  closed by Kal Sze2
+
+#34988: Rc2 candidates: "gcc" not found on AIX
+https://bugs.python.org/issue34988  closed by ned.deily
+
+#34989: python-gdb.py fails with TypeError("'FakeRepr' object is not s
+https://bugs.python.org/issue34989  closed by vstinner
+
+#34992: many warnings with f28 and gcc 8.1.1
+https://bugs.python.org/issue34992  closed by vstinner
+
+#34994: sysconfig returns the git commands for GITBRANCH, GITVERSION a
+https://bugs.python.org/issue34994  closed by ned.deily
+
+#34997: test.test_logging.ConfigDictTest.test_out_of_order fails in x8
+https://bugs.python.org/issue34997  closed by pablogsal
+
+#34998: Logging formatter validation breaks backward ducktyping
+https://bugs.python.org/issue34998  closed by vinay.sajip
+
+#34999: copy.copy and deepcopy do return same logger objects in 3.7
+https://bugs.python.org/issue34999  closed by vinay.sajip
+
+#35001: ImportFrom level cannot be optional
+https://bugs.python.org/issue35001  closed by brett.cannon
+
+#35002: Potential bug in ConfigParser.read() in python3.6, before os.P
+https://bugs.python.org/issue35002  closed by BNMetrics
+
+#35006: itertools.combinations has wrong type when using the typing pa
+https://bugs.python.org/issue35006  closed by brett.cannon
+
+#35008: Leaks xml.etree.ElementTree.Element.__setsate__()
+https://bugs.python.org/issue35008  closed by serhiy.storchaka
+
+#35010: sort by partially reversed key tuple
+https://bugs.python.org/issue35010  closed by rhettinger
+
+#35011: expat: Restore the use of pyexpatns.h to avoid link time confl
+https://bugs.python.org/issue35011  closed by gregory.p.smith
+
+#35013: Add more type checks for children of xml.etree.ElementTree.Ele
+https://bugs.python.org/issue35013  closed by serhiy.storchaka
+
+#35014: asyncio subprocess accepts string as parameter which lead to U
+https://bugs.python.org/issue35014  closed by natim
+
+#35016: \r to match add into address header with not-ascii character
+https://bugs.python.org/issue35016  closed by r.david.murray
+
+#35023: Missed a key when iterating over dictionary
+https://bugs.python.org/issue35023  closed by ammar2
+
+From stephane at wirtel.be  Fri Oct 19 12:57:54 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Fri, 19 Oct 2018 18:57:54 +0200
+Subject: [Python-Dev] Some PRs to merge?
+Message-ID: <20181019165754.GA17454@xps>
+
+Hi all,
+
+How are you? I am fine ;-) and you?
+
+So, on this morning I was playing with the github interface and the
+pull requests of CPython and I have discovered the advanced search of
+Github and I think this one is really useful for us and certainly for
+the core-dev.
+
+So, I was interested by somes PRs.
+
+PRs with this status:
+* open
+* review is approved
+* status of the CI is 'success'
+* has labels "awaiting merge", "CLA signed" and -"DO-NOT-MERGE"
+
+total: 49 PRs
+
+In the GitHub interface, here is the criteria
+
+is:open is:pr review:approved status:success label:"awaiting merge" -label:"DO-NOT-MERGE" label:""LA signed""
+
+But if you want to see the result in your browser, just click on this link.
+https://github.com/python/cpython/pulls?utf8=%E2%9C%93&q=is%3Aopen+is%3Apr+review%3Aapproved+status%3Asuccess+label%3A%22awaiting+merge%22+-label%3A%22DO-NOT-MERGE%22+label%3A%22CLA+signed%22
+
+Here are the numbers:
+
+* just open: 959
+    is:open
+* and with label "CLA signed": 900
+    label:"CLA signed"
+* and with label "awaiting merge": 169
+    label:"awaiting merge"
+* and without label "DO-NOT-MERGE": 152
+    -label:"DO-NOT-MERGE"
+* with CI is happy ;-): 112
+    status:success
+* with review is approved: 49
+    review:approved
+
+total: 49 PRs could be merged.
+
+I was really surprised by this tool, (doc:
+https://help.github.com/articles/searching-issues-and-pull-requests/)
+
+But I was thinking about one thing, how can I help the core-devs to
+merge these PRs?
+
+Each week, I can send a report to this ML with the "mergeable" PRs.
+This kind of report could be useful for you?
+
+
+Have a nice day,
+
+St?phane
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From brett at python.org  Fri Oct 19 14:42:00 2018
+From: brett at python.org (Brett Cannon)
+Date: Fri, 19 Oct 2018 11:42:00 -0700
+Subject: [Python-Dev] Some PRs to merge?
+In-Reply-To: <20181019165754.GA17454@xps>
+References: <20181019165754.GA17454@xps>
+Message-ID: <CAP1=2W5p51UJiY8z2UjP3T5qWUan_hL9a9xAsAAn-_VZX+pzxA@mail.gmail.com>
+
+Of those 49 PRs, 18 are by core developers themselves, so 31 PRs are by
+external contributors that seem ready to be merged.
+
+There was a discussion at one point on core-workflow about changing the
+default "needs" label for PRs by core devs which in this instance would
+help with providing a search for PRs that are possibly very close to being
+ready to be merged.
+
+On Fri, 19 Oct 2018 at 09:58, Stephane Wirtel <stephane at wirtel.be> wrote:
+
+> Hi all,
+>
+> How are you? I am fine ;-) and you?
+>
+> So, on this morning I was playing with the github interface and the
+> pull requests of CPython and I have discovered the advanced search of
+> Github and I think this one is really useful for us and certainly for
+> the core-dev.
+>
+> So, I was interested by somes PRs.
+>
+> PRs with this status:
+> * open
+> * review is approved
+> * status of the CI is 'success'
+> * has labels "awaiting merge", "CLA signed" and -"DO-NOT-MERGE"
+>
+> total: 49 PRs
+>
+> In the GitHub interface, here is the criteria
+>
+> is:open is:pr review:approved status:success label:"awaiting merge"
+> -label:"DO-NOT-MERGE" label:""LA signed""
+>
+> But if you want to see the result in your browser, just click on this link.
+>
+> https://github.com/python/cpython/pulls?utf8=%E2%9C%93&q=is%3Aopen+is%3Apr+review%3Aapproved+status%3Asuccess+label%3A%22awaiting+merge%22+-label%3A%22DO-NOT-MERGE%22+label%3A%22CLA+signed%22
+>
+> Here are the numbers:
+>
+> * just open: 959
+>     is:open
+> * and with label "CLA signed": 900
+>     label:"CLA signed"
+> * and with label "awaiting merge": 169
+>     label:"awaiting merge"
+> * and without label "DO-NOT-MERGE": 152
+>     -label:"DO-NOT-MERGE"
+> * with CI is happy ;-): 112
+>     status:success
+> * with review is approved: 49
+>     review:approved
+>
+> total: 49 PRs could be merged.
+>
+> I was really surprised by this tool, (doc:
+> https://help.github.com/articles/searching-issues-and-pull-requests/)
+>
+> But I was thinking about one thing, how can I help the core-devs to
+> merge these PRs?
+>
+> Each week, I can send a report to this ML with the "mergeable" PRs.
+> This kind of report could be useful for you?
+>
+>
+> Have a nice day,
+>
+> St?phane
+>
+> --
+> St?phane Wirtel - https://wirtel.be - @matrixise
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181019/be5a36c1/attachment.html>
+
+From mike at selik.org  Fri Oct 19 16:05:56 2018
+From: mike at selik.org (Michael Selik)
+Date: Fri, 19 Oct 2018 13:05:56 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc0X95an_kOC-QQ7g_VhUKUioM=kMu+=2N1ZLXhWXThhyw@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+ <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+ <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+ <CAOTb1wc_gTuTC2Tmi6NYYLpzrtH6V=gKOjK5eF25QLC-kPkWgA@mail.gmail.com>
+ <CAOh-wgBc91w_D5OmryTdkp3tUk7BqQ=HgDEiUF99LG9fvCLoqA@mail.gmail.com>
+ <CA+LW3i0uoUhZvW9DeGCo9TT73JgManuf9kBmC67HHksNkwRavg@mail.gmail.com>
+ <CAFbyWc0X95an_kOC-QQ7g_VhUKUioM=kMu+=2N1ZLXhWXThhyw@mail.gmail.com>
+Message-ID: <CAGgTfkMoMrURkDNM9Vz=naeX+SJWNr=uknY91kdYwFqUCS49BQ@mail.gmail.com>
+
+On Fri, Oct 19, 2018 at 5:01 AM Sean Harrington <seanharr11 at gmail.com>
+wrote:
+
+> I like the idea to extend the Pool class [to optimize the case when only
+> one function is passed to the workers].
+>
+
+Why would this keep the same interface as the Pool class? If its workers
+are restricted to calling only one function, that should be passed into the
+Pool constructor. The map and apply methods would then only receive that
+function's args and not the function itself. You're also trying to avoid
+the initializer/globals pattern, so you could eliminate that parameter from
+the Pool constructor. In fact, it sounds more like you'd want a function
+than a class. You can call it "procmap" or similar. That's code I've
+written more than once.
+
+    results = poolmap(func, iterable, processes=cpu_count())
+
+The nuance is that, since there's no explicit context manager, you'll want
+to ensure the pool is shut down after all the tasks are finished, even if
+the results generator hasn't been fully consumed.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181019/1e3d63d7/attachment.html>
+
+From vstinner at redhat.com  Fri Oct 19 21:08:35 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 20 Oct 2018 03:08:35 +0200
+Subject: [Python-Dev] Some PRs to merge?
+In-Reply-To: <20181019165754.GA17454@xps>
+References: <20181019165754.GA17454@xps>
+Message-ID: <CA+3bQGGaseAZ5KAZwn2ytQYjf4mFbVS-e9ic7nJyA5uXmLYLrA@mail.gmail.com>
+
+Le ven. 19 oct. 2018 ? 19:01, Stephane Wirtel <stephane at wirtel.be> a ?crit :
+> total: 49 PRs
+> is:open is:pr review:approved status:success label:"awaiting merge" -label:"DO-NOT-MERGE" label:""LA signed""
+
+I merged many PRs and closed a few (2 if I recall correctly). Your
+query now counts 24 PRs.
+
+Victor
+
