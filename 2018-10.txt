@@ -9559,3 +9559,415 @@ query now counts 24 PRs.
 
 Victor
 
+From stephane at wirtel.be  Sat Oct 20 05:32:11 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sat, 20 Oct 2018 11:32:11 +0200
+Subject: [Python-Dev] Some PRs to merge?
+In-Reply-To: <CA+3bQGGaseAZ5KAZwn2ytQYjf4mFbVS-e9ic7nJyA5uXmLYLrA@mail.gmail.com>
+References: <20181019165754.GA17454@xps>
+ <CA+3bQGGaseAZ5KAZwn2ytQYjf4mFbVS-e9ic7nJyA5uXmLYLrA@mail.gmail.com>
+Message-ID: <20181020093211.GA29503@xps>
+
+On 10/20, Victor Stinner wrote:
+>Le ven. 19 oct. 2018 ? 19:01, Stephane Wirtel <stephane at wirtel.be> a ?crit :
+>> total: 49 PRs
+>> is:open is:pr review:approved status:success label:"awaiting merge" -label:"DO-NOT-MERGE" label:""LA signed""
+>
+>I merged many PRs and closed a few (2 if I recall correctly). Your
+>query now counts 24 PRs.
+Really nice for your job, I think the contributors will appreciate a
+lot.
+>
+>Victor
+
+I would like to know if you are interested by this kind of reports. I
+can interact with the GraphQL api of GitHub and just provide the report
+via email to python-dev at python.org
+
+Have a nice day and thank you for your merges.
+
+St?phane
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From steve at holdenweb.com  Sat Oct 20 06:25:33 2018
+From: steve at holdenweb.com (Steve Holden)
+Date: Sat, 20 Oct 2018 11:25:33 +0100
+Subject: [Python-Dev] Some PRs to merge?
+In-Reply-To: <20181020093211.GA29503@xps>
+References: <20181019165754.GA17454@xps>
+ <CA+3bQGGaseAZ5KAZwn2ytQYjf4mFbVS-e9ic7nJyA5uXmLYLrA@mail.gmail.com>
+ <20181020093211.GA29503@xps>
+Message-ID: <CAMofdRDqoXnhP15fU+XMA0R7Bpocdm_rZhqOxB6vY1hkx7UjNg@mail.gmail.com>
+
+This is terrific work. We all know that the best way to encourage
+contributors is to use their usable contributions. Thank you very much,
+Stephane and Victor (again)!
+
+Steve Holden
+
+On Sat, Oct 20, 2018 at 10:32 AM, Stephane Wirtel <stephane at wirtel.be>
+wrote:
+
+> On 10/20, Victor Stinner wrote:
+>
+>> Le ven. 19 oct. 2018 ? 19:01, Stephane Wirtel <stephane at wirtel.be> a
+>> ?crit :
+>>
+>>> total: 49 PRs
+>>> is:open is:pr review:approved status:success label:"awaiting merge"
+>>> -label:"DO-NOT-MERGE" label:""LA signed""
+>>>
+>>
+>> I merged many PRs and closed a few (2 if I recall correctly). Your
+>> query now counts 24 PRs.
+>>
+> Really nice for your job, I think the contributors will appreciate a
+> lot.
+>
+>>
+>> Victor
+>>
+>
+> I would like to know if you are interested by this kind of reports. I
+> can interact with the GraphQL api of GitHub and just provide the report
+> via email to python-dev at python.org
+>
+> Have a nice day and thank you for your merges.
+>
+> St?phane
+>
+> --
+> St?phane Wirtel - https://wirtel.be - @matrixise
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/steve%
+> 40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181020/77a339f9/attachment-0001.html>
+
+From storchaka at gmail.com  Sat Oct 20 07:06:49 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Sat, 20 Oct 2018 14:06:49 +0300
+Subject: [Python-Dev] The future of the wchar_t cache
+Message-ID: <pqf246$tv3$1@blaine.gmane.org>
+
+Currently the PyUnicode object contains two caches: for UTF-8 
+representation and for wchar_t representation. They are needed not for 
+optimization but for supporting C API which returns borrowed references 
+for such representations.
+
+The UTF-8 cache always was in unicode objects (but in Python 2 it was 
+not a UTF-8 cache, but a 8-bit representation cache). Initially it was 
+needed for compatibility with 8-bit str, for implementing the "s" and 
+"z" format units in PyArg_Parse(). Now it is used also for 
+PyUnicode_AsUTF8() and PyUnicode_AsUTF8AndSize().
+
+The wchar_t cache was added with PEP 393 in 3.3 as a replacement for the 
+former Py_UNICODE representation. Now Py_UNICODE is defined as an alias 
+of wchar_t, and the C API which returned a pointer to Py_UNICODE content 
+returns now a pointer to the cached wchar_t representation. It is the 
+"u" and "Z" format units in PyArg_Parse(), PyUnicode_AsUnicode(), 
+PyUnicode_AsUnicodeAndSize(), PyUnicode_GET_SIZE(), 
+PyUnicode_GET_DATA_SIZE(), PyUnicode_AS_UNICODE(), PyUnicode_AS_DATA().
+
+All this increase the size of the unicode object. It includes the 
+constant overhead of additional pointer and size fields, and the 
+overhead of the cached representation proportional to the string length. 
+The following table contains number of bytes per character for different 
+kinds, with and without filling specified caches.
+
+        raw  +utf8     +wchar_t       +utf8+wchar_t
+                    Windows  Linux   Windows  Linux
+ASCII   1     1       3       5        3       5
+UCS1    1    2-3      3       5       4-5     6-7
+UCS2    2    3-5      2       6       3-5     7-9
+UCS4    4    5-8     6-8      4       7-12    5-8
+
+There is also a new C API added in 3.3 for getting wchar_t 
+representation without using the cache: PyUnicode_AsWideChar() and 
+PyUnicode_AsWideCharString(). Currently it uses the cache, this has 
+benefits and disadvantages.
+
+Old Py_UNICODE based API is deprecated, and will be removed eventually.
+I want to ask about the future of the wchar_t cache. Is the benefit of 
+caching the wchar_t representation larger the disadvantage of spending 
+more memory? The wchar_t representation is so natural for Windows API as 
+the UTF8 representation for POSIX API. But in all other cases it is just 
+waste of memory. Are there reasons of keeping the wchar_t cache after 
+removing the deprecated API?
+
+I have rewrote PyUnicode_AsWideChar() and PyUnicode_AsWideCharString(). 
+They were implemented via the old Py_UNICODE based API, and now they 
+don't use deprecated functions. They still use the wchar_t cache if it 
+was created by previous use of the deprecated API, but don't create it 
+themselves. Is this the correct decision?
+
+https://bugs.python.org/issue30863
+
+
+From storchaka at gmail.com  Sat Oct 20 07:12:29 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Sat, 20 Oct 2018 14:12:29 +0300
+Subject: [Python-Dev] Some PRs to merge?
+In-Reply-To: <CA+3bQGGaseAZ5KAZwn2ytQYjf4mFbVS-e9ic7nJyA5uXmLYLrA@mail.gmail.com>
+References: <20181019165754.GA17454@xps>
+ <CA+3bQGGaseAZ5KAZwn2ytQYjf4mFbVS-e9ic7nJyA5uXmLYLrA@mail.gmail.com>
+Message-ID: <pqf2eq$hlf$1@blaine.gmane.org>
+
+20.10.18 04:08, Victor Stinner ????:
+> Le ven. 19 oct. 2018 ? 19:01, Stephane Wirtel <stephane at wirtel.be> a ?crit :
+>> total: 49 PRs
+>> is:open is:pr review:approved status:success label:"awaiting merge" -label:"DO-NOT-MERGE" label:""LA signed""
+> 
+> I merged many PRs and closed a few (2 if I recall correctly). Your
+> query now counts 24 PRs.
+
+Thank you Victor! I prefer to merge my PRs and PRs assigned to me 
+myself, but I am not sure that I would merge all PRs that can be merged 
+in the nearest future. ;)
+
+
+From songofacandy at gmail.com  Sat Oct 20 08:32:20 2018
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Sat, 20 Oct 2018 21:32:20 +0900
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <pqf246$tv3$1@blaine.gmane.org>
+References: <pqf246$tv3$1@blaine.gmane.org>
+Message-ID: <CAEfz+TwHGah1HibVxOfabRE0D=etv6DENTEDEF1om8b6L4Wv6g@mail.gmail.com>
+
++1 to remove wchar_t cache.
+
+I hope we can remove it at Python 3.9 or 3.10.
+
+From stefan_ml at behnel.de  Sat Oct 20 09:01:52 2018
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Sat, 20 Oct 2018 15:01:52 +0200
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <pqf246$tv3$1@blaine.gmane.org>
+References: <pqf246$tv3$1@blaine.gmane.org>
+Message-ID: <pqf8rt$iat$1@blaine.gmane.org>
+
+Serhiy Storchaka schrieb am 20.10.2018 um 13:06:
+> Currently the PyUnicode object contains two caches: for UTF-8
+> representation and for wchar_t representation. They are needed not for
+> optimization but for supporting C API which returns borrowed references for
+> such representations.
+> 
+> The UTF-8 cache always was in unicode objects (but in Python 2 it was not a
+> UTF-8 cache, but a 8-bit representation cache). Initially it was needed for
+> compatibility with 8-bit str, for implementing the "s" and "z" format units
+> in PyArg_Parse(). Now it is used also for PyUnicode_AsUTF8() and
+> PyUnicode_AsUTF8AndSize().
+> 
+> The wchar_t cache was added with PEP 393 in 3.3 as a replacement for the
+> former Py_UNICODE representation. Now Py_UNICODE is defined as an alias of
+> wchar_t, and the C API which returned a pointer to Py_UNICODE content
+> returns now a pointer to the cached wchar_t representation. It is the "u"
+> and "Z" format units in PyArg_Parse(), PyUnicode_AsUnicode(),
+> PyUnicode_AsUnicodeAndSize(), PyUnicode_GET_SIZE(),
+> PyUnicode_GET_DATA_SIZE(), PyUnicode_AS_UNICODE(), PyUnicode_AS_DATA().
+> 
+> All this increase the size of the unicode object. It includes the constant
+> overhead of additional pointer and size fields, and the overhead of the
+> cached representation proportional to the string length. The following
+> table contains number of bytes per character for different kinds, with and
+> without filling specified caches.
+> 
+> ?????? raw? +utf8???? +wchar_t?????? +utf8+wchar_t
+> ?????????????????? Windows? Linux?? Windows? Linux
+> ASCII?? 1???? 1?????? 3?????? 5??????? 3?????? 5
+> UCS1??? 1??? 2-3????? 3?????? 5?????? 4-5???? 6-7
+> UCS2??? 2??? 3-5????? 2?????? 6?????? 3-5???? 7-9
+> UCS4??? 4??? 5-8???? 6-8????? 4?????? 7-12??? 5-8
+> 
+> There is also a new C API added in 3.3 for getting wchar_t representation
+> without using the cache: PyUnicode_AsWideChar() and
+> PyUnicode_AsWideCharString(). Currently it uses the cache, this has
+> benefits and disadvantages.
+> 
+> Old Py_UNICODE based API is deprecated, and will be removed eventually.
+> I want to ask about the future of the wchar_t cache. Is the benefit of
+> caching the wchar_t representation larger the disadvantage of spending more
+> memory? The wchar_t representation is so natural for Windows API as the
+> UTF8 representation for POSIX API. But in all other cases it is just waste
+> of memory. Are there reasons of keeping the wchar_t cache after removing
+> the deprecated API?
+
+I'd be happy to get rid of it. But regarding the use under Windows, I
+wonder if there's interest in keeping it as a special Windows-only feature,
+e.g. to speed up the data exchange with the Win32 APIs. I guess it would
+have to provide a visible (performance?) advantage to justify such special
+casing over the code removal.
+
+Stefan
+
+
+From steve.dower at python.org  Sat Oct 20 11:58:58 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Sat, 20 Oct 2018 11:58:58 -0400
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <pqf8rt$iat$1@blaine.gmane.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+Message-ID: <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+
+On 20Oct2018 0901, Stefan Behnel wrote:
+> I'd be happy to get rid of it. But regarding the use under Windows, I
+> wonder if there's interest in keeping it as a special Windows-only feature,
+> e.g. to speed up the data exchange with the Win32 APIs. I guess it would
+> have to provide a visible (performance?) advantage to justify such special
+> casing over the code removal.
+
+I think these cases would be just as well served by maintaining the 
+original UCS-2 representation even if the maximum character fits into 
+UCS-1, and only do the conversion when Python copies the string into a 
+new location.
+
+I don't have numbers, but my instinct says the most impacted operations 
+would be retrieving collections of strings from the OS (avoiding a 
+scan/conversion for each one), comparisons against these collections 
+(in-memory handling for hash/comparison of mismatched KIND), and passing 
+some of these strings back to the OS (conversion back into UCS-2). This 
+is basically a glob/fnmatch/stat sequence, and is the main real scenario 
+I can think of where Python's overhead might become noticeable.
+
+Another option that might be useful is some way to allow the UCS-1/4 <-> 
+UCS-2 conversion to occur outside the GIL. Most of the time when we need 
+to convert we're about to release the GIL (or have just recovered it), 
+so even without the cache we could probably recover some of the 
+performance impact in parallelism. (That said, these are often tied up 
+in conditions and generated code, so it may not be as easy to do this as 
+retaining the original format.)
+
+Some sort of tracing to see how often the cache is reused after being 
+generated would be interesting, as well as how often the cache is being 
+generated for a string that was originally in UCS-2 but we changed it to 
+UCS-1.
+
+Cheers,
+Steve
+
+From nad at python.org  Sat Oct 20 13:37:57 2018
+From: nad at python.org (Ned Deily)
+Date: Sat, 20 Oct 2018 13:37:57 -0400
+Subject: [Python-Dev] [RELEASE] Python 3.7.1 and 3.6.7 are now available
+Message-ID: <F1F2105E-707C-46E5-981E-52685CFAC658@python.org>
+
+On behalf of the Python development community and the Python 3.7 release
+team, we are pleased to announce the availability of Python 3.7.1. Python
+3.7.1 is the first maintenance release of the newest feature release of
+the Python language. You can find Python 3.7.1 here:
+    https://www.python.org/downloads/release/python-371/
+
+See the What?s New In Python 3.7 document for more information about the
+many new features and optimizations included in the 3.7 series. Detailed
+information about the changes made in 3.7.1 can be found in its change log:
+    https://docs.python.org/3.7/whatsnew/3.7.html
+    https://docs.python.org/3.7/whatsnew/changelog.html#python-3-7-1-final
+
+We are also happy to announce the availability of Python 3.6.7, the next
+maintenance release of Python 3.6:
+    https://www.python.org/downloads/release/python-367/
+
+Thanks to all of the many volunteers who help make Python Development and
+these releases possible! Please consider supporting our efforts by
+volunteering yourself or through organization contributions to the Python
+Software Foundation.
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From tjreedy at udel.edu  Sat Oct 20 15:54:44 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sat, 20 Oct 2018 15:54:44 -0400
+Subject: [Python-Dev] [RELEASE] Python 3.7.1 and 3.6.7 are now available
+In-Reply-To: <F1F2105E-707C-46E5-981E-52685CFAC658__23386.542502749$1540058215$gmane$org@python.org>
+References: <F1F2105E-707C-46E5-981E-52685CFAC658__23386.542502749$1540058215$gmane$org@python.org>
+Message-ID: <pqg122$m75$1@blaine.gmane.org>
+
+On 10/20/2018 1:37 PM, Ned Deily wrote:
+
+> We are also happy to announce the availability of Python 3.6.7, the next
+> maintenance release of Python 3.6:
+>      https://www.python.org/downloads/release/python-367/
+
+Am I correct in thinking that there will be just one more maintenance 
+release before going on security-only status?
+
+-- 
+Terry Jan Reedy
+
+
+From nad at python.org  Sat Oct 20 17:24:27 2018
+From: nad at python.org (Ned Deily)
+Date: Sat, 20 Oct 2018 17:24:27 -0400
+Subject: [Python-Dev] [RELEASE] Python 3.7.1 and 3.6.7 are now available
+In-Reply-To: <pqg122$m75$1@blaine.gmane.org>
+References: <F1F2105E-707C-46E5-981E-52685CFAC658__23386.542502749$1540058215$gmane$org@python.org>
+ <pqg122$m75$1@blaine.gmane.org>
+Message-ID: <753138D5-CEE8-419E-ACA7-84C56F6579AE@python.org>
+
+On Oct 20, 2018, at 15:54, Terry Reedy <tjreedy at udel.edu> wrote:
+> 
+> On 10/20/2018 1:37 PM, Ned Deily wrote:
+> 
+>> We are also happy to announce the availability of Python 3.6.7, the next
+>> maintenance release of Python 3.6:
+>>     https://www.python.org/downloads/release/python-367/
+> 
+> Am I correct in thinking that there will be just one more maintenance release before going on security-only status?
+
+Yes, that's the published plan:
+    https://www.python.org/dev/peps/pep-0494/
+
+    3.6.8 schedule (2018-12)
+    Final maintenance mode release, final binary releases.
+
+
+    3.6.9 and beyond schedule
+    Security fixes only, as needed, until 2021-12
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From facundobatista at gmail.com  Sat Oct 20 17:57:11 2018
+From: facundobatista at gmail.com (Facundo Batista)
+Date: Sat, 20 Oct 2018 18:57:11 -0300
+Subject: [Python-Dev] Servicing pypi.python.org
+In-Reply-To: <C560340E-7722-49E0-9F98-C7D81BF25375@stufft.io>
+References: <CAM09pzSJe2Zy6C+FhQRGTSnKLBEpPKuR2HQzLCTeSSRB7HP27Q@mail.gmail.com>
+ <C560340E-7722-49E0-9F98-C7D81BF25375@stufft.io>
+Message-ID: <CAM09pzS8r0ZpYPuM4g5eY191uXyKXzxYRd804M9FDRx90qRRgA@mail.gmail.com>
+
+El jue., 18 de oct. de 2018 a la(s) 00:07, Donald Stufft
+(donald at stufft.io) escribi?:
+
+> tl;dr: can we have a (semi)permanent redirect from pypi.python.org to pypi.org?
+>
+>
+>
+> This already exists:
+
+Indeed, it works! I was in a place with a very crappy internet, but I
+never suspected the issue I was getting was part of that.
+
+Anyway, everything is fine! Thanks for the help and sorry for the noise :)
+
+Regards,
+
+-- 
+.    Facundo
+
+Blog: http://www.taniquetil.com.ar/plog/
+PyAr: http://www.python.org.ar/
+Twitter: @facundobatista
+
