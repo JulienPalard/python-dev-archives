@@ -9971,3 +9971,891 @@ Blog: http://www.taniquetil.com.ar/plog/
 PyAr: http://www.python.org.ar/
 Twitter: @facundobatista
 
+From vstinner at redhat.com  Mon Oct 22 03:59:56 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 22 Oct 2018 09:59:56 +0200
+Subject: [Python-Dev] Some PRs to merge?
+In-Reply-To: <pqf2eq$hlf$1@blaine.gmane.org>
+References: <20181019165754.GA17454@xps>
+ <CA+3bQGGaseAZ5KAZwn2ytQYjf4mFbVS-e9ic7nJyA5uXmLYLrA@mail.gmail.com>
+ <pqf2eq$hlf$1@blaine.gmane.org>
+Message-ID: <CA+3bQGGHvtJ+0Djycp_-mRNjpYWUQso_xo=A8c3CLfuz2wZgvQ@mail.gmail.com>
+
+Le sam. 20 oct. 2018 ? 13:15, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+> Thank you Victor! I prefer to merge my PRs and PRs assigned to me
+> myself, but I am not sure that I would merge all PRs that can be merged
+> in the nearest future. ;)
+
+Some PRs were blocked by me because I was nitpicking on something. I
+decided that, nah, it's fine. It's better to merge these "not perfect"
+PRs rather than leaving them die in review.
+
+Many PRs were written by core developers but still not merged 6 months
+after they have been approved, I'm not sure why. I decided to merge
+them to reduce the queue of open pull requests. Pressing the [Merge]
+button also means that I approve a PR. I tested manually some of these
+PRs before merging them, to make sure that they work as expected ;-)
+
+Victor
+
+From vstinner at redhat.com  Mon Oct 22 04:09:43 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 22 Oct 2018 10:09:43 +0200
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <pqf8rt$iat$1@blaine.gmane.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+Message-ID: <CA+3bQGGtnJ233rxSfBQra0qqG3B48V58uNd9KNH0eHz42zf7Og@mail.gmail.com>
+
+Hi Serhiy,
+
++1 to remove wchar_t cache. IMHO it wastes memory for no real performance gain.
+
+By the way, can we start to schedule the *removal* of the Py_UNICODE
+API? For example, decide when Py_DEPRECATED is used in the C API?
+Should we start to deprecate when Python 2 reachs its end of life? Or
+can we *remove* this API as soon as Python 2 is dead? (Please, don't
+use "Python 4" as a milestone to introduce such backward incompatible
+change.)
+
+
+Le sam. 20 oct. 2018 ? 15:05, Stefan Behnel <stefan_ml at behnel.de> a ?crit :
+> I'd be happy to get rid of it. But regarding the use under Windows, I
+> wonder if there's interest in keeping it as a special Windows-only feature,
+> e.g. to speed up the data exchange with the Win32 APIs. I guess it would
+> have to provide a visible (performance?) advantage to justify such special
+> casing over the code removal.
+
+If someone wants to *keep* the cache, I would like to see:
+
+* statistics on the cache usage: how many strings are converted to
+wchar_t*? What is the percentage on all strings?
+* what is the cache hit?
+* what is the overhead of removing the cache? (on length 10, 100,
+1000, 1 MB, 10 MB?)
+
+When you look at the performance of the str type, it's common that
+timings are smaller than 1 us. Each str function has been highly
+optimized.
+
+IMHO the conversion of a string to wchar_t* is cheap, especially
+because I expect that all strings used with the Windows API are
+shorter than 1,000 characters.
+
+Victor
+
+From vstinner at redhat.com  Mon Oct 22 04:13:06 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 22 Oct 2018 10:13:06 +0200
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+Message-ID: <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+
+Le sam. 20 oct. 2018 ? 18:02, Steve Dower <steve.dower at python.org> a ?crit :
+> I don't have numbers, but my instinct says the most impacted operations
+> would be retrieving collections of strings from the OS (avoiding a
+> scan/conversion for each one), comparisons against these collections
+> (in-memory handling for hash/comparison of mismatched KIND), and passing
+> some of these strings back to the OS (conversion back into UCS-2). This
+> is basically a glob/fnmatch/stat sequence, and is the main real scenario
+> I can think of where Python's overhead might become noticeable.
+
+Use os.scandir() to avoid stat :-)
+
+For code like "for name in os.listdir(): open(name): ...." (replace
+listdir with scandir if you want to get file metadata), the cache is
+useless, since the fresh string has to be converted to wchar_t*
+anyway, and the cache is destroyed at the end of the loop iteration,
+whereas the cache has never been used...
+
+I'm not saying that the cache is useless. I just doubt that it's so
+common that it really provide any performance benefit.
+
+Victor
+
+From encukou at gmail.com  Mon Oct 22 07:41:50 2018
+From: encukou at gmail.com (Petr Viktorin)
+Date: Mon, 22 Oct 2018 13:41:50 +0200
+Subject: [Python-Dev] wininst-*.exe files in Lib/distutils/command
+In-Reply-To: <CAFQvZEPRFqhia_y0f9CGpRgTBPsRiRVkiK=Ek4MphBYPe-aX9g@mail.gmail.com>
+References: <CAFQvZEPmGVscWNYF+Bng61LMdwpEgkjLqyhG3nogBedkG_u2KQ@mail.gmail.com>
+ <CAKJDb-ODjg6YkXOooz2crKKaz4n9u6gxgEVp_Z=qEf8U2+xLCQ@mail.gmail.com>
+ <5e5e14f2-b4f2-d904-ffc4-b825794d1600@gmail.com>
+ <CAFQvZEPRFqhia_y0f9CGpRgTBPsRiRVkiK=Ek4MphBYPe-aX9g@mail.gmail.com>
+Message-ID: <52759e82-1fea-0953-439c-4fc4018d0bc0@gmail.com>
+
+On 10/18/18 7:44 PM, VanL wrote:
+> Primarily for non-windows platforms, but I also think for Windows users 
+> without any compilers or similar tools installed. There is also some 
+> discussion of removing some of the older toolchain-specific versions 
+> (leaving only -14), but that is a subject for another day.
+> 
+> Also I am not sure that bug report applies to 3.5/3.6/3.7.
+
+It does.
+
+
+
+> On Thu, Oct 18, 2018 at 11:26 AM Petr Viktorin <encukou at gmail.com 
+> <mailto:encukou at gmail.com>> wrote:
+> 
+>     On 10/18/18 4:40 PM, Zachary Ware wrote:
+>      > On Thu, Oct 18, 2018 at 9:09 AM VanL <van.lindberg at gmail.com
+>     <mailto:van.lindberg at gmail.com>> wrote:
+>      >> Hi all,
+>      >>
+>      >> I am looking into an issue associated with the wininst-*.exe
+>     files in the distutils/command subdirectory. It looks like these are
+>     the executable stubs used to create self-extracting zips for
+>     installation - but I am not 100% sure. It also looks like they
+>     include the calls to standard Windows functions to display the
+>     installer window.
+>      >>
+>      >> I have a couple questions I need help with:
+>      >> 1) Am I correct about the function, and if not, what are they?
+>      >
+>      > You are correct.? IIUC, they are checked in to allow creating those
+>      > installers from non-Windows platforms.
+> 
+>     Is that the only reason for them?
+>     At least on Linux, bdist_wininst does not work since at least Python
+>     3.2, as it tries to use a Windows-only encoding internally.
+>     https://bugs.python.org/issue10945
+> 
+>     If they're only there for non-Windows platforms, they're useless.
+> 
+>      >> 2) Where did these come from, and where is their source code?
+>      >
+>      > Source can be found here:
+>      > https://github.com/python/cpython/tree/master/PC/bdist_wininst
+>      >
+>      > The individual checked-in .exe files were each originally built by
+>      > whoever updated the Windows toolchain to a new version of MSVC
+>      > (Christian Heimes, Brian Curtin, or Steve Dower; though the oldest
+>      > ones were added by Thomas Heller, presumably using whatever the
+>      > current toolchain(s) was (were) at the time).? A few of them have
+>     been
+>      > rebuilt after bug fixes in the source since they were added,
+>     mostly by
+>      > the same people, though I also see Mark Hammond and Raymond Hettinger
+>      > in the history (and Georg Brandl via svnmerge).? I notice that there
+>      > are a few very minor code cleanups (the three latest commits here
+>      >
+>     https://github.com/python/cpython/commits/master/PC/bdist_wininst/install.c)
+>      > that have not made it into a rebuilt exe yet.
+>      >
+>      > FTR, we really ought to remove all but the 14.0 version from the
+>      > master branch.? We don't support building Python with any toolchain
+>      > older than 14.0 anymore, and the older toolchains are nigh impossible
+>      > to find anymore anyway.
+> 
+
+From seanharr11 at gmail.com  Mon Oct 22 08:28:08 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Mon, 22 Oct 2018 08:28:08 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAGgTfkMoMrURkDNM9Vz=naeX+SJWNr=uknY91kdYwFqUCS49BQ@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+ <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+ <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+ <CAOTb1wc_gTuTC2Tmi6NYYLpzrtH6V=gKOjK5eF25QLC-kPkWgA@mail.gmail.com>
+ <CAOh-wgBc91w_D5OmryTdkp3tUk7BqQ=HgDEiUF99LG9fvCLoqA@mail.gmail.com>
+ <CA+LW3i0uoUhZvW9DeGCo9TT73JgManuf9kBmC67HHksNkwRavg@mail.gmail.com>
+ <CAFbyWc0X95an_kOC-QQ7g_VhUKUioM=kMu+=2N1ZLXhWXThhyw@mail.gmail.com>
+ <CAGgTfkMoMrURkDNM9Vz=naeX+SJWNr=uknY91kdYwFqUCS49BQ@mail.gmail.com>
+Message-ID: <CAFbyWc1SLZTTqMgdttQJnU5+q3zLOujeHapOtVEQR9LWzGddHQ@mail.gmail.com>
+
+Michael - the initializer/globals pattern still might be necessary if you
+need to create an object AFTER a worker process has been instantiated (i.e.
+a database connection). Further, the user may want to access all of the
+niceties of Pool, like imap, imap_unordered, etc.  The goal (IMO) would be
+to preserve an interface which many Python users have grown accustomed to,
+and to allow them to access this optimization out-of-the-bag.
+
+Having talked to folks at the Boston Python meetup, folks on my dev team,
+and perusing stack overflow, this "instance method parallelization" is a
+pretty common pattern that is often times a negative return on investment
+for the developer, due to the implicit implementation detail of pickling
+the function (and object) once per task.
+
+Is anyone open to reviewing a PR concerning this optimization of Pool,
+delivered as a subclass? This feature restricts the number of unique tasks
+being executed by workers at once to 1, while allowing aggressive
+subprocess-level function cacheing to prevent repeated
+serialization/deserialization of large functions/closures. The use case is
+s.t. the user only ever needs 1 call to Pool.map(func, ls) (or friends)
+executing at once, when `func` has a non-trivial memory footprint.
+
+
+On Fri, Oct 19, 2018 at 4:06 PM Michael Selik <mike at selik.org> wrote:
+
+> On Fri, Oct 19, 2018 at 5:01 AM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+>
+>> I like the idea to extend the Pool class [to optimize the case when only
+>> one function is passed to the workers].
+>>
+>
+> Why would this keep the same interface as the Pool class? If its workers
+> are restricted to calling only one function, that should be passed into the
+> Pool constructor. The map and apply methods would then only receive that
+> function's args and not the function itself. You're also trying to avoid
+> the initializer/globals pattern, so you could eliminate that parameter from
+> the Pool constructor. In fact, it sounds more like you'd want a function
+> than a class. You can call it "procmap" or similar. That's code I've
+> written more than once.
+>
+>     results = poolmap(func, iterable, processes=cpu_count())
+>
+> The nuance is that, since there's no explicit context manager, you'll want
+> to ensure the pool is shut down after all the tasks are finished, even if
+> the results generator hasn't been fully consumed.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181022/039b9535/attachment.html>
+
+From steve.dower at python.org  Mon Oct 22 09:08:33 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 22 Oct 2018 09:08:33 -0400
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+ <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+Message-ID: <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+
+On 22Oct2018 0413, Victor Stinner wrote:
+> For code like "for name in os.listdir(): open(name): ...." (replace
+> listdir with scandir if you want to get file metadata), the cache is
+> useless, since the fresh string has to be converted to wchar_t*
+> anyway, and the cache is destroyed at the end of the loop iteration,
+> whereas the cache has never been used...
+
+Agreed the cache is useless here, but since the listdir() result came in 
+as wchar_t we could keep it that way (assuming we'd only be changing it 
+to char), and then there wouldn't have to be a conversion when we 
+immediately pass it back to open().
+
+That said, I spent some time yesterday converting the importlib cache to 
+use scandir and separate caches for dir/file (to avoid the stat calls) 
+and it made very little overall difference. I have to assume the string 
+manipulation dominates. (Making DirEntry lazily calculate its .path had 
+a bigger impact. Also, I didn't try to make Windows flush its own stat 
+cache, and accessing warm files is much faster than cold ones.)
+
+> I'm not saying that the cache is useless. I just doubt that it's so
+> common that it really provide any performance benefit.
+
+I think that it is mostly useless, but if we can transparently keep many 
+strings "native" size, that will handle many of the useful cases such as 
+the single-use pass-through scenario like above.
+
+Cheers,
+Steve
+
+From vstinner at redhat.com  Mon Oct 22 09:13:12 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 22 Oct 2018 15:13:12 +0200
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+ <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+ <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+Message-ID: <CA+3bQGEEad2XvoA-TpK=UKyb2-yDA3dbXxrcq1d6gSe_Ev7kxg@mail.gmail.com>
+
+Le lun. 22 oct. 2018 ? 15:08, Steve Dower <steve.dower at python.org> a ?crit :
+> Agreed the cache is useless here, but since the listdir() result came in
+> as wchar_t we could keep it that way (assuming we'd only be changing it
+> to char), and then there wouldn't have to be a conversion when we
+> immediately pass it back to open().
+
+Serhiy wants to remove the cache which should *reduce* Python memory
+footprint on Windows.
+
+You are proposing to fill the cache eagierly, that would increase the
+Python memory footprint :-/ Your proposed change is an optimisation, a
+benchmark is needed to see the benefit. I expect no significant
+difference on benchmarks of https://pyperformance.readthedocs.io/ ...
+
+
+> That said, I spent some time yesterday converting the importlib cache to
+> use scandir and separate caches for dir/file (to avoid the stat calls)
+> and it made very little overall difference. I have to assume the string
+> manipulation dominates. (Making DirEntry lazily calculate its .path had
+> a bigger impact. Also, I didn't try to make Windows flush its own stat
+> cache, and accessing warm files is much faster than cold ones.)
+
+I helped Ben Hoyt to design and implement his PEP 471 (os.scandir).
+When the kernel filesystem cache is filled, the speedup of
+os.scandir() is hard to notice. But when you work on a network
+filesystem like NFS, the speedup is like 5x faster. NFS doesn't cache
+stat() by default.
+
+Victor
+
+From steve.dower at python.org  Mon Oct 22 09:24:22 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 22 Oct 2018 09:24:22 -0400
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <CA+3bQGEEad2XvoA-TpK=UKyb2-yDA3dbXxrcq1d6gSe_Ev7kxg@mail.gmail.com>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+ <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+ <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+ <CA+3bQGEEad2XvoA-TpK=UKyb2-yDA3dbXxrcq1d6gSe_Ev7kxg@mail.gmail.com>
+Message-ID: <0031b829-b3c9-f804-9ae8-4d2c5b904ded@python.org>
+
+On 22Oct2018 0913, Victor Stinner wrote:
+> Le lun. 22 oct. 2018 ? 15:08, Steve Dower <steve.dower at python.org> a ?crit :
+>> Agreed the cache is useless here, but since the listdir() result came in
+>> as wchar_t we could keep it that way (assuming we'd only be changing it
+>> to char), and then there wouldn't have to be a conversion when we
+>> immediately pass it back to open().
+> 
+> Serhiy wants to remove the cache which should *reduce* Python memory
+> footprint on Windows.
+> 
+> You are proposing to fill the cache eagierly, that would increase the
+> Python memory footprint :-/ Your proposed change is an optimisation, a
+> benchmark is needed to see the benefit. I expect no significant
+> difference on benchmarks of https://pyperformance.readthedocs.io/ ...
+
+Yes, that's true. But "should reduce ... footprint" is also an 
+optimisation that deserves a benchmark by that standard. Also, I'm 
+proposing keeping the 'kind' as UCS-2 when the string is created from 
+UCS-2 data that is likely to be used as UCS-2. We would not create the 
+UCS-1 version in this case, so it's not the same as prefilling the 
+cache, but it would cost a bit of memory in exchange for CPU. If slicing 
+and concatentation between matching kinds also preserved the kind, a lot 
+of path handling code could avoid back-and-forth conversions.
+
+The import benchmarks ought to be improved on Windows by this new 
+optimisation, as this is a prime case where we regularly convert strings 
+from what the OS gave us into UCS-1 and back into what the OS expects. 
+But if you don't run the benchmarks on all OS's, then sure, you won't 
+see any difference :)
+
+Cheers,
+Steve
+
+From vstinner at redhat.com  Mon Oct 22 09:28:32 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 22 Oct 2018 15:28:32 +0200
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <0031b829-b3c9-f804-9ae8-4d2c5b904ded@python.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+ <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+ <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+ <CA+3bQGEEad2XvoA-TpK=UKyb2-yDA3dbXxrcq1d6gSe_Ev7kxg@mail.gmail.com>
+ <0031b829-b3c9-f804-9ae8-4d2c5b904ded@python.org>
+Message-ID: <CA+3bQGFejkXLvS2LhO_fyYb0eSHAZSuYQjtb2Y6tM1H6QCmY1Q@mail.gmail.com>
+
+Le lun. 22 oct. 2018 ? 15:24, Steve Dower <steve.dower at python.org> a ?crit :
+> Yes, that's true. But "should reduce ... footprint" is also an
+> optimisation that deserves a benchmark by that standard.
+
+pyperformance has a mode to mesure the memory usage (mostly the memory
+peak) if someone wants to have a look.
+
+> Also, I'm
+> proposing keeping the 'kind' as UCS-2 when the string is created from
+> UCS-2 data that is likely to be used as UCS-2.
+
+Oh. That's a major change in the PEP 393 design. You would have to
+modify many functions in CPython. Currently, the PEP 393 requires that
+a string always use the most efficient storage, and many optimizations
+and code paths rely on that assumptions.
+
+I'm against this change.
+
+Moreover, it's hard to guess how a string will be used later...
+
+Victor
+
+From storchaka at gmail.com  Mon Oct 22 09:34:29 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Mon, 22 Oct 2018 16:34:29 +0300
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <pqf8rt$iat$1@blaine.gmane.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+Message-ID: <pqkjh3$mub$1@blaine.gmane.org>
+
+20.10.18 16:01, Stefan Behnel ????:
+> But regarding the use under Windows, I
+> wonder if there's interest in keeping it as a special Windows-only feature,
+> e.g. to speed up the data exchange with the Win32 APIs. I guess it would
+> have to provide a visible (performance?) advantage to justify such special
+> casing over the code removal.
+
+This is an interesting question, and we should found the answer right 
+now. Should PyUnicode_AsWideChar() and PyUnicode_AsWideCharString() 
+continue to attach the wchar_t representation to the unicode object on 
+Windows? The cost is higher memory consumption and slower first time 
+call. The benefit is faster following calls for the same object. 
+Although they still need to copy the content, so the time is still O(N), 
+just with smaller constant multiplier.
+
+
+From steve.dower at python.org  Mon Oct 22 09:48:06 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 22 Oct 2018 09:48:06 -0400
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <CA+3bQGFejkXLvS2LhO_fyYb0eSHAZSuYQjtb2Y6tM1H6QCmY1Q@mail.gmail.com>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+ <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+ <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+ <CA+3bQGEEad2XvoA-TpK=UKyb2-yDA3dbXxrcq1d6gSe_Ev7kxg@mail.gmail.com>
+ <0031b829-b3c9-f804-9ae8-4d2c5b904ded@python.org>
+ <CA+3bQGFejkXLvS2LhO_fyYb0eSHAZSuYQjtb2Y6tM1H6QCmY1Q@mail.gmail.com>
+Message-ID: <43b60910-a654-acc6-0384-60fdfecd9278@python.org>
+
+On 22Oct2018 0928, Victor Stinner wrote:
+>> Also, I'm
+>> proposing keeping the 'kind' as UCS-2 when the string is created from
+>> UCS-2 data that is likely to be used as UCS-2.
+> 
+> Oh. That's a major change in the PEP 393 design. You would have to
+> modify many functions in CPython. Currently, the PEP 393 requires that
+> a string always use the most efficient storage, and many optimizations
+> and code paths rely on that assumptions.
+
+I don't know that it requires that many modifications - those functions 
+already have to handle UCS-2 content anyway (e.g. if I get a path from 
+scandir() that includes a non-ASCII character), and they're only using 
+the assumption of most efficient storage to determine the resulting 
+storage size of a string operation (which I'm proposing should also be 
+UCS-2 when the source strings are UCS-2, since that's the best indicator 
+we have that it'll be used as UCS-2 later, as well as being the current 
+implementation :) ).
+
+> I'm against this change.
+> 
+> Moreover, it's hard to guess how a string will be used later...
+
+Agreed. There are some heuristics we can use, but it's definitely only a 
+guess. That's the nature of this problem - guessing that it *won't* be 
+used as UCS-2 later on is also a guess.
+
+Cheers,
+Steve
+
+From storchaka at gmail.com  Mon Oct 22 09:57:40 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Mon, 22 Oct 2018 16:57:40 +0300
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <CA+3bQGGtnJ233rxSfBQra0qqG3B48V58uNd9KNH0eHz42zf7Og@mail.gmail.com>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <CA+3bQGGtnJ233rxSfBQra0qqG3B48V58uNd9KNH0eHz42zf7Og@mail.gmail.com>
+Message-ID: <pqkksh$hi$1@blaine.gmane.org>
+
+22.10.18 11:09, Victor Stinner ????:
+> +1 to remove wchar_t cache. IMHO it wastes memory for no real performance gain.
+> 
+> By the way, can we start to schedule the *removal* of the Py_UNICODE
+> API? For example, decide when Py_DEPRECATED is used in the C API?
+> Should we start to deprecate when Python 2 reachs its end of life? Or
+> can we *remove* this API as soon as Python 2 is dead? (Please, don't
+> use "Python 4" as a milestone to introduce such backward incompatible
+> change.)
+
+Such removal is scheduled on 4.0. But since currently there are no any 
+plans for Python 4, I think we should schedule some concrete date.
+
+Removing the C API is a major breakage, we should prepare it carefully.
+
+1. Make Py_DEPRECATED working on Windows. [1] Unfortunately this 
+requires breaking its interface. It needs to be inserted before the 
+function declaration, not after it.
+
+[1] https://bugs.python.org/issue33407
+
+2. Add Py_DEPRECATED to the rest of Py_UNICODE based C API 
+(PyUnicode_AsUnicode(), PyUnicode_AsUnicodeAndSize(), etc).
+
+3. Some macros like PyUnicode_AS_UNICODE() should be converted to 
+functions for using compile-time warnings.
+
+3. Would be nice to make the "u" format unit in PyArg_ParseTuple() and 
+similar functions producing a compile time warning. Don't know if it is 
+possible, but compilers are able to check format strings for printf-like 
+functions.
+
+4. Add a configuration option for removing the cache at compile time. 
+This will help us to find all C API that depends on it.
+
+5. Add tests for all C API (I'm working on this).
+
+... two or more releases later ...
+
+6. Make all deprecated C API functions emitting a DeprecationWarning at 
+runtime.
+
+... two or more releases later ...
+
+7. Make all deprecated C API functions raising an error and remove their 
+declarations from headers. Remove the wchar_t cache and legacy 
+representations. Make PyUnicode_Ready() a no-op.
+
+So if we implement items 1-5 in 3.8, we could get rid of this legacy in 
+3.12.
+
+
+From storchaka at gmail.com  Mon Oct 22 10:07:10 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Mon, 22 Oct 2018 17:07:10 +0300
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <0031b829-b3c9-f804-9ae8-4d2c5b904ded@python.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+ <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+ <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+ <CA+3bQGEEad2XvoA-TpK=UKyb2-yDA3dbXxrcq1d6gSe_Ev7kxg@mail.gmail.com>
+ <0031b829-b3c9-f804-9ae8-4d2c5b904ded@python.org>
+Message-ID: <pqklec$ec8$1@blaine.gmane.org>
+
+22.10.18 16:24, Steve Dower ????:
+> Yes, that's true. But "should reduce ... footprint" is also an 
+> optimisation that deserves a benchmark by that standard. Also, I'm 
+> proposing keeping the 'kind' as UCS-2 when the string is created from 
+> UCS-2 data that is likely to be used as UCS-2. We would not create the 
+> UCS-1 version in this case, so it's not the same as prefilling the 
+> cache, but it would cost a bit of memory in exchange for CPU. If slicing 
+> and concatentation between matching kinds also preserved the kind, a lot 
+> of path handling code could avoid back-and-forth conversions.
+
+Oh, I afraid this will complicate the whole code of unicodeobject.c (and 
+several other files) a much and can introduce a lot of subtle bugs.
+
+For example, when you search a UCS2 string in a UCS1 string, the current 
+code returns the result fast, because a UCS1 string can't contain codes 
+ > 0xff, and a UCS2 string should contain codes > 0xff. And there are 
+many such assumptions.
+
+
+From steve.dower at python.org  Mon Oct 22 10:47:15 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 22 Oct 2018 10:47:15 -0400
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <pqklec$ec8$1@blaine.gmane.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+ <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+ <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+ <CA+3bQGEEad2XvoA-TpK=UKyb2-yDA3dbXxrcq1d6gSe_Ev7kxg@mail.gmail.com>
+ <0031b829-b3c9-f804-9ae8-4d2c5b904ded@python.org>
+ <pqklec$ec8$1@blaine.gmane.org>
+Message-ID: <c1007ef1-0557-1880-e404-7d5e433b6def@python.org>
+
+On 22Oct2018 1007, Serhiy Storchaka wrote:
+> 22.10.18 16:24, Steve Dower ????:
+>> Yes, that's true. But "should reduce ... footprint" is also an 
+>> optimisation that deserves a benchmark by that standard. Also, I'm 
+>> proposing keeping the 'kind' as UCS-2 when the string is created from 
+>> UCS-2 data that is likely to be used as UCS-2. We would not create the 
+>> UCS-1 version in this case, so it's not the same as prefilling the 
+>> cache, but it would cost a bit of memory in exchange for CPU. If 
+>> slicing and concatentation between matching kinds also preserved the 
+>> kind, a lot of path handling code could avoid back-and-forth conversions.
+> 
+> Oh, I afraid this will complicate the whole code of unicodeobject.c (and 
+> several other files) a much and can introduce a lot of subtle bugs.
+> 
+> For example, when you search a UCS2 string in a UCS1 string, the current 
+> code returns the result fast, because a UCS1 string can't contain codes 
+>  > 0xff, and a UCS2 string should contain codes > 0xff. And there are 
+> many such assumptions.
+
+That doesn't change though, as we're only ever expanding the range. So 
+searching a UCS2 string in a UCS2 string that doesn't contain any actual 
+UCS2 characters is the only case that would be affected, and whether 
+that case occurs more than the UCS2->UCS1->UCS2 conversion case is 
+something we can measure (but I'd be surprised if substring searches 
+occur more frequently than OS conversions).
+
+Currently, unicode_compare_eq exits early when the kinds do not match, 
+and that would be a problem (but is also easily fixable). But other 
+string operations already handle mismatched kinds.
+
+Cheers,
+Steve
+
+From mike at selik.org  Mon Oct 22 14:00:42 2018
+From: mike at selik.org (Michael Selik)
+Date: Mon, 22 Oct 2018 11:00:42 -0700
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAFbyWc1SLZTTqMgdttQJnU5+q3zLOujeHapOtVEQR9LWzGddHQ@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+ <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+ <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+ <CAOTb1wc_gTuTC2Tmi6NYYLpzrtH6V=gKOjK5eF25QLC-kPkWgA@mail.gmail.com>
+ <CAOh-wgBc91w_D5OmryTdkp3tUk7BqQ=HgDEiUF99LG9fvCLoqA@mail.gmail.com>
+ <CA+LW3i0uoUhZvW9DeGCo9TT73JgManuf9kBmC67HHksNkwRavg@mail.gmail.com>
+ <CAFbyWc0X95an_kOC-QQ7g_VhUKUioM=kMu+=2N1ZLXhWXThhyw@mail.gmail.com>
+ <CAGgTfkMoMrURkDNM9Vz=naeX+SJWNr=uknY91kdYwFqUCS49BQ@mail.gmail.com>
+ <CAFbyWc1SLZTTqMgdttQJnU5+q3zLOujeHapOtVEQR9LWzGddHQ@mail.gmail.com>
+Message-ID: <CAGgTfkPCM5ws2fLPYOOFgfw5UQ91PB7=HHtFL5kqkB=PnexBug@mail.gmail.com>
+
+This thread seems more appropriate for python-ideas than python-dev.
+
+
+On Mon, Oct 22, 2018 at 5:28 AM Sean Harrington <seanharr11 at gmail.com>
+wrote:
+
+> Michael - the initializer/globals pattern still might be necessary if you
+> need to create an object AFTER a worker process has been instantiated (i.e.
+> a database connection).
+>
+
+You said you wanted to avoid the initializer/globals pattern and have such
+things as database connections in the defaults or closure of the
+task-function, or the bound instance, no? Did I misunderstand?
+
+
+Further, the user may want to access all of the niceties of Pool, like
+> imap, imap_unordered, etc.  The goal (IMO) would be to preserve an
+> interface which many Python users have grown accustomed to, and to allow
+> them to access this optimization out-of-the-bag.
+>
+
+You just said that the dominant use-case was mapping a single
+task-function. It sounds like we're talking past each other in some way.
+It'll help to have a concrete example of a case that satisfies all the
+characteristics you've described: (1) no globals used for communication
+between initializer and task-functions; (2) single task-function, mapped
+once; (3) an instance-method as task-function, causing a large
+serialization burden; and (4) did I miss anything?
+
+
+
+> Having talked to folks at the Boston Python meetup, folks on my dev team,
+> and perusing stack overflow, this "instance method parallelization" is a
+> pretty common pattern that is often times a negative return on investment
+> for the developer, due to the implicit implementation detail of pickling
+> the function (and object) once per task.
+>
+
+I believe you.
+
+
+> Is anyone open to reviewing a PR concerning this optimization of Pool,
+> delivered as a subclass? This feature restricts the number of unique tasks
+> being executed by workers at once to 1, while allowing aggressive
+> subprocess-level function cacheing to prevent repeated
+> serialization/deserialization of large functions/closures. The use case is
+> s.t. the user only ever needs 1 call to Pool.map(func, ls) (or friends)
+> executing at once, when `func` has a non-trivial memory footprint.
+>
+
+You're quite eager to have this PR merged. I understand that. However, it's
+reasonable to take some time to discuss the design of what you're
+proposing. You don't need it in the stdlib to get your own work done, nor
+to share it with others.
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181022/2bbb6341/attachment.html>
+
+From seanharr11 at gmail.com  Mon Oct 22 15:12:45 2018
+From: seanharr11 at gmail.com (Sean Harrington)
+Date: Mon, 22 Oct 2018 15:12:45 -0400
+Subject: [Python-Dev] bpo-34837: Multiprocessing.Pool API Extension -
+ Pass Data to Workers w/o Globals
+In-Reply-To: <CAGgTfkPCM5ws2fLPYOOFgfw5UQ91PB7=HHtFL5kqkB=PnexBug@mail.gmail.com>
+References: <CAFbyWc38KtWJ8jP2-KXDhoLsaPYTLCgiuVNrMGOVRyuqnvDt7w@mail.gmail.com>
+ <CAGgTfkNt0JZD3UPpQRA7U9m75Y_OCZMJb+S+3mVxF=DGZGYwKg@mail.gmail.com>
+ <CAFbyWc2w09SSCktQZzG_MYawdH+zYd4GufPrmShS58tN97WTNQ@mail.gmail.com>
+ <CAGgTfkPYmfjHfHOvTF=-=wyjBHhou3=EsxHmCa6NB+pHHhiiZQ@mail.gmail.com>
+ <CAFbyWc1wORX7kLUfNTxct8SQ-eQcH4Vt2s_xegZNf1M8e5=P+w@mail.gmail.com>
+ <CAPJVwBkkyKvbWX6kiiqA=hw9hc3NaoEbUuzk7E2faLqLPNte0w@mail.gmail.com>
+ <CAFbyWc0GW5_h6pCRJwh1c99x17piazf6t-ZRuCGcWqWaohmv6Q@mail.gmail.com>
+ <20181012144847.7280967b@fsol>
+ <CAPJVwBm6qnm6LU_1PZz-LS0kBbbVtxhGCPU8o7r9t7jw8hJWww@mail.gmail.com>
+ <CAFbyWc0J2ean7d-JbkFHu9SOEATc5s9i2XJ6vTTxxm2A_NZ1Qw@mail.gmail.com>
+ <CAGgTfkNP3aGvW=1w7QgYiNbcNuQumcd5=uTCpqAaqL5Yo=f38A@mail.gmail.com>
+ <CAFbyWc0DGJsdZUNLiLWB3WDFUgFjFyczR-V6KB1ikF5wwrO3Pw@mail.gmail.com>
+ <CAGgTfkMGPh7Xw-eqOjKYHyhuNg29E35D5Fz7jwhhgm7QC_7tFQ@mail.gmail.com>
+ <CAFbyWc1Fx0NwKcX=BwVxO_wHyP8J=DbtEYna90S1CjjACvTMaQ@mail.gmail.com>
+ <CAGgTfkPoFXV3h5BqhvfwP-TeMPB8xWG_LURKQSnxToQgm6di0w@mail.gmail.com>
+ <CAOTb1wc_gTuTC2Tmi6NYYLpzrtH6V=gKOjK5eF25QLC-kPkWgA@mail.gmail.com>
+ <CAOh-wgBc91w_D5OmryTdkp3tUk7BqQ=HgDEiUF99LG9fvCLoqA@mail.gmail.com>
+ <CA+LW3i0uoUhZvW9DeGCo9TT73JgManuf9kBmC67HHksNkwRavg@mail.gmail.com>
+ <CAFbyWc0X95an_kOC-QQ7g_VhUKUioM=kMu+=2N1ZLXhWXThhyw@mail.gmail.com>
+ <CAGgTfkMoMrURkDNM9Vz=naeX+SJWNr=uknY91kdYwFqUCS49BQ@mail.gmail.com>
+ <CAFbyWc1SLZTTqMgdttQJnU5+q3zLOujeHapOtVEQR9LWzGddHQ@mail.gmail.com>
+ <CAGgTfkPCM5ws2fLPYOOFgfw5UQ91PB7=HHtFL5kqkB=PnexBug@mail.gmail.com>
+Message-ID: <CAFbyWc1wy9JnzesE438W42g7MkNE3e6AZ1EDKBgka=zLmetLwg@mail.gmail.com>
+
+On Mon, Oct 22, 2018 at 2:01 PM Michael Selik <mike at selik.org> wrote:
+
+> This thread seems more appropriate for python-ideas than python-dev.
+>
+>
+
+> On Mon, Oct 22, 2018 at 5:28 AM Sean Harrington <seanharr11 at gmail.com>
+> wrote:
+>
+>> Michael - the initializer/globals pattern still might be necessary if you
+>> need to create an object AFTER a worker process has been instantiated (i.e.
+>> a database connection).
+>>
+>
+> You said you wanted to avoid the initializer/globals pattern and have such
+> things as database connections in the defaults or closure of the
+> task-function, or the bound instance, no? Did I misunderstand?
+>
+>
+> Further, the user may want to access all of the niceties of Pool, like
+>> imap, imap_unordered, etc.  The goal (IMO) would be to preserve an
+>> interface which many Python users have grown accustomed to, and to allow
+>> them to access this optimization out-of-the-bag.
+>>
+>
+> You just said that the dominant use-case was mapping a single
+> task-function. It sounds like we're talking past each other in some way.
+> It'll help to have a concrete example of a case that satisfies all the
+> characteristics you've described: (1) no globals used for communication
+> between initializer and task-functions; (2) single task-function, mapped
+> once; (3) an instance-method as task-function, causing a large
+> serialization burden; and (4) did I miss anything?
+>
+
+You're right, it's really only use cases (2) and (3) that define this spec.
+However, the case for subclassing really boils down to the "free"
+inheritance of the public methods of Pool (map, imap, imap_unordered,
+etc...).  Why exclude these (by implementing "procmap()") if we get this
+great return with such little investment?
+
+>
+>
+>
+>> Having talked to folks at the Boston Python meetup, folks on my dev team,
+>> and perusing stack overflow, this "instance method parallelization" is a
+>> pretty common pattern that is often times a negative return on investment
+>> for the developer, due to the implicit implementation detail of pickling
+>> the function (and object) once per task.
+>>
+>
+> I believe you.
+>
+>
+>> Is anyone open to reviewing a PR concerning this optimization of Pool,
+>> delivered as a subclass? This feature restricts the number of unique tasks
+>> being executed by workers at once to 1, while allowing aggressive
+>> subprocess-level function cacheing to prevent repeated
+>> serialization/deserialization of large functions/closures. The use case is
+>> s.t. the user only ever needs 1 call to Pool.map(func, ls) (or friends)
+>> executing at once, when `func` has a non-trivial memory footprint.
+>>
+>
+> You're quite eager to have this PR merged. I understand that. However,
+> it's reasonable to take some time to discuss the design of what you're
+> proposing. You don't need it in the stdlib to get your own work done, nor
+> to share it with others.
+>
+
+I am just eager to solve this problem, which is likely evident, given that
+this is the 3rd different implementation discussed in detail since my
+initial PR.  If the group consensus is that this is best implemented via
+"procmap" function in github gist, then the idea will live there, and
+likely have a lonely life there.
+
+I contend that multiprocessing.Pool is used most frequently with a single
+task. I am proposing a feature that enforces this invariant, optimizes task
+memory-footprints & thus serialization time, and preserves the
+well-established interface to Pool through subclassing.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181022/3bc110b2/attachment.html>
+
+From steve.dower at python.org  Mon Oct 22 16:41:23 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 22 Oct 2018 16:41:23 -0400
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <c1007ef1-0557-1880-e404-7d5e433b6def@python.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+ <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+ <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+ <CA+3bQGEEad2XvoA-TpK=UKyb2-yDA3dbXxrcq1d6gSe_Ev7kxg@mail.gmail.com>
+ <0031b829-b3c9-f804-9ae8-4d2c5b904ded@python.org>
+ <pqklec$ec8$1@blaine.gmane.org>
+ <c1007ef1-0557-1880-e404-7d5e433b6def@python.org>
+Message-ID: <b3b764c8-b6c9-32f7-c1a0-108812080332@python.org>
+
+On 22Oct2018 1047, Steve Dower wrote:
+> On 22Oct2018 1007, Serhiy Storchaka wrote:
+>> 22.10.18 16:24, Steve Dower ????:
+>>> Yes, that's true. But "should reduce ... footprint" is also an 
+>>> optimisation that deserves a benchmark by that standard. Also, I'm 
+>>> proposing keeping the 'kind' as UCS-2 when the string is created from 
+>>> UCS-2 data that is likely to be used as UCS-2. We would not create 
+>>> the UCS-1 version in this case, so it's not the same as prefilling 
+>>> the cache, but it would cost a bit of memory in exchange for CPU. If 
+>>> slicing and concatentation between matching kinds also preserved the 
+>>> kind, a lot of path handling code could avoid back-and-forth 
+>>> conversions.
+>>
+>> Oh, I afraid this will complicate the whole code of unicodeobject.c 
+>> (and several other files) a much and can introduce a lot of subtle bugs.
+>>
+>> For example, when you search a UCS2 string in a UCS1 string, the 
+>> current code returns the result fast, because a UCS1 string can't 
+>> contain codes ?> 0xff, and a UCS2 string should contain codes > 0xff. 
+>> And there are many such assumptions.
+> 
+> That doesn't change though, as we're only ever expanding the range. So 
+> searching a UCS2 string in a UCS2 string that doesn't contain any actual 
+> UCS2 characters is the only case that would be affected, and whether 
+> that case occurs more than the UCS2->UCS1->UCS2 conversion case is 
+> something we can measure (but I'd be surprised if substring searches 
+> occur more frequently than OS conversions).
+> 
+> Currently, unicode_compare_eq exits early when the kinds do not match, 
+> and that would be a problem (but is also easily fixable). But other 
+> string operations already handle mismatched kinds.
+
+I made the changes (along with a somewhat expensive update to make 
+__hash__ produce the same value for UCS1 and UCS2 strings) and it works 
+just fine, but the speed difference seems to be fairly trivial. Equality 
+time in particular is slower (highly optimized memcpy vs. plain-old for 
+loop).
+
+That said, I didn't remove the wchar_t cache (though I tried some tricks 
+to avoid it), so it's possible that once that's gone we'll see an 
+avoidable regression here, but on its own this doesn't contribute much.
+
+Cheers,
+Steve
+
