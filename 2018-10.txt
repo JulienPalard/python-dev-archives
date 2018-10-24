@@ -10859,3 +10859,681 @@ avoidable regression here, but on its own this doesn't contribute much.
 Cheers,
 Steve
 
+From storchaka at gmail.com  Tue Oct 23 03:49:47 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Tue, 23 Oct 2018 10:49:47 +0300
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <b3b764c8-b6c9-32f7-c1a0-108812080332@python.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+ <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+ <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+ <CA+3bQGEEad2XvoA-TpK=UKyb2-yDA3dbXxrcq1d6gSe_Ev7kxg@mail.gmail.com>
+ <0031b829-b3c9-f804-9ae8-4d2c5b904ded@python.org>
+ <pqklec$ec8$1@blaine.gmane.org>
+ <c1007ef1-0557-1880-e404-7d5e433b6def@python.org>
+ <b3b764c8-b6c9-32f7-c1a0-108812080332@python.org>
+Message-ID: <065146f7-20a3-da6e-46a1-0313eb353d57@gmail.com>
+
+22.10.18 23:41, Steve Dower ????:
+> That said, I didn't remove the wchar_t cache (though I tried some tricks 
+> to avoid it), so it's possible that once that's gone we'll see an 
+> avoidable regression here, but on its own this doesn't contribute much.
+
+Could you please test PR 2599 on Windows? It makes 
+PyUnicode_AsWideChar() and PyUnicode_AsWideCharString() not filling the 
+wchar_t cache. If there is a significant regression in any benchmark or 
+small regressions in several benchmarks we can consider to continue to 
+fill the cache in these function and to preserve the cache in future. 
+Otherwise I'll merge the PR as is.
+
+https://github.com/python/cpython/pull/2599
+
+
+From vstinner at redhat.com  Tue Oct 23 05:55:56 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 23 Oct 2018 11:55:56 +0200
+Subject: [Python-Dev] Python Language Governance Proposals
+Message-ID: <CA+3bQGGP3F3d0tLMNogaX7jL27+bfACOVWB8FJ-DmSOKQyaLbw@mail.gmail.com>
+
+Hi,
+
+Last July, Guido van Rossum decided to resign from his role of BDFL.
+Python core developers decided to design a new governance/organization
+for Python. 6 governance PEPs have been proposed. It has been decided
+that discussions are reserved to core developers (everyone can read,
+but only core devs can write), since the governance will mostly impact
+the life of core developers. I'm writing this email to python-dev to
+keep you aware that something is happening :-)
+
+Core developers (of the GitHub team) will vote to decide the new
+Python governance in 3 weeks:
+"The vote will happen in a 2-week-long window from November 16 2018 to
+November 30 (Anywhere-on-Earth)."
+
+See PEP 8001: Python Governance Voting Process
+https://www.python.org/dev/peps/pep-8001/
+
+
+Below are links to the governance PEPs, their abstract, and link to
+the Discourse discussions.
+
+Note: a Discourse instance is experimented at discuss.python.org to
+maybe replace python-{ideas,dev,committers} mailing lists. See the
+"Discourse Feedback" category at https://discuss.python.org/  :-)
+
+
+(1) PEP 8010: The BDFL Governance Model
+https://www.python.org/dev/peps/pep-8010
+
+Abstract:
+"""
+This PEP proposes a continuation of the singular project leader model,
+euphemistically called the Benevolent Dictator For Life (BDFL) model
+of Python governance, to be henceforth called in this PEP the Gracious
+Umpire Influencing Decisions Officer (GUIDO). This change in name
+reflects both the expanded view of the GUIDO as final arbiter for the
+Python language decision making process in consultation with the wider
+development community, and the recognition that "for life" while
+perhaps aspirational, is not necessarily in the best interest of the
+well-being of either the language or the GUIDO themselves.
+
+This PEP describes:
+
+* The rationale for maintaining the singular leader model
+* The process for how the GUIDO will be selected, elected, retained,
+recalled, and succeeded;
+* The roles of the GUIDO in the Python language evolution process;
+* The term length of service;
+* The relationship of the GUIDO with a Council of Pythonistas (CoP)
+that advise the GUIDO on technical matters;
+* The size, election, and roles of the CoP;
+* The decision delegation process;
+* Any changes to the PEP process to fit the new governance model;
+
+This PEP does not name a new BDFL. Should this model be adopted, it
+will be codified in PEP 13 along with the names of all officeholders
+described in this PEP, as voted on per the guidelines in PEP 8001.
+"""
+
+Discussion:
+https://discuss.python.org/t/pep-8010-the-singular-leader/188
+
+
+(2) PEP 8011: Python Governance Model Lead by Trio of Pythonistas
+https://www.python.org/dev/peps/pep-8011
+
+Abstract:
+"""
+This PEP proposes a governance model for the Core Python development
+community, led by a trio of equally authoritative leaders. The Trio of
+Pythonistas (ToP, or simply Trio) is tasked with making final
+decisions for the language. It differs from PEP 8010 by specifically
+not proposing a central singular leader, but instead a group of three
+people as the leaders.
+
+This PEP also proposes a formation of specialized workgroups to assist
+the leadership trio in making decisions.
+
+This PEP does not name the members of the Trio. Should this model be
+adopted, it will be codified in PEP 13 along with the names of all
+officeholders described in this PEP.
+
+This PEP describes:
+
+* The role and responsibilities of the Trio
+* Guidelines of how trio members should be formed
+* Reasoning of the group of three, instead of a singular leader
+* Role and responsibilities of Python core developers to the trio
+* Sustainability considerations
+* Diversity and inclusivity considerations
+"""
+
+Discussion:
+https://discuss.python.org/t/pep-8011-leadership-by-trio-of-pythonistas-top-or-simply-trio/199
+
+
+(3) PEP 8012: The Community Governance Model
+https://www.python.org/dev/peps/pep-8012/
+
+Abstract:
+"""
+This PEP proposes a new model of Python governance based on consensus
+and voting by the Python community. This model relies on workgroups to
+carry out the governance of the Python language. This governance model
+works without the role of a centralized singular leader or a governing
+council.
+
+It describes how, when, and why votes are conducted for decisions
+affecting the Python language. It also describes the criteria for
+voting eligibility.
+
+Should this model be adopted, it will be codified in PEP 13.
+
+This model can be affectionately called "The Least Worst Governance
+Model" by its property that while far from ideal, it's still the most
+robust one compared to the others. Since avoiding issues inherent to
+the other models is a paramount feature of the Community Governance
+Model, we start the discussion a bit unusually: by rejecting the other
+models.
+"""
+
+Discussion:
+https://discuss.python.org/t/pep-8012-the-community-model/156
+
+
+(4) PEP 8013: The External Council Governance Model
+https://www.python.org/dev/peps/pep-8013/
+and
+https://mail.python.org/pipermail/python-committers/2018-September/006141.html
+
+Abstract:
+"""
+This PEP proposes a new model of Python governance based on a Group of
+Unbiased Independent Directors of Order (GUIDO) tasked with making
+final decisions for the language. It differs from PEP 8010 by
+specifically not proposing a central singular leader, and from PEP
+8011 by disallowing core committers from being council members. It
+describes the size and role of the council, how the initial group of
+council members will be chosen, any term limits of the council
+members, and how successors will be elected.
+
+It also spends significant time discussing the intended behaviour of
+this model. By design, many processes are not specified here but are
+left to the people involved. In order to select people who will make
+the best decisions, it is important for those involved to understand
+the expectations of GUIDO but it is equally important to allow GUIDO
+the freedom to adjust process requirements for varying circumstances.
+This only works when process is unspecified, but all participants have
+similar expectations.
+
+This PEP does not name the members of GUIDO. Should this model be
+adopted, it will be codified in PEP 13 along with the names of all
+officeholders described in this PEP.
+"""
+
+Discussion:
+https://discuss.python.org/t/pep-8013-the-external-council-governance-model/181
+
+
+(5) PEP 8014 -- The Commons Governance Model
+https://www.python.org/dev/peps/pep-8014/
+
+Abstract:
+"""
+This PEP proposes a governnance model with as few procedures, defined
+terms and percentages as possible. It may also be called The Anarchist
+Governance Model but uses Commons for now because of possible negative
+connotations of the term Anarchist to some audiences.
+
+The basic idea is that all decisions are voted on by a subset of the
+community. A subset, because although the whole community is in
+principle entitled to vote in practice it will always be only a small
+subset that vote on a specific decision. The vote is overseen by an
+impartial council that judges whether the decision has passed or not.
+The intention is that this council bases its decision not only on the
+ratio of yes and no votes but also on the total number of votes, on
+the gravity of the proposal being voted on and possibly the individual
+voters and how they voted. Thereby this council becomes responsible
+for ensuring that each individual decision is carried by a sufficient
+majority.
+"""
+
+Discussion:
+https://discuss.python.org/t/pep-8014-the-commons-model/173
+
+
+
+(6) PEP 8015: Organization of the Python community
+https://www.python.org/dev/peps/pep-8015/
+
+Abstract:
+"""
+This PEP formalizes the current organization of the Python community
+and proposes 3 main changes:
+
+Formalize the existing concept of "Python teams";
+Give more autonomy to Python teams;
+Replace the BDFL (Guido van Rossum) with a new "Python Core Board" of
+3 members which have limited roles. Their key role is mostly to decide
+how a PEP is approved (or rejected or deferred).
+
+Note: the "BDFL-delegate" role is renamed to "PEP delegate".
+"""
+
+Discussion:
+https://discuss.python.org/t/pep-8015-organization-of-the-python-community/193
+and
+https://mail.python.org/pipermail/python-committers/2018-October/006250.html
+
+
+--
+
+See also:
+
+PEP 8000: Python Language Governance Proposal Overview
+https://www.python.org/dev/peps/pep-8000/
+
+PEP 8002: Open Source Governance Survey
+https://www.python.org/dev/peps/pep-8002/
+
+Victor
+
+From ncoghlan at gmail.com  Tue Oct 23 07:18:28 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Tue, 23 Oct 2018 21:18:28 +1000
+Subject: [Python-Dev] The future of the wchar_t cache
+In-Reply-To: <c1007ef1-0557-1880-e404-7d5e433b6def@python.org>
+References: <pqf246$tv3$1@blaine.gmane.org> <pqf8rt$iat$1@blaine.gmane.org>
+ <e8c3d857-ffca-8b99-025a-965f70a405a3@python.org>
+ <CA+3bQGGNT-Ep-FLyo2yq5fN_D2a+suVk70tz936s2hyfMSqhuw@mail.gmail.com>
+ <97f20027-def7-0493-aa60-9ecc5e2c3241@python.org>
+ <CA+3bQGEEad2XvoA-TpK=UKyb2-yDA3dbXxrcq1d6gSe_Ev7kxg@mail.gmail.com>
+ <0031b829-b3c9-f804-9ae8-4d2c5b904ded@python.org>
+ <pqklec$ec8$1@blaine.gmane.org>
+ <c1007ef1-0557-1880-e404-7d5e433b6def@python.org>
+Message-ID: <CADiSq7ekzG5=SZ6osGczZfEgC+HkOUSU8eoSe-eCUhXLf_iWEw@mail.gmail.com>
+
+On Tue, 23 Oct 2018 at 00:50, Steve Dower <steve.dower at python.org> wrote:
+>
+> On 22Oct2018 1007, Serhiy Storchaka wrote:
+> > 22.10.18 16:24, Steve Dower ????:
+> >> Yes, that's true. But "should reduce ... footprint" is also an
+> >> optimisation that deserves a benchmark by that standard. Also, I'm
+> >> proposing keeping the 'kind' as UCS-2 when the string is created from
+> >> UCS-2 data that is likely to be used as UCS-2. We would not create the
+> >> UCS-1 version in this case, so it's not the same as prefilling the
+> >> cache, but it would cost a bit of memory in exchange for CPU. If
+> >> slicing and concatentation between matching kinds also preserved the
+> >> kind, a lot of path handling code could avoid back-and-forth conversions.
+> >
+> > Oh, I afraid this will complicate the whole code of unicodeobject.c (and
+> > several other files) a much and can introduce a lot of subtle bugs.
+> >
+> > For example, when you search a UCS2 string in a UCS1 string, the current
+> > code returns the result fast, because a UCS1 string can't contain codes
+> >  > 0xff, and a UCS2 string should contain codes > 0xff. And there are
+> > many such assumptions.
+>
+> That doesn't change though, as we're only ever expanding the range. So
+> searching a UCS2 string in a UCS2 string that doesn't contain any actual
+> UCS2 characters is the only case that would be affected, and whether
+> that case occurs more than the UCS2->UCS1->UCS2 conversion case is
+> something we can measure (but I'd be surprised if substring searches
+> occur more frequently than OS conversions).
+>
+> Currently, unicode_compare_eq exits early when the kinds do not match,
+> and that would be a problem (but is also easily fixable). But other
+> string operations already handle mismatched kinds.
+
+If you did allow for denormalised UCS-2 strings, you'd probably want
+some kind of flag on the instance to indicate that the real kind was
+8-bit.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From sf at fermigier.com  Tue Oct 23 09:21:19 2018
+From: sf at fermigier.com (=?UTF-8?Q?St=C3=A9fane_Fermigier?=)
+Date: Tue, 23 Oct 2018 15:21:19 +0200
+Subject: [Python-Dev] Python Language Governance Proposals
+In-Reply-To: <CA+3bQGGP3F3d0tLMNogaX7jL27+bfACOVWB8FJ-DmSOKQyaLbw@mail.gmail.com>
+References: <CA+3bQGGP3F3d0tLMNogaX7jL27+bfACOVWB8FJ-DmSOKQyaLbw@mail.gmail.com>
+Message-ID: <CABuJJj5_q4Yq3YdMiokEPLrPwucTAT41JRA7t1dA-WcjOG0S0g@mail.gmail.com>
+
++1 (for what it's worth) to any proposal which includes one (or more)
+GUIDOs :)
+
+  S.
+
+On Tue, Oct 23, 2018 at 11:57 AM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hi,
+>
+> Last July, Guido van Rossum decided to resign from his role of BDFL.
+> Python core developers decided to design a new governance/organization
+> for Python. 6 governance PEPs have been proposed. It has been decided
+> that discussions are reserved to core developers (everyone can read,
+> but only core devs can write), since the governance will mostly impact
+> the life of core developers. I'm writing this email to python-dev to
+> keep you aware that something is happening :-)
+>
+> Core developers (of the GitHub team) will vote to decide the new
+> Python governance in 3 weeks:
+> "The vote will happen in a 2-week-long window from November 16 2018 to
+> November 30 (Anywhere-on-Earth)."
+>
+> See PEP 8001: Python Governance Voting Process
+> https://www.python.org/dev/peps/pep-8001/
+>
+>
+> Below are links to the governance PEPs, their abstract, and link to
+> the Discourse discussions.
+>
+> Note: a Discourse instance is experimented at discuss.python.org to
+> maybe replace python-{ideas,dev,committers} mailing lists. See the
+> "Discourse Feedback" category at https://discuss.python.org/  :-)
+>
+>
+> (1) PEP 8010: The BDFL Governance Model
+> https://www.python.org/dev/peps/pep-8010
+>
+> Abstract:
+> """
+> This PEP proposes a continuation of the singular project leader model,
+> euphemistically called the Benevolent Dictator For Life (BDFL) model
+> of Python governance, to be henceforth called in this PEP the Gracious
+> Umpire Influencing Decisions Officer (GUIDO). This change in name
+> reflects both the expanded view of the GUIDO as final arbiter for the
+> Python language decision making process in consultation with the wider
+> development community, and the recognition that "for life" while
+> perhaps aspirational, is not necessarily in the best interest of the
+> well-being of either the language or the GUIDO themselves.
+>
+> This PEP describes:
+>
+> * The rationale for maintaining the singular leader model
+> * The process for how the GUIDO will be selected, elected, retained,
+> recalled, and succeeded;
+> * The roles of the GUIDO in the Python language evolution process;
+> * The term length of service;
+> * The relationship of the GUIDO with a Council of Pythonistas (CoP)
+> that advise the GUIDO on technical matters;
+> * The size, election, and roles of the CoP;
+> * The decision delegation process;
+> * Any changes to the PEP process to fit the new governance model;
+>
+> This PEP does not name a new BDFL. Should this model be adopted, it
+> will be codified in PEP 13 along with the names of all officeholders
+> described in this PEP, as voted on per the guidelines in PEP 8001.
+> """
+>
+> Discussion:
+> https://discuss.python.org/t/pep-8010-the-singular-leader/188
+>
+>
+> (2) PEP 8011: Python Governance Model Lead by Trio of Pythonistas
+> https://www.python.org/dev/peps/pep-8011
+>
+> Abstract:
+> """
+> This PEP proposes a governance model for the Core Python development
+> community, led by a trio of equally authoritative leaders. The Trio of
+> Pythonistas (ToP, or simply Trio) is tasked with making final
+> decisions for the language. It differs from PEP 8010 by specifically
+> not proposing a central singular leader, but instead a group of three
+> people as the leaders.
+>
+> This PEP also proposes a formation of specialized workgroups to assist
+> the leadership trio in making decisions.
+>
+> This PEP does not name the members of the Trio. Should this model be
+> adopted, it will be codified in PEP 13 along with the names of all
+> officeholders described in this PEP.
+>
+> This PEP describes:
+>
+> * The role and responsibilities of the Trio
+> * Guidelines of how trio members should be formed
+> * Reasoning of the group of three, instead of a singular leader
+> * Role and responsibilities of Python core developers to the trio
+> * Sustainability considerations
+> * Diversity and inclusivity considerations
+> """
+>
+> Discussion:
+>
+> https://discuss.python.org/t/pep-8011-leadership-by-trio-of-pythonistas-top-or-simply-trio/199
+>
+>
+> (3) PEP 8012: The Community Governance Model
+> https://www.python.org/dev/peps/pep-8012/
+>
+> Abstract:
+> """
+> This PEP proposes a new model of Python governance based on consensus
+> and voting by the Python community. This model relies on workgroups to
+> carry out the governance of the Python language. This governance model
+> works without the role of a centralized singular leader or a governing
+> council.
+>
+> It describes how, when, and why votes are conducted for decisions
+> affecting the Python language. It also describes the criteria for
+> voting eligibility.
+>
+> Should this model be adopted, it will be codified in PEP 13.
+>
+> This model can be affectionately called "The Least Worst Governance
+> Model" by its property that while far from ideal, it's still the most
+> robust one compared to the others. Since avoiding issues inherent to
+> the other models is a paramount feature of the Community Governance
+> Model, we start the discussion a bit unusually: by rejecting the other
+> models.
+> """
+>
+> Discussion:
+> https://discuss.python.org/t/pep-8012-the-community-model/156
+>
+>
+> (4) PEP 8013: The External Council Governance Model
+> https://www.python.org/dev/peps/pep-8013/
+> and
+>
+> https://mail.python.org/pipermail/python-committers/2018-September/006141.html
+>
+> Abstract:
+> """
+> This PEP proposes a new model of Python governance based on a Group of
+> Unbiased Independent Directors of Order (GUIDO) tasked with making
+> final decisions for the language. It differs from PEP 8010 by
+> specifically not proposing a central singular leader, and from PEP
+> 8011 by disallowing core committers from being council members. It
+> describes the size and role of the council, how the initial group of
+> council members will be chosen, any term limits of the council
+> members, and how successors will be elected.
+>
+> It also spends significant time discussing the intended behaviour of
+> this model. By design, many processes are not specified here but are
+> left to the people involved. In order to select people who will make
+> the best decisions, it is important for those involved to understand
+> the expectations of GUIDO but it is equally important to allow GUIDO
+> the freedom to adjust process requirements for varying circumstances.
+> This only works when process is unspecified, but all participants have
+> similar expectations.
+>
+> This PEP does not name the members of GUIDO. Should this model be
+> adopted, it will be codified in PEP 13 along with the names of all
+> officeholders described in this PEP.
+> """
+>
+> Discussion:
+>
+> https://discuss.python.org/t/pep-8013-the-external-council-governance-model/181
+>
+>
+> (5) PEP 8014 -- The Commons Governance Model
+> https://www.python.org/dev/peps/pep-8014/
+>
+> Abstract:
+> """
+> This PEP proposes a governnance model with as few procedures, defined
+> terms and percentages as possible. It may also be called The Anarchist
+> Governance Model but uses Commons for now because of possible negative
+> connotations of the term Anarchist to some audiences.
+>
+> The basic idea is that all decisions are voted on by a subset of the
+> community. A subset, because although the whole community is in
+> principle entitled to vote in practice it will always be only a small
+> subset that vote on a specific decision. The vote is overseen by an
+> impartial council that judges whether the decision has passed or not.
+> The intention is that this council bases its decision not only on the
+> ratio of yes and no votes but also on the total number of votes, on
+> the gravity of the proposal being voted on and possibly the individual
+> voters and how they voted. Thereby this council becomes responsible
+> for ensuring that each individual decision is carried by a sufficient
+> majority.
+> """
+>
+> Discussion:
+> https://discuss.python.org/t/pep-8014-the-commons-model/173
+>
+>
+>
+> (6) PEP 8015: Organization of the Python community
+> https://www.python.org/dev/peps/pep-8015/
+>
+> Abstract:
+> """
+> This PEP formalizes the current organization of the Python community
+> and proposes 3 main changes:
+>
+> Formalize the existing concept of "Python teams";
+> Give more autonomy to Python teams;
+> Replace the BDFL (Guido van Rossum) with a new "Python Core Board" of
+> 3 members which have limited roles. Their key role is mostly to decide
+> how a PEP is approved (or rejected or deferred).
+>
+> Note: the "BDFL-delegate" role is renamed to "PEP delegate".
+> """
+>
+> Discussion:
+>
+> https://discuss.python.org/t/pep-8015-organization-of-the-python-community/193
+> and
+>
+> https://mail.python.org/pipermail/python-committers/2018-October/006250.html
+>
+>
+> --
+>
+> See also:
+>
+> PEP 8000: Python Language Governance Proposal Overview
+> https://www.python.org/dev/peps/pep-8000/
+>
+> PEP 8002: Open Source Governance Survey
+> https://www.python.org/dev/peps/pep-8002/
+>
+> Victor
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/sfermigier%2Blists%40gmail.com
+>
+
+
+-- 
+Stefane Fermigier - http://fermigier.com/ - http://twitter.com/sfermigier -
+http://linkedin.com/in/sfermigier
+Founder & CEO, Abilian - Enterprise Social Software -
+http://www.abilian.com/
+Chairman, Free&OSS Group @ Systematic Cluster -
+http://www.gt-logiciel-libre.org/
+Co-Chairman, National Council for Free & Open Source Software (CNLL) -
+http://cnll.fr/
+Founder & Organiser, PyParis & PyData Paris - http://pyparis.org/ &
+http://pydata.fr/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181023/850fccec/attachment-0001.html>
+
+From emmanuelarias30 at gmail.com  Tue Oct 23 12:14:44 2018
+From: emmanuelarias30 at gmail.com (eamanu15)
+Date: Tue, 23 Oct 2018 13:14:44 -0300
+Subject: [Python-Dev] =?utf-8?q?=E2=80=8BRe=3A_Python_Language_Governance?=
+ =?utf-8?q?_Proposals?=
+In-Reply-To: <mailman.4549.1540308801.2798.python-dev@python.org>
+References: <mailman.4549.1540308801.2798.python-dev@python.org>
+Message-ID: <CACttXDPLjFjnLxLq7eK0bn+G-MM+HSGzTLhAhLSBuqk8rGYBQQ@mail.gmail.com>
+
+Are there any list of candidates?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181023/0c59d64d/attachment.html>
+
+From vstinner at redhat.com  Tue Oct 23 13:18:53 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 23 Oct 2018 19:18:53 +0200
+Subject: [Python-Dev] 
+	=?utf-8?q?=E2=80=8BRe=3A_Python_Language_Governance?=
+	=?utf-8?q?_Proposals?=
+In-Reply-To: <CACttXDPLjFjnLxLq7eK0bn+G-MM+HSGzTLhAhLSBuqk8rGYBQQ@mail.gmail.com>
+References: <mailman.4549.1540308801.2798.python-dev@python.org>
+ <CACttXDPLjFjnLxLq7eK0bn+G-MM+HSGzTLhAhLSBuqk8rGYBQQ@mail.gmail.com>
+Message-ID: <CA+3bQGE1yA-DOf2i35kdQdf1vmE+3iZ5qxQfR=0_cbg6jcjTpw@mail.gmail.com>
+
+Hi,
+
+Le mar. 23 oct. 2018 ? 18:26, eamanu15 <emmanuelarias30 at gmail.com> a ?crit :
+> Are there any list of candidates?
+
+No PEP proposes directly candidates. The process to nominate
+candidates is part of discussed PEPs. So first core developers must
+vote for the governance PEP, and then a new process will be organized
+to select candidates and implement the new governance.
+
+Not all PEPs propose to replace the old BDFL with a new single BDFL.
+One PEP proposes 3 BDFL, some PEP don't propose any BDFL, etc. I will
+not risk me to summarize the six PEPs here, please read them :-)
+
+Victor
+
+From J.Demeyer at UGent.be  Tue Oct 23 16:19:40 2018
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Tue, 23 Oct 2018 22:19:40 +0200
+Subject: [Python-Dev] Python Language Governance Proposals
+In-Reply-To: <622cf62bf10448b682011baff41ad863@xmail103.UGent.be>
+References: <622cf62bf10448b682011baff41ad863@xmail103.UGent.be>
+Message-ID: <5BCF825C.70603@UGent.be>
+
+What is the timeframe for the installation of the new governance? In 
+other words, when will it be possible to review PEPs?
+
+From stephane at wirtel.be  Wed Oct 24 02:05:21 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Wed, 24 Oct 2018 08:05:21 +0200
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+Message-ID: <20181024060521.GA2083@xps>
+
+Good morning/afternoon/evening/night ;-)
+
+In the documentation of os.system [1], there is this paragraph, where we
+suggest to use subprocess instead of os.system.
+
+"""
+The subprocess module provides more powerful facilities for spawning new
+processes and retrieving their results; using that module is preferable
+to using this function. See the Replacing Older Functions with the
+subprocess Module section in the subprocess documentation for some
+helpful recipes.
+"""
+
+But I have found some references (between 15 and 23 (if we include
+setup.py)) of os.system.
+
+
+Do we need to keep the code like that or could we start to use
+subprocess for these "references" because it is preferable?
+
+If you think we could move to subprocess, I would like to open an issue
+and try to fix it.
+
+1. Add the 'deprecated' directive in the doc
+2. Use subprocess for these references
+
+What is your opinion?
+
+Thank you,
+
+St?phane
+
+[1] https://docs.python.org/3.8/library/os.html?highlight=os%20system#os.system
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
