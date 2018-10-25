@@ -11537,3 +11537,569 @@ St?phane
 -- 
 St?phane Wirtel - https://wirtel.be - @matrixise
 
+From solipsis at pitrou.net  Wed Oct 24 04:35:33 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 24 Oct 2018 10:35:33 +0200
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+References: <20181024060521.GA2083@xps>
+Message-ID: <20181024103533.34092d0b@fsol>
+
+On Wed, 24 Oct 2018 08:05:21 +0200
+Stephane Wirtel <stephane at wirtel.be> wrote:
+> Good morning/afternoon/evening/night ;-)
+> 
+> In the documentation of os.system [1], there is this paragraph, where we
+> suggest to use subprocess instead of os.system.
+> 
+> """
+> The subprocess module provides more powerful facilities for spawning new
+> processes and retrieving their results; using that module is preferable
+> to using this function. See the Replacing Older Functions with the
+> subprocess Module section in the subprocess documentation for some
+> helpful recipes.
+> """
+> 
+> But I have found some references (between 15 and 23 (if we include
+> setup.py)) of os.system.
+> 
+> 
+> Do we need to keep the code like that or could we start to use
+> subprocess for these "references" because it is preferable?
+> 
+> If you think we could move to subprocess, I would like to open an issue
+> and try to fix it.
+> 
+> 1. Add the 'deprecated' directive in the doc
+> 2. Use subprocess for these references
+> 
+> What is your opinion?
+
+I don't think it's useful to deprecate something that works fine for
+the intended purpose.
+
+Regards
+
+Antoine.
+
+
+
+From steve.dower at python.org  Wed Oct 24 07:55:46 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 24 Oct 2018 07:55:46 -0400
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <20181024103533.34092d0b@fsol>
+References: <20181024060521.GA2083@xps> <20181024103533.34092d0b@fsol>
+Message-ID: <03456f6c-0c14-57f2-d749-a9bb2e3ca9ad@python.org>
+
+On 24Oct2018 0435, Antoine Pitrou wrote:
+> On Wed, 24 Oct 2018 08:05:21 +0200
+> Stephane Wirtel <stephane at wirtel.be> wrote:
+>> 1. Add the 'deprecated' directive in the doc
+>> 2. Use subprocess for these references
+>>
+>> What is your opinion?
+> 
+> I don't think it's useful to deprecate something that works fine for
+> the intended purpose.
+
+Agreed.
+
+There are two different groups of users involved here. People developing 
+scripts to run on their own machines (super-shell scripts, if you like), 
+and people developing applications/libraries to run on other machines.
+
+The latter case should *definitely* be using subprocess, because they 
+shouldn't be making assumptions about what shell is being used.
+
+The former case should be able to use os.system if that satisfies their 
+needs, without seeing warnings that make them think they can't write the 
+simplest code that works anymore.
+
+If that means changing *some* of the other references in the docs, then 
+I'm okay with that. But both uses are valid, so it's really more about 
+being clear who the function is intended for.
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Wed Oct 24 10:42:28 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 24 Oct 2018 10:42:28 -0400
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <CACo5Rz6W9g8v+_SP78CwBRe+q7-=s6RSoUMUf5QmdEn0cOHwZA@mail.gmail.com>
+References: <20181024060521.GA2083@xps> <20181024103533.34092d0b@fsol>
+ <03456f6c-0c14-57f2-d749-a9bb2e3ca9ad@python.org>
+ <CACo5Rz6W9g8v+_SP78CwBRe+q7-=s6RSoUMUf5QmdEn0cOHwZA@mail.gmail.com>
+Message-ID: <e88452db-a56d-3bf2-0352-bdf527ddf39d@python.org>
+
+On 24Oct2018 0934, Calvin Spealman wrote:
+> In the spirit of "There should be one-- and preferably only one 
+> --obvious way to do it." this makes perfect sense.
+
+To do what? There is one obvious way to run a system command, and one 
+obvious way to manage subprocesses. There are also many non-obvious ways 
+to run system commands, and many non-obvious ways to manage subprocesses.
+
+> The distinction between "your own machine and other peoples machines" is 
+> not always clear, nor planned for, nor understood by developers to be an 
+> important distinction to make up-front. So the encouragement should be 
+> clear.
+
+Agreed. One good heuristic is whether you're putting the system command 
+in a function or not, since functions are explicitly designing for reuse 
+while just using it in a script is not.
+
+> Simply put, there is no valid use case for os.system over subprocess by 
+> remaining it must be considered redundant.
+
+You have not shown this. Posting quotes followed by an unrelated 
+conclusion isn't a very compelling form of argument :)
+
+Cheers,
+Steve
+
+From wes.turner at gmail.com  Wed Oct 24 11:30:01 2018
+From: wes.turner at gmail.com (Wes Turner)
+Date: Wed, 24 Oct 2018 11:30:01 -0400
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <e88452db-a56d-3bf2-0352-bdf527ddf39d@python.org>
+References: <20181024060521.GA2083@xps> <20181024103533.34092d0b@fsol>
+ <03456f6c-0c14-57f2-d749-a9bb2e3ca9ad@python.org>
+ <CACo5Rz6W9g8v+_SP78CwBRe+q7-=s6RSoUMUf5QmdEn0cOHwZA@mail.gmail.com>
+ <e88452db-a56d-3bf2-0352-bdf527ddf39d@python.org>
+Message-ID: <CACfEFw8_QC=wsKQp4+4c36DpY8YuckFJN7T+XqJQAvoaVux6cA@mail.gmail.com>
+
+Sarge is one way to appropriately wrap Process Control (with shell-like
+piping of stdin and stdout between multiple processes).
+
+os.system just calls C system(), AFAIU
+
+subprocess.call calls subprocess.Popen, which does far more than just
+wrapping C system(); though the return value is also the process returncode.
+
+
+https://sarge.readthedocs.io/en/latest/
+
+https://docs.python.org/3/library/os.html#os.system
+https://github.com/python/cpython/blob/master/Modules/posixmodule.c
+
+https://docs.python.org/3/library/subprocess.html#subprocess.Popen.returncode
+
+https://docs.python.org/3/library/subprocess.html#subprocess.call
+
+https://docs.python.org/3/library/subprocess.html#subprocess.check_call
+
+https://en.wikipedia.org/wiki/System_call
+https://en.wikipedia.org/wiki/Exec_(system_call)
+
+...
+
+"ENH: Add call, check_call, check_output, CalledProcessError,
+expect_returncode"
+https://bitbucket.org/vinay.sajip/sarge/pull-requests/1/enh-add-call-check_call-check_output/diff
+
+On Wednesday, October 24, 2018, Steve Dower <steve.dower at python.org> wrote:
+
+> On 24Oct2018 0934, Calvin Spealman wrote:
+>
+>> In the spirit of "There should be one-- and preferably only one --obvious
+>> way to do it." this makes perfect sense.
+>>
+>
+> To do what? There is one obvious way to run a system command, and one
+> obvious way to manage subprocesses. There are also many non-obvious ways to
+> run system commands, and many non-obvious ways to manage subprocesses.
+>
+> The distinction between "your own machine and other peoples machines" is
+>> not always clear, nor planned for, nor understood by developers to be an
+>> important distinction to make up-front. So the encouragement should be
+>> clear.
+>>
+>
+> Agreed. One good heuristic is whether you're putting the system command in
+> a function or not, since functions are explicitly designing for reuse while
+> just using it in a script is not.
+>
+> Simply put, there is no valid use case for os.system over subprocess by
+>> remaining it must be considered redundant.
+>>
+>
+> You have not shown this. Posting quotes followed by an unrelated
+> conclusion isn't a very compelling form of argument :)
+>
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/wes.
+> turner%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181024/196f8029/attachment.html>
+
+From cspealma at redhat.com  Wed Oct 24 09:34:34 2018
+From: cspealma at redhat.com (Calvin Spealman)
+Date: Wed, 24 Oct 2018 09:34:34 -0400
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <03456f6c-0c14-57f2-d749-a9bb2e3ca9ad@python.org>
+References: <20181024060521.GA2083@xps> <20181024103533.34092d0b@fsol>
+ <03456f6c-0c14-57f2-d749-a9bb2e3ca9ad@python.org>
+Message-ID: <CACo5Rz6W9g8v+_SP78CwBRe+q7-=s6RSoUMUf5QmdEn0cOHwZA@mail.gmail.com>
+
+In the spirit of "There should be one-- and preferably only one --obvious
+way to do it." this makes perfect sense.
+
+The distinction between "your own machine and other peoples machines" is
+not always clear, nor planned for, nor understood by developers to be an
+important distinction to make up-front. So the encouragement should be
+clear.
+
+Simply put, there is no valid use case for os.system over subprocess by
+remaining it must be considered redundant.
+
+On Wed, Oct 24, 2018 at 7:58 AM Steve Dower <steve.dower at python.org> wrote:
+
+> On 24Oct2018 0435, Antoine Pitrou wrote:
+> > On Wed, 24 Oct 2018 08:05:21 +0200
+> > Stephane Wirtel <stephane at wirtel.be> wrote:
+> >> 1. Add the 'deprecated' directive in the doc
+> >> 2. Use subprocess for these references
+> >>
+> >> What is your opinion?
+> >
+> > I don't think it's useful to deprecate something that works fine for
+> > the intended purpose.
+>
+> Agreed.
+>
+> There are two different groups of users involved here. People developing
+> scripts to run on their own machines (super-shell scripts, if you like),
+> and people developing applications/libraries to run on other machines.
+>
+> The latter case should *definitely* be using subprocess, because they
+> shouldn't be making assumptions about what shell is being used.
+>
+> The former case should be able to use os.system if that satisfies their
+> needs, without seeing warnings that make them think they can't write the
+> simplest code that works anymore.
+>
+> If that means changing *some* of the other references in the docs, then
+> I'm okay with that. But both uses are valid, so it's really more about
+> being clear who the function is intended for.
+>
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/cspealma%40redhat.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181024/e645dd0a/attachment.html>
+
+From vstinner at redhat.com  Wed Oct 24 12:06:27 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 24 Oct 2018 18:06:27 +0200
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <20181024060521.GA2083@xps>
+References: <20181024060521.GA2083@xps>
+Message-ID: <CA+3bQGHYgZQZL5Yc0=Uicv3=v7k6wGwkL6LbMCVGPCrMjLZrSg@mail.gmail.com>
+
+I like os.system() and use it everyday. I prefer to write
+os.system("grep ^Vm /proc/%s/status" % os.getpid()) than... much more
+Python code to do the same thing, or subprocess.run("grep ^Vm
+/proc/%s/status" % os.getpid(), shell=True):
+
+os.system() is shorter and only requires "import os" :-)
+
+I'm not using os.system() for "production ready" code, but when I
+develop, play with the REPL, etc. For production code, I would write a
+function which avoids spawning a new process, obviously. But well,
+shell commands are shorter and easier to write (for me, at least).
+
+Victor
+Le mer. 24 oct. 2018 ? 08:08, Stephane Wirtel <stephane at wirtel.be> a ?crit :
+>
+> Good morning/afternoon/evening/night ;-)
+>
+> In the documentation of os.system [1], there is this paragraph, where we
+> suggest to use subprocess instead of os.system.
+>
+> """
+> The subprocess module provides more powerful facilities for spawning new
+> processes and retrieving their results; using that module is preferable
+> to using this function. See the Replacing Older Functions with the
+> subprocess Module section in the subprocess documentation for some
+> helpful recipes.
+> """
+>
+> But I have found some references (between 15 and 23 (if we include
+> setup.py)) of os.system.
+>
+>
+> Do we need to keep the code like that or could we start to use
+> subprocess for these "references" because it is preferable?
+>
+> If you think we could move to subprocess, I would like to open an issue
+> and try to fix it.
+>
+> 1. Add the 'deprecated' directive in the doc
+> 2. Use subprocess for these references
+>
+> What is your opinion?
+>
+> Thank you,
+>
+> St?phane
+>
+> [1] https://docs.python.org/3.8/library/os.html?highlight=os%20system#os.system
+>
+> --
+> St?phane Wirtel - https://wirtel.be - @matrixise
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+From chris.barker at noaa.gov  Wed Oct 24 15:41:10 2018
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Wed, 24 Oct 2018 12:41:10 -0700
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <CA+3bQGHYgZQZL5Yc0=Uicv3=v7k6wGwkL6LbMCVGPCrMjLZrSg@mail.gmail.com>
+References: <20181024060521.GA2083@xps>
+ <CA+3bQGHYgZQZL5Yc0=Uicv3=v7k6wGwkL6LbMCVGPCrMjLZrSg@mail.gmail.com>
+Message-ID: <CALGmxEK=H-n8Mo82BRbzqYpR3wNBrLR7jqb1qfzh4dyvvtqeZA@mail.gmail.com>
+
+On Wed, Oct 24, 2018 at 9:06 AM, Victor Stinner <vstinner at redhat.com> wrote:
+
+> I like os.system() and use it everyday.
+
+
+me too.
+
+Python has been evolved over the years away from a "scripting language",
+and becoming more of a "systems language". Which is mostly a good thing,
+but no need to gratuitously make quick scripting more difficult.
+
+That being said, if there are examples in the docs that use os.system()
+that have a good reason to use subprocess, then by all means, let's update
+those.
+
+Also: a point was made there that using os.system is essentially making an
+assumption about teh shell in use, and thsu is not very portable accross
+systems. MAybe that point could be explicitly added to the docs, rather
+than just:
+
+ "more powerful facilities for spawning new processes and retrieving their
+results;"
+
+When I read that, I think "system is working fine, I don't need  more
+powerful facilities for spawning new processes or anything special in
+retrieving their results;"
+
+So more info, right there, about WHY you would want to use subprocess
+instead would be helpful.
+
+
+-CHB
+
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181024/59198a4b/attachment.html>
+
+From breamoreboy at gmail.com  Wed Oct 24 16:25:56 2018
+From: breamoreboy at gmail.com (Mark Lawrence)
+Date: Wed, 24 Oct 2018 21:25:56 +0100
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <CACo5Rz6W9g8v+_SP78CwBRe+q7-=s6RSoUMUf5QmdEn0cOHwZA@mail.gmail.com>
+References: <20181024060521.GA2083@xps> <20181024103533.34092d0b@fsol>
+ <03456f6c-0c14-57f2-d749-a9bb2e3ca9ad@python.org>
+ <CACo5Rz6W9g8v+_SP78CwBRe+q7-=s6RSoUMUf5QmdEn0cOHwZA@mail.gmail.com>
+Message-ID: <pqqkch$ggh$1@blaine.gmane.org>
+
+On 24/10/18 14:34, Calvin Spealman wrote:
+> In the spirit of "There should be one-- and preferably only one 
+> --obvious way to do it." this makes perfect sense.
+> 
+> The distinction between "your own machine and other peoples machines" is 
+> not always clear, nor planned for, nor understood by developers to be an 
+> important distinction to make up-front. So the encouragement should be 
+> clear.
+> 
+> Simply put, there is no valid use case for os.system over subprocess by 
+> remaining it must be considered redundant.
+> 
+
+Really?  From what I've read so far in this thread you've been shot to 
+pieces so case closed.  Goodbye.
+
+-- 
+My fellow Pythonistas, ask not what our language can do for you, ask
+what you can do for our language.
+
+Mark Lawrence
+
+
+From steve at pearwood.info  Wed Oct 24 16:27:06 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 25 Oct 2018 07:27:06 +1100
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <CACo5Rz6W9g8v+_SP78CwBRe+q7-=s6RSoUMUf5QmdEn0cOHwZA@mail.gmail.com>
+References: <20181024060521.GA2083@xps> <20181024103533.34092d0b@fsol>
+ <03456f6c-0c14-57f2-d749-a9bb2e3ca9ad@python.org>
+ <CACo5Rz6W9g8v+_SP78CwBRe+q7-=s6RSoUMUf5QmdEn0cOHwZA@mail.gmail.com>
+Message-ID: <20181024202704.GH3817@ando.pearwood.info>
+
+On Wed, Oct 24, 2018 at 09:34:34AM -0400, Calvin Spealman wrote:
+
+> Simply put, there is no valid use case for os.system over subprocess 
+
+That is simply not true. That's your opinion, masquerading as a fact, 
+and made in the face of Steve Dower's description of at least one 
+appropriate use of os.system.
+
+If you depreciate and then remove os.system, all you will do is force 
+people to re-invent it, badly and inefficiently.
+
+
+> by remaining it must be considered redundant.
+
+And neither is that.
+
+os.system is not redundant, as its purpose is different from that of 
+subprocess.
+
+
+
+-- 
+Steve
+
+From greg at krypto.org  Wed Oct 24 16:45:06 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 24 Oct 2018 13:45:06 -0700
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <20181024202704.GH3817@ando.pearwood.info>
+References: <20181024060521.GA2083@xps> <20181024103533.34092d0b@fsol>
+ <03456f6c-0c14-57f2-d749-a9bb2e3ca9ad@python.org>
+ <CACo5Rz6W9g8v+_SP78CwBRe+q7-=s6RSoUMUf5QmdEn0cOHwZA@mail.gmail.com>
+ <20181024202704.GH3817@ando.pearwood.info>
+Message-ID: <CAGE7PNLSPszWKhNBc+JaPv6jtRZBGPNbqOU4mdj7FnkTXDxF3Q@mail.gmail.com>
+
+The os module is by definition special.  It exposes libc and platform
+APIs.  That there are Python modules that provide similar functionality,
+often surpassing it and sometimes being built on top of it, is
+intentional.  Random quotes from the Zen don't win arguments.  Although
+practicality beats purity.  :P
+
+os.system isn't going away.  That'd be unnecessarily disruptive.
+
+-gps
+
+On Wed, Oct 24, 2018 at 1:29 PM Steven D'Aprano <steve at pearwood.info> wrote:
+
+> On Wed, Oct 24, 2018 at 09:34:34AM -0400, Calvin Spealman wrote:
+>
+> > Simply put, there is no valid use case for os.system over subprocess
+>
+> That is simply not true. That's your opinion, masquerading as a fact,
+> and made in the face of Steve Dower's description of at least one
+> appropriate use of os.system.
+>
+> If you depreciate and then remove os.system, all you will do is force
+> people to re-invent it, badly and inefficiently.
+>
+>
+> > by remaining it must be considered redundant.
+>
+> And neither is that.
+>
+> os.system is not redundant, as its purpose is different from that of
+> subprocess.
+>
+>
+>
+> --
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181024/94fd2c26/attachment.html>
+
+From pwang at anaconda.com  Wed Oct 24 17:39:23 2018
+From: pwang at anaconda.com (Peter Wang)
+Date: Wed, 24 Oct 2018 16:39:23 -0500
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <20181024202704.GH3817@ando.pearwood.info>
+References: <20181024060521.GA2083@xps> <20181024103533.34092d0b@fsol>
+ <03456f6c-0c14-57f2-d749-a9bb2e3ca9ad@python.org>
+ <CACo5Rz6W9g8v+_SP78CwBRe+q7-=s6RSoUMUf5QmdEn0cOHwZA@mail.gmail.com>
+ <20181024202704.GH3817@ando.pearwood.info>
+Message-ID: <CABGrp+9auPXPYG1htgxnJCKEFO9w7sedz9mkmo5suA3GJzz5xw@mail.gmail.com>
+
+On Wed, Oct 24, 2018 at 3:31 PM Steven D'Aprano <steve at pearwood.info> wrote:
+
+> On Wed, Oct 24, 2018 at 09:34:34AM -0400, Calvin Spealman wrote:
+>
+> > Simply put, there is no valid use case for os.system over subprocess
+>
+> If you depreciate and then remove os.system, all you will do is force
+> people to re-invent it, badly and inefficiently.
+
+
+Indeed.  Usability counts, as does not arbitrarily breaking vast amounts of
+existing code that Just Works.
+
+Every code-breaking deprecation is an invitation for unseen thousands or
+millions to ponder, "Hm, this script doesn't work anymore. Maybe now is the
+time to look at Node or Rust."
+
+-Peter
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181024/cdce0159/attachment.html>
+
+From greg.ewing at canterbury.ac.nz  Wed Oct 24 23:24:11 2018
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Thu, 25 Oct 2018 16:24:11 +1300
+Subject: [Python-Dev] "Deprecation" of os.system in favor of subprocess?
+In-Reply-To: <CALGmxEK=H-n8Mo82BRbzqYpR3wNBrLR7jqb1qfzh4dyvvtqeZA@mail.gmail.com>
+References: <20181024060521.GA2083@xps>
+ <CA+3bQGHYgZQZL5Yc0=Uicv3=v7k6wGwkL6LbMCVGPCrMjLZrSg@mail.gmail.com>
+ <CALGmxEK=H-n8Mo82BRbzqYpR3wNBrLR7jqb1qfzh4dyvvtqeZA@mail.gmail.com>
+Message-ID: <5BD1375B.40104@canterbury.ac.nz>
+
+My take on this is that os.system() is there because it's part
+of the C stdlib, and Python generally aims to provide wrappers
+for all of the C stdlib facilities. It's not Python's place to
+start making value judgements about which things are worthy of
+being wrapped and which aren't.
+
+-- 
+Greg
+
+
