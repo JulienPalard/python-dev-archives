@@ -13025,3 +13025,250 @@ particular
 I really hope that I won't have to wait 5 more months before a decision 
 can be made on PEP 580.
 
+From vstinner at redhat.com  Sun Oct 28 12:20:00 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sun, 28 Oct 2018 17:20:00 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+Message-ID: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+
+Hi,
+
+Python C API has no strict separation between the 3 levels of API:
+
+* core: Py_BUILD_CORE define
+* stable: Py_LIMITED_API define (it has a value)
+* regular: no define
+
+IMHO the current design of header files is done backward: by default,
+everything is public. To exclude an API from core or stable, "#ifdef
+Py_BUILD_CORE" and "#ifndef Py_LIMITED_API" are used. This design
+caused issues in the past: functions, variables or something else
+exposed whereas they were supposed to be "private".
+
+I propose a practical solution for that: Include/*.h files would only
+be be public API. The "core" API would live in a new subdirectory:
+Include/pycore/*.h. Moreover, files of this subdirectory would have
+the prefix "pycore_". For example, Include/objimpl.h would have a
+twin: Include/pycore/pycore_objimpl.h which extend the public API with
+"core" APIs.
+
+I also propose to automatically load the twin: Include/objimpl.h would
+load Include/pycore/pycore_objimpl.h if Py_BUILD_CORE is defined:
+
+#ifdef Py_BUILD_CORE
+#  include "pycore/pycore_objimpl.h"
+#endif
+
+Only in some rare cases, you would have to explicitly use: #include
+"pycore/pycore_pygetopt.h". This header is fully private, there is no
+public header in Include/pygetopt.h. Or maybe we should modify
+Include/Python.h to also include "pycore/pycore_pygetopt.h" if
+Py_BUILD_CORE is defined? Well, that's just a detail.
+
+First milestone:
+
+* Create Include/pycore/
+* Move Py_BUILD_CORE specific code into Include/pycore/pycore_*.h
+* Automatically include pycore files from Include/*.h files (#ifdef
+Py_BUILD_CORE)
+
+Second milestone:
+
+* Find a solution for Py_LIMITED_API :-)
+
+Backward compatibility? The overall change is fully backward
+compatible. The default API doesn't change. C code (using header fles)
+doesn't have to be changed.
+
+Only a specific kinds of applications like debugger may have to be
+modified if they really have to access the "core" API, the "most
+private" API. Honestly, today it's unclear to me if this API can
+technically be used outside CPython.
+
+Victor
+
+From vstinner at redhat.com  Sun Oct 28 12:23:08 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sun, 28 Oct 2018 17:23:08 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+Message-ID: <CA+3bQGE-WW68wHtF4SfLvohA+nq5TKVC0z2Yzt_MzHmxoXi_Ww@mail.gmail.com>
+
+Oh, I forgot to add a reference to the bugs.python.org issue and my
+pull request!
+
+* https://bugs.python.org/issue35081
+* https://github.com/python/cpython/pull/10143
+
+My PR more or less implements the first milestone of my plan
+(Py_BUILD_CORE): it creates Include/pycore/.
+
+Victor
+Le dim. 28 oct. 2018 ? 17:20, Victor Stinner <vstinner at redhat.com> a ?crit :
+>
+> Hi,
+>
+> Python C API has no strict separation between the 3 levels of API:
+>
+> * core: Py_BUILD_CORE define
+> * stable: Py_LIMITED_API define (it has a value)
+> * regular: no define
+>
+> IMHO the current design of header files is done backward: by default,
+> everything is public. To exclude an API from core or stable, "#ifdef
+> Py_BUILD_CORE" and "#ifndef Py_LIMITED_API" are used. This design
+> caused issues in the past: functions, variables or something else
+> exposed whereas they were supposed to be "private".
+>
+> I propose a practical solution for that: Include/*.h files would only
+> be be public API. The "core" API would live in a new subdirectory:
+> Include/pycore/*.h. Moreover, files of this subdirectory would have
+> the prefix "pycore_". For example, Include/objimpl.h would have a
+> twin: Include/pycore/pycore_objimpl.h which extend the public API with
+> "core" APIs.
+>
+> I also propose to automatically load the twin: Include/objimpl.h would
+> load Include/pycore/pycore_objimpl.h if Py_BUILD_CORE is defined:
+>
+> #ifdef Py_BUILD_CORE
+> #  include "pycore/pycore_objimpl.h"
+> #endif
+>
+> Only in some rare cases, you would have to explicitly use: #include
+> "pycore/pycore_pygetopt.h". This header is fully private, there is no
+> public header in Include/pygetopt.h. Or maybe we should modify
+> Include/Python.h to also include "pycore/pycore_pygetopt.h" if
+> Py_BUILD_CORE is defined? Well, that's just a detail.
+>
+> First milestone:
+>
+> * Create Include/pycore/
+> * Move Py_BUILD_CORE specific code into Include/pycore/pycore_*.h
+> * Automatically include pycore files from Include/*.h files (#ifdef
+> Py_BUILD_CORE)
+>
+> Second milestone:
+>
+> * Find a solution for Py_LIMITED_API :-)
+>
+> Backward compatibility? The overall change is fully backward
+> compatible. The default API doesn't change. C code (using header fles)
+> doesn't have to be changed.
+>
+> Only a specific kinds of applications like debugger may have to be
+> modified if they really have to access the "core" API, the "most
+> private" API. Honestly, today it's unclear to me if this API can
+> technically be used outside CPython.
+>
+> Victor
+
+From benjamin at python.org  Sun Oct 28 16:40:07 2018
+From: benjamin at python.org (Benjamin Peterson)
+Date: Sun, 28 Oct 2018 13:40:07 -0700
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+Message-ID: <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+
+
+
+On Sun, Oct 28, 2018, at 09:20, Victor Stinner wrote:
+> Hi,
+> 
+> Python C API has no strict separation between the 3 levels of API:
+> 
+> * core: Py_BUILD_CORE define
+> * stable: Py_LIMITED_API define (it has a value)
+> * regular: no define
+> 
+> IMHO the current design of header files is done backward: by default,
+> everything is public. To exclude an API from core or stable, "#ifdef
+> Py_BUILD_CORE" and "#ifndef Py_LIMITED_API" are used. This design
+> caused issues in the past: functions, variables or something else
+> exposed whereas they were supposed to be "private".
+> 
+> I propose a practical solution for that: Include/*.h files would only
+> be be public API. The "core" API would live in a new subdirectory:
+> Include/pycore/*.h. Moreover, files of this subdirectory would have
+> the prefix "pycore_". For example, Include/objimpl.h would have a
+> twin: Include/pycore/pycore_objimpl.h which extend the public API with
+> "core" APIs.
+> 
+> I also propose to automatically load the twin: Include/objimpl.h would
+> load Include/pycore/pycore_objimpl.h if Py_BUILD_CORE is defined:
+> 
+> #ifdef Py_BUILD_CORE
+> #  include "pycore/pycore_objimpl.h"
+> #endif
+
+I don't think more or less API should be magically included based on whether Py_BUILD_CORE is defined or not. If we want to have private headers, we should include them where needed and not install them. Really, Py_BUILD_CORE should go away. We should be moving away from monolithic includes like Python.h to having each C file include exactly what it uses, private or not.
+
+From vstinner at redhat.com  Sun Oct 28 17:30:53 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sun, 28 Oct 2018 22:30:53 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+Message-ID: <CA+3bQGGkUMPOfy_7_O3YC0i4tMx-gTwt7tb89fGhvJ3xuVLhjQ@mail.gmail.com>
+
+Le dim. 28 oct. 2018 ? 21:50, Benjamin Peterson <benjamin at python.org> a ?crit :
+> I don't think more or less API should be magically included based on whether Py_BUILD_CORE is defined or not. If we want to have private headers, we should include them where needed and not install them. Really, Py_BUILD_CORE should go away. We should be moving away from monolithic includes like Python.h to having each C file include exactly what it uses, private or not.
+
+I would prefer to avoid annoying with the backward compatibility.
+Currently, #include <Python.h> more or less provides you "anything"
+and I'm fine with that.
+
+I prefer to no put too many changes at once :-)
+
+My overall approach is to make sure that we don't leak functions by
+mistakes into the public API or into the stable API anymore. For
+example, if a function is really for the core, put it in pycore/. It
+will be more explicit when reviewing a change for example.
+
+Py_BUILD_CORE is not only used to select which functions you get.
+Py_BUILD_CORE is also commonly used to get a macro instead of a
+function call, for best performances.
+
+Victor
+
+From benjamin at python.org  Mon Oct 29 01:32:02 2018
+From: benjamin at python.org (Benjamin Peterson)
+Date: Sun, 28 Oct 2018 22:32:02 -0700
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGGkUMPOfy_7_O3YC0i4tMx-gTwt7tb89fGhvJ3xuVLhjQ@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+ <CA+3bQGGkUMPOfy_7_O3YC0i4tMx-gTwt7tb89fGhvJ3xuVLhjQ@mail.gmail.com>
+Message-ID: <1540791122.3282066.1557851872.38471E47@webmail.messagingengine.com>
+
+
+
+On Sun, Oct 28, 2018, at 14:30, Victor Stinner wrote:
+> Le dim. 28 oct. 2018 ? 21:50, Benjamin Peterson <benjamin at python.org> a ?crit :
+> > I don't think more or less API should be magically included based on whether Py_BUILD_CORE is defined or not. If we want to have private headers, we should include them where needed and not install them. Really, Py_BUILD_CORE should go away. We should be moving away from monolithic includes like Python.h to having each C file include exactly what it uses, private or not.
+> 
+> I would prefer to avoid annoying with the backward compatibility.
+> Currently, #include <Python.h> more or less provides you "anything"
+> and I'm fine with that.
+
+It doesn't break backward compatibility if you only make this required for new APIs.
+
+> 
+> I prefer to no put too many changes at once :-)
+> 
+> My overall approach is to make sure that we don't leak functions by
+> mistakes into the public API or into the stable API anymore. For
+> example, if a function is really for the core, put it in pycore/. It
+> will be more explicit when reviewing a change for example.
+
+How does the current Include/internal/ directory fail at accomplishing your goal?
+
+> 
+> Py_BUILD_CORE is not only used to select which functions you get.
+> Py_BUILD_CORE is also commonly used to get a macro instead of a
+> function call, for best performances.
+
+I think the macro and function versions should just have different names then.
+
