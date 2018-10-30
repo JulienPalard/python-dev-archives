@@ -13272,3 +13272,1173 @@ How does the current Include/internal/ directory fail at accomplishing your goal
 
 I think the macro and function versions should just have different names then.
 
+From vstinner at redhat.com  Mon Oct 29 08:38:41 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 29 Oct 2018 13:38:41 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <1540791122.3282066.1557851872.38471E47@webmail.messagingengine.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+ <CA+3bQGGkUMPOfy_7_O3YC0i4tMx-gTwt7tb89fGhvJ3xuVLhjQ@mail.gmail.com>
+ <1540791122.3282066.1557851872.38471E47@webmail.messagingengine.com>
+Message-ID: <CA+3bQGGJTom5=a0VAe8dHpvUP5KPO219G7zdUKwuDX-VGm4THA@mail.gmail.com>
+
+Le lun. 29 oct. 2018 ? 06:32, Benjamin Peterson <benjamin at python.org> a ?crit :
+> > My overall approach is to make sure that we don't leak functions by
+> > mistakes into the public API or into the stable API anymore. For
+> > example, if a function is really for the core, put it in pycore/. It
+> > will be more explicit when reviewing a change for example.
+>
+> How does the current Include/internal/ directory fail at accomplishing your goal?
+
+Hum, let me understand how I came into this issue. I tried to convert
+_PyObject_GC_TRACK() macro to a static inline function. The macro uses
+"_PyGC_generation0" which is defined earlier as: "extern PyGC_Head
+*_PyGC_generation0;". Problem: this symbol has been removed when Eric
+Snow moved it into _PyRuntime which contains "#define
+_PyGC_generation0 _PyRuntime.gc.generation0".
+
+Hum, how is possible that _PyObject_GC_TRACK() of objimpl.h works as expected?
+
+It seems like all C file using this macro explicitly uses #include
+"internal/pystate.h" which uses #include "internal/mem.h". Oh.
+
+To me, it seems wrong that a function or macro defined in
+Include/objimpl.h requires an explicit #include "internal/pystate.h".
+objimpl.h should be self-sufficient.
+
+I started to hack Include/internals/*.h, but then I have been traped
+by #include which is relative: an include from Include/internals/
+first looks for the included file in Include/internals/. It means that
+Include/internals/mem.h cannot include Include/objimpl.h if
+Include/internals/objimpl.h also exists.
+
+Well, I would like to reorganize all these headers to make them more
+consistent, and converting macros to static inline functions force me
+to fix dependencies between header files.
+
+
+> > Py_BUILD_CORE is not only used to select which functions you get.
+> > Py_BUILD_CORE is also commonly used to get a macro instead of a
+> > function call, for best performances.
+>
+> I think the macro and function versions should just have different names then.
+
+I don't want to break the backward compatibility. I would like to make
+small steps towards a better API. Concrete example with pystate.h:
+
+/* Variable and macro for in-line access to current thread state */
+
+/* Assuming the current thread holds the GIL, this is the
+   PyThreadState for the current thread. */
+#ifdef Py_BUILD_CORE
+#  define _PyThreadState_Current _PyRuntime.gilstate.tstate_current
+#  define PyThreadState_GET() \
+             ((PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current))
+#else
+#  define PyThreadState_GET() PyThreadState_Get()
+#endif
+
+
+We cannot remove PyThreadState_GET() from the Python C API. Removing
+any function is likely going to break multiple C extensions.
+
+I don't want to change too many things at once.
+
+My first intent is to convert _PyObject_GC_TRACK() into a static
+function, not to break the Python C API :-)
+
+Victor
+
+From me at kennethreitz.org  Mon Oct 29 07:04:06 2018
+From: me at kennethreitz.org (Kenneth Reitz)
+Date: Mon, 29 Oct 2018 07:04:06 -0400
+Subject: [Python-Dev] Helping with Documentation
+Message-ID: <5bd6e8b7.1c69fb81.65540.052b@mx.google.com>
+
+Hello all,
+
+I?d like to become a core contributor to Python, by contributing polish to its documentation (adding missing pieces, modernize it a bit in spots, add more usage examples (itertools), etc).
+
+Is anyone already working on this, and if so, can I join forces with you?
+
+--
+Kenneth Reitz
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181029/7717d154/attachment.html>
+
+From brian at python.org  Mon Oct 29 12:05:45 2018
+From: brian at python.org (Brian Curtin)
+Date: Mon, 29 Oct 2018 10:05:45 -0600
+Subject: [Python-Dev] Helping with Documentation
+In-Reply-To: <5bd6e8b7.1c69fb81.65540.052b@mx.google.com>
+References: <5bd6e8b7.1c69fb81.65540.052b@mx.google.com>
+Message-ID: <CAD+XWwo4AQ9O4FATMh7RVNe2py14pKr448zmXyjWZid1ms0YvA@mail.gmail.com>
+
+On Mon, Oct 29, 2018 at 9:36 AM Kenneth Reitz <me at kennethreitz.org> wrote:
+
+> Hello all,
+>
+>
+>
+> I?d like to become a core contributor to Python, by contributing polish to
+> its documentation (adding missing pieces, modernize it a bit in spots, add
+> more usage examples (itertools), etc).
+>
+>
+>
+> Is anyone already working on this, and if so, can I join forces with you?
+>
+
+I don't know of any specific or active documentation focus right now (save
+for translation, which is mostly what doc-sig has been about lately), but
+giving the docs love has been on my todo list for quite a while now with
+tiny efforts here or there. Your general idea sounds good enough to just go
+for it and put up PRs.
+
+Feel free to add me as a reviewer?@briancurtin?and I'll help get things
+merged.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181029/d5cfb593/attachment.html>
+
+From nad at python.org  Mon Oct 29 12:34:36 2018
+From: nad at python.org (Ned Deily)
+Date: Mon, 29 Oct 2018 12:34:36 -0400
+Subject: [Python-Dev] Helping with Documentation
+In-Reply-To: <5bd6e8b7.1c69fb81.65540.052b@mx.google.com>
+References: <5bd6e8b7.1c69fb81.65540.052b@mx.google.com>
+Message-ID: <DDBC4D59-4B5F-4205-896C-49A421596B4D@python.org>
+
+On Oct 29, 2018, at 07:04, Kenneth Reitz <me at kennethreitz.org> wrote:
+> I?d like to become a core contributor to Python, by contributing polish to its documentation (adding missing pieces, modernize it a bit in spots, add more usage examples (itertools), etc).
+>  
+> Is anyone already working on this, and if so, can I join forces with you?
+
+Thanks for the offer, Kenneth, there's certain lots that could be done!  As you may know, Georg Brandl has been the Release Team documentation expert for many years, including providing Sphinx and the migration to it.  More recently, Georg has had to cut back drastically on his Python time and has given up the role.  Julian Palard has been assuming the doc expert role; he has been spearheading the overall documentation translation projects and for some time has been the go-to person for the on-line documentation system (docs.python.org).
+
+As Brian already noted, the Docs Sig is the place for docs related work.  I would suggest you contact Julian and the Docs Sig.  They can also perhaps help with some of the history of the docs and some of the issues involved in changing them.  And, if you haven't seen it already, the Python Developer's Guide contains a lot of information about helping with the documentation and becoming a core contributor.
+
+https://mail.python.org/mailman/listinfo/doc-sig
+https://devguide.python.org/docquality/
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From armin.rigo at gmail.com  Mon Oct 29 12:49:39 2018
+From: armin.rigo at gmail.com (Armin Rigo)
+Date: Mon, 29 Oct 2018 17:49:39 +0100
+Subject: [Python-Dev] short-circuiting runtime errors/exceptions in
+ python debugger.
+In-Reply-To: <20181026234806.GR3817@ando.pearwood.info>
+References: <CACQ+Ycu0=YZ695cC_q9iC9MC8SjwRqNXdb+4cYHh9+4czQYqwQ@mail.gmail.com>
+ <20181026234806.GR3817@ando.pearwood.info>
+Message-ID: <CAMSv6X1-1VPddp5bczireRioCyyGw6AzZ2qtm1x7mB0YWaJ-tg@mail.gmail.com>
+
+Hi,
+
+On Sat, 27 Oct 2018 at 01:50, Steven D'Aprano <steve at pearwood.info> wrote:
+> [...]
+> > So I was wondering if it would be possible to keep that context around
+> > if you are in the debugger and rewind the execution point to before
+> > the statement was triggered.
+>
+> I think what you are looking for is a reverse debugger[1] also known as
+> a time-travel debugger.
+
+I think it's a bit different.  A reverse debugger is here to debug
+complex conditions in a (static) program.  What Ed is looking for is a
+way to catch easy failures, fix the obviously faulty line, and
+continue running the program.
+
+Of course I can't help but mention to Ed that this is precisely the
+kind of easy failures that are found by *testing* your code,
+particularly if that's code that only runs after hours of other code
+has executed.  *Never* trust yourself to write correct code if you
+don't know that it is correct after waiting for hours.
+
+But assuming that you really, really are allergic to tests, then what
+you're looking for reminds me of long-ago Python experiments with
+resumable exceptions and patching code at runtime.  Both topics are
+abandoned now.  Resumable exceptions was a cool hack of the
+interpreter that nobody really found a use for (AFAIR); patching code
+at runtime comes with a pile of messes---it only works in the simple
+cases, but there is no general solution for that.
+
+
+A bient?t,
+
+Armin.
+
+From aixtools at felt.demon.nl  Mon Oct 29 14:51:42 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Mon, 29 Oct 2018 20:51:42 +0200
+Subject: [Python-Dev] AIX build-bots broken for 11 days
+Message-ID: <0D71CDC9-262A-4B49-A4AC-0D29888F0B7B@felt.demon.nl>
+
+a) I wish I seen this earlier, but I have been away from OSS for the last weeks as my RL job has priority.
+
+b) to answer a very different question I needed to look at the current (Always FAIL) status of the the two AIX buildbots - and I saw that 11 days ago they both started failing with the following messages:
+
+renaming build/scripts-3.8/2to3 to build/scripts-3.8/2to3-3.8
+./install-sh -c -m 644 ./Tools/gdb/libpython.py python-gdb.py
+./install-sh: not found
+make: 1254-004 The error code from the last command is 1.
+
+renaming build/scripts-3.8/2to3 to build/scripts-3.8/2to3-3.8
+./install-sh -c -m 644 ./Tools/gdb/libpython.py python-gdb.py
+make: execvp: ./install-sh: The file access permissions do not allow the specified action.
+Makefile:662: recipe for target 'python-gdb.py' failed
+
+I am quite surprised, because, afaik, gdb is not used on either of the AIX bots. 
+In any case
+
+These two runs failed in the "normal" way
+
+https://buildbot.python.org/all/#/builders/10/builds/1644/steps/4/logs/stdio
+https://buildbot.python.org/all/#/builders/161/builds/327/steps/4/logs/stdio
+And these fail during the build.
+
+https://buildbot.python.org/all/#/builders/10/builds/1645/steps/2/logs/stdio
+
+https://buildbot.python.org/all/#/builders/161/builds/328/steps/2/logs/stdio
+Help appreciated.
+
+Michael
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181029/468f4621/attachment.html>
+
+From chris.jerdonek at gmail.com  Mon Oct 29 14:59:10 2018
+From: chris.jerdonek at gmail.com (Chris Jerdonek)
+Date: Mon, 29 Oct 2018 11:59:10 -0700
+Subject: [Python-Dev] short-circuiting runtime errors/exceptions in
+ python debugger.
+In-Reply-To: <CAMSv6X1-1VPddp5bczireRioCyyGw6AzZ2qtm1x7mB0YWaJ-tg@mail.gmail.com>
+References: <CACQ+Ycu0=YZ695cC_q9iC9MC8SjwRqNXdb+4cYHh9+4czQYqwQ@mail.gmail.com>
+ <20181026234806.GR3817@ando.pearwood.info>
+ <CAMSv6X1-1VPddp5bczireRioCyyGw6AzZ2qtm1x7mB0YWaJ-tg@mail.gmail.com>
+Message-ID: <CAOTb1wfVn2Qau94KuaNgkfM5hvMZ-Ssg9S+hvOY=vqTrtd-o7w@mail.gmail.com>
+
+A simpler feature that could possibly help him (assuming there isn't any
+external state to deal with) would be the ability to save everything at a
+certain point in time, and then resume it later. He could rig things up to
+save the state e.g. after every hour: 1 hour, 2 hours, etc. Then if an
+error occurs after 2.5 hours, he could at least start resuming after 2
+hours. This could be viewed as a cheap form of a reverse debugger, because
+a reverse debugger has to save the state at every point in time, not just
+at a few select points.
+
+--Chris
+
+On Mon, Oct 29, 2018 at 9:51 AM Armin Rigo <armin.rigo at gmail.com> wrote:
+
+> Hi,
+>
+> On Sat, 27 Oct 2018 at 01:50, Steven D'Aprano <steve at pearwood.info> wrote:
+> > [...]
+> > > So I was wondering if it would be possible to keep that context around
+> > > if you are in the debugger and rewind the execution point to before
+> > > the statement was triggered.
+> >
+> > I think what you are looking for is a reverse debugger[1] also known as
+> > a time-travel debugger.
+>
+> I think it's a bit different.  A reverse debugger is here to debug
+> complex conditions in a (static) program.  What Ed is looking for is a
+> way to catch easy failures, fix the obviously faulty line, and
+> continue running the program.
+>
+> Of course I can't help but mention to Ed that this is precisely the
+> kind of easy failures that are found by *testing* your code,
+> particularly if that's code that only runs after hours of other code
+> has executed.  *Never* trust yourself to write correct code if you
+> don't know that it is correct after waiting for hours.
+>
+> But assuming that you really, really are allergic to tests, then what
+> you're looking for reminds me of long-ago Python experiments with
+> resumable exceptions and patching code at runtime.  Both topics are
+> abandoned now.  Resumable exceptions was a cool hack of the
+> interpreter that nobody really found a use for (AFAIR); patching code
+> at runtime comes with a pile of messes---it only works in the simple
+> cases, but there is no general solution for that.
+>
+>
+> A bient?t,
+>
+> Armin.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/chris.jerdonek%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181029/5263aec2/attachment.html>
+
+From storchaka at gmail.com  Mon Oct 29 15:38:49 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Mon, 29 Oct 2018 21:38:49 +0200
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+Message-ID: <pr7ng7$aag$1@blaine.gmane.org>
+
+When you try to to pickle or copy a non-pickleable object, you will get 
+an error. In most cases this will be a TypeError with one of few 
+similar, but different variants:
+
+   "can't pickle XXX objects" (default)
+   "Cannot serialize XXX object" (socket, BZ2Compressor, BZ2Decompressor)
+   "can not serialize a 'XXX' object" (buffered files in _pyio)
+   "cannot serialize 'XXX' object" (FileIO, TextWrapperIO, WinConsoleIO, 
+buffered files in _io, LZMACompressor, LZMADecompressor)
+   "cannot serialize {} object" (proposed for SSLContext)
+
+Perhaps some of them where added without deep thinking and then were 
+replicated in different places. I'm going to replace all of them with a 
+standardized error message. But I'm unsure what variant is better.
+
+1. "pickle" or "serialize"?
+
+2. "can't", "Cannot", "can not" or "cannot"?
+
+3. "object" or "objects"?
+
+4. Use the "a" article or not?
+
+5. Use quotes around type name or not?
+
+Please help me to choose the best variant.
+
+
+From vstinner at redhat.com  Mon Oct 29 15:51:34 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 29 Oct 2018 20:51:34 +0100
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <pr7ng7$aag$1@blaine.gmane.org>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+Message-ID: <CA+3bQGFmcyA9PwxK+w7mBFmfPxCBTPm_+WUJ3rQ3jFf7-5k8fQ@mail.gmail.com>
+
+Le lun. 29 oct. 2018 ? 20:42, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+> 1. "pickle" or "serialize"?
+
+serialize
+
+> 2. "can't", "Cannot", "can not" or "cannot"?
+
+cannot
+
+> 3. "object" or "objects"?
+
+object
+
+> 4. Use the "a" article or not?
+
+no: "cannot serialize xxx object" (but i'm not a native english
+speaker, so don't trust me :-))
+
+> 5. Use quotes around type name or not?
+
+Use repr() in Python, but use '%s' is C since it would be too complex
+to write code to properly implement repr() (decode tp_name from UTF-8,
+handle error, call repr, handle error, etc.).
+
+To use repr() on tp_name, I would prefer to have a new formatter, see
+the thread of last month.
+https://mail.python.org/pipermail/python-dev/2018-September/155150.html
+
+Victor
+
+From chris.jerdonek at gmail.com  Mon Oct 29 16:36:42 2018
+From: chris.jerdonek at gmail.com (Chris Jerdonek)
+Date: Mon, 29 Oct 2018 13:36:42 -0700
+Subject: [Python-Dev] short-circuiting runtime errors/exceptions in
+ python debugger.
+In-Reply-To: <CAOTb1wfVn2Qau94KuaNgkfM5hvMZ-Ssg9S+hvOY=vqTrtd-o7w@mail.gmail.com>
+References: <CACQ+Ycu0=YZ695cC_q9iC9MC8SjwRqNXdb+4cYHh9+4czQYqwQ@mail.gmail.com>
+ <20181026234806.GR3817@ando.pearwood.info>
+ <CAMSv6X1-1VPddp5bczireRioCyyGw6AzZ2qtm1x7mB0YWaJ-tg@mail.gmail.com>
+ <CAOTb1wfVn2Qau94KuaNgkfM5hvMZ-Ssg9S+hvOY=vqTrtd-o7w@mail.gmail.com>
+Message-ID: <CAOTb1wc_MQ12hPh31=BdYnnFY_tG_nYs3C7SMsc5g4ry4LcVBA@mail.gmail.com>
+
+I have another idea on this. What about the idea of starting the program,
+and then a few minutes later, starting the same program a second time. If
+the first program errors, you could examine the second one which is a
+little bit behind. Before starting the second one, perhaps you could even
+make a copy of the second one and pause it for a few minutes before
+restarting, in case the second one also errors out, and so on. This would
+be more useful only in the case of deterministic errors.
+
+--Chris
+
+
+On Mon, Oct 29, 2018 at 11:59 AM Chris Jerdonek <chris.jerdonek at gmail.com>
+wrote:
+
+> A simpler feature that could possibly help him (assuming there isn't any
+> external state to deal with) would be the ability to save everything at a
+> certain point in time, and then resume it later. He could rig things up to
+> save the state e.g. after every hour: 1 hour, 2 hours, etc. Then if an
+> error occurs after 2.5 hours, he could at least start resuming after 2
+> hours. This could be viewed as a cheap form of a reverse debugger, because
+> a reverse debugger has to save the state at every point in time, not just
+> at a few select points.
+>
+> --Chris
+>
+> On Mon, Oct 29, 2018 at 9:51 AM Armin Rigo <armin.rigo at gmail.com> wrote:
+>
+>> Hi,
+>>
+>> On Sat, 27 Oct 2018 at 01:50, Steven D'Aprano <steve at pearwood.info>
+>> wrote:
+>> > [...]
+>> > > So I was wondering if it would be possible to keep that context around
+>> > > if you are in the debugger and rewind the execution point to before
+>> > > the statement was triggered.
+>> >
+>> > I think what you are looking for is a reverse debugger[1] also known as
+>> > a time-travel debugger.
+>>
+>> I think it's a bit different.  A reverse debugger is here to debug
+>> complex conditions in a (static) program.  What Ed is looking for is a
+>> way to catch easy failures, fix the obviously faulty line, and
+>> continue running the program.
+>>
+>> Of course I can't help but mention to Ed that this is precisely the
+>> kind of easy failures that are found by *testing* your code,
+>> particularly if that's code that only runs after hours of other code
+>> has executed.  *Never* trust yourself to write correct code if you
+>> don't know that it is correct after waiting for hours.
+>>
+>> But assuming that you really, really are allergic to tests, then what
+>> you're looking for reminds me of long-ago Python experiments with
+>> resumable exceptions and patching code at runtime.  Both topics are
+>> abandoned now.  Resumable exceptions was a cool hack of the
+>> interpreter that nobody really found a use for (AFAIR); patching code
+>> at runtime comes with a pile of messes---it only works in the simple
+>> cases, but there is no general solution for that.
+>>
+>>
+>> A bient?t,
+>>
+>> Armin.
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/chris.jerdonek%40gmail.com
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181029/2777c2c1/attachment.html>
+
+From barry at python.org  Mon Oct 29 16:39:48 2018
+From: barry at python.org (Barry Warsaw)
+Date: Mon, 29 Oct 2018 13:39:48 -0700
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <CA+3bQGFmcyA9PwxK+w7mBFmfPxCBTPm_+WUJ3rQ3jFf7-5k8fQ@mail.gmail.com>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <CA+3bQGFmcyA9PwxK+w7mBFmfPxCBTPm_+WUJ3rQ3jFf7-5k8fQ@mail.gmail.com>
+Message-ID: <34230461-5D52-4DBA-A824-0876E66681F0@python.org>
+
+On Oct 29, 2018, at 12:51, Victor Stinner <vstinner at redhat.com> wrote:
+> 
+>> 4. Use the "a" article or not?
+> 
+> no: "cannot serialize xxx object" (but i'm not a native english
+> speaker, so don't trust me :-))
+
+It should be fine to leave off the indefinite article.
+
+> 
+>> 5. Use quotes around type name or not?
+
+Ideally yes, if it?s easy to implement.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181029/c4f73a8d/attachment-0001.sig>
+
+From aixtools at felt.demon.nl  Mon Oct 29 16:40:32 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Mon, 29 Oct 2018 22:40:32 +0200
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+Message-ID: <76EEC6C3-1DDD-4AD7-8215-211BDE42F4E9@felt.demon.nl>
+
+My short comment: +1
+
+My longer comment: for someone who is not trying to be caught up in "internals" I find it extremely difficult to work with the "default" approach described below - trying to mentally understand, and remember what those macros mean/do as I got "bug-hunting".
+
+Ultimately, have a clear-cut division between "public" and "internal" make it much much easier for "the rest of us" to know our boundaries and thereby develop code that is based on the "published" aka public API and not a (guess what I found) internal trick. Isn?t that why there is a "public" API to begin with.
+
+Where, or how the separation is provided is not the key issue. But being committed to it is, and this sounds like a step towards commitment and clarity.
+
+> On 10/28/2018 6:20 PM, Victor Stinner wrote:
+> IMHO the current design of header files is done backward: by default,
+> everything is public. To exclude an API from core or stable, "#ifdef
+> Py_BUILD_CORE" and "#ifndef Py_LIMITED_API" are used. This design
+> caused issues in the past: functions, variables or something else
+> exposed whereas they were supposed to be "private".
+> 
+> I propose a practical solution for that: Include/*.h files would only
+> be be public API. The "core" API would live in a new subdirectory:
+> Include/pycore/*.h. Moreover, files of this subdirectory would have
+> the prefix "pycore_". For example, Include/objimpl.h would have a
+> twin: Include/pycore/pycore_objimpl.h which extend the public API with
+> "core" APIs.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181029/ff3916da/attachment.html>
+
+From v+python at g.nevcal.com  Mon Oct 29 16:05:58 2018
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Mon, 29 Oct 2018 13:05:58 -0700
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <CA+3bQGFmcyA9PwxK+w7mBFmfPxCBTPm_+WUJ3rQ3jFf7-5k8fQ@mail.gmail.com>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <CA+3bQGFmcyA9PwxK+w7mBFmfPxCBTPm_+WUJ3rQ3jFf7-5k8fQ@mail.gmail.com>
+Message-ID: <55302dbe-e2fc-dacb-ae03-8c25130ac404@g.nevcal.com>
+
+On 10/29/2018 12:51 PM, Victor Stinner wrote:
+> Le lun. 29 oct. 2018 ? 20:42, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+>> 1. "pickle" or "serialize"?
+> serialize
+>
+>> 2. "can't", "Cannot", "can not" or "cannot"?
+> cannot
+>
+>> 3. "object" or "objects"?
+> object
+>
+>> 4. Use the "a" article or not?
+> no: "cannot serialize xxx object" (but i'm not a native english
+> speaker, so don't trust me :-))
+
+Cannot serialize an object of type 'XXX'
+
+>
+>> 5. Use quotes around type name or not?
+> Use repr() in Python, but use '%s' is C since it would be too complex
+> to write code to properly implement repr() (decode tp_name from UTF-8,
+> handle error, call repr, handle error, etc.).
+>
+> To use repr() on tp_name, I would prefer to have a new formatter, see
+> the thread of last month.
+> https://mail.python.org/pipermail/python-dev/2018-September/155150.html
+>
+> Victor
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/v%2Bpython%40g.nevcal.com
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181029/0383adfe/attachment.html>
+
+From python at mrabarnett.plus.com  Mon Oct 29 17:17:12 2018
+From: python at mrabarnett.plus.com (MRAB)
+Date: Mon, 29 Oct 2018 21:17:12 +0000
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <pr7ng7$aag$1@blaine.gmane.org>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+Message-ID: <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+
+On 2018-10-29 19:38, Serhiy Storchaka wrote:
+> When you try to to pickle or copy a non-pickleable object, you will get
+> an error. In most cases this will be a TypeError with one of few
+> similar, but different variants:
+> 
+>     "can't pickle XXX objects" (default)
+>     "Cannot serialize XXX object" (socket, BZ2Compressor, BZ2Decompressor)
+>     "can not serialize a 'XXX' object" (buffered files in _pyio)
+>     "cannot serialize 'XXX' object" (FileIO, TextWrapperIO, WinConsoleIO,
+> buffered files in _io, LZMACompressor, LZMADecompressor)
+>     "cannot serialize {} object" (proposed for SSLContext)
+> 
+> Perhaps some of them where added without deep thinking and then were
+> replicated in different places. I'm going to replace all of them with a
+> standardized error message. But I'm unsure what variant is better.
+> 
+> 1. "pickle" or "serialize"?
+> 
+> 2. "can't", "Cannot", "can not" or "cannot"?
+> 
+> 3. "object" or "objects"?
+> 
+> 4. Use the "a" article or not?
+> 
+> 5. Use quotes around type name or not?
+> 
+> Please help me to choose the best variant.
+> 
+1. If you're pickling, then saying "pickle" is more helpful.
+
+2. In English the usual long form is "cannot". Error messages tend to 
+avoid abbreviations, and also tend to have lowercase after the colon, e.g.:
+
+     "ZeroDivisionError: division by zero"
+
+     "ValueError: invalid literal for int() with base 10: 'foo'"
+
+3. If it's failing on an object (singular), then it's clearer to say 
+"object".
+
+4. Articles tend to be omitted.
+
+5. Error messages tend to have quotes around the type name.
+
+Therefore, my preference is for:
+
+     "cannot pickle 'XXX' object"
+
+From horos22 at gmail.com  Mon Oct 29 17:35:36 2018
+From: horos22 at gmail.com (Ed Peschko)
+Date: Mon, 29 Oct 2018 14:35:36 -0700
+Subject: [Python-Dev] short-circuiting runtime errors/exceptions in the
+ python debugger.
+Message-ID: <CACQ+YcuBVCWeDLzodahVGkazSqDn-yOLbcFC=sXyhxoMzWq-8A@mail.gmail.com>
+
+Steve,
+
+thanks for the response, and yes, I've experimented with reverse
+debugging, and yes for the reasons specified in that article you gave
+it isn't really practical with anything but small projects because of
+the massive amounts of memory usage.
+
+But that's really not what I'm asking for here. I'm simply asking that
+python give developers the opportunity to stop execution and open up a
+debugger *before* the exception is hit, and be able to instrument the
+code at that point using that debugger.
+
+The way that I mimic this in perl is by wrapping places where die,
+confess, croak, AUTOLOAD, etc are hit with something that looks like
+this:
+
+sub _confess
+{
+    $DB::single = 1;
+    my $trap = 1;
+    if ($trap)
+    {
+        confess(@_);
+    }
+}
+
+that way, I can short-circuit evals before they happen and save the
+state to both examine and modify.
+
+It's a hack, but it's a manageable hack since there are only so many
+places where things can go off the rails in perl, and I cover each
+exit. I can set $trap = 0 and lo-and-behold it will continue as if no
+trap was issued.
+
+Now, if there is global reverse debugging implemented in python, this
+has got to be doable as well. I'd dare say it could be done with very
+little overhead in memory.
+
+> You know you can set breakpoints in the debugger? You don't have to
+> single-step all the way through from the beginning. It isn't clear from
+> your post how experienced you are.
+
+ok just to be on the totally clear side, yes I'm quite aware of
+pdb.set_trace(), etc.
+
+They however don't do much to help the pain of debugging and
+maintaining code which is *not your own*. For all good they are, you
+might as well step through each line because you have no clue where
+the mines in a particular script or library reside, and when you are
+going to hit them.
+
+And of course depending on how good the debugging implementation is,
+when you hit these mines they may be well-nigh impossible to remove
+without something like this.
+
+Which btw is the main reason WHY I'm asking for this, and this is why
+I think it would be such a productivity booster. Not for my code which
+I control, but for others.
+
+
+I'll take one particular experience here to make my point. I've been
+experimenting with an automation framework written in python here that
+shall otherwise remain nameless (except it is a fairly popular one).
+
+Its ssh layer is *notoriously* obtuse, it freezes up on multiple
+occasions,the support lists are clogged with issues surrounding it,
+yet release-after-release things don't get fixed. Why? I'd argue
+because the code is hard to parse but even harder to debug. Having
+something like this would be a great boon to fixing any such issues.
+
+So that's basically it.
+
+No - I'm not looking for a full-blown reverse debugger for the reasons
+you state. I'm looking for something more limited and therefore more
+workable.
+
+Ed
+
+From tjreedy at udel.edu  Mon Oct 29 17:58:32 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Mon, 29 Oct 2018 17:58:32 -0400
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+Message-ID: <pr7vm7$f5g$1@blaine.gmane.org>
+
+On 10/29/2018 5:17 PM, MRAB wrote:
+> On 2018-10-29 19:38, Serhiy Storchaka wrote:
+>> When you try to to pickle or copy a non-pickleable object, you will get
+>> an error. In most cases this will be a TypeError with one of few
+>> similar, but different variants:
+>>
+>> ??? "can't pickle XXX objects" (default)
+>> ??? "Cannot serialize XXX object" (socket, BZ2Compressor, 
+>> BZ2Decompressor)
+>> ??? "can not serialize a 'XXX' object" (buffered files in _pyio)
+>> ??? "cannot serialize 'XXX' object" (FileIO, TextWrapperIO, WinConsoleIO,
+>> buffered files in _io, LZMACompressor, LZMADecompressor)
+>> ??? "cannot serialize {} object" (proposed for SSLContext)
+>>
+>> Perhaps some of them where added without deep thinking and then were
+>> replicated in different places. I'm going to replace all of them with a
+>> standardized error message.
+
+Great idea.
+
+>> But I'm unsure what variant is better.
+>>
+>> 1. "pickle" or "serialize"?
+>>
+>> 2. "can't", "Cannot", "can not" or "cannot"?
+>>
+>> 3. "object" or "objects"?
+>>
+>> 4. Use the "a" article or not?
+>>
+>> 5. Use quotes around type name or not?
+>>
+>> Please help me to choose the best variant.
+>>
+> 1. If you're pickling, then saying "pickle" is more helpful.
+> 
+> 2. In English the usual long form is "cannot". Error messages tend to 
+> avoid abbreviations,
+
+Agree x 3
+
+> and also tend to have lowercase after the colon, e.g.:
+> 
+>  ??? "ZeroDivisionError: division by zero"
+> 
+>  ??? "ValueError: invalid literal for int() with base 10: 'foo'"
+
+I had not noticed, but
+
+IndexError: list index out of range
+NameError: name 'sqrt' is not defined
+
+> 3. If it's failing on an object (singular), then it's clearer to say 
+> "object".
+> 
+> 4. Articles tend to be omitted.
+
+Grammatically, the two examples above could/should start with 'The'. 
+But that is routinely omitted.  Matching a/an to 'xxx' would be a 
+terrible nuisance.  "a 'str'" (a string)?, "an 'str'" (an ess tee ar)?
+
+
+> 5. Error messages tend to have quotes around the type name.
+> 
+> Therefore, my preference is for:
+> 
+>  ??? "cannot pickle 'XXX' object"
++1
+
+-- 
+Terry Jan Reedy
+
+
+
+From greg.ewing at canterbury.ac.nz  Mon Oct 29 18:07:00 2018
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Tue, 30 Oct 2018 11:07:00 +1300
+Subject: [Python-Dev] short-circuiting runtime errors/exceptions in
+ python debugger.
+In-Reply-To: <CAMSv6X1-1VPddp5bczireRioCyyGw6AzZ2qtm1x7mB0YWaJ-tg@mail.gmail.com>
+References: <CACQ+Ycu0=YZ695cC_q9iC9MC8SjwRqNXdb+4cYHh9+4czQYqwQ@mail.gmail.com>
+ <20181026234806.GR3817@ando.pearwood.info>
+ <CAMSv6X1-1VPddp5bczireRioCyyGw6AzZ2qtm1x7mB0YWaJ-tg@mail.gmail.com>
+Message-ID: <5BD78484.3050208@canterbury.ac.nz>
+
+When I have a bug that only happens after hours of run
+time, I try to find a much shorter test case that reproduces
+it.
+
+-- 
+Greg
+
+From steve at pearwood.info  Mon Oct 29 18:08:32 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Tue, 30 Oct 2018 09:08:32 +1100
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+Message-ID: <20181029220832.GZ3817@ando.pearwood.info>
+
+On Mon, Oct 29, 2018 at 09:17:12PM +0000, MRAB wrote:
+
+> Therefore, my preference is for:
+> 
+>     "cannot pickle 'XXX' object"
+
++1
+
+I completely concur with MRAB. 
+
+
+-- 
+Steve
+
+From steve at pearwood.info  Mon Oct 29 18:21:10 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Tue, 30 Oct 2018 09:21:10 +1100
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <CA+3bQGFmcyA9PwxK+w7mBFmfPxCBTPm_+WUJ3rQ3jFf7-5k8fQ@mail.gmail.com>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <CA+3bQGFmcyA9PwxK+w7mBFmfPxCBTPm_+WUJ3rQ3jFf7-5k8fQ@mail.gmail.com>
+Message-ID: <20181029222110.GA3817@ando.pearwood.info>
+
+On Mon, Oct 29, 2018 at 08:51:34PM +0100, Victor Stinner wrote:
+> Le lun. 29 oct. 2018 ? 20:42, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+> > 1. "pickle" or "serialize"?
+> 
+> serialize
+
+-1
+
+Serializing is more general; pickle is merely one form of serializing:
+
+https://en.wikipedia.org/wiki/Comparison_of_data_serialization_formats
+
+When practical, error messages should be more specific, not less. We 
+don't say "arithmetic operation by zero" for division by zero errors, we 
+specify which arithmetic operation failed.
+
+Unlike most serialization formats, "pickle" is both a noun (the name of 
+the format) and the verb to convert to that format.
+
+
+-- 
+Steve
+
+From njs at pobox.com  Mon Oct 29 20:09:22 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Mon, 29 Oct 2018 17:09:22 -0700
+Subject: [Python-Dev] short-circuiting runtime errors/exceptions in
+ python debugger.
+In-Reply-To: <CAOTb1wfVn2Qau94KuaNgkfM5hvMZ-Ssg9S+hvOY=vqTrtd-o7w@mail.gmail.com>
+References: <CACQ+Ycu0=YZ695cC_q9iC9MC8SjwRqNXdb+4cYHh9+4czQYqwQ@mail.gmail.com>
+ <20181026234806.GR3817@ando.pearwood.info>
+ <CAMSv6X1-1VPddp5bczireRioCyyGw6AzZ2qtm1x7mB0YWaJ-tg@mail.gmail.com>
+ <CAOTb1wfVn2Qau94KuaNgkfM5hvMZ-Ssg9S+hvOY=vqTrtd-o7w@mail.gmail.com>
+Message-ID: <CAPJVwBmtVXJ0t5dmdASeReJhHAE7-mn_vvd=zWmXmX3jm=6wfQ@mail.gmail.com>
+
+On Mon, Oct 29, 2018 at 11:59 AM, Chris Jerdonek
+<chris.jerdonek at gmail.com> wrote:
+> A simpler feature that could possibly help him (assuming there isn't any
+> external state to deal with) would be the ability to save everything at a
+> certain point in time, and then resume it later. He could rig things up to
+> save the state e.g. after every hour: 1 hour, 2 hours, etc. Then if an error
+> occurs after 2.5 hours, he could at least start resuming after 2 hours. This
+> could be viewed as a cheap form of a reverse debugger, because a reverse
+> debugger has to save the state at every point in time, not just at a few
+> select points.
+
+That's very difficult to implement without help from the operating
+system, but there is prior art...
+
+On Unix, you can use fork() as a hacky way to do this ? fork() off a
+process every once and a while, and have the children enter some kind
+of loop waiting for instructions (continue / enter debugger / exit /
+...).
+
+Or, on Linux, there's: https://www.criu.org/
+
+I also wonder if it would be useful to give pdb the ability to break
+when an exception is *raised*, rather than when it's caught?
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From rosuav at gmail.com  Mon Oct 29 20:27:02 2018
+From: rosuav at gmail.com (Chris Angelico)
+Date: Tue, 30 Oct 2018 11:27:02 +1100
+Subject: [Python-Dev] short-circuiting runtime errors/exceptions in
+ python debugger.
+In-Reply-To: <CAPJVwBmtVXJ0t5dmdASeReJhHAE7-mn_vvd=zWmXmX3jm=6wfQ@mail.gmail.com>
+References: <CACQ+Ycu0=YZ695cC_q9iC9MC8SjwRqNXdb+4cYHh9+4czQYqwQ@mail.gmail.com>
+ <20181026234806.GR3817@ando.pearwood.info>
+ <CAMSv6X1-1VPddp5bczireRioCyyGw6AzZ2qtm1x7mB0YWaJ-tg@mail.gmail.com>
+ <CAOTb1wfVn2Qau94KuaNgkfM5hvMZ-Ssg9S+hvOY=vqTrtd-o7w@mail.gmail.com>
+ <CAPJVwBmtVXJ0t5dmdASeReJhHAE7-mn_vvd=zWmXmX3jm=6wfQ@mail.gmail.com>
+Message-ID: <CAPTjJmrWxL1JM-pQPmoCxmXJsKFN3C5W5svGY=XD5pt1ryGNhg@mail.gmail.com>
+
+On Tue, Oct 30, 2018 at 11:10 AM Nathaniel Smith <njs at pobox.com> wrote:
+> I also wonder if it would be useful to give pdb the ability to break
+> when an exception is *raised*, rather than when it's caught?
+
+This is veering into python-ideas territory (or even python-list), but
+the first big concern that comes to my mind is that there are a LOT of
+places where exceptions are raised, and many of those exceptions end
+up being used for perfectly-normal flow control. So this would
+potentially add even more overhead to the raising of exceptions -
+basically, you have to retain state as if you're suspending a
+generator. But it'd be an extremely cool concept. Exceptions already
+snapshot all their locals, and this would just expand on that a bit.
+
+ChrisA
+
+From v+python at g.nevcal.com  Mon Oct 29 20:26:42 2018
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Mon, 29 Oct 2018 17:26:42 -0700
+Subject: [Python-Dev] short-circuiting runtime errors/exceptions in
+ python debugger.
+In-Reply-To: <5BD78484.3050208@canterbury.ac.nz>
+References: <CACQ+Ycu0=YZ695cC_q9iC9MC8SjwRqNXdb+4cYHh9+4czQYqwQ@mail.gmail.com>
+ <20181026234806.GR3817@ando.pearwood.info>
+ <CAMSv6X1-1VPddp5bczireRioCyyGw6AzZ2qtm1x7mB0YWaJ-tg@mail.gmail.com>
+ <5BD78484.3050208@canterbury.ac.nz>
+Message-ID: <09b85aa4-1016-858e-1aff-8ef1b103b005@g.nevcal.com>
+
+On 10/29/2018 3:07 PM, Greg Ewing wrote:
+> When I have a bug that only happens after hours of run
+> time, I try to find a much shorter test case that reproduces
+> it.
+>
+Mmm. Yeah.? But that's often a guessing game, with a low chance of success.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181029/75476e86/attachment-0001.html>
+
+From python at mrabarnett.plus.com  Mon Oct 29 20:42:55 2018
+From: python at mrabarnett.plus.com (MRAB)
+Date: Tue, 30 Oct 2018 00:42:55 +0000
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <20181029222110.GA3817@ando.pearwood.info>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <CA+3bQGFmcyA9PwxK+w7mBFmfPxCBTPm_+WUJ3rQ3jFf7-5k8fQ@mail.gmail.com>
+ <20181029222110.GA3817@ando.pearwood.info>
+Message-ID: <b1fc19ce-6c73-fa35-57e1-bd9b6180c971@mrabarnett.plus.com>
+
+On 2018-10-29 22:21, Steven D'Aprano wrote:
+> On Mon, Oct 29, 2018 at 08:51:34PM +0100, Victor Stinner wrote:
+>> Le lun. 29 oct. 2018 ? 20:42, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+>> > 1. "pickle" or "serialize"?
+>> 
+>> serialize
+> 
+> -1
+> 
+> Serializing is more general; pickle is merely one form of serializing:
+> 
+> https://en.wikipedia.org/wiki/Comparison_of_data_serialization_formats
+> 
+> When practical, error messages should be more specific, not less. We
+> don't say "arithmetic operation by zero" for division by zero errors, we
+> specify which arithmetic operation failed.
+> 
+> Unlike most serialization formats, "pickle" is both a noun (the name of
+> the format) and the verb to convert to that format.
+> 
+And if you're marshalling, then saying "marshal" is more helpful.
+
+From benjamin at python.org  Mon Oct 29 21:59:29 2018
+From: benjamin at python.org (Benjamin Peterson)
+Date: Mon, 29 Oct 2018 18:59:29 -0700
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGGJTom5=a0VAe8dHpvUP5KPO219G7zdUKwuDX-VGm4THA@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+ <CA+3bQGGkUMPOfy_7_O3YC0i4tMx-gTwt7tb89fGhvJ3xuVLhjQ@mail.gmail.com>
+ <1540791122.3282066.1557851872.38471E47@webmail.messagingengine.com>
+ <CA+3bQGGJTom5=a0VAe8dHpvUP5KPO219G7zdUKwuDX-VGm4THA@mail.gmail.com>
+Message-ID: <1540864769.232050.1559074016.633A5E14@webmail.messagingengine.com>
+
+
+
+On Mon, Oct 29, 2018, at 05:38, Victor Stinner wrote:
+> Le lun. 29 oct. 2018 ? 06:32, Benjamin Peterson <benjamin at python.org> a ?crit :
+> > > My overall approach is to make sure that we don't leak functions by
+> > > mistakes into the public API or into the stable API anymore. For
+> > > example, if a function is really for the core, put it in pycore/. It
+> > > will be more explicit when reviewing a change for example.
+> >
+> > How does the current Include/internal/ directory fail at accomplishing your goal?
+> 
+> Hum, let me understand how I came into this issue. I tried to convert
+> _PyObject_GC_TRACK() macro to a static inline function. The macro uses
+> "_PyGC_generation0" which is defined earlier as: "extern PyGC_Head
+> *_PyGC_generation0;". Problem: this symbol has been removed when Eric
+> Snow moved it into _PyRuntime which contains "#define
+> _PyGC_generation0 _PyRuntime.gc.generation0".
+> 
+> Hum, how is possible that _PyObject_GC_TRACK() of objimpl.h works as expected?
+> 
+> It seems like all C file using this macro explicitly uses #include
+> "internal/pystate.h" which uses #include "internal/mem.h". Oh.
+> 
+> To me, it seems wrong that a function or macro defined in
+> Include/objimpl.h requires an explicit #include "internal/pystate.h".
+> objimpl.h should be self-sufficient.
+
+I agree. I would say nothing in Include/*.h should be including Include/internal/*.h. We should move things into the "public" headers as required to fix this.
+
+> 
+> I started to hack Include/internals/*.h, but then I have been traped
+> by #include which is relative: an include from Include/internals/
+> first looks for the included file in Include/internals/. It means that
+> Include/internals/mem.h cannot include Include/objimpl.h if
+> Include/internals/objimpl.h also exists.
+
+Yeah, that's unfortunate. I suppose you could use <> includes.
+
+> 
+> Well, I would like to reorganize all these headers to make them more
+> consistent, and converting macros to static inline functions force me
+> to fix dependencies between header files.
+
+How does the your /pycore/ proposal fix this?
+
+From nad at python.org  Mon Oct 29 23:04:23 2018
+From: nad at python.org (Ned Deily)
+Date: Mon, 29 Oct 2018 23:04:23 -0400
+Subject: [Python-Dev] Julien Palard joins the Python Release Team as
+ Documentation Expert
+Message-ID: <FE7DDD3F-6D96-4552-BF66-282A1057F6B2@python.org>
+
+https://discuss.python.org/t/julien-palard-joins-the-python-release-team-as-documentation-expert/313
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From steve.dower at python.org  Mon Oct 29 23:40:36 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 29 Oct 2018 20:40:36 -0700
+Subject: [Python-Dev] short-circuiting runtime errors/exceptions in
+ python debugger.
+In-Reply-To: <CAPJVwBmtVXJ0t5dmdASeReJhHAE7-mn_vvd=zWmXmX3jm=6wfQ@mail.gmail.com>
+References: <CACQ+Ycu0=YZ695cC_q9iC9MC8SjwRqNXdb+4cYHh9+4czQYqwQ@mail.gmail.com>
+ <20181026234806.GR3817@ando.pearwood.info>
+ <CAMSv6X1-1VPddp5bczireRioCyyGw6AzZ2qtm1x7mB0YWaJ-tg@mail.gmail.com>
+ <CAOTb1wfVn2Qau94KuaNgkfM5hvMZ-Ssg9S+hvOY=vqTrtd-o7w@mail.gmail.com>
+ <CAPJVwBmtVXJ0t5dmdASeReJhHAE7-mn_vvd=zWmXmX3jm=6wfQ@mail.gmail.com>
+Message-ID: <83f74809-946f-386f-d5ad-a9c5b036e793@python.org>
+
+On 29Oct2018 1709, Nathaniel Smith wrote:
+> I also wonder if it would be useful to give pdb the ability to break
+> when an exception is *raised*, rather than when it's caught?
+
+This is basically the first feature I implemented as an intern at
+Microsoft back in 2011 :) (for Visual Studio's Python debugger)
+
+It should be in the ptvsd and PyDev.Debugger packages, so any IDEs that
+use those for debugging will support it (though it's not my
+implementation any more, as far as I know).
+
+Specifically, breaking on an exception is trivial, but filtering out the
+cases that have handlers on the stack is nearly impossible. We got close
+enough with looking at the AST of each caller that we didn't try any
+harder than that. If you know *where* you're expecting the exception,
+you could even filter on line number and then break when that line is on
+the stack but before unwinding.
+
+Cheers,
+Steve
+
+From aixtools at felt.demon.nl  Tue Oct 30 02:08:13 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Tue, 30 Oct 2018 08:08:13 +0200
+Subject: [Python-Dev] Custom AIX build last week...
+Message-ID: <03AAB140-1B66-4FBF-A952-843A2F1BD7C6@felt.demon.nl>
+
+I noticed that there was a "custom" build queued for my AIX build-bot last week. (https://buildbot.python.org/all/#/builders/159/builds/1).
+
+It failed, but I hope that was due to the issue with install.sh.
+
+If it could be run again - and if it fails again, please let me know what the test was, and I'll look at it on my server manually.
+
+If it succeeds - I would also appreciate a heads-up!
+
+Thanks,
+
+Michael
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181030/d4d57d4c/attachment.html>
+
+From aixtools at felt.demon.nl  Tue Oct 30 02:39:43 2018
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Tue, 30 Oct 2018 08:39:43 +0200
+Subject: [Python-Dev] Custom AIX build last week...
+In-Reply-To: <03AAB140-1B66-4FBF-A952-843A2F1BD7C6@felt.demon.nl>
+References: <03AAB140-1B66-4FBF-A952-843A2F1BD7C6@felt.demon.nl>
+Message-ID: <CFF73706-3697-42FB-B646-0A71E97B5145@felt.demon.nl>
+
+I did a bit of digging and it seems this is related to issue35059, and something about "inline" processing.
+
+Besides learning how to clone a PR manually (which I will need to do) - what are you hoping to find? As my bot is not using gcc ( but xlc) I could look at manually compiling a single file and add some extra flags (-qsource or -qlist) which generates a .lst file and shows what the compiler did (macro expansion, etc..)
+
+If you would like me to attempt this - just let me know. Although it may take 24 hours from that request before I can fulfill it.
+
+Regards,
+
+Michael
+
+> On 10/30/2018 8:08 AM, Michael Felt wrote:
+> I noticed that there was a "custom" build queued for my AIX build-bot last week. (https://buildbot.python.org/all/#/builders/159/builds/1).
+> 
+> It failed, but I hope that was due to the issue with install.sh.
+> 
+> If it could be run again - and if it fails again, please let me know what the test was, and I'll look at it on my server manually.
+> 
+> If it succeeds - I would also appreciate a heads-up!
+> 
+> Thanks,
+> 
+> Michael
+> 
+> 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/aixtools%40felt.demon.nl
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181030/339eb625/attachment.html>
+
