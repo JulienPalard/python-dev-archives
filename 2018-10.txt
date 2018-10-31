@@ -14442,3 +14442,278 @@ Michael
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181030/339eb625/attachment.html>
 
+From christian at python.org  Tue Oct 30 03:48:07 2018
+From: christian at python.org (Christian Heimes)
+Date: Tue, 30 Oct 2018 08:48:07 +0100
+Subject: [Python-Dev] Julien Palard joins the Python Release Team as
+ Documentation Expert
+In-Reply-To: <FE7DDD3F-6D96-4552-BF66-282A1057F6B2@python.org>
+References: <FE7DDD3F-6D96-4552-BF66-282A1057F6B2@python.org>
+Message-ID: <24aa8435-c457-da3e-e98a-41f8a75d669a@python.org>
+
+On 30/10/2018 04.04, Ned Deily wrote:
+> https://discuss.python.org/t/julien-palard-joins-the-python-release-team-as-documentation-expert/313
+
+Welcome on board, Julien!
+
+Thank you very much for helping out.
+
+
+From storchaka at gmail.com  Tue Oct 30 04:12:45 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Tue, 30 Oct 2018 10:12:45 +0200
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+Message-ID: <ead58bb6-0360-186f-56e4-f165a535d186@gmail.com>
+
+29.10.18 23:17, MRAB ????:
+> 1. If you're pickling, then saying "pickle" is more helpful.
+> 
+> 2. In English the usual long form is "cannot". Error messages tend to 
+> avoid abbreviations, and also tend to have lowercase after the colon, e.g.:
+> 
+>  ??? "ZeroDivisionError: division by zero"
+> 
+>  ??? "ValueError: invalid literal for int() with base 10: 'foo'"
+> 
+> 3. If it's failing on an object (singular), then it's clearer to say 
+> "object".
+> 
+> 4. Articles tend to be omitted.
+> 
+> 5. Error messages tend to have quotes around the type name.
+> 
+> Therefore, my preference is for:
+> 
+>  ??? "cannot pickle 'XXX' object"
+
+Thank you Matthew, I'll use your variant.
+
+Will something change the fact that in all these cases the pickling will 
+be failed not just for specific object, but for all instances of the 
+specified type?
+
+From storchaka at gmail.com  Tue Oct 30 04:12:45 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Tue, 30 Oct 2018 10:12:45 +0200
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+Message-ID: <ead58bb6-0360-186f-56e4-f165a535d186@gmail.com>
+
+29.10.18 23:17, MRAB ????:
+> 1. If you're pickling, then saying "pickle" is more helpful.
+> 
+> 2. In English the usual long form is "cannot". Error messages tend to 
+> avoid abbreviations, and also tend to have lowercase after the colon, e.g.:
+> 
+>  ??? "ZeroDivisionError: division by zero"
+> 
+>  ??? "ValueError: invalid literal for int() with base 10: 'foo'"
+> 
+> 3. If it's failing on an object (singular), then it's clearer to say 
+> "object".
+> 
+> 4. Articles tend to be omitted.
+> 
+> 5. Error messages tend to have quotes around the type name.
+> 
+> Therefore, my preference is for:
+> 
+>  ??? "cannot pickle 'XXX' object"
+
+Thank you Matthew, I'll use your variant.
+
+Will something change the fact that in all these cases the pickling will 
+be failed not just for specific object, but for all instances of the 
+specified type?
+
+
+From vstinner at redhat.com  Tue Oct 30 05:52:52 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 30 Oct 2018 10:52:52 +0100
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+Message-ID: <CA+3bQGH2i0Y+VOTws++063n=uhmuerZqqBvE-uqCaVS8Jce2fA@mail.gmail.com>
+
+Le lun. 29 oct. 2018 ? 22:20, MRAB <python at mrabarnett.plus.com> a ?crit :
+> 1. If you're pickling, then saying "pickle" is more helpful.
+
+I'm not sure that it's really possible to know if the error occurs
+while pickle is trying to serialize an object, or if it's a different
+serialization protocol. We are talking about the very generic
+__getstate__() method. I'm in favor of being more general and say
+"cannot serialize".
+
+Victor
+
+From vstinner at redhat.com  Tue Oct 30 07:38:48 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 30 Oct 2018 12:38:48 +0100
+Subject: [Python-Dev] Custom AIX build last week...
+In-Reply-To: <03AAB140-1B66-4FBF-A952-843A2F1BD7C6@felt.demon.nl>
+References: <03AAB140-1B66-4FBF-A952-843A2F1BD7C6@felt.demon.nl>
+Message-ID: <CA+3bQGFrDVj_gM1ciTaF5-GtGFv1Q0w-sFQ1eCOqXo2dkV8ZKQ@mail.gmail.com>
+
+I used a custom build to check if a fix repaired a buildbot. It's
+unrelated to AIX, but inlining on Visual Studio in Debug mode, so
+specific to Windows.
+
+Victor
+Le mar. 30 oct. 2018 ? 07:11, Michael Felt <aixtools at felt.demon.nl> a ?crit :
+>
+> I noticed that there was a "custom" build queued for my AIX build-bot last week. (https://buildbot.python.org/all/#/builders/159/builds/1).
+>
+> It failed, but I hope that was due to the issue with install.sh.
+>
+> If it could be run again - and if it fails again, please let me know what the test was, and I'll look at it on my server manually.
+>
+> If it succeeds - I would also appreciate a heads-up!
+>
+> Thanks,
+>
+> Michael
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+From vstinner at redhat.com  Tue Oct 30 10:45:36 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 30 Oct 2018 15:45:36 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <1540864769.232050.1559074016.633A5E14@webmail.messagingengine.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+ <CA+3bQGGkUMPOfy_7_O3YC0i4tMx-gTwt7tb89fGhvJ3xuVLhjQ@mail.gmail.com>
+ <1540791122.3282066.1557851872.38471E47@webmail.messagingengine.com>
+ <CA+3bQGGJTom5=a0VAe8dHpvUP5KPO219G7zdUKwuDX-VGm4THA@mail.gmail.com>
+ <1540864769.232050.1559074016.633A5E14@webmail.messagingengine.com>
+Message-ID: <CA+3bQGGbwi1Ot81c9DHFFKpZ0NsEc9f3uPXZHrqjR+cBL1oUQQ@mail.gmail.com>
+
+Le mar. 30 oct. 2018 ? 02:59, Benjamin Peterson <benjamin at python.org> a ?crit :
+> > To me, it seems wrong that a function or macro defined in
+> > Include/objimpl.h requires an explicit #include "internal/pystate.h".
+> > objimpl.h should be self-sufficient.
+>
+> I agree. I would say nothing in Include/*.h should be including Include/internal/*.h. We should move things into the "public" headers as required to fix this.
+
+Hum. It seems like I'm trying to fix too many issues at the same time,
+and I'm confused by different constraints which may be incompatible.
+
+I started to cleanup and fix header files with the most
+"straightforward" changes:
+https://bugs.python.org/issue35081
+
+I will see later if Include/internal/ still has to be rename or moved
+(Serhiy Storchaka proposed to move internal/*.h header files out of
+the Include/ directory, I'm not sure that it's really needed).
+
+Victor
+
+From v+python at g.nevcal.com  Tue Oct 30 13:49:38 2018
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Tue, 30 Oct 2018 10:49:38 -0700
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <ead58bb6-0360-186f-56e4-f165a535d186@gmail.com>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+ <ead58bb6-0360-186f-56e4-f165a535d186@gmail.com>
+Message-ID: <4cbf557c-8d53-f3df-755a-6a289ecd4d84@g.nevcal.com>
+
+On 10/30/2018 1:12 AM, Serhiy Storchaka wrote:
+> 29.10.18 23:17, MRAB ????:
+>> 1. If you're pickling, then saying "pickle" is more helpful.
+>>
+>> 2. In English the usual long form is "cannot". Error messages tend to 
+>> avoid abbreviations, and also tend to have lowercase after the colon, 
+>> e.g.:
+>>
+>> ???? "ZeroDivisionError: division by zero"
+>>
+>> ???? "ValueError: invalid literal for int() with base 10: 'foo'"
+>>
+>> 3. If it's failing on an object (singular), then it's clearer to say 
+>> "object".
+>>
+>> 4. Articles tend to be omitted.
+>>
+>> 5. Error messages tend to have quotes around the type name.
+>>
+>> Therefore, my preference is for:
+>>
+>> ???? "cannot pickle 'XXX' object"
+>
+> Thank you Matthew, I'll use your variant.
+>
+> Will something change the fact that in all these cases the pickling 
+> will be failed not just for specific object, but for all instances of 
+> the specified type?
+That's why I suggested "object of type 'XXX'", to leave the type in a 
+more prominent position, as it is generally more important to the issue 
+than the object.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181030/172d8578/attachment.html>
+
+From python at mrabarnett.plus.com  Tue Oct 30 13:59:29 2018
+From: python at mrabarnett.plus.com (MRAB)
+Date: Tue, 30 Oct 2018 17:59:29 +0000
+Subject: [Python-Dev] Standardize error message for non-pickleable types
+In-Reply-To: <ead58bb6-0360-186f-56e4-f165a535d186@gmail.com>
+References: <pr7ng7$aag$1@blaine.gmane.org>
+ <7a0918bb-8ec7-41be-86a9-e58c3d4b9df3@mrabarnett.plus.com>
+ <ead58bb6-0360-186f-56e4-f165a535d186@gmail.com>
+Message-ID: <57986ccf-8170-d0e4-ad55-c48e569abd17@mrabarnett.plus.com>
+
+On 2018-10-30 08:12, Serhiy Storchaka wrote:
+> 29.10.18 23:17, MRAB ????:
+>> 1. If you're pickling, then saying "pickle" is more helpful.
+>> 
+>> 2. In English the usual long form is "cannot". Error messages tend to 
+>> avoid abbreviations, and also tend to have lowercase after the colon, e.g.:
+>> 
+>>  ??? "ZeroDivisionError: division by zero"
+>> 
+>>  ??? "ValueError: invalid literal for int() with base 10: 'foo'"
+>> 
+>> 3. If it's failing on an object (singular), then it's clearer to say 
+>> "object".
+>> 
+>> 4. Articles tend to be omitted.
+>> 
+>> 5. Error messages tend to have quotes around the type name.
+>> 
+>> Therefore, my preference is for:
+>> 
+>>  ??? "cannot pickle 'XXX' object"
+> 
+> Thank you Matthew, I'll use your variant.
+> 
+> Will something change the fact that in all these cases the pickling will
+> be failed not just for specific object, but for all instances of the
+> specified type?
+> 
+Well, the other examples you gave did not say explicitly that all 
+instances of that type would fail.
+
+If you look at what 'hash' says:
+
+ >>> hash(())
+3527539
+ >>> hash(([]))
+Traceback (most recent call last):
+   File "<stdin>", line 1, in <module>
+TypeError: unhashable type: 'list'
+
+that would suggest "TypeError: unpicklable type: 'list'", but I'm not 
+sure I'd like too much of "unpicklable", "unmarshallable", 
+"unserializable", etc. :-)
+
