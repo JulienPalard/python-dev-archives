@@ -14717,3 +14717,1097 @@ that would suggest "TypeError: unpicklable type: 'list'", but I'm not
 sure I'd like too much of "unpicklable", "unmarshallable", 
 "unserializable", etc. :-)
 
+From ericsnowcurrently at gmail.com  Wed Oct 31 14:22:29 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Wed, 31 Oct 2018 12:22:29 -0600
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+Message-ID: <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+
+On Sun, Oct 28, 2018 at 10:20 AM Victor Stinner <vstinner at redhat.com> wrote:
+> Python C API has no strict separation between the 3 levels of API:
+>
+> * core: Py_BUILD_CORE define
+> * stable: Py_LIMITED_API define (it has a value)
+> * regular: no define
+>
+> IMHO the current design of header files is done backward: by default,
+> everything is public. To exclude an API from core or stable, "#ifdef
+> Py_BUILD_CORE" and "#ifndef Py_LIMITED_API" are used. This design
+> caused issues in the past: functions, variables or something else
+> exposed whereas they were supposed to be "private".
+
+This is a great point.
+
+> I propose a practical solution for that: Include/*.h files would only
+> be be public API.
+
+As we've already discussed, I'm entirely in favor of this. :)  In
+fact, I was thinking along those same lines when I originally created
+"Include/internal", when working on the runtime state consolidation.
+When you originally shared your idea with me (2 years ago?) it made
+perfect sense. :)
+
+> The "core" API would live in a new subdirectory:
+> Include/pycore/*.h.
+
+I'm mostly -0 on this.  "pycore" is fine I suppose, but I think
+"internal" is more obvious to people looking through the repo.  I can
+imagine folks getting confused by having "core" in the directory name.
+
+> Moreover, files of this subdirectory would have
+> the prefix "pycore_". For example, Include/objimpl.h would have a
+> twin: Include/pycore/pycore_objimpl.h which extend the public API with
+> "core" APIs.
+
+I'm not sure why this is necessary.  When I created Include/internal I
+ran into some issues with relative includes.  However, I solved them
+by doing the following (at Benjamin's recommendation, IIRC):  always
+explicitly specify "internal/<...>.h" in includes, even in
+Include/internal/*.h.
+
+For example:
+
+https://github.com/python/cpython/blob/master/Include/internal/pystate.h#L11
+    #include "internal/ceval.h"
+Note that a few lines above in that file I include the public header file:
+    #include "pystate.h"
+
+Taking this approach there were no issues with "relative" includes.
+Incidentally, I originally tried to solve the problem of relative
+includes with a prefix ("_" IIRC), but that proved to introduce other
+issues.  Switching to using the explicit "internal/" worked great and
+was more clear.
+
+> I also propose to automatically load the twin: Include/objimpl.h would
+> load Include/pycore/pycore_objimpl.h if Py_BUILD_CORE is defined:
+>
+> #ifdef Py_BUILD_CORE
+> #  include "pycore/pycore_objimpl.h"
+> #endif
+
+During the runtime state consolidation I took a similar approach
+initially, though at a less granular scale, which proved to be a
+headache.  At first I added Include/internal/Python.h and then tried
+to conditionally include it in Include/Python.h.  That ended up
+confusing, problematic, and unnecessary.  At Benjamin's suggestion I
+switched to explicitly including "internal/<...>.h" in .c files (only
+where necessary).  The result is simpler and more clear, identifying
+dependencies in source files more tightly.  It's also a bit more
+idiomatic for well-written C code.
+
+Here's an example of what I did:
+
+https://github.com/python/cpython/blob/master/Python/ceval.c#L13
+    #include "internal/pystate.h"
+
+Your proposal is similar, though more granular.  And I suppose it is
+reasonable as a short-term step for moving internal API out of the
+public header files.  However, I agree with Benjamin that the ideal
+would be to not have the public headers rely at all on the internal
+ones.  I realize that I somewhat introduced the problem when I added
+the internal headers, so I certainly don't have a lot of room to ask
+anything here. :)  Regardless, an intermediate step of conditionally
+including the private headers in the public ones might be okay if we
+have a long-term plan on how to not include the private headers at
+all.  I'd be interested in discussing that.
+
+FWIW, in the existing internal headers I include some of the public
+header files.  I don't recall if I did anything the other direction
+(i.e. include internal headers conditionally in the public ones).
+
+> Only in some rare cases, you would have to explicitly use: #include
+> "pycore/pycore_pygetopt.h". This header is fully private, there is no
+> public header in Include/pygetopt.h. Or maybe we should modify
+> Include/Python.h to also include "pycore/pycore_pygetopt.h" if
+> Py_BUILD_CORE is defined? Well, that's just a detail.
+
+As noted above, I tried that and it didn't work out well.
+
+> First milestone:
+>
+> * Create Include/pycore/
+
+-0 (less clear)
+
+> * Move Py_BUILD_CORE specific code into Include/pycore/pycore_*.h
+
++1
+
+> * Automatically include pycore files from Include/*.h files (#ifdef Py_BUILD_CORE)
+
+-0 (maybe okay as an intermediate fix)
+
+> Second milestone:
+>
+> * Find a solution for Py_LIMITED_API :-)
+
++1 :)
+
+-eric
+
+From vstinner at redhat.com  Wed Oct 31 15:18:39 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 31 Oct 2018 20:18:39 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+Message-ID: <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+
+Le mer. 31 oct. 2018 ? 19:22, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> > I propose a practical solution for that: Include/*.h files would only
+> > be be public API.
+>
+> As we've already discussed, I'm entirely in favor of this. :)  In
+> fact, I was thinking along those same lines when I originally created
+> "Include/internal", when working on the runtime state consolidation.
+> When you originally shared your idea with me (2 years ago?) it made
+> perfect sense. :)
+
+I think we discussed that during the CPython sprint in September 2017
+:-) But I only formalized a full plan at the sprint in September 2018:
+http://pythoncapi.readthedocs.io/
+
+> > The "core" API would live in a new subdirectory:
+> > Include/pycore/*.h.
+>
+> I'm mostly -0 on this.  "pycore" is fine I suppose (...)
+
+Ok.
+
+> > Moreover, files of this subdirectory would have
+> > the prefix "pycore_". For example, Include/objimpl.h would have a
+> > twin: Include/pycore/pycore_objimpl.h which extend the public API with
+> > "core" APIs.
+>
+> I'm not sure why this is necessary.  (...)
+> https://github.com/python/cpython/blob/master/Include/internal/pystate.h#L11
+>     #include "internal/ceval.h"
+> Note that a few lines above in that file I include the public header file:
+>     #include "pystate.h"
+
+The last include doesn't work:
+https://bugs.python.org/issue35081#msg328942
+
+"""
+Include/internal/pystate.h uses #include "pystate.h" to include
+Include/pystate.h, but it tries to include itself
+(Include/internal/pystate.h) which does nothing because of "#ifndef
+Py_INTERNAL_PYSTATE_H #define Py_INTERNAL_PYSTATE_H ... #endif".
+
+Remove the #ifndef #define to see the bug:
+(...)
+
+Compilation fails with:
+
+In file included from ./Include/internal/pystate.h:5,
+                 from ./Include/internal/pystate.h:5,
+                 from ./Include/internal/pystate.h:5,
+                 from ./Include/internal/pystate.h:5,
+                 from ./Include/internal/pystate.h:5,
+                 from ./Include/internal/pystate.h:5,
+                 from ./Include/internal/pystate.h:5,
+                 ...
+./Include/internal/pystate.h:5:21: error: #include nested too deeply
+ #include "pystate.h"
+"""
+
+Using <pystate.h> has no effect, it stills looks for Include/internal/pystate.h.
+
+IMHO the only solution is to use different names in Include/ and
+Include/internal/, at least for the header files of Include/internal/
+which also exist in Include/.
+
+Rename Include/internal/pystate.h to Include/internal/pyruntime.h,
+Include/internal/internal_pystate.h or
+Include/internal/pycore_pystate.h.
+
+If we add Include/internal/ to the header search path (gcc -I
+Include/internal/), we can avoid redundant
+"internal/internal_<name>.h" and just write "internal_<name>.h". I
+proposed to rename "internal" to "pycore" to get: #include
+"pycore_pystate.h" instead of #include "internal_pystate.h". But I
+have no strong preference for "pycore" or "internal", both work for
+me.
+
+> > I also propose to automatically load the twin: Include/objimpl.h would
+> > load Include/pycore/pycore_objimpl.h if Py_BUILD_CORE is defined:
+> >
+> > #ifdef Py_BUILD_CORE
+> > #  include "pycore/pycore_objimpl.h"
+> > #endif
+>
+> During the runtime state consolidation I took a similar approach
+> initially, though at a less granular scale, which proved to be a
+> headache.  At first I added Include/internal/Python.h and then tried
+> to conditionally include it in Include/Python.h.  That ended up
+> confusing, problematic, and unnecessary.  At Benjamin's suggestion I
+> switched to explicitly including "internal/<...>.h" in .c files (only
+> where necessary).  The result is simpler and more clear, identifying
+> dependencies in source files more tightly.  It's also a bit more
+> idiomatic for well-written C code.
+
+Ok, let's try this approach. I have to add many #include, but I'm fine
+to be very explicit about includes. One example (internal/mem.h):
+https://github.com/python/cpython/pull/10249
+
+I'm writing "try" rather than "do", because something Py_BUILD_CORE
+core is mixed with public headers. Like #ifdef Py_BUILD_CORE ... #else
+... #endif. See datetime.h for an example. It's not easy to separate
+both implementations.
+https://github.com/python/cpython/pull/10238
+
+
+> > Second milestone:
+> >
+> > * Find a solution for Py_LIMITED_API :-)
+
+My current idea is to:
+
+* Remove all "#ifndef Py_LIMITED_API" and "#ifdef Py_BUILD_CORE" from
+Include/*.h
+* Move "#ifndef Py_LIMITED_API" code to Include/public/
+* Include "Include/public/<name>.h" from "Include/<name>.h"
+
+IMHO here we really want to automatically include
+"Include/public/<name>.h" from "Include/<name>.h" to not impact the
+public API in any way.
+
+Py_BUILD_CORE is very different: it's only consumed inside Python, so
+it's fine to "break the API" and force to add new includes.
+
+Victor
+
+From ericsnowcurrently at gmail.com  Wed Oct 31 15:39:51 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Wed, 31 Oct 2018 13:39:51 -0600
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGGJTom5=a0VAe8dHpvUP5KPO219G7zdUKwuDX-VGm4THA@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+ <CA+3bQGGkUMPOfy_7_O3YC0i4tMx-gTwt7tb89fGhvJ3xuVLhjQ@mail.gmail.com>
+ <1540791122.3282066.1557851872.38471E47@webmail.messagingengine.com>
+ <CA+3bQGGJTom5=a0VAe8dHpvUP5KPO219G7zdUKwuDX-VGm4THA@mail.gmail.com>
+Message-ID: <CALFfu7Cmwijh38n7bHtgVwxFeR1JOAEcbjx+EZAXmY9FHEJaow@mail.gmail.com>
+
+On Mon, Oct 29, 2018 at 6:39 AM Victor Stinner <vstinner at redhat.com> wrote:
+> Le lun. 29 oct. 2018 ? 06:32, Benjamin Peterson <benjamin at python.org> a ?crit :
+> > How does the current Include/internal/ directory fail at accomplishing your goal?
+>
+> Hum, let me understand how I came into this issue. I tried to convert
+> _PyObject_GC_TRACK() macro to a static inline function. The macro uses
+> "_PyGC_generation0" which is defined earlier as: "extern PyGC_Head
+> *_PyGC_generation0;". Problem: this symbol has been removed when Eric
+> Snow moved it into _PyRuntime which contains "#define
+> _PyGC_generation0 _PyRuntime.gc.generation0".
+
+(FTR, _PyGC_generation0 is in Include/internal/mem.h.)
+
+>
+> Hum, how is possible that _PyObject_GC_TRACK() of objimpl.h works as expected?
+>
+> It seems like all C file using this macro explicitly uses #include
+> "internal/pystate.h" which uses #include "internal/mem.h". Oh.
+>
+> To me, it seems wrong that a function or macro defined in
+> Include/objimpl.h requires an explicit #include "internal/pystate.h".
+> objimpl.h should be self-sufficient.
+
+I agree. :)  FWIW, when I consolidated the runtime state I took the
+approach of re-using existing symbols (where possible) to avoid churn.
+That's why the code does not reference _PyRuntime directly.
+
+So, the issue is that public header implicitly requires that the
+source file include the internal headers in order to get the symbol.
+That is definitely too convoluted.  However, it seems like a
+consequence of the public header file relying on the internal runtime
+state, which is what you're trying to fix.
+
+Shouldn't _PyObject_GC_TRACK() be moved to an internal include file?
+IIRC, there were several similar cases where API (under #ifndef
+Py_LIMITED_API) relies on internal runtime state and should probably
+be moved out of the public headers.  Any such cases should be fixed.
+
+If any public API must rely on the internal runtime state then it
+shouldn't rely on it directly like it currently does.  Instead that
+state should be hidden behind public API that the public headers can
+access.  Right?
+
+> [snip]
+>
+> > > Py_BUILD_CORE is not only used to select which functions you get.
+> > > Py_BUILD_CORE is also commonly used to get a macro instead of a
+> > > function call, for best performances.
+> >
+> > I think the macro and function versions should just have different names then.
+>
+> I don't want to break the backward compatibility. I would like to make
+> small steps towards a better API. Concrete example with pystate.h:
+>
+> /* Variable and macro for in-line access to current thread state */
+>
+> /* Assuming the current thread holds the GIL, this is the
+>    PyThreadState for the current thread. */
+> #ifdef Py_BUILD_CORE
+> #  define _PyThreadState_Current _PyRuntime.gilstate.tstate_current
+> #  define PyThreadState_GET() \
+>              ((PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current))
+> #else
+> #  define PyThreadState_GET() PyThreadState_Get()
+> #endif
+
+This has a similar problem to _PyObject_GC_TRACK(): it is "public" API
+that relies on internal runtime state and on the source code including
+the internal headers.
+
+> We cannot remove PyThreadState_GET() from the Python C API. Removing
+> any function is likely going to break multiple C extensions.
+
+Right.  There should be very few cases of public API that relies on
+internal details.  In this case, could we split things up?  For
+example:
+
+"Include/pystate.h"
+
+    // Under Py_BUILD_CORE this is replaced.
+    #define PyThreadState_GET() PyThreadState_Get()
+
+"Include/internal/pystate.h"
+
+    #undef PyThreadState_GET
+    #define _PyThreadState_Current _PyRuntime.gilstate.tstate_current
+    #define PyThreadState_GET() \
+               ((PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current))
+
+-eric
+
+From vstinner at redhat.com  Wed Oct 31 15:57:07 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 31 Oct 2018 20:57:07 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+ <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+Message-ID: <CA+3bQGEgMc1T+UTavAcONFxTsq=ERsCjmZYP7W_3W_yJTAhosQ@mail.gmail.com>
+
+Ok, I proposed to rename internal header files, add an "internal_"
+prefix, to avoid this issue:
+https://github.com/python/cpython/pull/10263
+
+My PR also adds Include/internal/ to search paths of header files.
+
+Extract of the change:
+
+diff --git a/Include/internal/pystate.h b/Include/internal/internal_pystate.h
+--- a/Include/internal/pystate.h
++++ b/Include/internal/internal_pystate.h
+@@ -7,9 +7,9 @@ extern "C" {
+
+ #include "pystate.h"
+ #include "pythread.h"
+
+-#include "internal/mem.h"
+-#include "internal/ceval.h"
+-#include "internal/warnings.h"
++#include "internal_pymem.h"
++#include "internal_ceval.h"
++#include "internal_warnings.h"
+
+With this PR, internal_pystate.h of Include/internal/ is able to
+properly include pystate.h from Include/ (include the correct header
+file).
+
+
+For practical reasons, I added Include/internal/ to all projects of
+the Visual Studio solution (I modified the properties common to all
+projects).
+
+Again, this is where I would like to replace "internal_" with
+"pycore_": "internal" is too generic, there is a risk that a third
+party project also the same header filename. "internal_hash.h" name is
+quite general. There is a non-zero risk of conflict with a library. In
+the past, we also had issues when compiling OpenSSL for example.
+
+Maybe we can keep "Include/internal/" directory name, but add
+"pycore_" rather than "internal_" to header filenames?
+
+Victor
+
+> > > Moreover, files of this subdirectory would have
+> > > the prefix "pycore_". For example, Include/objimpl.h would have a
+> > > twin: Include/pycore/pycore_objimpl.h which extend the public API with
+> > > "core" APIs.
+> >
+> > I'm not sure why this is necessary.  (...)
+> > https://github.com/python/cpython/blob/master/Include/internal/pystate.h#L11
+> >     #include "internal/ceval.h"
+> > Note that a few lines above in that file I include the public header file:
+> >     #include "pystate.h"
+>
+> The last include doesn't work:
+> https://bugs.python.org/issue35081#msg328942
+>
+> """
+> Include/internal/pystate.h uses #include "pystate.h" to include
+> Include/pystate.h, but it tries to include itself
+> (Include/internal/pystate.h) which does nothing because of "#ifndef
+> Py_INTERNAL_PYSTATE_H #define Py_INTERNAL_PYSTATE_H ... #endif".
+>
+> Remove the #ifndef #define to see the bug:
+> (...)
+>
+> Compilation fails with:
+>
+> In file included from ./Include/internal/pystate.h:5,
+>                  from ./Include/internal/pystate.h:5,
+>                  from ./Include/internal/pystate.h:5,
+>                  from ./Include/internal/pystate.h:5,
+>                  from ./Include/internal/pystate.h:5,
+>                  from ./Include/internal/pystate.h:5,
+>                  from ./Include/internal/pystate.h:5,
+>                  ...
+> ./Include/internal/pystate.h:5:21: error: #include nested too deeply
+>  #include "pystate.h"
+> """
+>
+> Using <pystate.h> has no effect, it stills looks for Include/internal/pystate.h.
+>
+> IMHO the only solution is to use different names in Include/ and
+> Include/internal/, at least for the header files of Include/internal/
+> which also exist in Include/.
+>
+> Rename Include/internal/pystate.h to Include/internal/pyruntime.h,
+> Include/internal/internal_pystate.h or
+> Include/internal/pycore_pystate.h.
+>
+> If we add Include/internal/ to the header search path (gcc -I
+> Include/internal/), we can avoid redundant
+> "internal/internal_<name>.h" and just write "internal_<name>.h". I
+> proposed to rename "internal" to "pycore" to get: #include
+> "pycore_pystate.h" instead of #include "internal_pystate.h". But I
+> have no strong preference for "pycore" or "internal", both work for
+> me.
+
+From vstinner at redhat.com  Wed Oct 31 16:05:42 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 31 Oct 2018 21:05:42 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CALFfu7Cmwijh38n7bHtgVwxFeR1JOAEcbjx+EZAXmY9FHEJaow@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+ <CA+3bQGGkUMPOfy_7_O3YC0i4tMx-gTwt7tb89fGhvJ3xuVLhjQ@mail.gmail.com>
+ <1540791122.3282066.1557851872.38471E47@webmail.messagingengine.com>
+ <CA+3bQGGJTom5=a0VAe8dHpvUP5KPO219G7zdUKwuDX-VGm4THA@mail.gmail.com>
+ <CALFfu7Cmwijh38n7bHtgVwxFeR1JOAEcbjx+EZAXmY9FHEJaow@mail.gmail.com>
+Message-ID: <CA+3bQGH7gYToAdGyCAd9B1WTJwSdhU49CofEmAFMn49PC0nhmw@mail.gmail.com>
+
+Le mer. 31 oct. 2018 ? 20:40, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> On Mon, Oct 29, 2018 at 6:39 AM Victor Stinner <vstinner at redhat.com> wrote:
+> > Le lun. 29 oct. 2018 ? 06:32, Benjamin Peterson <benjamin at python.org> a ?crit :
+> > > How does the current Include/internal/ directory fail at accomplishing your goal?
+> >
+> > Hum, let me understand how I came into this issue. I tried to convert
+> > _PyObject_GC_TRACK() macro to a static inline function. The macro uses
+> > "_PyGC_generation0" which is defined earlier as: "extern PyGC_Head
+> > *_PyGC_generation0;". Problem: this symbol has been removed when Eric
+> > Snow moved it into _PyRuntime which contains "#define
+> > _PyGC_generation0 _PyRuntime.gc.generation0".
+>
+> (FTR, _PyGC_generation0 is in Include/internal/mem.h.)
+
+I pushed a first commit to "cleanup and fix" pystate.h:
+https://github.com/python/cpython/commit/9204fb8623896cc5f68ae350784ee25e8a7b2184
+
+* Remove _PyThreadState_Current
+* Replace _PyThreadState_Current with _PyRuntime.gilstate.tstate_current
+
+I prefer to be explicit about the reference to _PyRuntime. For
+example, in my text editor, I'm able to follow the reference to
+_PyRuntime. In a debugger, I'm also able to display
+"_PyRuntime.gilstate.tstate_current", whereas gdb fails to display
+"_PyThreadState_Current" value since it's a preprocessor only thing.
+
+
+> > Hum, how is possible that _PyObject_GC_TRACK() of objimpl.h works as expected?
+> >
+> > It seems like all C file using this macro explicitly uses #include
+> > "internal/pystate.h" which uses #include "internal/mem.h". Oh.
+> >
+> > To me, it seems wrong that a function or macro defined in
+> > Include/objimpl.h requires an explicit #include "internal/pystate.h".
+> > objimpl.h should be self-sufficient.
+>
+> I agree. :)  FWIW, when I consolidated the runtime state I took the
+> approach of re-using existing symbols (where possible) to avoid churn.
+> That's why the code does not reference _PyRuntime directly.
+
+Well, we can now fix these issues.
+
+
+> Shouldn't _PyObject_GC_TRACK() be moved to an internal include file?
+
+I'm trying to do that, but I have the #include bug: if I have
+Include/objimpl.h and Include/internal/objimpl.h, the compiler is
+confused and picked the wrong file... And I cannot use #include
+"objimpl.h" to include Include/objdump.h from
+Include/internal/objdump.h.
+
+... Again, that's why I would like to rename header files.
+
+I will be even worse when I will add a second directory for the stable
+ABI (second part of my plan).
+
+
+> IIRC, there were several similar cases where API (under #ifndef
+> Py_LIMITED_API) relies on internal runtime state and should probably
+> be moved out of the public headers.  Any such cases should be fixed.
+
+Yep. I'm trying to fix issues one by one. I started with the simplest changes.
+
+
+> If any public API must rely on the internal runtime state then it
+> shouldn't rely on it directly like it currently does.  Instead that
+> state should be hidden behind public API that the public headers can
+> access.  Right?
+
+Right. Internal things must be moved to Include/internal/.
+
+
+> This has a similar problem to _PyObject_GC_TRACK(): it is "public" API
+> that relies on internal runtime state and on the source code including
+> the internal headers.
+
+_PyObject_GC_TRACK() is fine: since it's a private API, we can move it
+to Include/internal/ and require an explicit include of the internal
+header file.
+
+
+> > We cannot remove PyThreadState_GET() from the Python C API. Removing
+> > any function is likely going to break multiple C extensions.
+>
+> Right.  There should be very few cases of public API that relies on
+> internal details.  In this case, could we split things up?  For
+> example:
+>
+> "Include/pystate.h"
+>
+>     // Under Py_BUILD_CORE this is replaced.
+>     #define PyThreadState_GET() PyThreadState_Get()
+>
+> "Include/internal/pystate.h"
+>
+>     #undef PyThreadState_GET
+>     #define _PyThreadState_Current _PyRuntime.gilstate.tstate_current
+>     #define PyThreadState_GET() \
+>                ((PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current))
+
+This API is really the worse. If we do that, it's unclear if we get
+the optimized flavor or the PyThreadState_Get() function call... It
+depends if "Include/internal/pystate.h" is included or not!?
+
+My idea here is to add a new _PyThreadState_GET() macro which would
+only be available in the private API. It would make sure that we pick
+the right implementation.
+
+Maybe PyThreadState_GET() can always be an alias to
+PyThreadState_Get(). Just make sure that internals use
+_PyThreadState_GET().
+
+Victor
+
+From ericsnowcurrently at gmail.com  Wed Oct 31 17:18:58 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Wed, 31 Oct 2018 15:18:58 -0600
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGEgMc1T+UTavAcONFxTsq=ERsCjmZYP7W_3W_yJTAhosQ@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+ <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+ <CA+3bQGEgMc1T+UTavAcONFxTsq=ERsCjmZYP7W_3W_yJTAhosQ@mail.gmail.com>
+Message-ID: <CALFfu7DqTYquUpv1Rk2Q8+Mi+OKoQsuKxWKOaC5Mk+Ffj+i2HQ@mail.gmail.com>
+
+On Wed, Oct 31, 2018 at 1:57 PM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Ok, I proposed to rename internal header files, add an "internal_"
+> prefix, to avoid this issue:
+> https://github.com/python/cpython/pull/10263
+>
+> My PR also adds Include/internal/ to search paths of header files.
+>
+> Extract of the change:
+>
+> diff --git a/Include/internal/pystate.h b/Include/internal/internal_pystate.h
+> --- a/Include/internal/pystate.h
+> +++ b/Include/internal/internal_pystate.h
+> @@ -7,9 +7,9 @@ extern "C" {
+>
+>  #include "pystate.h"
+>  #include "pythread.h"
+>
+> -#include "internal/mem.h"
+> -#include "internal/ceval.h"
+> -#include "internal/warnings.h"
+> +#include "internal_pymem.h"
+> +#include "internal_ceval.h"
+> +#include "internal_warnings.h"
+>
+> With this PR, internal_pystate.h of Include/internal/ is able to
+> properly include pystate.h from Include/ (include the correct header
+> file).
+>
+>
+> For practical reasons, I added Include/internal/ to all projects of
+> the Visual Studio solution (I modified the properties common to all
+> projects).
+>
+> Again, this is where I would like to replace "internal_" with
+> "pycore_": "internal" is too generic, there is a risk that a third
+> party project also the same header filename. "internal_hash.h" name is
+> quite general. There is a non-zero risk of conflict with a library. In
+> the past, we also had issues when compiling OpenSSL for example.
+
+I'm not sure of this being a real problem, but I don't see a problem
+with mitigating the risk. :)
+
+> Maybe we can keep "Include/internal/" directory name, but add
+> "pycore_" rather than "internal_" to header filenames?
+
+this sounds good to me.  thanks for chasing this down.
+
+-eric
+
+From ericsnowcurrently at gmail.com  Wed Oct 31 17:39:28 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Wed, 31 Oct 2018 15:39:28 -0600
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGH7gYToAdGyCAd9B1WTJwSdhU49CofEmAFMn49PC0nhmw@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+ <CA+3bQGGkUMPOfy_7_O3YC0i4tMx-gTwt7tb89fGhvJ3xuVLhjQ@mail.gmail.com>
+ <1540791122.3282066.1557851872.38471E47@webmail.messagingengine.com>
+ <CA+3bQGGJTom5=a0VAe8dHpvUP5KPO219G7zdUKwuDX-VGm4THA@mail.gmail.com>
+ <CALFfu7Cmwijh38n7bHtgVwxFeR1JOAEcbjx+EZAXmY9FHEJaow@mail.gmail.com>
+ <CA+3bQGH7gYToAdGyCAd9B1WTJwSdhU49CofEmAFMn49PC0nhmw@mail.gmail.com>
+Message-ID: <CALFfu7AJsoU6HG_43YGFkFu1jkXZZFDCNvJ6iPZR42eZpTDpww@mail.gmail.com>
+
+On Wed, Oct 31, 2018 at 2:05 PM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Le mer. 31 oct. 2018 ? 20:40, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> > On Mon, Oct 29, 2018 at 6:39 AM Victor Stinner <vstinner at redhat.com> wrote:
+> > > Le lun. 29 oct. 2018 ? 06:32, Benjamin Peterson <benjamin at python.org> a ?crit :
+> > > > How does the current Include/internal/ directory fail at accomplishing your goal?
+> > >
+> > > Hum, let me understand how I came into this issue. I tried to convert
+> > > _PyObject_GC_TRACK() macro to a static inline function. The macro uses
+> > > "_PyGC_generation0" which is defined earlier as: "extern PyGC_Head
+> > > *_PyGC_generation0;". Problem: this symbol has been removed when Eric
+> > > Snow moved it into _PyRuntime which contains "#define
+> > > _PyGC_generation0 _PyRuntime.gc.generation0".
+> >
+> > (FTR, _PyGC_generation0 is in Include/internal/mem.h.)
+>
+> I pushed a first commit to "cleanup and fix" pystate.h:
+> https://github.com/python/cpython/commit/9204fb8623896cc5f68ae350784ee25e8a7b2184
+
+Thanks for that.  I don't have much time to review (typing w/left
+hand, sleeping babe in right), so it may make sense to get feedback
+from others (Nick?) before going too far down this road, just for a
+sanity check.
+
+>
+> * Remove _PyThreadState_Current
+> * Replace _PyThreadState_Current with _PyRuntime.gilstate.tstate_current
+>
+> I prefer to be explicit about the reference to _PyRuntime. For
+> example, in my text editor, I'm able to follow the reference to
+> _PyRuntime. In a debugger, I'm also able to display
+> "_PyRuntime.gilstate.tstate_current", whereas gdb fails to display
+> "_PyThreadState_Current" value since it's a preprocessor only thing.
+
+As long as we avoid pulling internal API into public header files,
+which is exactly the point of your efforts. :)
+
+>
+>
+> > > Hum, how is possible that _PyObject_GC_TRACK() of objimpl.h works as expected?
+> > >
+> > > It seems like all C file using this macro explicitly uses #include
+> > > "internal/pystate.h" which uses #include "internal/mem.h". Oh.
+> > >
+> > > To me, it seems wrong that a function or macro defined in
+> > > Include/objimpl.h requires an explicit #include "internal/pystate.h".
+> > > objimpl.h should be self-sufficient.
+> >
+> > I agree. :)  FWIW, when I consolidated the runtime state I took the
+> > approach of re-using existing symbols (where possible) to avoid churn.
+> > That's why the code does not reference _PyRuntime directly.
+>
+> Well, we can now fix these issues.
+
++1
+
+>
+>
+> > Shouldn't _PyObject_GC_TRACK() be moved to an internal include file?
+>
+> I'm trying to do that, but I have the #include bug: if I have
+> Include/objimpl.h and Include/internal/objimpl.h, the compiler is
+> confused and picked the wrong file... And I cannot use #include
+> "objimpl.h" to include Include/objdump.h from
+> Include/internal/objdump.h.
+>
+> ... Again, that's why I would like to rename header files.
+>
+> I will be even worse when I will add a second directory for the stable
+> ABI (second part of my plan).
+
++1
+
+>
+>
+> > IIRC, there were several similar cases where API (under #ifndef
+> > Py_LIMITED_API) relies on internal runtime state and should probably
+> > be moved out of the public headers.  Any such cases should be fixed.
+>
+> Yep. I'm trying to fix issues one by one. I started with the simplest changes.
+
++1
+
+>
+>
+> > If any public API must rely on the internal runtime state then it
+> > shouldn't rely on it directly like it currently does.  Instead that
+> > state should be hidden behind public API that the public headers can
+> > access.  Right?
+>
+> Right. Internal things must be moved to Include/internal/.
+
+OK, good.
+
+>
+>
+> > This has a similar problem to _PyObject_GC_TRACK(): it is "public" API
+> > that relies on internal runtime state and on the source code including
+> > the internal headers.
+>
+> _PyObject_GC_TRACK() is fine: since it's a private API, we can move it
+> to Include/internal/ and require an explicit include of the internal
+> header file.
+>
+>
+> > > We cannot remove PyThreadState_GET() from the Python C API. Removing
+> > > any function is likely going to break multiple C extensions.
+> >
+> > Right.  There should be very few cases of public API that relies on
+> > internal details.  In this case, could we split things up?  For
+> > example:
+> >
+> > "Include/pystate.h"
+> >
+> >     // Under Py_BUILD_CORE this is replaced.
+> >     #define PyThreadState_GET() PyThreadState_Get()
+> >
+> > "Include/internal/pystate.h"
+> >
+> >     #undef PyThreadState_GET
+> >     #define _PyThreadState_Current _PyRuntime.gilstate.tstate_current
+> >     #define PyThreadState_GET() \
+> >                ((PyThreadState*)_Py_atomic_load_relaxed(&_PyThreadState_Current))
+>
+> This API is really the worse. If we do that, it's unclear if we get
+> the optimized flavor or the PyThreadState_Get() function call... It
+> depends if "Include/internal/pystate.h" is included or not!?
+
+Fair enough.  we just need a way to provide the optimized impl without
+depending on internal API (e.g. _PyRuntime) in public header files,
+right?  There should only be two or three cases where it's an issue
+(i.e. involving actual public API).
+
+>
+> My idea here is to add a new _PyThreadState_GET() macro which would
+> only be available in the private API. It would make sure that we pick
+> the right implementation.
+>
+> Maybe PyThreadState_GET() can always be an alias to
+> PyThreadState_Get(). Just make sure that internals use
+> _PyThreadState_GET().
+
++1
+
+FWIW, I think you're on the right track with all this. :)
+
+-eric
+
+>
+> Victor
+
+From vstinner at redhat.com  Wed Oct 31 18:27:49 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 31 Oct 2018 23:27:49 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CALFfu7DqTYquUpv1Rk2Q8+Mi+OKoQsuKxWKOaC5Mk+Ffj+i2HQ@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+ <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+ <CA+3bQGEgMc1T+UTavAcONFxTsq=ERsCjmZYP7W_3W_yJTAhosQ@mail.gmail.com>
+ <CALFfu7DqTYquUpv1Rk2Q8+Mi+OKoQsuKxWKOaC5Mk+Ffj+i2HQ@mail.gmail.com>
+Message-ID: <CA+3bQGEE8Ji+CWNx-LL2ambgyqa2MQz781f+WX=yWbqLkWA=nA@mail.gmail.com>
+
+Le mer. 31 oct. 2018 ? 22:19, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> > Maybe we can keep "Include/internal/" directory name, but add
+> > "pycore_" rather than "internal_" to header filenames?
+>
+> this sounds good to me.  thanks for chasing this down.
+
+What do you prefer?
+
+(A Include/internal/internal_pystate.h
+(B) Include/internal/pycore_pystate.h
+(C) Include/pycore/pycore_pystate.h
+
+Victor
+
+From ericsnowcurrently at gmail.com  Wed Oct 31 18:37:54 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Wed, 31 Oct 2018 16:37:54 -0600
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGEE8Ji+CWNx-LL2ambgyqa2MQz781f+WX=yWbqLkWA=nA@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+ <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+ <CA+3bQGEgMc1T+UTavAcONFxTsq=ERsCjmZYP7W_3W_yJTAhosQ@mail.gmail.com>
+ <CALFfu7DqTYquUpv1Rk2Q8+Mi+OKoQsuKxWKOaC5Mk+Ffj+i2HQ@mail.gmail.com>
+ <CA+3bQGEE8Ji+CWNx-LL2ambgyqa2MQz781f+WX=yWbqLkWA=nA@mail.gmail.com>
+Message-ID: <CALFfu7Atg1TZzGjAdaRVzXAdhG5MZ4o81AbKwK5G-N84qn8N5g@mail.gmail.com>
+
+B
+On Wed, Oct 31, 2018 at 4:28 PM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Le mer. 31 oct. 2018 ? 22:19, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> > > Maybe we can keep "Include/internal/" directory name, but add
+> > > "pycore_" rather than "internal_" to header filenames?
+> >
+> > this sounds good to me.  thanks for chasing this down.
+>
+> What do you prefer?
+>
+> (A Include/internal/internal_pystate.h
+> (B) Include/internal/pycore_pystate.h
+> (C) Include/pycore/pycore_pystate.h
+>
+> Victor
+
+From vstinner at redhat.com  Wed Oct 31 19:36:09 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 1 Nov 2018 00:36:09 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CALFfu7Atg1TZzGjAdaRVzXAdhG5MZ4o81AbKwK5G-N84qn8N5g@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+ <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+ <CA+3bQGEgMc1T+UTavAcONFxTsq=ERsCjmZYP7W_3W_yJTAhosQ@mail.gmail.com>
+ <CALFfu7DqTYquUpv1Rk2Q8+Mi+OKoQsuKxWKOaC5Mk+Ffj+i2HQ@mail.gmail.com>
+ <CA+3bQGEE8Ji+CWNx-LL2ambgyqa2MQz781f+WX=yWbqLkWA=nA@mail.gmail.com>
+ <CALFfu7Atg1TZzGjAdaRVzXAdhG5MZ4o81AbKwK5G-N84qn8N5g@mail.gmail.com>
+Message-ID: <CA+3bQGHoe9hoqXX146Uc=7WABLG+8vZ=33Lc63ONiM9jQ54OCw@mail.gmail.com>
+
+Ok, thanks. I decided to remove the redundant "py", so I renamed
+"pystate.h" to "pycore_state.h" (single "py", instead of
+"pycore_pystate.h", double "py py").
+
+I updated my PR:
+https://github.com/python/cpython/pull/10263
+
+* Rename Include/internal/ header files:
+
+  * pyatomic.h -> pycore_atomic.h
+  * ceval.h -> pycore_ceval.h
+  * condvar.h -> pycore_condvar.h
+  * context.h -> pycore_context.h
+  * pygetopt.h -> pycore_getopt.h
+  * gil.h -> pycore_gil.h
+  * hamt.h -> pycore_hamt.h
+  * hash.h -> pycore_hash.h
+  * mem.h -> pycore_mem.h
+  * pystate.h -> pycore_state.h
+  * warnings.h -> pycore_warnings.h
+
+* PCbuild project, Makefile.pre.in, Modules/Setup: add the
+  Include/internal/ directory to the search paths of header files.
+* Update include. For example, replace #include "internal/mem.h"
+  with #include "pycore_mem.h".
+
+Victor
+Le mer. 31 oct. 2018 ? 23:38, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+>
+> B
+> On Wed, Oct 31, 2018 at 4:28 PM Victor Stinner <vstinner at redhat.com> wrote:
+> >
+> > Le mer. 31 oct. 2018 ? 22:19, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> > > > Maybe we can keep "Include/internal/" directory name, but add
+> > > > "pycore_" rather than "internal_" to header filenames?
+> > >
+> > > this sounds good to me.  thanks for chasing this down.
+> >
+> > What do you prefer?
+> >
+> > (A Include/internal/internal_pystate.h
+> > (B) Include/internal/pycore_pystate.h
+> > (C) Include/pycore/pycore_pystate.h
+> >
+> > Victor
+
+From ericsnowcurrently at gmail.com  Wed Oct 31 21:35:09 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Wed, 31 Oct 2018 19:35:09 -0600
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGHoe9hoqXX146Uc=7WABLG+8vZ=33Lc63ONiM9jQ54OCw@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+ <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+ <CA+3bQGEgMc1T+UTavAcONFxTsq=ERsCjmZYP7W_3W_yJTAhosQ@mail.gmail.com>
+ <CALFfu7DqTYquUpv1Rk2Q8+Mi+OKoQsuKxWKOaC5Mk+Ffj+i2HQ@mail.gmail.com>
+ <CA+3bQGEE8Ji+CWNx-LL2ambgyqa2MQz781f+WX=yWbqLkWA=nA@mail.gmail.com>
+ <CALFfu7Atg1TZzGjAdaRVzXAdhG5MZ4o81AbKwK5G-N84qn8N5g@mail.gmail.com>
+ <CA+3bQGHoe9hoqXX146Uc=7WABLG+8vZ=33Lc63ONiM9jQ54OCw@mail.gmail.com>
+Message-ID: <CALFfu7BrLThnaMXQEd+wSsmzka8o+OkcGhwzktamLzNpF=OkZg@mail.gmail.com>
+
+On the one hand dropping redundancy in the filename is fine.  On the other
+having the names mirror the public header files is valuable.  How about
+leaving the base names alone and change the directory to "pyinternal"?
+
+-eric
+
+On Wed, Oct 31, 2018, 17:36 Victor Stinner <vstinner at redhat.com wrote:
+
+> Ok, thanks. I decided to remove the redundant "py", so I renamed
+> "pystate.h" to "pycore_state.h" (single "py", instead of
+> "pycore_pystate.h", double "py py").
+>
+> I updated my PR:
+> https://github.com/python/cpython/pull/10263
+>
+> * Rename Include/internal/ header files:
+>
+>   * pyatomic.h -> pycore_atomic.h
+>   * ceval.h -> pycore_ceval.h
+>   * condvar.h -> pycore_condvar.h
+>   * context.h -> pycore_context.h
+>   * pygetopt.h -> pycore_getopt.h
+>   * gil.h -> pycore_gil.h
+>   * hamt.h -> pycore_hamt.h
+>   * hash.h -> pycore_hash.h
+>   * mem.h -> pycore_mem.h
+>   * pystate.h -> pycore_state.h
+>   * warnings.h -> pycore_warnings.h
+>
+> * PCbuild project, Makefile.pre.in, Modules/Setup: add the
+>   Include/internal/ directory to the search paths of header files.
+> * Update include. For example, replace #include "internal/mem.h"
+>   with #include "pycore_mem.h".
+>
+> Victor
+> Le mer. 31 oct. 2018 ? 23:38, Eric Snow <ericsnowcurrently at gmail.com> a
+> ?crit :
+> >
+> > B
+> > On Wed, Oct 31, 2018 at 4:28 PM Victor Stinner <vstinner at redhat.com>
+> wrote:
+> > >
+> > > Le mer. 31 oct. 2018 ? 22:19, Eric Snow <ericsnowcurrently at gmail.com>
+> a ?crit :
+> > > > > Maybe we can keep "Include/internal/" directory name, but add
+> > > > > "pycore_" rather than "internal_" to header filenames?
+> > > >
+> > > > this sounds good to me.  thanks for chasing this down.
+> > >
+> > > What do you prefer?
+> > >
+> > > (A Include/internal/internal_pystate.h
+> > > (B) Include/internal/pycore_pystate.h
+> > > (C) Include/pycore/pycore_pystate.h
+> > >
+> > > Victor
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181031/eaa38d4a/attachment.html>
+
+From vstinner at redhat.com  Wed Oct 31 22:40:50 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 1 Nov 2018 03:40:50 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CALFfu7BrLThnaMXQEd+wSsmzka8o+OkcGhwzktamLzNpF=OkZg@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+ <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+ <CA+3bQGEgMc1T+UTavAcONFxTsq=ERsCjmZYP7W_3W_yJTAhosQ@mail.gmail.com>
+ <CALFfu7DqTYquUpv1Rk2Q8+Mi+OKoQsuKxWKOaC5Mk+Ffj+i2HQ@mail.gmail.com>
+ <CA+3bQGEE8Ji+CWNx-LL2ambgyqa2MQz781f+WX=yWbqLkWA=nA@mail.gmail.com>
+ <CALFfu7Atg1TZzGjAdaRVzXAdhG5MZ4o81AbKwK5G-N84qn8N5g@mail.gmail.com>
+ <CA+3bQGHoe9hoqXX146Uc=7WABLG+8vZ=33Lc63ONiM9jQ54OCw@mail.gmail.com>
+ <CALFfu7BrLThnaMXQEd+wSsmzka8o+OkcGhwzktamLzNpF=OkZg@mail.gmail.com>
+Message-ID: <CA+3bQGHXfDDq2hUBnDpBk8DqAA586vunHCJXiYERgNXksKnU1w@mail.gmail.com>
+
+I pushed many changes. I moved most of the Py_BUILD_CORE code out of
+Include/ header files.
+
+Le jeu. 1 nov. 2018 ? 02:35, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> On the one hand dropping redundancy in the filename is fine.  On the other having the names mirror the public header files is valuable.
+
+Current content of Include/internal/:
+
+pycore_accu.h
+pycore_atomic.h
+pycore_ceval.h
+pycore_condvar.h
+pycore_context.h
+pycore_getopt.h
+pycore_gil.h
+pycore_hamt.h
+pycore_hash.h
+pycore_lifecycle.h
+pycore_mem.h
+pycore_pathconfig.h
+pycore_state.h
+pycore_warnings.h
+
+I tried to find a kind of consistency. For example, there was
+Include/internal/mem.h vs Internal/pymem.h.
+
+I renamed Include/pyatomic.h to Include/internal/pycore_atomic.h.
+Previously, the file had a "py" prefix to avoid the risk of having an
+<atomic.h> header file coming from somewhere else, but now with the
+"pycore_" prefix, it's very unlikely.
+
+I renamed Include/accu.h to Include/internal/pycore_accu.h.
+
+There are 4 header files which are in Include/ and Include/internal/
+and the one in internal has no "py":
+
+* pyhash.h and pycore_hash.h
+* pylifecycle.h and pycore_lifecycle.h
+* pymem.h and pycore_mem.h
+* pystate.h and pycore_state.h
+
+I wrote a PR to rename these 4 header files:
+https://github.com/python/cpython/pull/10275
+
+
+> How about leaving the base names alone and change the directory to "pyinternal"?
+
+The name of the directory doesn't matter to fix the #include bug when
+two header files have the same filename in two directories (especially
+when Include/ and Include/internal/ have the same filename).
+
+Note: Since I added Include/internal/ to the search paths for header
+files, the name of the directory doesn't matter anymore. C code only
+uses the filename without "internal/" to include an internal header:
+#include "pycore_mem.h". Benjamin and you were opposed to change the
+name, so I kept "Include/internal/".
+
+Victor
+
