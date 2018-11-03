@@ -1,0 +1,845 @@
+From steve.dower at python.org  Thu Nov  1 11:38:24 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 1 Nov 2018 08:38:24 -0700
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CALFfu7BrLThnaMXQEd+wSsmzka8o+OkcGhwzktamLzNpF=OkZg@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+ <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+ <CA+3bQGEgMc1T+UTavAcONFxTsq=ERsCjmZYP7W_3W_yJTAhosQ@mail.gmail.com>
+ <CALFfu7DqTYquUpv1Rk2Q8+Mi+OKoQsuKxWKOaC5Mk+Ffj+i2HQ@mail.gmail.com>
+ <CA+3bQGEE8Ji+CWNx-LL2ambgyqa2MQz781f+WX=yWbqLkWA=nA@mail.gmail.com>
+ <CALFfu7Atg1TZzGjAdaRVzXAdhG5MZ4o81AbKwK5G-N84qn8N5g@mail.gmail.com>
+ <CA+3bQGHoe9hoqXX146Uc=7WABLG+8vZ=33Lc63ONiM9jQ54OCw@mail.gmail.com>
+ <CALFfu7BrLThnaMXQEd+wSsmzka8o+OkcGhwzktamLzNpF=OkZg@mail.gmail.com>
+Message-ID: <67172f5d-ca9e-c924-5970-b28d6876ce33@python.org>
+
+I assume the redundancy was there to handle the naming collision 
+problem, but a better way to do that is to have only header files that 
+users should ever use in "include/", and put the rest inside 
+"include/python/" and "include/internal/" (and if possible, we don't 
+distribute the internal directory as part of -develop packages, which 
+only really impacts the Windows installer as far as we're concerned, but 
+I assume some distros will care).
+
+That would mean a layout like:
+
+include/
+   Python.h
+   typeslots.h
+   Python/
+     abstract.h
+     ...
+   internal/
+     pycore_atomic.h
+     ...
+
+End users/distutils should only -Iinclude, while our build can 
+-Iinclude/Python and -Iinclude/internal as well. Or we can update all of 
+our includes to specify the directory (which I'd prefer - #include 
+"name.h" should look adjacent to the file first, while #include <name.h> 
+looks at search paths first, which should be able to deal with collisions).
+
+Any change here is an improvement, though. I'll be happy for 
+Py_BUILD_CORE to go away (or at least only imply -Iinclude/internal, 
+rather than actual preprocessor work), no matter where files land 
+precisely :)
+
+Cheers,
+Steve
+
+On 31Oct2018 1835, Eric Snow wrote:
+> On the one hand dropping redundancy in the filename is fine.? On the 
+> other having the names mirror the public header files is valuable.? How 
+> about leaving the base names alone and change the directory to "pyinternal"?
+> 
+> -eric
+> 
+> On Wed, Oct 31, 2018, 17:36 Victor Stinner <vstinner at redhat.com 
+> <mailto:vstinner at redhat.com> wrote:
+> 
+>     Ok, thanks. I decided to remove the redundant "py", so I renamed
+>     "pystate.h" to "pycore_state.h" (single "py", instead of
+>     "pycore_pystate.h", double "py py").
+> 
+>     I updated my PR:
+>     https://github.com/python/cpython/pull/10263
+> 
+>     * Rename Include/internal/ header files:
+> 
+>      ? * pyatomic.h -> pycore_atomic.h
+>      ? * ceval.h -> pycore_ceval.h
+>      ? * condvar.h -> pycore_condvar.h
+>      ? * context.h -> pycore_context.h
+>      ? * pygetopt.h -> pycore_getopt.h
+>      ? * gil.h -> pycore_gil.h
+>      ? * hamt.h -> pycore_hamt.h
+>      ? * hash.h -> pycore_hash.h
+>      ? * mem.h -> pycore_mem.h
+>      ? * pystate.h -> pycore_state.h
+>      ? * warnings.h -> pycore_warnings.h
+> 
+>     * PCbuild project, Makefile.pre.in <http://Makefile.pre.in>,
+>     Modules/Setup: add the
+>      ? Include/internal/ directory to the search paths of header files.
+>     * Update include. For example, replace #include "internal/mem.h"
+>      ? with #include "pycore_mem.h".
+> 
+>     Victor
+>     Le mer. 31 oct. 2018 ? 23:38, Eric Snow <ericsnowcurrently at gmail.com
+>     <mailto:ericsnowcurrently at gmail.com>> a ?crit :
+>      >
+>      > B
+>      > On Wed, Oct 31, 2018 at 4:28 PM Victor Stinner
+>     <vstinner at redhat.com <mailto:vstinner at redhat.com>> wrote:
+>      > >
+>      > > Le mer. 31 oct. 2018 ? 22:19, Eric Snow
+>     <ericsnowcurrently at gmail.com <mailto:ericsnowcurrently at gmail.com>> a
+>     ?crit :
+>      > > > > Maybe we can keep "Include/internal/" directory name, but add
+>      > > > > "pycore_" rather than "internal_" to header filenames?
+>      > > >
+>      > > > this sounds good to me.? thanks for chasing this down.
+>      > >
+>      > > What do you prefer?
+>      > >
+>      > > (A Include/internal/internal_pystate.h
+>      > > (B) Include/internal/pycore_pystate.h
+>      > > (C) Include/pycore/pycore_pystate.h
+>      > >
+>      > > Victor
+> 
+
+
+From vstinner at redhat.com  Thu Nov  1 14:19:51 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 1 Nov 2018 19:19:51 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <67172f5d-ca9e-c924-5970-b28d6876ce33@python.org>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <CALFfu7DFq=9QEaTT=sy-XK=B+X1f+qjo7YnMD37HVGRGKu54mg@mail.gmail.com>
+ <CA+3bQGFpcUiu_oyZWrU9POKSVhKYh98F-caoFk1xnhQgR6frMA@mail.gmail.com>
+ <CA+3bQGEgMc1T+UTavAcONFxTsq=ERsCjmZYP7W_3W_yJTAhosQ@mail.gmail.com>
+ <CALFfu7DqTYquUpv1Rk2Q8+Mi+OKoQsuKxWKOaC5Mk+Ffj+i2HQ@mail.gmail.com>
+ <CA+3bQGEE8Ji+CWNx-LL2ambgyqa2MQz781f+WX=yWbqLkWA=nA@mail.gmail.com>
+ <CALFfu7Atg1TZzGjAdaRVzXAdhG5MZ4o81AbKwK5G-N84qn8N5g@mail.gmail.com>
+ <CA+3bQGHoe9hoqXX146Uc=7WABLG+8vZ=33Lc63ONiM9jQ54OCw@mail.gmail.com>
+ <CALFfu7BrLThnaMXQEd+wSsmzka8o+OkcGhwzktamLzNpF=OkZg@mail.gmail.com>
+ <67172f5d-ca9e-c924-5970-b28d6876ce33@python.org>
+Message-ID: <CA+3bQGF0V93i+YA_tgfAfiPVXiSMqf-W16Q9rVU5M=q-KGbwnw@mail.gmail.com>
+
+Le jeu. 1 nov. 2018 ? 16:38, Steve Dower <steve.dower at python.org> a ?crit :
+> I assume the redundancy was there to handle the naming collision
+> problem, but a better way to do that is to have only header files that
+> users should ever use in "include/", and put the rest inside
+> "include/python/" and "include/internal/" (and if possible, we don't
+> distribute the internal directory as part of -develop packages, which
+> only really impacts the Windows installer as far as we're concerned, but
+> I assume some distros will care).
+
+Aha, I didn't try this approach. I counted 41 Include/ header files
+which are not included by Python.h:
+
+Python-ast.h
+abstract.h
+asdl.h
+ast.h
+bitset.h
+bytes_methods.h
+bytesobject.h
+code.h
+codecs.h
+datetime.h
+dictobject.h
+dynamic_annotations.h
+errcode.h
+fileobject.h
+frameobject.h
+graminit.h
+grammar.h
+longintrepr.h
+marshal.h
+metagrammar.h
+node.h
+opcode.h
+osdefs.h
+parsetok.h
+patchlevel.h
+pgen.h
+pgenheaders.h
+py_curses.h
+pydtrace.h
+pyexpat.h
+pystrhex.h
+pythonrun.h
+pythread.h
+pytime.h
+setobject.h
+structmember.h
+symtable.h
+token.h
+ucnhash.h
+unicodeobject.h
+
+For Py_BUILD_CORE, there is at least datetime.h which may be a
+Include/internal/ twin header.
+
+Now I'm not sure how it's going to fit with the second step, "Move
+!Py_LIMITED_API to Include/pycapi/":
+https://bugs.python.org/issue35134
+
+Victor
+
+From status at bugs.python.org  Fri Nov  2 13:09:58 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri,  2 Nov 2018 18:09:58 +0100 (CET)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20181102170958.3043456D39@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-10-26 - 2018-11-02)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6828 ( +5)
+  closed 40071 (+66)
+  total  46899 (+71)
+
+Open issues with patches: 2720 
+
+
+Issues opened (41)
+==================
+
+#35034: Add closing and iteration to threading.Queue
+https://bugs.python.org/issue35034  reopened by hemflit
+
+#35078: Allow customization of CSS class name of a month in calendar m
+https://bugs.python.org/issue35078  opened by thatiparthy
+
+#35081: Move internal headers to Include/internal/
+https://bugs.python.org/issue35081  opened by vstinner
+
+#35082: Mock.__dir__ lists deleted attributes
+https://bugs.python.org/issue35082  opened by mariocj89
+
+#35083: Fix documentation for __instancecheck__
+https://bugs.python.org/issue35083  opened by joydiamond
+
+#35084: binascii.Error: Incorrect padding
+https://bugs.python.org/issue35084  opened by Tester
+
+#35091: Objects/listobject.c: gallop functions rely on signed integer 
+https://bugs.python.org/issue35091  opened by izbyshev
+
+#35097: IDLE add doc subsection for editor windows
+https://bugs.python.org/issue35097  opened by terry.reedy
+
+#35099: Improve the IDLE - console differences doc
+https://bugs.python.org/issue35099  opened by terry.reedy
+
+#35100: urllib.parse.unquote_to_bytes: needs "escape plus" option
+https://bugs.python.org/issue35100  opened by Henry Zhu
+
+#35101: inspect.findsource breaks on class frame objects
+https://bugs.python.org/issue35101  opened by orlnub123
+
+#35103: format_exception() doesn't work with PyErr_Fetch
+https://bugs.python.org/issue35103  opened by tomasheran
+
+#35104: IDLE: On macOS, Command-M minimizes & opens "Open Module..."
+https://bugs.python.org/issue35104  opened by taleinat
+
+#35105: Document that CPython accepts "invalid" identifiers
+https://bugs.python.org/issue35105  opened by vstinner
+
+#35107: untokenize() fails on tokenize output when a newline is missin
+https://bugs.python.org/issue35107  opened by gregory.p.smith
+
+#35108: inspect.getmembers passes exceptions from object's properties 
+https://bugs.python.org/issue35108  opened by rominf
+
+#35109: Doctest in CI uses python binary built from master causing Dep
+https://bugs.python.org/issue35109  opened by xtreak
+
+#35111: Make Custom Object Classes JSON Serializable
+https://bugs.python.org/issue35111  opened by andrewchap
+
+#35113: inspect.getsource returns incorrect source for classes when cl
+https://bugs.python.org/issue35113  opened by xtreak
+
+#35114: ssl.RAND_status docs describe it as returning True/False; actu
+https://bugs.python.org/issue35114  opened by josh.r
+
+#35118: Add peek() or first() method in queue
+https://bugs.python.org/issue35118  opened by Windson Yang
+
+#35120: SSH tunnel support to ftp lib
+https://bugs.python.org/issue35120  opened by msharma
+
+#35121: Cookie domain check returns incorrect results
+https://bugs.python.org/issue35121  opened by ????????????
+
+#35122: Process not exiting on unhandled exception when using multipro
+https://bugs.python.org/issue35122  opened by akhi singhania
+
+#35123: Add style guide for sentinel usage
+https://bugs.python.org/issue35123  opened by madman bob
+
+#35124: Add style guide for unit tests
+https://bugs.python.org/issue35124  opened by madman bob
+
+#35125: asyncio shield: remove inner callback on outer cancellation
+https://bugs.python.org/issue35125  opened by mainro
+
+#35126: Mistake in FAQ about converting number to string.
+https://bugs.python.org/issue35126  opened by grottrumsel
+
+#35127: pyurandom() fails if user does not have an entropy device
+https://bugs.python.org/issue35127  opened by pehdrah
+
+#35131: Cannot access to customized paths within .pth file
+https://bugs.python.org/issue35131  opened by Valentin Zhao
+
+#35132: python-gdb error: Python Exception <class 'RuntimeError'> Type
+https://bugs.python.org/issue35132  opened by Dylan Cali
+
+#35133: Bugs in concatenating string literals on different lines
+https://bugs.python.org/issue35133  opened by serhiy.storchaka
+
+#35134: Move !Py_LIMITED_API to Include/pycapi/
+https://bugs.python.org/issue35134  opened by vstinner
+
+#35136: test_ssl fails in AMD64 FreeBSD CURRENT Shared 3.6 buildbot
+https://bugs.python.org/issue35136  opened by pablogsal
+
+#35138: timeit documentation should have example with function argumen
+https://bugs.python.org/issue35138  opened by davidak
+
+#35140: encoding problem: coding:gbk cause syntaxError
+https://bugs.python.org/issue35140  opened by anmikf
+
+#35143: Annotations future requires unparse, but not accessible from P
+https://bugs.python.org/issue35143  opened by kayhayen
+
+#35144: TemporaryDirectory can't be cleaned up if there are unsearchab
+https://bugs.python.org/issue35144  opened by lilydjwg
+
+#35145: sqlite3: "select *" should autoconvert datetime fields
+https://bugs.python.org/issue35145  opened by jondo
+
+#35147: _Py_NO_RETURN is always empty on GCC
+https://bugs.python.org/issue35147  opened by izbyshev
+
+#35148: cannot activate a venv environment on a Swiss German windows
+https://bugs.python.org/issue35148  opened by Martin Bijl-Schwab
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#35148: cannot activate a venv environment on a Swiss German windows
+https://bugs.python.org/issue35148
+
+#35143: Annotations future requires unparse, but not accessible from P
+https://bugs.python.org/issue35143
+
+#35132: python-gdb error: Python Exception <class 'RuntimeError'> Type
+https://bugs.python.org/issue35132
+
+#35131: Cannot access to customized paths within .pth file
+https://bugs.python.org/issue35131
+
+#35127: pyurandom() fails if user does not have an entropy device
+https://bugs.python.org/issue35127
+
+#35125: asyncio shield: remove inner callback on outer cancellation
+https://bugs.python.org/issue35125
+
+#35114: ssl.RAND_status docs describe it as returning True/False; actu
+https://bugs.python.org/issue35114
+
+#35103: format_exception() doesn't work with PyErr_Fetch
+https://bugs.python.org/issue35103
+
+#35100: urllib.parse.unquote_to_bytes: needs "escape plus" option
+https://bugs.python.org/issue35100
+
+#35082: Mock.__dir__ lists deleted attributes
+https://bugs.python.org/issue35082
+
+#35063: Checking for abstractmethod implementation fails to consider M
+https://bugs.python.org/issue35063
+
+#35061: Specify libffi.so soname for ctypes
+https://bugs.python.org/issue35061
+
+#35048: Can't reassign __class__ despite the assigned class having ide
+https://bugs.python.org/issue35048
+
+#35018: Sax parser provides no user access to lexical handlers
+https://bugs.python.org/issue35018
+
+#35009: argparse throws UnicodeEncodeError for printing help with unic
+https://bugs.python.org/issue35009
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#35147: _Py_NO_RETURN is always empty on GCC
+https://bugs.python.org/issue35147
+
+#35138: timeit documentation should have example with function argumen
+https://bugs.python.org/issue35138
+
+#35134: Move !Py_LIMITED_API to Include/pycapi/
+https://bugs.python.org/issue35134
+
+#35133: Bugs in concatenating string literals on different lines
+https://bugs.python.org/issue35133
+
+#35125: asyncio shield: remove inner callback on outer cancellation
+https://bugs.python.org/issue35125
+
+#35121: Cookie domain check returns incorrect results
+https://bugs.python.org/issue35121
+
+#35118: Add peek() or first() method in queue
+https://bugs.python.org/issue35118
+
+#35101: inspect.findsource breaks on class frame objects
+https://bugs.python.org/issue35101
+
+#35097: IDLE add doc subsection for editor windows
+https://bugs.python.org/issue35097
+
+#35091: Objects/listobject.c: gallop functions rely on signed integer 
+https://bugs.python.org/issue35091
+
+#35082: Mock.__dir__ lists deleted attributes
+https://bugs.python.org/issue35082
+
+#35081: Move internal headers to Include/internal/
+https://bugs.python.org/issue35081
+
+#35078: Allow customization of CSS class name of a month in calendar m
+https://bugs.python.org/issue35078
+
+#35077: Make TypeError message less ambiguous
+https://bugs.python.org/issue35077
+
+#35065: Reading received data from a closed TCP stream using `StreamRe
+https://bugs.python.org/issue35065
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#35081: Move internal headers to Include/internal/
+https://bugs.python.org/issue35081  19 msgs
+
+#35070: test_posix fails on macOS 10.14 Mojave
+https://bugs.python.org/issue35070  14 msgs
+
+#34160: ElementTree not preserving attribute order
+https://bugs.python.org/issue34160  13 msgs
+
+#35059: Convert Py_INCREF() and PyObject_INIT() to inlined functions
+https://bugs.python.org/issue35059  13 msgs
+
+#35084: binascii.Error: Incorrect padding
+https://bugs.python.org/issue35084  12 msgs
+
+#1154351: add get_current_dir_name() to os module
+https://bugs.python.org/issue1154351  10 msgs
+
+#35140: encoding problem: coding:gbk cause syntaxError
+https://bugs.python.org/issue35140   8 msgs
+
+#35077: Make TypeError message less ambiguous
+https://bugs.python.org/issue35077   7 msgs
+
+#19376: document that strptime() does not support the Feb 29 if the fo
+https://bugs.python.org/issue19376   6 msgs
+
+#35052: Coverity scan: copy/paste error in Lib/xml/dom/minidom.py
+https://bugs.python.org/issue35052   6 msgs
+
+
+
+Issues closed (64)
+==================
+
+#9263: Try to print repr() when an C-level assert fails (in the garba
+https://bugs.python.org/issue9263  closed by vstinner
+
+#27200: make doctest in CPython has failures
+https://bugs.python.org/issue27200  closed by mdk
+
+#27741: datetime.datetime.strptime functionality description incorrect
+https://bugs.python.org/issue27741  closed by vstinner
+
+#28015: configure --with-lto builds fail when CC=clang on Linux, requi
+https://bugs.python.org/issue28015  closed by vstinner
+
+#29174: 'NoneType' object is not callable in subprocess.py
+https://bugs.python.org/issue29174  closed by vstinner
+
+#31544: gettext.Catalog title is not flagged as a class
+https://bugs.python.org/issue31544  closed by serhiy.storchaka
+
+#31680: Expose curses library name and version on Python level
+https://bugs.python.org/issue31680  closed by serhiy.storchaka
+
+#31880: subprocess process interaction with IDLEX GUI causes pygnuplot
+https://bugs.python.org/issue31880  closed by roger.serwy
+
+#32804: urllib.retrieve documentation doesn't mention context paramete
+https://bugs.python.org/issue32804  closed by xiang.zhang
+
+#33138: Improve standard error for uncopyable types
+https://bugs.python.org/issue33138  closed by serhiy.storchaka
+
+#33236: MagicMock().__iter__.return_value is different from MagicMock(
+https://bugs.python.org/issue33236  closed by michael.foord
+
+#33237: Improve AttributeError message for partially initialized modul
+https://bugs.python.org/issue33237  closed by serhiy.storchaka
+
+#33331: Clean modules in the reversed order
+https://bugs.python.org/issue33331  closed by serhiy.storchaka
+
+#33710: Deprecate gettext.lgettext()
+https://bugs.python.org/issue33710  closed by serhiy.storchaka
+
+#33826: enable discovery of class source code in IPython interactively
+https://bugs.python.org/issue33826  closed by t-vi
+
+#33940: datetime.strptime have no directive to convert date values wit
+https://bugs.python.org/issue33940  closed by belopolsky
+
+#34198: Additional encoding options to tkinter.filedialog
+https://bugs.python.org/issue34198  closed by narito
+
+#34576: [EASY doc] http.server, SimpleHTTPServer: warn users on securi
+https://bugs.python.org/issue34576  closed by orsenthil
+
+#34794: Memory leak in Tkinter
+https://bugs.python.org/issue34794  closed by serhiy.storchaka
+
+#34866: CGI DOS vulnerability via long post list
+https://bugs.python.org/issue34866  closed by vstinner
+
+#34876: Python3.8 changes how decorators are traced
+https://bugs.python.org/issue34876  closed by serhiy.storchaka
+
+#34945: regression with ./python -m test and pdb
+https://bugs.python.org/issue34945  closed by pablogsal
+
+#35007: Minor change to weakref docs
+https://bugs.python.org/issue35007  closed by mdk
+
+#35042: Use the role :pep: for the PEP \d+
+https://bugs.python.org/issue35042  closed by mdk
+
+#35047: Better error messages in unittest.mock
+https://bugs.python.org/issue35047  closed by vstinner
+
+#35054: Add more index entries for symbols
+https://bugs.python.org/issue35054  closed by serhiy.storchaka
+
+#35062: io.IncrementalNewlineDecoder assign out-of-range value to bitw
+https://bugs.python.org/issue35062  closed by xiang.zhang
+
+#35064: COUNT_ALLOCS build export inc_count() and dec_count() function
+https://bugs.python.org/issue35064  closed by pablogsal
+
+#35067: Use vswhere instead of _distutils_findvs
+https://bugs.python.org/issue35067  closed by steve.dower
+
+#35068: [2.7] Possible crashes due to incorrect error handling in pyex
+https://bugs.python.org/issue35068  closed by serhiy.storchaka
+
+#35074: source install [3.7.1] on debian jessie
+https://bugs.python.org/issue35074  closed by xtreak
+
+#35075: Doc: pprint example uses dead URL
+https://bugs.python.org/issue35075  closed by inada.naoki
+
+#35076: FAIL: test_min_max_version (test.test_ssl.ContextTests) with l
+https://bugs.python.org/issue35076  closed by terry.reedy
+
+#35079: difflib.SequenceMatcher.get_matching_blocks omits common strin
+https://bugs.python.org/issue35079  closed by terry.reedy
+
+#35080: The tests for the `dis` module can be too rigid when changing 
+https://bugs.python.org/issue35080  closed by Maxime Belanger
+
+#35085: FileNotFoundError: [Errno 2] No such file or directory:
+https://bugs.python.org/issue35085  closed by steven.daprano
+
+#35086: tkinter docs: errors in A Simple Hello World Program
+https://bugs.python.org/issue35086  closed by serhiy.storchaka
+
+#35087: IDLE: update idlelib help files for current doc build
+https://bugs.python.org/issue35087  closed by terry.reedy
+
+#35088: Update idlelib.help.copy_string docstring
+https://bugs.python.org/issue35088  closed by terry.reedy
+
+#35089: Remove typing.io and typing.re from documentation
+https://bugs.python.org/issue35089  closed by levkivskyi
+
+#35090: Potential division by zero and integer overflow in allocator w
+https://bugs.python.org/issue35090  closed by vstinner
+
+#35092: test_socket fails in MacOS High Sierra when running with -Werr
+https://bugs.python.org/issue35092  closed by ned.deily
+
+#35093: IDLE: document the help document viewer
+https://bugs.python.org/issue35093  closed by terry.reedy
+
+#35094: Improved algorithms for random.sample
+https://bugs.python.org/issue35094  closed by rhettinger
+
+#35095: Implement pathlib.Path.append_bytes and pathlib.Path.append_te
+https://bugs.python.org/issue35095  closed by pablogsal
+
+#35096: Change _PY_VERSION to derive from sys.version_info in sysconfi
+https://bugs.python.org/issue35096  closed by ned.deily
+
+#35098: Deleting __new__ does not restore previous behavior
+https://bugs.python.org/issue35098  closed by josh.r
+
+#35102: Struct pack()
+https://bugs.python.org/issue35102  closed by mark.dickinson
+
+#35106: Add documentation for `type.__subclasses__` to docs.python.org
+https://bugs.python.org/issue35106  closed by joydiamond
+
+#35110: Fix more spaces around hyphens and dashes
+https://bugs.python.org/issue35110  closed by serhiy.storchaka
+
+#35112: SpooledTemporaryFile and seekable() method
+https://bugs.python.org/issue35112  closed by nubirstein
+
+#35115: UUID objects can't be casted by `hex()`
+https://bugs.python.org/issue35115  closed by fcurella
+
+#35116: Doc/library entries for cgi.FieldStorage max_num_fields
+https://bugs.python.org/issue35116  closed by vstinner
+
+#35117: set.discard should return True or False based on if element ex
+https://bugs.python.org/issue35117  closed by rhettinger
+
+#35119: Customizing module attribute access example raises RecursionEr
+https://bugs.python.org/issue35119  closed by levkivskyi
+
+#35128: warning.warn messages with spacing issues
+https://bugs.python.org/issue35128  closed by scorphus
+
+#35129: Different behaviour comparing versions (distutils.version.Loos
+https://bugs.python.org/issue35129  closed by eric.araujo
+
+#35130: add same file name to zipfile ,result two files and same md5
+https://bugs.python.org/issue35130  closed by serhiy.storchaka
+
+#35135: pip install --download option does not exist
+https://bugs.python.org/issue35135  closed by zach.ware
+
+#35137: Exception in isinstance when __class__ property raises
+https://bugs.python.org/issue35137  closed by brett.cannon
+
+#35139: Statically linking pyexpat in Modules/Setup fails to compile o
+https://bugs.python.org/issue35139  closed by benjamin.peterson
+
+#35141: encoding problem: gbk
+https://bugs.python.org/issue35141  closed by xtreak
+
+#35142: html.entities.html5 should require a trailing semicolon
+https://bugs.python.org/issue35142  closed by serhiy.storchaka
+
+#35146: Bad Regular Expression Broke re.findall()
+https://bugs.python.org/issue35146  closed by steven.daprano
+
+From nas-python at arctrix.com  Fri Nov  2 13:22:38 2018
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Fri, 2 Nov 2018 11:22:38 -0600
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+Message-ID: <20181102172238.u7ysgkpj2b7aids5@python.ca>
+
+On 2018-10-28, Benjamin Peterson wrote:
+> I don't think more or less API should be magically included based
+> on whether Py_BUILD_CORE is defined or not.
+
+I agree.
+
+> If we want to have private headers, we should include them where
+> needed and not install them. Really, Py_BUILD_CORE should go away.
+> We should be moving away from monolithic includes like Python.h to
+> having each C file include exactly what it uses, private or not.
+
+It seems that is best practice (e.g. look at Linux kernel include
+file style).  I wonder however what are the real benefits to having
+modular include files and directly using them as needed?
+
+Pros for modular includes:
+
+- speeds up build process if you have good dependency info in the
+  build system.  Right now, change Python.h and everything gets
+  rebuilt.  I'm not sure this is a huge advantage anymore.
+
+- makes it clearer where an API is implemented?
+
+Cons:
+
+- more work to include the correct headers
+
+- build system dependency definitions are more complicated.  Other
+  systems generally have automatic dependancy generates (i.e. parse
+  C files and find used includes).
+
+A simple approach would be to introduce something like
+Python-internal.h.  If you are a Python internal unit, you can
+include both Python.h and Python-internal.h.  We could, over time,
+split Python-iternal.h into smaller modular includes.
+
+From vstinner at redhat.com  Fri Nov  2 15:01:30 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 2 Nov 2018 20:01:30 +0100
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <20181102172238.u7ysgkpj2b7aids5@python.ca>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+ <20181102172238.u7ysgkpj2b7aids5@python.ca>
+Message-ID: <CA+3bQGHoS+uToYCa=fLtPzDLdBmDu+f8EU0EFOhwCfu92rh3tA@mail.gmail.com>
+
+Le ven. 2 nov. 2018 ? 18:32, Neil Schemenauer <nas-python at arctrix.com> a ?crit :
+> A simple approach would be to introduce something like
+> Python-internal.h.  If you are a Python internal unit, you can
+> include both Python.h and Python-internal.h.  We could, over time,
+> split Python-iternal.h into smaller modular includes.
+
+Since this discussion, I already moved most Py_BUILD_CORE in
+Include/internal/. I added a lot of #include "pycore_xxx.h" in C
+files.
+
+I started to reach the limit with this PR which adds the
+pycore_object.h include to not less than 33 C files:
+https://github.com/python/cpython/pull/10272
+
+I rewrote this PR to avoid the need to modify 33 C files:
+https://github.com/python/cpython/pull/10276/files
+
+I added the following code to Python.h:
+
+#ifdef Py_BUILD_CORE
+/* bpo-35081: Automatically include pycore_object.h in Python.h, to avoid
+to have to add an explicit #include "pycore_object.h" to each C file. */
+# include "pycore_object.h"
+#endif
+
+I'm not sure of it's a temporary workaround or not :-) Maybe a
+Python-internal.h would be a better solution? We can identify the most
+common header files needed to access "Python internals" and put them
+in this "common" header file.
+
+For example, most C files using Python internals have to access
+_PyRuntime global variable (55 C files), so "pycore_state.h" is a good
+candidate.
+
+By the way, I don't understand the rationale to have _PyRuntime in
+pycore_state.h. IMHO pycore_state.h should only contain functions to
+get the Python thread and Python interpreter states. IMHO _PyRuntime
+is unrelated and should belong to a different header file, maybe
+pycore_runtime.h? I didn't do this change yet *because* I would have
+to modify the 55 files currently including it.
+
+Victor
+
+From brett at python.org  Fri Nov  2 18:24:20 2018
+From: brett at python.org (Brett Cannon)
+Date: Fri, 2 Nov 2018 15:24:20 -0700
+Subject: [Python-Dev] PEP 543-conform TLS library
+In-Reply-To: <3A7C8D1D-FA3F-46AF-8EC8-540D407EC825@gmail.com>
+References: <3A7C8D1D-FA3F-46AF-8EC8-540D407EC825@gmail.com>
+Message-ID: <CAP1=2W5FOVtnAk5_pj0_=xA9Gt9=qOCx-KixSD80Ree=rRu5UA@mail.gmail.com>
+
+In case you never received a reply, you can try emailing Christian and Cory
+directly for an answer.
+
+On Fri, 26 Oct 2018 at 13:20, Mathias Laurin <mathias.laurin at gmail.com>
+wrote:
+
+> Hello Python Dev,
+>
+>
+> I posted the following to python-ideas but here may be
+> a more suitable place.  I apologize if cross posting
+> bothers anyone.
+>
+>
+> I have implemented an (I believe) PEP 543-conform TLS library
+> and released TLS support in the latest version yesterday:
+>
+> https://github.com/Synss/python-mbedtls/tree/0.13.0
+> https://pypi.org/project/python-mbedtls/0.13.0/
+>
+>
+> As far as I know, I am the first one to follow PEP 543.  So one
+> point is that the API works.  However, I have a couple of
+> questions regarding the PEP:
+>
+> - I do not know what to do in `TLSWrappedBuffer.do_handshake()`.
+>  The full TLS handshake requires writing to the server, reading
+>  back, etc., (ClientHello, ServerHello, KeyExchange, etc.),
+>  which cannot be accomplished in a single buffer.
+>
+>  For now, I am doing the handshake in
+>  `TLSWrappedSocket.do_handshake()`: I set the BIO to using the
+>  socket directly, then perform the handshake on the socket thus
+>  entirely bypassing the TLSWrappedBuffer.  Once this is done, I
+>  swap the BIO to using the buffer and go on encrypting and
+>  decrypting from the buffer.  That is, the encrypted
+>  communication is buffered.
+>
+> - The PEP sometimes mentions an "input buffer" and an "output
+>  buffer", and some other times just "the buffer".  I believe
+>  that both implementations are possible.  That is, with two
+>  different buffers for input and output, or a single one.
+>
+>  I have implemented it with a single circular buffer (that is a
+>  stream after all).  What the PEP is expecting is nonetheless
+>  not clear to me.
+>
+>
+> So, can anybody clarify these two points from the PEP?
+>
+>
+> Or should I just address Cory Benfield (who does not seem very
+> active anymore lately) and Christian Heimes directly?
+>
+>
+> Cheers,
+> Mathias
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181102/315b7850/attachment.html>
+
