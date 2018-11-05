@@ -843,3 +843,148 @@ wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181102/315b7850/attachment.html>
 
+From barry at barrys-emacs.org  Sat Nov  3 05:08:38 2018
+From: barry at barrys-emacs.org (Barry Scott)
+Date: Sat, 3 Nov 2018 09:08:38 +0000
+Subject: [Python-Dev] windows compiler list missing 3.7 details on wiki
+Message-ID: <16BCAA90-23DF-4B6A-8A78-DEB397109133@barrys-emacs.org>
+
+On https://wiki.python.org/moin/WindowsCompilers details for 3.7 are missing.
+I'm assuming its still VC V14
+
+Barry
+
+
+From steve.dower at python.org  Sat Nov  3 13:57:15 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Sat, 3 Nov 2018 10:57:15 -0700
+Subject: [Python-Dev] windows compiler list missing 3.7 details on wiki
+In-Reply-To: <16BCAA90-23DF-4B6A-8A78-DEB397109133@barrys-emacs.org>
+References: <16BCAA90-23DF-4B6A-8A78-DEB397109133@barrys-emacs.org>
+Message-ID: <bfcde3d4-b290-6d3d-f315-7cd3076882ea@python.org>
+
+Yes. Visual Studio 2015 or later can be used (and as this is the only 
+way to get the compiler right now, I think it's fine to list that as the 
+requirement - note that the "Visual Studio Build Tools" installer 
+doesn't include the IDE itself).
+
+Feel free to update the wiki.
+
+Cheers,
+Steve
+
+On 03Nov2018 0208, Barry Scott wrote:
+> On https://wiki.python.org/moin/WindowsCompilers details for 3.7 are missing.
+> I'm assuming its still VC V14
+> 
+> Barry
+
+
+From debatem1 at gmail.com  Sat Nov  3 20:59:18 2018
+From: debatem1 at gmail.com (geremy condra)
+Date: Sat, 3 Nov 2018 17:59:18 -0700
+Subject: [Python-Dev] PEP 543-conform TLS library
+In-Reply-To: <CAP1=2W5FOVtnAk5_pj0_=xA9Gt9=qOCx-KixSD80Ree=rRu5UA@mail.gmail.com>
+References: <3A7C8D1D-FA3F-46AF-8EC8-540D407EC825@gmail.com>
+ <CAP1=2W5FOVtnAk5_pj0_=xA9Gt9=qOCx-KixSD80Ree=rRu5UA@mail.gmail.com>
+Message-ID: <CAJ=m_n67LUz1C6HYV6YonN5oRsF51xgOstU5AxD=qpzgmqyJFg@mail.gmail.com>
+
+Not to derail this thread, but it may be worth looking into something like
+Android's network security config (
+https://developer.android.com/training/articles/security-config) in
+relation to PEP 543.
+
+One of the key takeaways from their analysis of a large number of
+applications which touched TLS libraries was that their developers often
+wanted to do simple and sane things but wound up doing complicated and
+insane ones. To combat that, they created a fairly lightweight declarative
+syntax for allowing narrow deviations from best practice. This syntax does
+not have the full flexibility of their API, but is enough to satisfy the
+needs of lots of developers and prevent lots of mistakes along the way.
+
+In particular, I'd love to see some examples of how to achieve the same
+effects as the canonical network security config examples using a PEP 543
+interface. If they're useful enough it may even be beneficial to wrap those
+up in a separate library, but at the very least it will help prove out that
+PEP 543 can do the most important things that developers will want it to
+do. If that already exists and I'm just ignorant of it, sorry for the noise.
+
+Geremy Condra
+
+On Fri, Nov 2, 2018 at 3:25 PM Brett Cannon <brett at python.org> wrote:
+
+> In case you never received a reply, you can try emailing Christian and
+> Cory directly for an answer.
+>
+> On Fri, 26 Oct 2018 at 13:20, Mathias Laurin <mathias.laurin at gmail.com>
+> wrote:
+>
+>> Hello Python Dev,
+>>
+>>
+>> I posted the following to python-ideas but here may be
+>> a more suitable place.  I apologize if cross posting
+>> bothers anyone.
+>>
+>>
+>> I have implemented an (I believe) PEP 543-conform TLS library
+>> and released TLS support in the latest version yesterday:
+>>
+>> https://github.com/Synss/python-mbedtls/tree/0.13.0
+>> https://pypi.org/project/python-mbedtls/0.13.0/
+>>
+>>
+>> As far as I know, I am the first one to follow PEP 543.  So one
+>> point is that the API works.  However, I have a couple of
+>> questions regarding the PEP:
+>>
+>> - I do not know what to do in `TLSWrappedBuffer.do_handshake()`.
+>>  The full TLS handshake requires writing to the server, reading
+>>  back, etc., (ClientHello, ServerHello, KeyExchange, etc.),
+>>  which cannot be accomplished in a single buffer.
+>>
+>>  For now, I am doing the handshake in
+>>  `TLSWrappedSocket.do_handshake()`: I set the BIO to using the
+>>  socket directly, then perform the handshake on the socket thus
+>>  entirely bypassing the TLSWrappedBuffer.  Once this is done, I
+>>  swap the BIO to using the buffer and go on encrypting and
+>>  decrypting from the buffer.  That is, the encrypted
+>>  communication is buffered.
+>>
+>> - The PEP sometimes mentions an "input buffer" and an "output
+>>  buffer", and some other times just "the buffer".  I believe
+>>  that both implementations are possible.  That is, with two
+>>  different buffers for input and output, or a single one.
+>>
+>>  I have implemented it with a single circular buffer (that is a
+>>  stream after all).  What the PEP is expecting is nonetheless
+>>  not clear to me.
+>>
+>>
+>> So, can anybody clarify these two points from the PEP?
+>>
+>>
+>> Or should I just address Cory Benfield (who does not seem very
+>> active anymore lately) and Christian Heimes directly?
+>>
+>>
+>> Cheers,
+>> Mathias
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/debatem1%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181103/2733b0c3/attachment.html>
+
