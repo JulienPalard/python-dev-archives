@@ -988,3 +988,1697 @@ On Fri, Nov 2, 2018 at 3:25 PM Brett Cannon <brett at python.org> wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181103/2733b0c3/attachment.html>
 
+From stephane at wirtel.be  Sun Nov  4 05:43:50 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 11:43:50 +0100
+Subject: [Python-Dev] Need discussion for a PR about memory and objects
+Message-ID: <20181104104350.GA12859@xps>
+
+In this PR [https://github.com/python/cpython/pull/3382] "Remove reference to
+address from the docs, as it only causes confusion", opened by Chris
+Angelico, there is a discussion about the right term to use for the
+address of an object in memory.
+
+If you are interested by the topic, you could comment it.
+
+If there is no comments then I think we could close the PR.
+
+Thank you
+
+St?phane
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From steve at pearwood.info  Sun Nov  4 08:03:15 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Mon, 5 Nov 2018 00:03:15 +1100
+Subject: [Python-Dev] Need discussion for a PR about memory and objects
+In-Reply-To: <20181104104350.GA12859@xps>
+References: <20181104104350.GA12859@xps>
+Message-ID: <20181104130314.GU3817@ando.pearwood.info>
+
+On Sun, Nov 04, 2018 at 11:43:50AM +0100, Stephane Wirtel wrote:
+> In this PR [https://github.com/python/cpython/pull/3382] "Remove reference 
+> to
+> address from the docs, as it only causes confusion", opened by Chris
+> Angelico, there is a discussion about the right term to use for the
+> address of an object in memory.
+
+Why do we need to refer to the address of objects in memory?
+
+Python's execution model is not based on addresses. We can't get the 
+address of an object or do anything with it (except via ctypes). At the 
+Python layer, objects just exist, they don't logically exist at any 
+addressable location.
+
+In fact, they might not exist in a single location -- compound objects 
+are split across many locations or can share chunks of memory between 
+multiple objects. Objects in Jython and IronPython can move about, those 
+in PyPy can disappear from existence and reappear. The concept that 
+every object has exactly one fixed location simply isn't correct.
+
+I understand that people wishing to understand the implementation 
+details of CPython objects will need to think about C-level concepts 
+like memory address, but at the Python level, "address" is not a very 
+meaningful or useful concept.
+
+
+-- 
+Steve
+
+From stephane at wirtel.be  Sun Nov  4 08:38:27 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 14:38:27 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+Message-ID: <20181104133827.GA25586@xps>
+
+Hi all,
+
+When we receive a PR about the documentation, I think that could be
+interesting if we could have a running instance of the doc on a sub
+domain of python.org.
+
+For example, pr-10000-doc.python.org or whatever, but by this way the
+reviewers could see the result online.
+
+The workflow would be like that:
+
+New PR -> build the doc (done by Travis) -> publish it to a server ->
+once published, the PR is notified by "doc is available at URL".
+
+Once merged -> we remove the doc and the link (hello bedevere).
+
+I am interested by this feature and if you also interested, tell me.
+I would like discuss with Julien Palard and Ernest W.  Durbin III for a
+solution as soon as possible.
+
+Have a nice day,
+
+St?phane
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From nad at python.org  Sun Nov  4 09:15:22 2018
+From: nad at python.org (Ned Deily)
+Date: Sun, 4 Nov 2018 09:15:22 -0500
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104133827.GA25586@xps>
+References: <20181104133827.GA25586@xps>
+Message-ID: <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+
+On Nov 4, 2018, at 08:38, Stephane Wirtel <stephane at wirtel.be> wrote:
+> When we receive a PR about the documentation, I think that could be
+> interesting if we could have a running instance of the doc on a sub
+> domain of python.org.
+> 
+> For example, pr-10000-doc.python.org or whatever, but by this way the
+> reviewers could see the result online.
+
+It's an interesting idea but I don't like essentially opening python.org as a publishing platform (OK, another publishing platform - yes, I know about wiki.python.org).  Considering how easy it is to build and view the docs yourself, I don't think the benefits of such a service are worth the added complexity and potential abuse.
+
+cd Doc
+make venv # first time
+git pr checkout ...
+make html
+open build/html/index.html  # depending on platform and code change
+
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From julien at palard.fr  Sun Nov  4 10:00:35 2018
+From: julien at palard.fr (Julien Palard)
+Date: Sun, 04 Nov 2018 15:00:35 +0000
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+Message-ID: <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+
+Considering feedback from Ned, what about building this as an independent service? We don't really need to interface with python.org at all, we just need some hardware, a domain, some code to interface with github API and... to start it's probably enough? It would be a usefull POC.
+
+--?
+Julien Palard
+https://mdk.fr
+
+
+From stephane at wirtel.be  Sun Nov  4 10:12:39 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 16:12:39 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+Message-ID: <20181104151239.GA14162@xps>
+
+On 11/04, Ned Deily wrote:
+>On Nov 4, 2018, at 08:38, Stephane Wirtel <stephane at wirtel.be> wrote:
+>> When we receive a PR about the documentation, I think that could be
+>> interesting if we could have a running instance of the doc on a sub
+>> domain of python.org.
+>>
+>> For example, pr-10000-doc.python.org or whatever, but by this way the
+>> reviewers could see the result online.
+>
+>It's an interesting idea but I don't like essentially opening
+>python.org as a publishing platform (OK, another publishing platform -
+>yes, I know about wiki.python.org).  Considering how easy it is to
+>build and view the docs yourself, I don't think the benefits of such a
+>service are worth the added complexity and potential abuse.
+>
+>cd Doc
+>make venv # first time
+>git pr checkout ...
+>make html
+>open build/html/index.html  # depending on platform and code change
+
+I am going to give your 3 counter-examples but I think you will find an
+other counter-example ;-)
+
+1. Two weeks ago, I have opened a PR
+[https://github.com/python/cpython/pull/10009] about a rewording of a
+sentence in the doc. Paul Ganssle was a reviewer and in a sentence he
+said that would be nice to have a live preview of the docs on PR.
+See https://github.com/python/cpython/pull/10009#issuecomment-433082605
+Maybe he was on his smartphone/tablet and not in front of his computer.
+
+2. On this morning, I was reviewing a PR
+https://github.com/python/cpython/pull/10102, but the message from the
+reviewer was "LGTM. Thanks for the PR ;-)". I don't doubt about the
+reviewer but I want to check the result of sphinx and not just the
+text, sometimes, we can find an other issue, you never know.
+
+3. On this after-noon, I have reviewed a PR, and I was in the same case,
+download the PR, build python, compile the doc and run the local server.
+
+My workflow is the following steps:
+
+git wpr XYZ
+cd ../cpython-XYZ
+./configure --prefix=$PWD-build --with-pydebug --silent
+make -j 4 -s
+make PYTHON=../python -C Doc/ venv
+make -C Doc/ check suspicious html serve
+
+and run the browser on http://localhost:8000/ and check the result.
+
+
+1. Because I am a dev I can do it easily
+2. If you are not a dev, you have to learn a new step (download sources,
+compile sources, compile doc and check the result)
+
+We could check easily the result without this big step.
+
+git wpr -> wpr = !bash -c \"git fetch upstream pull/${1}/head:pr_${1} && git worktree add ../$(basename $(git rev-parse --show-toplevel))-pr-${1} pr_${1}\" -
+
+I think this feature would be really useful for the contributors, the
+reviewers and you, the core-dev.
+
+St?phane
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From rosuav at gmail.com  Sun Nov  4 10:18:11 2018
+From: rosuav at gmail.com (Chris Angelico)
+Date: Mon, 5 Nov 2018 02:18:11 +1100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+Message-ID: <CAPTjJmoci5NhiEqGnZ9dZ4odfYHA+1=UDOMJogr4_oZeJCbzZA@mail.gmail.com>
+
+On Mon, Nov 5, 2018 at 2:11 AM Julien Palard via Python-Dev
+<python-dev at python.org> wrote:
+>
+> Considering feedback from Ned, what about building this as an independent service? We don't really need to interface with python.org at all, we just need some hardware, a domain, some code to interface with github API and... to start it's probably enough? It would be a usefull POC.
+>
+
+After running 'make html', the build directory is the entire site as a
+set of static files, right? Maybe the easiest solution is to tie in
+with GitHub Pages. I already have a script that will push a directory
+up as the gh-pages branch of the current repo; it'd just need a tweak
+so it can push to a specific repo, which you could create on GitHub
+for the purpose. Not 100% automatic, but also not too difficult to
+automate, if needed.
+
+https://github.com/Rosuav/shed/blob/master/git-deploy
+
+ChrisA
+
+From stephane at wirtel.be  Sun Nov  4 10:25:25 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 16:25:25 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+Message-ID: <20181104152525.GA12103@xps>
+
+On 11/04, Julien Palard wrote:
+>Considering feedback from Ned, what about building this as an
+>independent service? We don't really need to interface with python.org
+>at all, we just need some hardware, a domain, some code to interface
+>with github API and... to start it's probably enough? It would be a
+>usefull POC.
++1
+
+We have 2 options
+
+1. We keep a domain (python.org, or another one) and for each build we would have a subdomain for
+each build by PR.
+doc-pr-XYZ.domain.tld
+
+2. We could store on domain but with a subdirectory by PR
+domain.tld/doc-pr-XYZ
+
+In travis, I think we have the PR info, we could use it and upload to
+the server for the live preview.
+
+Once merged, we drop the temporary doc on the server.
+
+
+St?phane
+
+>
+>--?
+>Julien Palard
+>https://mdk.fr
+>
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From stephane at wirtel.be  Sun Nov  4 10:32:11 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 16:32:11 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <CAPTjJmoci5NhiEqGnZ9dZ4odfYHA+1=UDOMJogr4_oZeJCbzZA@mail.gmail.com>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <CAPTjJmoci5NhiEqGnZ9dZ4odfYHA+1=UDOMJogr4_oZeJCbzZA@mail.gmail.com>
+Message-ID: <20181104153211.GB12103@xps>
+
+On 11/05, Chris Angelico wrote:
+>On Mon, Nov 5, 2018 at 2:11 AM Julien Palard via Python-Dev
+><python-dev at python.org> wrote:
+>>
+>> Considering feedback from Ned, what about building this as an independent service? We don't really need to interface with python.org at all, we just need some hardware, a domain, some code to interface with github API and... to start it's probably enough? It would be a usefull POC.
+>>
+>
+>After running 'make html', the build directory is the entire site as a
+>set of static files, right? Maybe the easiest solution is to tie in
+>with GitHub Pages. I already have a script that will push a directory
+>up as the gh-pages branch of the current repo; it'd just need a tweak
+>so it can push to a specific repo, which you could create on GitHub
+>for the purpose. Not 100% automatic, but also not too difficult to
+>automate, if needed.
+>
+>https://github.com/Rosuav/shed/blob/master/git-deploy
+
+Nice idea, but I am not for that.
+
+1. We will populate the git repository with a lot of gh-pages branches
+and I am not for this solution
+2. This static doc is just temporary, once merged, we have to remove the
+link and the content on the server, with the gh-pages, that will be a
+commit where we drop the content, but it's a commit and we will consume
+the storage of github.
+3. 1 repo has only one gh-pages, in our case, we need to have a lot of
+gh-pages for a repo.
+
+But thank you for your idea.
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From steve.dower at python.org  Sun Nov  4 10:34:23 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Sun, 4 Nov 2018 07:34:23 -0800
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <CAPTjJmoci5NhiEqGnZ9dZ4odfYHA+1=UDOMJogr4_oZeJCbzZA@mail.gmail.com>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <CAPTjJmoci5NhiEqGnZ9dZ4odfYHA+1=UDOMJogr4_oZeJCbzZA@mail.gmail.com>
+Message-ID: <23b8f062-348b-9750-e31f-0b3dabf09b22@python.org>
+
+On 04Nov2018 0718, Chris Angelico wrote:
+> On Mon, Nov 5, 2018 at 2:11 AM Julien Palard via Python-Dev
+> <python-dev at python.org> wrote:
+>>
+>> Considering feedback from Ned, what about building this as an independent service? We don't really need to interface with python.org at all, we just need some hardware, a domain, some code to interface with github API and... to start it's probably enough? It would be a usefull POC.
+>>
+> 
+> After running 'make html', the build directory is the entire site as a
+> set of static files, right? Maybe the easiest solution is to tie in
+> with GitHub Pages. I already have a script that will push a directory
+> up as the gh-pages branch of the current repo; it'd just need a tweak
+> so it can push to a specific repo, which you could create on GitHub
+> for the purpose. Not 100% automatic, but also not too difficult to
+> automate, if needed.
+
+I can trivially attach the built docs as a ZIP file to the Azure 
+Pipelines build, though that doesn't help the "preview on my phone" 
+scenario (unless your phone can extract and then open a directory of 
+HTML files? Mine can't)
+
+But that's also easy enough to tie into a second step to deploy the 
+files practically anywhere. Pushing them to a git repo based on the PR 
+name is easy, and presumably it can be a single repo with directories 
+for different PRs? It might need a separate job to periodically clean it 
+up, but this seems very doable.
+
+Cheers,
+Steve
+
+From storchaka at gmail.com  Sun Nov  4 10:40:29 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Sun, 4 Nov 2018 17:40:29 +0200
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+Message-ID: <prn3pb$h3l$1@blaine.gmane.org>
+
+04.11.18 17:00, Julien Palard via Python-Dev ????:
+> Considering feedback from Ned, what about building this as an independent service? We don't really need to interface with python.org at all, we just need some hardware, a domain, some code to interface with github API and... to start it's probably enough? It would be a usefull POC.
+
+This will just move risks to this service.
+
+Ned mentioned potential abuse. We will host unchecked content. Malicious 
+user can create a PR which replaces Python documentation with malicious 
+content.
+
+The Doc/ directory includes Python scripts and Makefile which are used 
+for building documentation. Malicious user can use this for executing 
+arbitrary code on our server.
+
+
+From stephane at wirtel.be  Sun Nov  4 10:46:42 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 16:46:42 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <23b8f062-348b-9750-e31f-0b3dabf09b22@python.org>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <CAPTjJmoci5NhiEqGnZ9dZ4odfYHA+1=UDOMJogr4_oZeJCbzZA@mail.gmail.com>
+ <23b8f062-348b-9750-e31f-0b3dabf09b22@python.org>
+Message-ID: <20181104154642.GC12103@xps>
+
+On 11/04, Steve Dower wrote:
+>On 04Nov2018 0718, Chris Angelico wrote:
+>>On Mon, Nov 5, 2018 at 2:11 AM Julien Palard via Python-Dev
+>><python-dev at python.org> wrote:
+>>>
+>>>Considering feedback from Ned, what about building this as an independent service? We don't really need to interface with python.org at all, we just need some hardware, a domain, some code to interface with github API and... to start it's probably enough? It would be a usefull POC.
+>>>
+>>
+>>After running 'make html', the build directory is the entire site as a
+>>set of static files, right? Maybe the easiest solution is to tie in
+>>with GitHub Pages. I already have a script that will push a directory
+>>up as the gh-pages branch of the current repo; it'd just need a tweak
+>>so it can push to a specific repo, which you could create on GitHub
+>>for the purpose. Not 100% automatic, but also not too difficult to
+>>automate, if needed.
+>
+>I can trivially attach the built docs as a ZIP file to the Azure 
+>Pipelines build, though that doesn't help the "preview on my phone" 
+>scenario (unless your phone can extract and then open a directory of 
+>HTML files? Mine can't)
+Or just upload the zip file to the server-live-preview-doc and unzip the
+result.
+>
+>But that's also easy enough to tie into a second step to deploy the 
+>files practically anywhere. Pushing them to a git repo based on the PR 
+>name is easy, and presumably it can be a single repo with directories 
+>for different PRs? It might need a separate job to periodically clean 
+>it up, but this seems very doable.
+for the subdirectory by PR I am not sure but we could have an issue with
+the cache of the browser because we will use the same domain, but this
+solution can be created in few hours. +1
+
+For the subdomain, no problem with the cache, just update the DNS, but
+we can have an issue with the propagation of the DNS if the TTL is high.
+
+We could use Bedevere, not sure but I think it can receive an action
+about the merge of a PR. Once merge, we execute the clean process ;-)
+>
+>Cheers,
+>Steve
+>_______________________________________________
+>Python-Dev mailing list
+>Python-Dev at python.org
+>https://mail.python.org/mailman/listinfo/python-dev
+>Unsubscribe: https://mail.python.org/mailman/options/python-dev/stephane%40wirtel.be
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From rosuav at gmail.com  Sun Nov  4 10:48:25 2018
+From: rosuav at gmail.com (Chris Angelico)
+Date: Mon, 5 Nov 2018 02:48:25 +1100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104153211.GB12103@xps>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <CAPTjJmoci5NhiEqGnZ9dZ4odfYHA+1=UDOMJogr4_oZeJCbzZA@mail.gmail.com>
+ <20181104153211.GB12103@xps>
+Message-ID: <CAPTjJmoqq+prNQa5vvNZ5YnEQeX+Xr0ztFcqZDeNU1BpsbH-Aw@mail.gmail.com>
+
+On Mon, Nov 5, 2018 at 2:33 AM Stephane Wirtel <stephane at wirtel.be> wrote:
+>
+> On 11/05, Chris Angelico wrote:
+> >On Mon, Nov 5, 2018 at 2:11 AM Julien Palard via Python-Dev
+> ><python-dev at python.org> wrote:
+> >>
+> >> Considering feedback from Ned, what about building this as an independent service? We don't really need to interface with python.org at all, we just need some hardware, a domain, some code to interface with github API and... to start it's probably enough? It would be a usefull POC.
+> >>
+> >
+> >After running 'make html', the build directory is the entire site as a
+> >set of static files, right? Maybe the easiest solution is to tie in
+> >with GitHub Pages. I already have a script that will push a directory
+> >up as the gh-pages branch of the current repo; it'd just need a tweak
+> >so it can push to a specific repo, which you could create on GitHub
+> >for the purpose. Not 100% automatic, but also not too difficult to
+> >automate, if needed.
+> >
+> >https://github.com/Rosuav/shed/blob/master/git-deploy
+>
+> Nice idea, but I am not for that.
+>
+> 1. We will populate the git repository with a lot of gh-pages branches
+> and I am not for this solution
+> 2. This static doc is just temporary, once merged, we have to remove the
+> link and the content on the server, with the gh-pages, that will be a
+> commit where we drop the content, but it's a commit and we will consume
+> the storage of github.
+> 3. 1 repo has only one gh-pages, in our case, we need to have a lot of
+> gh-pages for a repo.
+>
+
+Yeah, understood. I was thinking of having the individual patch
+authors create temporary GitHub repositories to push to. It'd be an
+optional step; if you want to show people a preview of your PR, just
+create a repository and push to it (using a script something like
+that). That way, you don't have to worry about malicious content
+(since it'll be hosted under the author's name - I'm sure GitHub have
+measures in place to deal with that, and it wouldn't be Python.org's
+problem), nor having lots of gh-pages branches sitting around (they'd
+be the responsibility of the author).
+
+> But thank you for your idea.
+
+No probs, and I don't mind if it's not adopted. Just wanted to put it out there.
+
+ChrisA
+
+From stephane at wirtel.be  Sun Nov  4 10:49:57 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 16:49:57 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <prn3pb$h3l$1@blaine.gmane.org>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <prn3pb$h3l$1@blaine.gmane.org>
+Message-ID: <20181104154957.GD12103@xps>
+
+On 11/04, Serhiy Storchaka wrote:
+>04.11.18 17:00, Julien Palard via Python-Dev ????:
+>>Considering feedback from Ned, what about building this as an independent service? We don't really need to interface with python.org at all, we just need some hardware, a domain, some code to interface with github API and... to start it's probably enough? It would be a usefull POC.
+>
+>This will just move risks to this service.
+>
+>Ned mentioned potential abuse. We will host unchecked content. 
+>Malicious user can create a PR which replaces Python documentation 
+>with malicious content.
+The content will be generated by the build/html directory from Travis.
+If Travis is green we upload the doc, if Travis is red, we do not
+publish it. If there is an abuse, we close/drop the PR, maybe Bedevere
+can receive this notification via the webhooks and notify the server to
+remove the doc.
+>
+>The Doc/ directory includes Python scripts and Makefile which are used 
+>for building documentation. Malicious user can use this for executing 
+>arbitrary code on our server.
+Currently, we use Travis. The malicious code will be execute in the
+container of Travis, not on the server. We only copy the static files
+and if we use nginx/apache, we don't execute the .py files. Just serve
+the .html,.css,.js files
+>
+>_______________________________________________
+>Python-Dev mailing list
+>Python-Dev at python.org
+>https://mail.python.org/mailman/listinfo/python-dev
+>Unsubscribe: https://mail.python.org/mailman/options/python-dev/stephane%40wirtel.be
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From steve at pearwood.info  Sun Nov  4 10:50:19 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Mon, 5 Nov 2018 02:50:19 +1100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104151239.GA14162@xps>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <20181104151239.GA14162@xps>
+Message-ID: <20181104155017.GX3817@ando.pearwood.info>
+
+On Sun, Nov 04, 2018 at 04:12:39PM +0100, Stephane Wirtel wrote:
+
+> My workflow is the following steps:
+> 
+> git wpr XYZ
+> cd ../cpython-XYZ
+> ./configure --prefix=$PWD-build --with-pydebug --silent
+> make -j 4 -s
+> make PYTHON=../python -C Doc/ venv
+> make -C Doc/ check suspicious html serve
+> 
+> and run the browser on http://localhost:8000/ and check the result.
+> 
+> 
+> 1. Because I am a dev I can do it easily
+> 2. If you are not a dev, you have to learn a new step (download sources,
+> compile sources, compile doc and check the result)
+
+If I am making doc patches, shouldn't I be doing that *before* I 
+submit the PR? How else will I know that my changes haven't broken the 
+docs?
+
+So surely I need to learn those steps regardless?
+
+(Not a rhetorical question.)
+
+
+> I think this feature would be really useful for the contributors, the
+> reviewers and you, the core-dev.
+
+Sure. But the usefulness has to be weighed against the extra complexity, 
+the extra "one more thing that can break and needs to be maintained", 
+and the risk of abuse.
+
+I have no opinion on whether the pluses outweigh the minuses.
+
+
+-- 
+Steve
+
+From stephane at wirtel.be  Sun Nov  4 10:58:36 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 16:58:36 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <CAPTjJmoqq+prNQa5vvNZ5YnEQeX+Xr0ztFcqZDeNU1BpsbH-Aw@mail.gmail.com>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <CAPTjJmoci5NhiEqGnZ9dZ4odfYHA+1=UDOMJogr4_oZeJCbzZA@mail.gmail.com>
+ <20181104153211.GB12103@xps>
+ <CAPTjJmoqq+prNQa5vvNZ5YnEQeX+Xr0ztFcqZDeNU1BpsbH-Aw@mail.gmail.com>
+Message-ID: <20181104155836.GE12103@xps>
+
+On 11/05, Chris Angelico wrote:
+>On Mon, Nov 5, 2018 at 2:33 AM Stephane Wirtel <stephane at wirtel.be> wrote:
+>>
+>> On 11/05, Chris Angelico wrote:
+>> >On Mon, Nov 5, 2018 at 2:11 AM Julien Palard via Python-Dev
+>> ><python-dev at python.org> wrote:
+>> >>
+>> >> Considering feedback from Ned, what about building this as an independent service? We don't really need to interface with python.org at all, we just need some hardware, a domain, some code to interface with github API and... to start it's probably enough? It would be a usefull POC.
+>> >>
+>> >
+>> >After running 'make html', the build directory is the entire site as a
+>> >set of static files, right? Maybe the easiest solution is to tie in
+>> >with GitHub Pages. I already have a script that will push a directory
+>> >up as the gh-pages branch of the current repo; it'd just need a tweak
+>> >so it can push to a specific repo, which you could create on GitHub
+>> >for the purpose. Not 100% automatic, but also not too difficult to
+>> >automate, if needed.
+>> >
+>> >https://github.com/Rosuav/shed/blob/master/git-deploy
+>>
+>> Nice idea, but I am not for that.
+>>
+>> 1. We will populate the git repository with a lot of gh-pages branches
+>> and I am not for this solution
+>> 2. This static doc is just temporary, once merged, we have to remove the
+>> link and the content on the server, with the gh-pages, that will be a
+>> commit where we drop the content, but it's a commit and we will consume
+>> the storage of github.
+>> 3. 1 repo has only one gh-pages, in our case, we need to have a lot of
+>> gh-pages for a repo.
+>>
+>
+>Yeah, understood. I was thinking of having the individual patch
+>authors create temporary GitHub repositories to push to. It'd be an
+>optional step; if you want to show people a preview of your PR, just
+>create a repository and push to it (using a script something like
+>that). That way, you don't have to worry about malicious content
+>(since it'll be hosted under the author's name - I'm sure GitHub have
+>measures in place to deal with that, and it wouldn't be Python.org's
+>problem), nor having lots of gh-pages branches sitting around (they'd
+>be the responsibility of the author).
+>
+>> But thank you for your idea.
+>
+>No probs, and I don't mind if it's not adopted. Just wanted to put it out there.
+In fact, I was interested by your solution because we avoid the
+maintenance of the server, but in our case, we would host many
+Docs/build/html. 
+
+Thanks again
+>
+>ChrisA
+>_______________________________________________
+>Python-Dev mailing list
+>Python-Dev at python.org
+>https://mail.python.org/mailman/listinfo/python-dev
+>Unsubscribe: https://mail.python.org/mailman/options/python-dev/stephane%40wirtel.be
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From stephane at wirtel.be  Sun Nov  4 11:05:07 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 17:05:07 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104155017.GX3817@ando.pearwood.info>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <20181104151239.GA14162@xps>
+ <20181104155017.GX3817@ando.pearwood.info>
+Message-ID: <20181104160507.GF12103@xps>
+
+On 11/05, Steven D'Aprano wrote:
+>On Sun, Nov 04, 2018 at 04:12:39PM +0100, Stephane Wirtel wrote:
+>
+>> My workflow is the following steps:
+>>
+>> git wpr XYZ
+>> cd ../cpython-XYZ
+>> ./configure --prefix=$PWD-build --with-pydebug --silent
+>> make -j 4 -s
+>> make PYTHON=../python -C Doc/ venv
+>> make -C Doc/ check suspicious html serve
+>>
+>> and run the browser on http://localhost:8000/ and check the result.
+>>
+>>
+>> 1. Because I am a dev I can do it easily
+>> 2. If you are not a dev, you have to learn a new step (download sources,
+>> compile sources, compile doc and check the result)
+>
+>If I am making doc patches, shouldn't I be doing that *before* I
+>submit the PR? How else will I know that my changes haven't broken the
+>docs?
+You can use the web interface of Github and just add/remove/modify a
+paragraph.
+
+>
+>So surely I need to learn those steps regardless?
+>
+>(Not a rhetorical question.)
+>
+>
+>> I think this feature would be really useful for the contributors, the
+>> reviewers and you, the core-dev.
+>
+>Sure. But the usefulness has to be weighed against the extra complexity,
+>the extra "one more thing that can break and needs to be maintained",
+>and the risk of abuse.
+Which kind of abuse?
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From julien at palard.fr  Sun Nov  4 11:12:00 2018
+From: julien at palard.fr (Julien Palard)
+Date: Sun, 04 Nov 2018 16:12:00 +0000
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <23b8f062-348b-9750-e31f-0b3dabf09b22@python.org>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <CAPTjJmoci5NhiEqGnZ9dZ4odfYHA+1=UDOMJogr4_oZeJCbzZA@mail.gmail.com>
+ <23b8f062-348b-9750-e31f-0b3dabf09b22@python.org>
+Message-ID: <A4mRE_KHREAET2dcImMmaeNEStivmZ6idpvChHarjkFmkPfTX5wXI0PfSY4teImK_VzpYVTJ79M6jy73fcQddt1S2OEjbOAm_Yy2QVhOW68=@palard.fr>
+
+> I can trivially attach the built docs as a ZIP file to the Azure
+> Pipelines build, though that doesn't help the "preview on my phone"
+
+So one can build an HTTP server that gathers doc builds from Azure and expose them?
+
+--?
+Julien Palard
+https://mdk.fr
+
+
+From mariatta.wijaya at gmail.com  Sun Nov  4 10:53:44 2018
+From: mariatta.wijaya at gmail.com (Mariatta Wijaya)
+Date: Sun, 4 Nov 2018 07:53:44 -0800
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <prn3pb$h3l$1@blaine.gmane.org>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <prn3pb$h3l$1@blaine.gmane.org>
+Message-ID: <CAGbohnZm7kmt9V1QHB1cuZVv3CX5P2Sq=6R32A+ocDQPdYQ=8g@mail.gmail.com>
+
+I think the intent is just uploading the output HTML and static assets.
+
+I agree having the temporary output of PR docs build is useful, but I don't
+think a python.org domain is necessary. If it can be uploaded to any cloud
+storage service then that's good enough, just provide the link in the
+status check. The output can be cleared after it receive the PR closed
+webhook.
+
+On Sun, Nov 4, 2018, 7:43 AM Serhiy Storchaka <storchaka at gmail.com wrote:
+
+> 04.11.18 17:00, Julien Palard via Python-Dev ????:
+> > Considering feedback from Ned, what about building this as an
+> independent service? We don't really need to interface with python.org at
+> all, we just need some hardware, a domain, some code to interface with
+> github API and... to start it's probably enough? It would be a usefull POC.
+>
+> This will just move risks to this service.
+>
+> Ned mentioned potential abuse. We will host unchecked content. Malicious
+> user can create a PR which replaces Python documentation with malicious
+> content.
+>
+> The Doc/ directory includes Python scripts and Makefile which are used
+> for building documentation. Malicious user can use this for executing
+> arbitrary code on our server.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mariatta%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181104/6fa02b12/attachment-0001.html>
+
+From mariatta.wijaya at gmail.com  Sun Nov  4 11:02:49 2018
+From: mariatta.wijaya at gmail.com (Mariatta Wijaya)
+Date: Sun, 4 Nov 2018 08:02:49 -0800
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104155017.GX3817@ando.pearwood.info>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <20181104151239.GA14162@xps> <20181104155017.GX3817@ando.pearwood.info>
+Message-ID: <CAGbohnYjfMtVBbSSZA=pNW_NNYMwc-WOy_L0V=pXij+tTUwfJw@mail.gmail.com>
+
+This will make review turnout quicker, since I can potentially review and
+view the output from anywhere (phone while on a beach) instead of waiting
+until I'm back home, open a computer, and then verify the output myself.
+
+On Sun, Nov 4, 2018, 7:56 AM Steven D'Aprano <steve at pearwood.info wrote:
+
+> On Sun, Nov 04, 2018 at 04:12:39PM +0100, Stephane Wirtel wrote:
+>
+> > My workflow is the following steps:
+> >
+> > git wpr XYZ
+> > cd ../cpython-XYZ
+> > ./configure --prefix=$PWD-build --with-pydebug --silent
+> > make -j 4 -s
+> > make PYTHON=../python -C Doc/ venv
+> > make -C Doc/ check suspicious html serve
+> >
+> > and run the browser on http://localhost:8000/ and check the result.
+> >
+> >
+> > 1. Because I am a dev I can do it easily
+> > 2. If you are not a dev, you have to learn a new step (download sources,
+> > compile sources, compile doc and check the result)
+>
+> If I am making doc patches, shouldn't I be doing that *before* I
+> submit the PR? How else will I know that my changes haven't broken the
+> docs?
+>
+> So surely I need to learn those steps regardless?
+>
+> (Not a rhetorical question.)
+>
+>
+> > I think this feature would be really useful for the contributors, the
+> > reviewers and you, the core-dev.
+>
+> Sure. But the usefulness has to be weighed against the extra complexity,
+> the extra "one more thing that can break and needs to be maintained",
+> and the risk of abuse.
+>
+> I have no opinion on whether the pluses outweigh the minuses.
+>
+>
+> --
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mariatta%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181104/6147cd26/attachment.html>
+
+From steve.dower at python.org  Sun Nov  4 11:20:04 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Sun, 4 Nov 2018 08:20:04 -0800
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <A4mRE_KHREAET2dcImMmaeNEStivmZ6idpvChHarjkFmkPfTX5wXI0PfSY4teImK_VzpYVTJ79M6jy73fcQddt1S2OEjbOAm_Yy2QVhOW68=@palard.fr>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <CAPTjJmoci5NhiEqGnZ9dZ4odfYHA+1=UDOMJogr4_oZeJCbzZA@mail.gmail.com>
+ <23b8f062-348b-9750-e31f-0b3dabf09b22@python.org>
+ <A4mRE_KHREAET2dcImMmaeNEStivmZ6idpvChHarjkFmkPfTX5wXI0PfSY4teImK_VzpYVTJ79M6jy73fcQddt1S2OEjbOAm_Yy2QVhOW68=@palard.fr>
+Message-ID: <7d0df116-abc5-74c2-e9fd-d778da062ec9@python.org>
+
+On 04Nov2018 0812, Julien Palard wrote:
+>> I can trivially attach the built docs as a ZIP file to the Azure
+>> Pipelines build, though that doesn't help the "preview on my phone"
+> 
+> So one can build an HTTP server that gathers doc builds from Azure and expose them?
+
+Either that, or Azure can push it directly to the server. (This way is 
+simpler, since the processing power is already there and the trigger is 
+trivial, compared to triggering yet another service from the build 
+completion. Though it does mean putting credentials somewhere, which is 
+why a github repo is the easiest option, as those are already there.)
+
+Cheers,
+Steve
+
+From stephane at wirtel.be  Sun Nov  4 11:25:44 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 17:25:44 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <CAGbohnZm7kmt9V1QHB1cuZVv3CX5P2Sq=6R32A+ocDQPdYQ=8g@mail.gmail.com>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <prn3pb$h3l$1@blaine.gmane.org>
+ <CAGbohnZm7kmt9V1QHB1cuZVv3CX5P2Sq=6R32A+ocDQPdYQ=8g@mail.gmail.com>
+Message-ID: <20181104162544.GA23921@xps>
+
+On 11/04, Mariatta Wijaya wrote:
+>I think the intent is just uploading the output HTML and static assets.
+Yep, it's my idea, just upload the output html and static assets,
+nothing else.
+>
+>I agree having the temporary output of PR docs build is useful, but I don't
+>think a python.org domain is necessary. If it can be uploaded to any cloud
+>storage service then that's good enough, just provide the link in the
+>status check. The output can be cleared after it receive the PR closed
+>webhook.
++1
+
+And I think Bedevere is the best candidate for this feature (once
+closed, remove from the server)
+
+
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From tritium-list at sdamon.com  Sun Nov  4 11:28:35 2018
+From: tritium-list at sdamon.com (Alex Walters)
+Date: Sun, 4 Nov 2018 11:28:35 -0500
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104133827.GA25586@xps>
+References: <20181104133827.GA25586@xps>
+Message-ID: <010401d4745b$6fec9a90$4fc5cfb0$@sdamon.com>
+
+Doesn't read the docs already do this for pull requests?  Even if it doesn't, don't the core maintainers of read the docs go to pycon?  I wouldn't suggest read the docs for primary docs hosting for python, but they are perfectly fine for live testing pull request documentation without having to roll our own.
+
+> -----Original Message-----
+> From: Python-Dev <python-dev-bounces+tritium-
+> list=sdamon.com at python.org> On Behalf Of Stephane Wirtel
+> Sent: Sunday, November 4, 2018 8:38 AM
+> To: python-dev at python.org
+> Subject: [Python-Dev] Get a running instance of the doc for a PR.
+> 
+> Hi all,
+> 
+> When we receive a PR about the documentation, I think that could be
+> interesting if we could have a running instance of the doc on a sub
+> domain of python.org.
+> 
+> For example, pr-10000-doc.python.org or whatever, but by this way the
+> reviewers could see the result online.
+> 
+> The workflow would be like that:
+> 
+> New PR -> build the doc (done by Travis) -> publish it to a server ->
+> once published, the PR is notified by "doc is available at URL".
+> 
+> Once merged -> we remove the doc and the link (hello bedevere).
+> 
+> I am interested by this feature and if you also interested, tell me.
+> I would like discuss with Julien Palard and Ernest W.  Durbin III for a
+> solution as soon as possible.
+> 
+> Have a nice day,
+> 
+> St?phane
+> 
+> --
+> St?phane Wirtel - https://wirtel.be - @matrixise
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/tritium-
+> list%40sdamon.com
+
+
+From stephane at wirtel.be  Sun Nov  4 11:32:38 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 17:32:38 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <CAGbohnYjfMtVBbSSZA=pNW_NNYMwc-WOy_L0V=pXij+tTUwfJw@mail.gmail.com>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <20181104151239.GA14162@xps>
+ <20181104155017.GX3817@ando.pearwood.info>
+ <CAGbohnYjfMtVBbSSZA=pNW_NNYMwc-WOy_L0V=pXij+tTUwfJw@mail.gmail.com>
+Message-ID: <20181104163238.GB23921@xps>
+
+On 11/04, Mariatta Wijaya wrote:
+>This will make review turnout quicker, since I can potentially review and
+>view the output from anywhere (phone while on a beach) instead of waiting
+>until I'm back home, open a computer, and then verify the output myself.
+Yep, last week I was at a dinner at PyCon.DE, I have seen a PR, I wanted
+to check the result and approve it or not. With this feature, I can
+check it asap and just approve via github. Once approved, miss-islington
+could merge the PR, once merged, Bedevere can notify the service and
+remove the documentation of this PR.
+
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From nad at python.org  Sun Nov  4 11:40:25 2018
+From: nad at python.org (Ned Deily)
+Date: Sun, 4 Nov 2018 11:40:25 -0500
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104151239.GA14162@xps>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <20181104151239.GA14162@xps>
+Message-ID: <DE17F969-2084-457D-B516-600CCF43BB16@python.org>
+
+On Nov 4, 2018, at 10:12, Stephane Wirtel <stephane at wirtel.be> wrote:
+> 3. On this after-noon, I have reviewed a PR, and I was in the same case,
+> download the PR, build python, compile the doc and run the local server.
+> 
+> My workflow is the following steps:
+> 
+> git wpr XYZ
+> cd ../cpython-XYZ
+> ./configure --prefix=$PWD-build --with-pydebug --silent
+> make -j 4 -s
+> make PYTHON=../python -C Doc/ venv
+> make -C Doc/ check suspicious html serve
+> 
+> and run the browser on http://localhost:8000/ and check the result.
+
+To address one point, there's no need to run a web server to review the docs.  The generated docs can be viewed directly by any modern web browser by opening one of the files in the web browser's file menu.  Or perhaps easier, you can click on any of the generated html files; or on macOS you can use the open(1) command from the shell to open and view in the default web browser.
+
+$ open build/html/index.html
+
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From paul at ganssle.io  Sun Nov  4 12:04:31 2018
+From: paul at ganssle.io (Paul Ganssle)
+Date: Sun, 4 Nov 2018 12:04:31 -0500
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <010401d4745b$6fec9a90$4fc5cfb0$@sdamon.com>
+References: <20181104133827.GA25586@xps>
+ <010401d4745b$6fec9a90$4fc5cfb0$@sdamon.com>
+Message-ID: <26398c8f-170d-c468-b603-ea79ca8fdcc2@ganssle.io>
+
+There is an open request for this on GH, but it's not currently done:
+https://github.com/rtfd/readthedocs.org/issues/1340
+
+At the PyCon US sprints this year, we added documentation previews via
+netlify, and they have been super useful:
+https://github.com/pypa/setuptools/pull/1367 My understanding is that
+other projects do something similar with CircleCI.
+
+It's not amazingly /difficult/ for reviewers to fetch the submitter's
+branch, build the documentation and review it locally, but it's a decent
+number of extra steps for what /should/ be a very simple review. I think
+we all know that reviewer time and effort is one of the biggest
+bottlenecks in the CPython development workflow, and this could make it
+/much/ easier to do reviews.
+
+Some of the concerns about increasing the surface area I think are a bit
+overblown. I haven't seen any problems yet in the projects that do this,
+and I don't think it lends itself to abuse particularly
+well.//Considering that the rest of the CI suite lets you run arbitrary
+code on many platforms, I don't think it's particularly more dangerous
+to allow people to generate ephemeral static hosted web sites as well.
+
+
+Best.
+
+Paul
+
+On 11/4/18 11:28 AM, Alex Walters wrote:
+> Doesn't read the docs already do this for pull requests?  Even if it doesn't, don't the core maintainers of read the docs go to pycon?  I wouldn't suggest read the docs for primary docs hosting for python, but they are perfectly fine for live testing pull request documentation without having to roll our own.
+>
+>> -----Original Message-----
+>> From: Python-Dev <python-dev-bounces+tritium-
+>> list=sdamon.com at python.org> On Behalf Of Stephane Wirtel
+>> Sent: Sunday, November 4, 2018 8:38 AM
+>> To: python-dev at python.org
+>> Subject: [Python-Dev] Get a running instance of the doc for a PR.
+>>
+>> Hi all,
+>>
+>> When we receive a PR about the documentation, I think that could be
+>> interesting if we could have a running instance of the doc on a sub
+>> domain of python.org.
+>>
+>> For example, pr-10000-doc.python.org or whatever, but by this way the
+>> reviewers could see the result online.
+>>
+>> The workflow would be like that:
+>>
+>> New PR -> build the doc (done by Travis) -> publish it to a server ->
+>> once published, the PR is notified by "doc is available at URL".
+>>
+>> Once merged -> we remove the doc and the link (hello bedevere).
+>>
+>> I am interested by this feature and if you also interested, tell me.
+>> I would like discuss with Julien Palard and Ernest W.  Durbin III for a
+>> solution as soon as possible.
+>>
+>> Have a nice day,
+>>
+>> St?phane
+>>
+>> --
+>> St?phane Wirtel - https://wirtel.be - @matrixise
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/tritium-
+>> list%40sdamon.com
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/paul%40ganssle.io
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181104/9b4b74c1/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181104/9b4b74c1/attachment.sig>
+
+From nad at python.org  Sun Nov  4 12:16:14 2018
+From: nad at python.org (Ned Deily)
+Date: Sun, 4 Nov 2018 12:16:14 -0500
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <26398c8f-170d-c468-b603-ea79ca8fdcc2@ganssle.io>
+References: <20181104133827.GA25586@xps>
+ <010401d4745b$6fec9a90$4fc5cfb0$@sdamon.com>
+ <26398c8f-170d-c468-b603-ea79ca8fdcc2@ganssle.io>
+Message-ID: <261F41E1-7678-47CC-B40B-829F3ADB57BD@python.org>
+
+On Nov 4, 2018, at 12:04, Paul Ganssle <paul at ganssle.io> wrote:
+> Some of the concerns about increasing the surface area I think are a bit overblown. I haven't seen any problems yet in the projects that do this, and I don't think it lends itself to abuse particularly well. Considering that the rest of the CI suite lets you run arbitrary code on many platforms, I don't think it's particularly more dangerous to allow people to generate ephemeral static hosted web sites as well.
+
+The rest of the CI suite does not let you publish things on the python.org domain, unless I'm forgetting something; they're clearly under a CI environment like Travis or AppVeyor or Azure.  That's really my main concern.
+
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From paul at ganssle.io  Sun Nov  4 12:21:15 2018
+From: paul at ganssle.io (Paul Ganssle)
+Date: Sun, 4 Nov 2018 12:21:15 -0500
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <261F41E1-7678-47CC-B40B-829F3ADB57BD@python.org>
+References: <20181104133827.GA25586@xps>
+ <010401d4745b$6fec9a90$4fc5cfb0$@sdamon.com>
+ <26398c8f-170d-c468-b603-ea79ca8fdcc2@ganssle.io>
+ <261F41E1-7678-47CC-B40B-829F3ADB57BD@python.org>
+Message-ID: <99a88026-60c4-68df-c022-f7d5186afeae@ganssle.io>
+
+Oh, sorry if I misunderstood the concern. Yes, I agree that putting this
+under python.org would not be a good idea.
+
+Either hosting it on a hosting provider like netlify (or azure if that's
+possible) or a dedicated domain that could be created for the purpose
+(e.g. python-doc-ci.org) would be best. Alternatively, the domain could
+be skipped entirely and the github hooks could link directly to
+documentation by machine IP (though I suspect buying a domain for this
+purpose would be a lot easier than coordinating what's necessary to make
+direct links to a machine IP reasonable).
+
+
+Best,
+Paul
+
+On 11/4/18 12:16 PM, Ned Deily wrote:
+> On Nov 4, 2018, at 12:04, Paul Ganssle <paul at ganssle.io> wrote:
+>> Some of the concerns about increasing the surface area I think are a bit overblown. I haven't seen any problems yet in the projects that do this, and I don't think it lends itself to abuse particularly well. Considering that the rest of the CI suite lets you run arbitrary code on many platforms, I don't think it's particularly more dangerous to allow people to generate ephemeral static hosted web sites as well.
+> The rest of the CI suite does not let you publish things on the python.org domain, unless I'm forgetting something; they're clearly under a CI environment like Travis or AppVeyor or Azure.  That's really my main concern.
+>
+>
+> --
+>   Ned Deily
+>   nad at python.org -- []
+>
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181104/087542f9/attachment.sig>
+
+From stephane at wirtel.be  Sun Nov  4 14:02:33 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 20:02:33 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <99a88026-60c4-68df-c022-f7d5186afeae@ganssle.io>
+References: <20181104133827.GA25586@xps>
+ <010401d4745b$6fec9a90$4fc5cfb0$@sdamon.com>
+ <26398c8f-170d-c468-b603-ea79ca8fdcc2@ganssle.io>
+ <261F41E1-7678-47CC-B40B-829F3ADB57BD@python.org>
+ <99a88026-60c4-68df-c022-f7d5186afeae@ganssle.io>
+Message-ID: <20181104190233.GA29252@xps>
+
+On 11/04, Paul Ganssle wrote:
+>Oh, sorry if I misunderstood the concern. Yes, I agree that putting this
+>under python.org would not be a good idea.
+>
+>Either hosting it on a hosting provider like netlify (or azure if that's
+>possible) or a dedicated domain that could be created for the purpose
+>(e.g. python-doc-ci.org) would be best. Alternatively, the domain could
+>be skipped entirely and the github hooks could link directly to
+>documentation by machine IP (though I suspect buying a domain for this
+>purpose would be a lot easier than coordinating what's necessary to make
+>direct links to a machine IP reasonable).
+Yep, I am fine with that.
+
+Thanks Paul
+>
+>
+>Best,
+>Paul
+>
+>On 11/4/18 12:16 PM, Ned Deily wrote:
+>> On Nov 4, 2018, at 12:04, Paul Ganssle <paul at ganssle.io> wrote:
+>>> Some of the concerns about increasing the surface area I think are a bit overblown. I haven't seen any problems yet in the projects that do this, and I don't think it lends itself to abuse particularly well. Considering that the rest of the CI suite lets you run arbitrary code on many platforms, I don't think it's particularly more dangerous to allow people to generate ephemeral static hosted web sites as well.
+>> The rest of the CI suite does not let you publish things on the python.org domain, unless I'm forgetting something; they're clearly under a CI environment like Travis or AppVeyor or Azure.  That's really my main concern.
+>>
+>>
+>> --
+>>   Ned Deily
+>>   nad at python.org -- []
+>>
+>
+
+
+
+
+>_______________________________________________
+>Python-Dev mailing list
+>Python-Dev at python.org
+>https://mail.python.org/mailman/listinfo/python-dev
+>Unsubscribe: https://mail.python.org/mailman/options/python-dev/stephane%40wirtel.be
+
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From stephane at wirtel.be  Sun Nov  4 14:05:31 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 4 Nov 2018 20:05:31 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <DE17F969-2084-457D-B516-600CCF43BB16@python.org>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <20181104151239.GA14162@xps>
+ <DE17F969-2084-457D-B516-600CCF43BB16@python.org>
+Message-ID: <20181104190531.GB29252@xps>
+
+On 11/04, Ned Deily wrote:
+>On Nov 4, 2018, at 10:12, Stephane Wirtel <stephane at wirtel.be> wrote:
+>> 3. On this after-noon, I have reviewed a PR, and I was in the same case,
+>> download the PR, build python, compile the doc and run the local server.
+>>
+>> My workflow is the following steps:
+>>
+>> git wpr XYZ
+>> cd ../cpython-XYZ
+>> ./configure --prefix=$PWD-build --with-pydebug --silent
+>> make -j 4 -s
+>> make PYTHON=../python -C Doc/ venv
+>> make -C Doc/ check suspicious html serve
+>>
+>> and run the browser on http://localhost:8000/ and check the result.
+>
+>To address one point, there's no need to run a web server to review the
+>docs.  The generated docs can be viewed directly by any modern web
+>browser by opening one of the files in the web browser's file menu.  Or
+>perhaps easier, you can click on any of the generated html files; or on
+>macOS you can use the open(1) command from the shell to open and view
+>in the default web browser.
+>
+>$ open build/html/index.html
+Ned, I agree with you about this point, but there is an advantage when
+you use localhost:8000, you only have one entrypoint. And when you
+switch between many PR, you just have to execute the make -C Doc/ serve
+command (because in my workflow and with the full URI, the path can
+change in function of the PR, I use git worktree for each PR).
+
+But yep, I am +1 for firefox build/html/index.html
+>
+>
+>--
+>  Ned Deily
+>  nad at python.org -- []
+>
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From mhroncok at redhat.com  Sun Nov  4 16:58:49 2018
+From: mhroncok at redhat.com (=?UTF-8?Q?Miro_Hron=c4=8dok?=)
+Date: Sun, 4 Nov 2018 22:58:49 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104154957.GD12103@xps>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <dCNWpHselG_mmIFYqAYmu_MD8TGQMlu4rmE68Fc3aPJvMldn-P4FnrRDP7J3AxG9H3QNPO4y1P_WE-OGAkn0iQgiqEuijK0Ezbzl40LzV68=@palard.fr>
+ <prn3pb$h3l$1@blaine.gmane.org> <20181104154957.GD12103@xps>
+Message-ID: <22297099-29ed-dbb2-ee69-e8c23af1a844@redhat.com>
+
+On 04. 11. 18 16:49, Stephane Wirtel wrote:
+> On 11/04, Serhiy Storchaka wrote:
+>> 04.11.18 17:00, Julien Palard via Python-Dev ????:
+>>> Considering feedback from Ned, what about building this as an 
+>>> independent service? We don't really need to interface with 
+>>> python.org at all, we just need some hardware, a domain, some code to 
+>>> interface with github API and... to start it's probably enough? It 
+>>> would be a usefull POC.
+>>
+>> This will just move risks to this service.
+>>
+>> Ned mentioned potential abuse. We will host unchecked content. 
+>> Malicious user can create a PR which replaces Python documentation 
+>> with malicious content.
+> The content will be generated by the build/html directory from Travis.
+> If Travis is green we upload the doc, if Travis is red, we do not
+> publish it. If there is an abuse, we close/drop the PR, maybe Bedevere
+> can receive this notification via the webhooks and notify the server to
+> remove the doc.
+>>
+>> The Doc/ directory includes Python scripts and Makefile which are used 
+>> for building documentation. Malicious user can use this for executing 
+>> arbitrary code on our server.
+> Currently, we use Travis. The malicious code will be execute in the
+> container of Travis, not on the server. We only copy the static files
+> and if we use nginx/apache, we don't execute the .py files. Just serve
+> the .html,.css,.js files
+
+Yet you need to let Travis CI know how to upload the results (HTML 
+files) somewhere. That usually involves some kind of credentials.
+You can secretly tell Travis the credentials, however somebody would be 
+able to modify the Makefile (or anything else) to send the credentials 
+to their webservice/e-mail/whatever.
+That is in fact not possible, for exactly this reason: Travis CI builds 
+from PRs don't see the "secret" stuff.
+
+https://docs.travis-ci.com/user/environment-variables#defining-encrypted-variables-in-travisyml
+
+-- 
+Miro Hron?ok
+--
+Phone: +420777974800
+IRC: mhroncok
+
+From steve at pearwood.info  Sun Nov  4 17:38:36 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Mon, 5 Nov 2018 09:38:36 +1100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <261F41E1-7678-47CC-B40B-829F3ADB57BD@python.org>
+References: <20181104133827.GA25586@xps>
+ <010401d4745b$6fec9a90$4fc5cfb0$@sdamon.com>
+ <26398c8f-170d-c468-b603-ea79ca8fdcc2@ganssle.io>
+ <261F41E1-7678-47CC-B40B-829F3ADB57BD@python.org>
+Message-ID: <20181104223836.GY3817@ando.pearwood.info>
+
+On Sun, Nov 04, 2018 at 12:16:14PM -0500, Ned Deily wrote:
+
+> On Nov 4, 2018, at 12:04, Paul Ganssle <paul at ganssle.io> wrote:
+>
+> > Some of the concerns about increasing the surface area I think are a 
+> > bit overblown. I haven't seen any problems yet in the projects that 
+> > do this,
+
+You may or may not be right, but have you looked for problems or just 
+assumed that because nobody has brought any to your attention, they 
+don't exist?
+
+"I have seen nothing" != "there is nothing to see".
+
+
+> > and I don't think it lends itself to abuse particularly 
+> > well. Considering that the rest of the CI suite lets you run 
+> > arbitrary code on many platforms, I don't think it's particularly 
+> > more dangerous to allow people to generate ephemeral static hosted 
+> > web sites as well.
+> 
+> The rest of the CI suite does not let you publish things on the 
+> python.org domain, unless I'm forgetting something; they're clearly 
+> under a CI environment like Travis or AppVeyor or Azure.  That's 
+> really my main concern.
+
+Sorry Ned, I don't follow you here. It sounds like you're saying that 
+you're fine with spam or abusive content being hosted in our name, so 
+long as its hosted by somebody else, rather than by us (python.org) 
+ourselves.
+
+I trust I'm missing something, but I don't know what it is.
+
+
+-- 
+Steve
+
+From steve at pearwood.info  Sun Nov  4 17:48:42 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Mon, 5 Nov 2018 09:48:42 +1100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104160507.GF12103@xps>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <20181104151239.GA14162@xps> <20181104155017.GX3817@ando.pearwood.info>
+ <20181104160507.GF12103@xps>
+Message-ID: <20181104224842.GZ3817@ando.pearwood.info>
+
+On Sun, Nov 04, 2018 at 05:05:07PM +0100, Stephane Wirtel wrote:
+
+> >If I am making doc patches, shouldn't I be doing that *before* I
+> >submit the PR? How else will I know that my changes haven't broken the
+> >docs?
+>
+> You can use the web interface of Github and just add/remove/modify a
+> paragraph.
+
+Does Github show a preview? If not, then my question still stands: how 
+do I know my changes aren't broken?
+
+If Github does show a preview, then couldn't the reviewer look at that 
+too?
+
+
+-- 
+Steve
+
+From paul at ganssle.io  Sun Nov  4 18:01:30 2018
+From: paul at ganssle.io (Paul Ganssle)
+Date: Sun, 4 Nov 2018 18:01:30 -0500
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104223836.GY3817@ando.pearwood.info>
+References: <20181104133827.GA25586@xps>
+ <010401d4745b$6fec9a90$4fc5cfb0$@sdamon.com>
+ <26398c8f-170d-c468-b603-ea79ca8fdcc2@ganssle.io>
+ <261F41E1-7678-47CC-B40B-829F3ADB57BD@python.org>
+ <20181104223836.GY3817@ando.pearwood.info>
+Message-ID: <156b2748-5a38-9cee-7700-b4891351a851@ganssle.io>
+
+
+On 11/4/18 5:38 PM, Steven D'Aprano wrote:
+> On Sun, Nov 04, 2018 at 12:16:14PM -0500, Ned Deily wrote:
+>
+>> On Nov 4, 2018, at 12:04, Paul Ganssle <paul at ganssle.io> wrote:
+>>
+>>> Some of the concerns about increasing the surface area I think are a 
+>>> bit overblown. I haven't seen any problems yet in the projects that 
+>>> do this,
+> You may or may not be right, but have you looked for problems or just 
+> assumed that because nobody has brought any to your attention, they 
+> don't exist?
+>
+> "I have seen nothing" != "there is nothing to see".
+>
+I can only speak from my experience with setuptools, but I do look at
+every setuptools PR and I've never seen anything even close to this.
+That said, I have also never seen anyone using my Travis or Appveyor
+instances to mine cryptocurrency, but I've been told that that happens.
+
+In any case, I think the standard should not be "this never happens"
+(otherwise you also can't run CI), but that it happens rarely enough
+that it's not a major problem and that you can deal with it when it does
+come up. Frankly, I think the much more likely target for these sorts of
+attacks is small, mostly abandoned projects with very few followers. If
+you post a spam site on some ephemeral domain via the CPython CI, it's
+likely that hundreds of people will notice it just because it's a very
+active project. You will be banned from the project for life and
+probably reported to github nearly instantly. Likely you have much more
+value for your time if you target some 1-star repo that set this up 2
+years ago and is maintained by someone who hasn't committed to github in
+over a year.
+
+That said, big projects like CPython are probably more likely to attract
+the troll version of this, where the point isn't to get away with
+hosting some content or using the CI, but to annoy and disrupt the
+project itself by wasting our resources chasing down spam or whatever. I
+think if that isn't already happening with comment floods on the issue
+tracker, GH threads and mailing lists, it's not especially /more/ likely
+to happen because people can spin up a website with a PR.
+
+>>> and I don't think it lends itself to abuse particularly 
+>>> well. Considering that the rest of the CI suite lets you run 
+>>> arbitrary code on many platforms, I don't think it's particularly 
+>>> more dangerous to allow people to generate ephemeral static hosted 
+>>> web sites as well.
+>> The rest of the CI suite does not let you publish things on the 
+>> python.org domain, unless I'm forgetting something; they're clearly 
+>> under a CI environment like Travis or AppVeyor or Azure.  That's 
+>> really my main concern.
+> Sorry Ned, I don't follow you here. It sounds like you're saying that 
+> you're fine with spam or abusive content being hosted in our name, so 
+> long as its hosted by somebody else, rather than by us (python.org) 
+> ourselves.
+>
+> I trust I'm missing something, but I don't know what it is.
+
+I think there are two concerns - one is that the python.org domain is
+generally (currently) used for official content. If people can put
+arbitrary websites on there, presumably they can exploit whatever trust
+people have put into this fact.
+
+Another is that - and I am not a web expert here - I think that the
+domain where content is hosted is used as a marker of trust between
+different pages, and many applications will consider anything on
+*.python.org to be first-party content from other *.python.org domains.?
+I believe this is the reason why readthedocs moved all hosted
+documentation from *.readthedocs.org to *.readthedocs.io. Similarly
+user-submitted content on PyPI is usually hosted under the
+pythonhosted.org domain, not pypi.org or pypi.python.org. You'll notice
+that GH also hosts user content under a githubusercontent.org domain.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181104/2db51fa2/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181104/2db51fa2/attachment.sig>
+
+From vstinner at redhat.com  Sun Nov  4 18:48:42 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 5 Nov 2018 00:48:42 +0100
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <20181104133827.GA25586@xps>
+References: <20181104133827.GA25586@xps>
+Message-ID: <CA+3bQGGYbCQir1XcAqVTYuX0bURi3hcP+Nyy=-Jr0wr-Xz9pDQ@mail.gmail.com>
+
+OpenStack does that on review.openstack.org PRs. If I recall correctly, the
+CI produces files which are online on a static web server. Nothing crazy.
+And it works. Old files are removed, I don't know when exactly.
+
+I don't think that it matters where the static files are hosted.
+
+Victor
+
+Le dimanche 4 novembre 2018, Stephane Wirtel <stephane at wirtel.be> a ?crit :
+> Hi all,
+>
+> When we receive a PR about the documentation, I think that could be
+> interesting if we could have a running instance of the doc on a sub
+> domain of python.org.
+>
+> For example, pr-10000-doc.python.org or whatever, but by this way the
+> reviewers could see the result online.
+>
+> The workflow would be like that:
+>
+> New PR -> build the doc (done by Travis) -> publish it to a server ->
+> once published, the PR is notified by "doc is available at URL".
+>
+> Once merged -> we remove the doc and the link (hello bedevere).
+>
+> I am interested by this feature and if you also interested, tell me.
+> I would like discuss with Julien Palard and Ernest W.  Durbin III for a
+> solution as soon as possible.
+>
+> Have a nice day,
+>
+> St?phane
+>
+> --
+> St?phane Wirtel - https://wirtel.be - @matrixise
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181105/1fc1d192/attachment.html>
+
+From sorin.sbarnea at gmail.com  Sun Nov  4 19:39:32 2018
+From: sorin.sbarnea at gmail.com (Sorin Sbarnea)
+Date: Mon, 5 Nov 2018 00:39:32 +0000
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <CA+3bQGGYbCQir1XcAqVTYuX0bURi3hcP+Nyy=-Jr0wr-Xz9pDQ@mail.gmail.com>
+References: <20181104133827.GA25586@xps>
+ <CA+3bQGGYbCQir1XcAqVTYuX0bURi3hcP+Nyy=-Jr0wr-Xz9pDQ@mail.gmail.com>
+Message-ID: <95112A17-AC0F-47F9-BC00-A431F02E2FA8@gmail.com>
+
+I can confirm that this is what OpenStack does. Sometimes the build artifacts (logs, docs ...) are rotated in two weeks but this is more than enough to perform a review. If I remember well retention is based on disk space and not hardcoded to a number of days, which is great.
+
+TBH, I don't really know how a human can check the docs if they cannot access them on a webserver.
+
+I hope to see the same on python too, very useful.
+
+> On 4 Nov 2018, at 23:48, Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> OpenStack does that on review.openstack.org <http://review.openstack.org/> PRs. If I recall correctly, the CI produces files which are online on a static web server. Nothing crazy. And it works. Old files are removed, I don't know when exactly.
+> 
+> I don't think that it matters where the static files are hosted.
+> 
+> Victor
+> 
+> Le dimanche 4 novembre 2018, Stephane Wirtel <stephane at wirtel.be <mailto:stephane at wirtel.be>> a ?crit :
+> > Hi all,
+> >
+> > When we receive a PR about the documentation, I think that could be
+> > interesting if we could have a running instance of the doc on a sub
+> > domain of python.org <http://python.org/>.
+> >
+> > For example, pr-10000-doc.python.org <http://pr-10000-doc.python.org/> or whatever, but by this way the
+> > reviewers could see the result online.
+> >
+> > The workflow would be like that:
+> >
+> > New PR -> build the doc (done by Travis) -> publish it to a server ->
+> > once published, the PR is notified by "doc is available at URL".
+> >
+> > Once merged -> we remove the doc and the link (hello bedevere).
+> >
+> > I am interested by this feature and if you also interested, tell me.
+> > I would like discuss with Julien Palard and Ernest W.  Durbin III for a
+> > solution as soon as possible.
+> >
+> > Have a nice day,
+> >
+> > St?phane
+> >
+> > --
+> > St?phane Wirtel - https://wirtel.be <https://wirtel.be/> - @matrixise
+> > _______________________________________________
+> > Python-Dev mailing list
+> > Python-Dev at python.org <mailto:Python-Dev at python.org>
+> > https://mail.python.org/mailman/listinfo/python-dev <https://mail.python.org/mailman/listinfo/python-dev>
+> > Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com <https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com>
+> > _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/sorin.sbarnea%40gmail.com
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181105/b61f6192/attachment.html>
+
+From nad at python.org  Sun Nov  4 21:11:49 2018
+From: nad at python.org (Ned Deily)
+Date: Sun, 4 Nov 2018 21:11:49 -0500
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <95112A17-AC0F-47F9-BC00-A431F02E2FA8@gmail.com>
+References: <20181104133827.GA25586@xps>
+ <CA+3bQGGYbCQir1XcAqVTYuX0bURi3hcP+Nyy=-Jr0wr-Xz9pDQ@mail.gmail.com>
+ <95112A17-AC0F-47F9-BC00-A431F02E2FA8@gmail.com>
+Message-ID: <8064CA01-718F-4229-9772-96017B299476@python.org>
+
+Not to belabor the point but:
+
+On Nov 4, 2018, at 19:39, Sorin Sbarnea <sorin.sbarnea at gmail.com> wrote:
+> TBH, I don't really know how a human can check the docs if they cannot access them on a webserver.
+
+It's actually trivially easy with the Python doc set because the docs were designed to also be downloadable and usable off-line.  That is, the same files html, js, css, and other resources that get built and loaded onto the website can also be just browsed directly from a file system, like:
+
+firefox Doc/build/html/index.html
+
+or, say, using the Open File command in Safari or whatever.  No web server is needed.
+
+The docsets for the heads of each of the active branches are built and packaged nightly and downloadable from python.org:
+
+https://docs.python.org/3/download.html
+
+Also, archive copies of the docset at the time of each release is downloadable from here:
+
+https://www.python.org/doc/versions/
+
+There are built using the same Doc/Makefile found in the cpython repo branches and the resulting Doc/build/html directory contains the docset for that snapshot of the repo with every file in the proper location for the webbrowser to load directly.
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
