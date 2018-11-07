@@ -2682,3 +2682,65 @@ There are built using the same Doc/Makefile found in the cpython repo branches a
   nad at python.org -- []
 
 
+From pierre.glaser at inria.fr  Mon Nov  5 06:30:39 2018
+From: pierre.glaser at inria.fr (Pierre Glaser)
+Date: Mon, 5 Nov 2018 12:30:39 +0100
+Subject: [Python-Dev] PEP 574 -- Pickle protocol 5 with out-of-band data
+In-Reply-To: <34eaf991-fb6c-c540-ea6d-e7b6267df34f@gmail.com>
+References: <34eaf991-fb6c-c540-ea6d-e7b6267df34f@gmail.com>
+Message-ID: <f25cec8d-6d63-caf5-d9b6-aab3af86ac32@inria.fr>
+
+Hi All,
+As part of our scikit-learn development and our effort to provide better 
+parallelism for python, we rely heavily on dynamic classes and functions 
+pickling. For this
+usage we use cloudpickle, but it suffers from performance issues due to 
+its pure python implementation. After long discussions with Olivier 
+Grisel and Thomas
+Moreau, we ended up agreeing on the fact that the best solution for this 
+problem would be to add those functionalities to the _pickle.c module.
+I am already quite familiar with the C/Python API, and can dedicate a 
+lot of my time in the next couple months to make this happen.
+
+Serhiy, from this thread 
+(https://mail.python.org/pipermail/python-dev/2018-March/152509.html), 
+it seems that you already started implementing local classes pickling.
+I would be happy to use this work as a starting point and build from it. 
+What do you think?
+
+Regards,
+
+Pierre
+
+
+From pierre.glaser at inria.fr  Mon Nov  5 06:36:50 2018
+From: pierre.glaser at inria.fr (Pierre Glaser)
+Date: Mon, 5 Nov 2018 12:36:50 +0100
+Subject: [Python-Dev] PEP 574 -- Pickle protocol 5 with out-of-band data
+In-Reply-To: <34eaf991-fb6c-c540-ea6d-e7b6267df34f@gmail.com>
+References: <34eaf991-fb6c-c540-ea6d-e7b6267df34f@gmail.com>
+Message-ID: <80f765f2-850f-76c7-3ba1-3a5ca2c87701@inria.fr>
+
+Hi All,
+As part of our scikit-learn development and our effort to provide better 
+parallelism for python, we rely heavily on dynamic classes and functions 
+pickling. For this
+usage we use cloudpickle, but it suffers from performance issues due to 
+its pure python implementation. After long discussions with Olivier 
+Grisel and Thomas
+Moreau, we ended up agreeing on the fact that the best solution for this 
+problem would be to add those functionalities to the _pickle.c module.
+I am already quite familiar with the C/Python API, and can dedicate a 
+lot of my time in the next couple months to make this happen.
+
+Serhiy, from this thread 
+(https://mail.python.org/pipermail/python-dev/2018-March/152509.html), 
+it seems that you already started implementing local classes pickling.
+I would be happy to use this work as a starting point and build from it. 
+What do you think?
+
+Regards,
+
+Pierre
+
+
