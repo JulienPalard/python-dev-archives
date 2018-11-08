@@ -2744,3 +2744,365 @@ Regards,
 Pierre
 
 
+From vstinner at redhat.com  Tue Nov  6 10:09:09 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 6 Nov 2018 16:09:09 +0100
+Subject: [Python-Dev] What is the difference between Py_BUILD_CORE and
+ Py_BUILD_CORE_BUILTIN?
+Message-ID: <CA+3bQGFskgwBf-m5kL6EkP22+Z_51s4sPCcoH4=T2Wmfge=ZrQ@mail.gmail.com>
+
+Hi,
+
+I'm trying to cleanup the Python C API, especially strictly separate
+the public C API, the stable C API (Py_LIMITED_API), and the internal
+C API (Py_BUILD_CORE).
+
+Move internal headers to Include/internal/ :
+https://bugs.python.org/issue35081
+
+Move !Py_LIMITED_API to Include/pycapi/:
+https://bugs.python.org/issue35134
+
+I tried to ensure that Py_BUILD_CORE is defined when including
+pycore_xxx.h headers from Include/internal/, but the compilation of
+the _json module fails. Modules/_json.c contains:
+
+/* Core extension modules are built-in on some platforms (e.g. Windows). */
+#ifdef Py_BUILD_CORE
+#define Py_BUILD_CORE_BUILTIN
+#undef Py_BUILD_CORE
+#endif
+
+I don't understand the difference between Py_BUILD_CORE and
+Py_BUILD_CORE_BUILTIN defines. Do we need to have two different
+defines? Can't we compile _json with Py_BUILD_CORE?
+
+_json.c uses pycore_accu.h:
+
+/*
+ * A two-level accumulator of unicode objects that avoids both the overhead
+ * of keeping a huge number of small separate objects, and the quadratic
+ * behaviour of using a naive repeated concatenation scheme.
+ */
+
+Is it a problem of the visibility/scope of symbols in the python DLL on Windows?
+
+Victor
+
+From srinivasan.rns at gmail.com  Tue Nov  6 13:07:40 2018
+From: srinivasan.rns at gmail.com (srinivasan)
+Date: Tue, 6 Nov 2018 23:37:40 +0530
+Subject: [Python-Dev] SyntaxError: can't assign to literal while using
+ ""blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)" using
+ subprocess module in Python
+Message-ID: <CAFsTbWd8saSbGSBtfDc3=TssZwgsB=j6b==ct195gVkJH84EpA@mail.gmail.com>
+
+Dear Python Experts Team,
+
+As am newbie to python development, I am trying to use the below function
+to get verify the filesystem type of the SD card parition using bash
+command in python using subprocess module, I ma seeing the below Error
+"SyntaxError: can't assign to literal"
+
+*CODE:*
+*====*
+
+import helper
+from os import path
+import subprocess
+import os
+import otg_ni
+
+
+class emmc(object):
+    """
+        emmc getters and setters
+        info:
+https://www.kernel.org/doc/Documentation/cpu-freq/user-guide.txt
+    """
+
+    def __init__(self):
+        self._helper = helper.helper()
+        self._otg_ni = otg_ni.otg_ni()
+
+
+*def get_fstype_of_mounted_partition(self, fs):*
+        """
+            Get the filesystem type of the mounted partition.
+
+            :partition_name : Partition path as string (e.g. /dev/mmcblk0p1)
+            :return: filesystem type as string or None if not found
+        """
+
+*        cmd = "blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)*
+        *return self._helper.execute_cmd_output_string(cmd)*
+
+
+
+*def execute_cmd_output_string(self, cmd, enable_shell=False):*
+        """
+            Execute a command and return its output as a string.
+
+            :param cmd: abs path of the command with arguments
+            :param enable_shell : force the cmd to be run as shell script
+            :return: a string.
+        """
+
+        try:
+            result = subprocess.check_output(split(cmd),
+                                             stderr=subprocess.STDOUT,
+                                             shell=enable_shell)
+
+        except subprocess.CalledProcessError as e:
+            s = """While executing '{}' something went wrong.
+                Return code == '{}'
+                Return output:\n'{}'
+                """.format(cmd, e.returncode, e.output, shell=enable_shell)
+            raise AssertionError(s)
+
+        return result.strip().decode("utf-8")
+*if __name__ == "__main__":*
+    m = emmc()
+*    m.get_fstype_of_mounted_partition("/dev/mmcblk0p1")*
+*Error:*
+*======*
+
+root:~/qa/test_library# python3 sd.py
+  File "sd.py", line 99
+*    cmd = "blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)*
+*         ^*
+*SyntaxError: can't assign to literal*
+root:~/qa/test_library#
+
+Kindly do the needful as early as possible, as am stuck with this issue
+from past 2 days no clues yet, please redirect me to the correct forum if
+this is not the right place for pasting python related queries
+
+Many Thanks in advance,
+Srini
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181106/5c4b2d58/attachment.html>
+
+From ericsnowcurrently at gmail.com  Tue Nov  6 13:13:19 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Tue, 6 Nov 2018 11:13:19 -0700
+Subject: [Python-Dev] Rename Include/internals/ to Include/pycore/
+In-Reply-To: <CA+3bQGHoS+uToYCa=fLtPzDLdBmDu+f8EU0EFOhwCfu92rh3tA@mail.gmail.com>
+References: <CA+3bQGE7UriagGc_FYuM7ge5oGX+6+_w2c3HY1WDj8JY=6FuzQ@mail.gmail.com>
+ <1540759207.1168671.1557524968.5CFA99F3@webmail.messagingengine.com>
+ <20181102172238.u7ysgkpj2b7aids5@python.ca>
+ <CA+3bQGHoS+uToYCa=fLtPzDLdBmDu+f8EU0EFOhwCfu92rh3tA@mail.gmail.com>
+Message-ID: <CALFfu7Aea_oeXuTgdsT7thjLoiD+0PjJUSUeztzyJ9=ofwh2cQ@mail.gmail.com>
+
+On Fri, Nov 2, 2018 at 1:02 PM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Le ven. 2 nov. 2018 ? 18:32, Neil Schemenauer <nas-python at arctrix.com> a ?crit :
+> > A simple approach would be to introduce something like
+> > Python-internal.h.  If you are a Python internal unit, you can
+> > include both Python.h and Python-internal.h.  We could, over time,
+> > split Python-iternal.h into smaller modular includes.
+>
+> Since this discussion, I already moved most Py_BUILD_CORE in
+> Include/internal/. I added a lot of #include "pycore_xxx.h" in C
+> files.
+>
+> I started to reach the limit with this PR which adds the
+> pycore_object.h include to not less than 33 C files:
+> https://github.com/python/cpython/pull/10272
+>
+> I rewrote this PR to avoid the need to modify 33 C files:
+> https://github.com/python/cpython/pull/10276/files
+>
+> I added the following code to Python.h:
+>
+> #ifdef Py_BUILD_CORE
+> /* bpo-35081: Automatically include pycore_object.h in Python.h, to avoid
+> to have to add an explicit #include "pycore_object.h" to each C file. */
+> # include "pycore_object.h"
+> #endif
+>
+> I'm not sure of it's a temporary workaround or not :-) Maybe a
+> Python-internal.h would be a better solution? We can identify the most
+> common header files needed to access "Python internals" and put them
+> in this "common" header file.
+>
+> For example, most C files using Python internals have to access
+> _PyRuntime global variable (55 C files), so "pycore_state.h" is a good
+> candidate.
+
+FWIW, I'm still in favor of keeping the includes specific.  For me
+personally it helps to narrow down dependencies, making the source
+easier to follow.
+
+> By the way, I don't understand the rationale to have _PyRuntime in
+> pycore_state.h. IMHO pycore_state.h should only contain functions to
+> get the Python thread and Python interpreter states. IMHO _PyRuntime
+> is unrelated and should belong to a different header file, maybe
+> pycore_runtime.h? I didn't do this change yet *because* I would have
+> to modify the 55 files currently including it.
+
+The runtime state isn't all that different from the thread state or
+the interpreter state.  It's simply broader in scope, much like the
+interpreter state is broader in scope than the thread state.  That's
+why I put it where I did.
+
+-eric
+
+From rosuav at gmail.com  Tue Nov  6 13:15:21 2018
+From: rosuav at gmail.com (Chris Angelico)
+Date: Wed, 7 Nov 2018 05:15:21 +1100
+Subject: [Python-Dev] SyntaxError: can't assign to literal while using
+ ""blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)" using
+ subprocess module in Python
+In-Reply-To: <CAFsTbWd8saSbGSBtfDc3=TssZwgsB=j6b==ct195gVkJH84EpA@mail.gmail.com>
+References: <CAFsTbWd8saSbGSBtfDc3=TssZwgsB=j6b==ct195gVkJH84EpA@mail.gmail.com>
+Message-ID: <CAPTjJmr6TSX-jX03EC-O9cDPYiY-tF_p6pKBan3bnpoCQGQxoA@mail.gmail.com>
+
+On Wed, Nov 7, 2018 at 5:11 AM srinivasan <srinivasan.rns at gmail.com> wrote:
+> As am newbie to python development, I am trying to use the below function to get verify the filesystem type of the SD card parition using bash command in python using subprocess module, I ma seeing the below Error "SyntaxError: can't assign to literal"
+>
+
+This is more appropriate for python-list than for python-dev, which is
+about the development OF Python. But your problem here is quite
+simple:
+
+>         cmd = "blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)
+
+You're trying to use the same quotation mark inside the string and
+outside it. That's not going to work. Try removing your inner quotes.
+
+You may also want to consider using Python to do your searching and
+cutting, rather than a shell pipeline. For more information on that,
+ask on python-list; people will be very happy to help out.
+
+ChrisA
+
+From ericsnowcurrently at gmail.com  Tue Nov  6 13:19:17 2018
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Tue, 6 Nov 2018 11:19:17 -0700
+Subject: [Python-Dev] What is the difference between Py_BUILD_CORE and
+ Py_BUILD_CORE_BUILTIN?
+In-Reply-To: <CA+3bQGFskgwBf-m5kL6EkP22+Z_51s4sPCcoH4=T2Wmfge=ZrQ@mail.gmail.com>
+References: <CA+3bQGFskgwBf-m5kL6EkP22+Z_51s4sPCcoH4=T2Wmfge=ZrQ@mail.gmail.com>
+Message-ID: <CALFfu7Ad63CzVeoSN2favRHJaZs20YUsmBbfRHp1Xbz9ANh9Mg@mail.gmail.com>
+
+On Tue, Nov 6, 2018 at 8:09 AM Victor Stinner <vstinner at redhat.com> wrote:
+> I don't understand the difference between Py_BUILD_CORE and
+> Py_BUILD_CORE_BUILTIN defines. Do we need to have two different
+> defines? Can't we compile _json with Py_BUILD_CORE?
+>
+> [snip]
+>
+> Is it a problem of the visibility/scope of symbols in the python DLL on Windows?
+
+Yep.  I added Py_BUILD_CORE_BUILTIN as a workaround for building on
+Windows.  For extension modules on Windows there's a conflict between
+Py_BUILD_CORE and some of the Windows symbols that get defined.  My
+Windows build knowledge is pretty limited so that's about as far as I
+can go. :)  Steve might be able to give you more info.
+
+-eric
+
+From david at graniteweb.com  Tue Nov  6 13:33:59 2018
+From: david at graniteweb.com (David Rock)
+Date: Tue, 6 Nov 2018 12:33:59 -0600
+Subject: [Python-Dev] [Tutor] SyntaxError: can't assign to literal while
+ using ""blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)" using
+ subprocess module in Python
+In-Reply-To: <CAFsTbWd8saSbGSBtfDc3=TssZwgsB=j6b==ct195gVkJH84EpA@mail.gmail.com>
+References: <CAFsTbWd8saSbGSBtfDc3=TssZwgsB=j6b==ct195gVkJH84EpA@mail.gmail.com>
+Message-ID: <C5B8E015-27C4-44B1-94D1-4E9BE8B393BF@graniteweb.com>
+
+> 
+> *def get_fstype_of_mounted_partition(self, fs):*
+>        """
+>            Get the filesystem type of the mounted partition.
+> 
+>            :partition_name : Partition path as string (e.g. /dev/mmcblk0p1)
+>            :return: filesystem type as string or None if not found
+>        """
+> 
+> *        cmd = "blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)*
+>        *return self._helper.execute_cmd_output_string(cmd)*
+> 
+> 
+> 
+> root:~/qa/test_library# python3 sd.py
+>  File "sd.py", line 99
+> *    cmd = "blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)*
+> *         ^*
+> *SyntaxError: can't assign to literal*
+> root:~/qa/test_library#
+> 
+
+looking at
+ cmd = "blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)*
+
+It?s probably because you have ? characters that are inside ? characters and it can?t tell where the string ends. It looks like you are trying to do
+
+cmd = "blkid -o export %s | grep 'TYPE' | cut -d?      =      " -f3" % (fs)*
+
+which doesn?t make sense.  Try using triple quotes instead so it?s clear what string you are trying to use.
+
+cmd = ?""blkid -o export %s | grep 'TYPE' | cut -d"=" -f3?"" % (fs)
+
+
+? 
+David Rock
+david at graniteweb.com
+
+
+
+
+
+From steve at pearwood.info  Tue Nov  6 17:25:51 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 7 Nov 2018 09:25:51 +1100
+Subject: [Python-Dev] SyntaxError: can't assign to literal while using
+ ""blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)" using
+ subprocess module in Python
+In-Reply-To: <CAFsTbWd8saSbGSBtfDc3=TssZwgsB=j6b==ct195gVkJH84EpA@mail.gmail.com>
+References: <CAFsTbWd8saSbGSBtfDc3=TssZwgsB=j6b==ct195gVkJH84EpA@mail.gmail.com>
+Message-ID: <20181106222551.GA4071@ando.pearwood.info>
+
+This list is for the development *of* the Python interpreter, not 
+support for *using* Python. If you signed up to this mailing list via 
+the web, it clearly says:
+
+    Do not post general Python questions to this list.
+
+highlighted in a great big box in red. Was that not clear enough? What 
+can we do to make that more clear?
+
+You can try many other places for support, such as Stackoverflow, 
+Reddit's /r/LearnPython, or the Python tutor mailing list:
+
+https://mail.python.org/mailman/listinfo/tutor
+
+but I expect most of them will tell you the same thing. You should try 
+to give a *minimum* example of your problem, not your entire script. 
+Start by reading here:
+
+http://sscce.org/
+
+As for your SyntaxError, the problem is line 99:
+
+>   File "sd.py", line 99
+> *    cmd = "blkid -o export %s | grep 'TYPE' | cut -d"=" -f3" % (fs)*
+> *         ^*
+> *SyntaxError: can't assign to literal*
+
+The arrow ^ is pointing to the wrong equals sign, but simplifying the 
+code and adding spaces makes it clear:
+
+cmd = "spam" = "eggs"
+
+gives the same error. Perhaps you mean == (equals) or perhaps the second 
+assignment shouldn't be there at all?
+
+
+
+-- 
+Steve
+
