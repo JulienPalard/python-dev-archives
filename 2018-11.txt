@@ -3106,3 +3106,299 @@ assignment shouldn't be there at all?
 -- 
 Steve
 
+From justinarthur at gmail.com  Wed Nov  7 23:24:55 2018
+From: justinarthur at gmail.com (Justin Turner Arthur)
+Date: Wed, 7 Nov 2018 22:24:55 -0600
+Subject: [Python-Dev] Implementing an awaitable
+Message-ID: <CAN5awxg0N=gaCmQxwujd-fdqWxkVT5eGm7MzQS+UcdGLrTKqug@mail.gmail.com>
+
+I'm trying to figure out if our documentation on the new awaitable concept
+in Python 3.6+ is correct. It seems to imply that if an object's __await__
+method returns an iterator, the object is awaitable. However, just
+returning an iterator doesn't seem to work with await in a coroutine or
+with the asyncio selector loop's run_until_complete method.
+
+If the awaitable is not a coroutine or future, it looks like we wrap it in
+a coroutine using sub-generator delegation, and therefore have to have an
+iterator that fits a very specific shape for the coroutine step process
+that isn't documented anywhere I could find. Am I missing something?
+
+If the definition of an awaitable is more than just an __await__ iterator,
+we may need to expand the documentation as well as the abstract base class.
+
+Here's what I tried in making a synchronous awaitable that resolves to the
+int 42:
+class MyAwaitable(Awaitable):
+    def __await__(self):
+        return iter((42,))
+# RuntimeError: Task got bad yield: 42
+
+class MyAwaitable(Awaitable):
+    def __await__(self):
+        yield 42
+# RuntimeError: Task got bad yield: 42
+
+class MyAwaitable(Awaitable):
+    def __await__(self):
+        return (i for i in (42,))
+# RuntimeError: Task got bad yield: 42
+
+class MyAwaitable(Awaitable):
+    def __await__(self):
+        return self
+    def __next__(self):
+        return 42
+# RuntimeError: Task got bad yield: 42'''
+
+class MyAwaitable(Awaitable):
+    def __await__(self):
+        return iter(asyncio.coroutine(lambda: 42)())
+# TypeError: __await__() returned a coroutine
+
+class MyAwaitable(Awaitable):
+    def __await__(self):
+        yield from asyncio.coroutine(lambda: 42)()
+# None
+
+class MyAwaitable(Awaitable):
+    def __await__(self):
+        return (yield from asyncio.coroutine(lambda: 42)())
+# 42
+
+async def await_things():
+    print(await MyAwaitable())
+
+asyncio.get_event_loop().run_until_complete(await_things())
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181107/e2f7ee2d/attachment.html>
+
+From njs at pobox.com  Thu Nov  8 00:26:59 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Wed, 7 Nov 2018 21:26:59 -0800
+Subject: [Python-Dev] Implementing an awaitable
+In-Reply-To: <CAN5awxg0N=gaCmQxwujd-fdqWxkVT5eGm7MzQS+UcdGLrTKqug@mail.gmail.com>
+References: <CAN5awxg0N=gaCmQxwujd-fdqWxkVT5eGm7MzQS+UcdGLrTKqug@mail.gmail.com>
+Message-ID: <CAPJVwBmGKaPhE7QQ5_QM9o23H1T26LwnrgLt2Wbd0=LoqcdsUg@mail.gmail.com>
+
+"Awaitable" is a language-level concept. To actually use awaitables,
+you also need a coroutine runner library, and each library defines
+additional restrictions on the awaitables it works with. So e.g. when
+using asyncio as your coroutine runner, asyncio expects your
+awaitables to follow particular rules about what values they yield,
+what kinds of values they can handle being sent/thrown back in, etc.
+Different async libraries use different rules here.
+
+Asyncio's rules aren't documented, I guess because it's such a
+low-level thing that anyone who really needs to know is expected to
+read the source :-). (In particular asyncio/futures.py and
+asyncio/tasks.py.) But it's basically: the object returned by
+__await__ has to implement the generator interface (which is a
+superset of the iterator interface), the objects yielded by your
+iterator have to implement the Future interface, and then you're
+resumed either by sending back None when the Future completes, or else
+by having an exception thrown in.
+
+-n
+
+On Wed, Nov 7, 2018 at 8:24 PM, Justin Turner Arthur
+<justinarthur at gmail.com> wrote:
+> I'm trying to figure out if our documentation on the new awaitable concept
+> in Python 3.6+ is correct. It seems to imply that if an object's __await__
+> method returns an iterator, the object is awaitable. However, just returning
+> an iterator doesn't seem to work with await in a coroutine or with the
+> asyncio selector loop's run_until_complete method.
+>
+> If the awaitable is not a coroutine or future, it looks like we wrap it in a
+> coroutine using sub-generator delegation, and therefore have to have an
+> iterator that fits a very specific shape for the coroutine step process that
+> isn't documented anywhere I could find. Am I missing something?
+>
+> If the definition of an awaitable is more than just an __await__ iterator,
+> we may need to expand the documentation as well as the abstract base class.
+>
+> Here's what I tried in making a synchronous awaitable that resolves to the
+> int 42:
+> class MyAwaitable(Awaitable):
+>     def __await__(self):
+>         return iter((42,))
+> # RuntimeError: Task got bad yield: 42
+>
+> class MyAwaitable(Awaitable):
+>     def __await__(self):
+>         yield 42
+> # RuntimeError: Task got bad yield: 42
+>
+> class MyAwaitable(Awaitable):
+>     def __await__(self):
+>         return (i for i in (42,))
+> # RuntimeError: Task got bad yield: 42
+>
+> class MyAwaitable(Awaitable):
+>     def __await__(self):
+>         return self
+>     def __next__(self):
+>         return 42
+> # RuntimeError: Task got bad yield: 42'''
+>
+> class MyAwaitable(Awaitable):
+>     def __await__(self):
+>         return iter(asyncio.coroutine(lambda: 42)())
+> # TypeError: __await__() returned a coroutine
+>
+> class MyAwaitable(Awaitable):
+>     def __await__(self):
+>         yield from asyncio.coroutine(lambda: 42)()
+> # None
+>
+> class MyAwaitable(Awaitable):
+>     def __await__(self):
+>         return (yield from asyncio.coroutine(lambda: 42)())
+> # 42
+>
+> async def await_things():
+>     print(await MyAwaitable())
+>
+> asyncio.get_event_loop().run_until_complete(await_things())
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+>
+
+
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From justinarthur at gmail.com  Thu Nov  8 01:05:26 2018
+From: justinarthur at gmail.com (Justin Turner Arthur)
+Date: Thu, 8 Nov 2018 00:05:26 -0600
+Subject: [Python-Dev] Implementing an awaitable
+In-Reply-To: <CAPJVwBmGKaPhE7QQ5_QM9o23H1T26LwnrgLt2Wbd0=LoqcdsUg@mail.gmail.com>
+References: <CAN5awxg0N=gaCmQxwujd-fdqWxkVT5eGm7MzQS+UcdGLrTKqug@mail.gmail.com>
+ <CAPJVwBmGKaPhE7QQ5_QM9o23H1T26LwnrgLt2Wbd0=LoqcdsUg@mail.gmail.com>
+Message-ID: <CAN5awxg0TjMW60CU4BSV8cEiwqg1Du-nFkYJY=L91PdOZAmufA@mail.gmail.com>
+
+Thanks for the thorough rundown, Nathaniel. I started to get an idea of the
+required shape only by looking at CPython code like you suggest. I wanted
+to create an awaitable compatible with asyncio and trio that could be
+awaited more than once unlike a coroutine, and not runner-specific like a
+Future or Deferred. Are coroutines the only common awaitable the various
+async libraries are going to have for now?
+
+I'll take Python documentation suggestions up with other channels.
+- Justin
+
+On Wed, Nov 7, 2018 at 11:27 PM Nathaniel Smith <njs at pobox.com> wrote:
+
+> "Awaitable" is a language-level concept. To actually use awaitables,
+> you also need a coroutine runner library, and each library defines
+> additional restrictions on the awaitables it works with. So e.g. when
+> using asyncio as your coroutine runner, asyncio expects your
+> awaitables to follow particular rules about what values they yield,
+> what kinds of values they can handle being sent/thrown back in, etc.
+> Different async libraries use different rules here.
+>
+> Asyncio's rules aren't documented, I guess because it's such a
+> low-level thing that anyone who really needs to know is expected to
+> read the source :-). (In particular asyncio/futures.py and
+> asyncio/tasks.py.) But it's basically: the object returned by
+> __await__ has to implement the generator interface (which is a
+> superset of the iterator interface), the objects yielded by your
+> iterator have to implement the Future interface, and then you're
+> resumed either by sending back None when the Future completes, or else
+> by having an exception thrown in.
+>
+> -n
+>
+> On Wed, Nov 7, 2018 at 8:24 PM, Justin Turner Arthur
+> <justinarthur at gmail.com> wrote:
+> > I'm trying to figure out if our documentation on the new awaitable
+> concept
+> > in Python 3.6+ is correct. It seems to imply that if an object's
+> __await__
+> > method returns an iterator, the object is awaitable. However, just
+> returning
+> > an iterator doesn't seem to work with await in a coroutine or with the
+> > asyncio selector loop's run_until_complete method.
+> >
+> > If the awaitable is not a coroutine or future, it looks like we wrap it
+> in a
+> > coroutine using sub-generator delegation, and therefore have to have an
+> > iterator that fits a very specific shape for the coroutine step process
+> that
+> > isn't documented anywhere I could find. Am I missing something?
+> >
+> > If the definition of an awaitable is more than just an __await__
+> iterator,
+> > we may need to expand the documentation as well as the abstract base
+> class.
+> >
+> > Here's what I tried in making a synchronous awaitable that resolves to
+> the
+> > int 42:
+> > class MyAwaitable(Awaitable):
+> >     def __await__(self):
+> >         return iter((42,))
+> > # RuntimeError: Task got bad yield: 42
+> >
+> > class MyAwaitable(Awaitable):
+> >     def __await__(self):
+> >         yield 42
+> > # RuntimeError: Task got bad yield: 42
+> >
+> > class MyAwaitable(Awaitable):
+> >     def __await__(self):
+> >         return (i for i in (42,))
+> > # RuntimeError: Task got bad yield: 42
+> >
+> > class MyAwaitable(Awaitable):
+> >     def __await__(self):
+> >         return self
+> >     def __next__(self):
+> >         return 42
+> > # RuntimeError: Task got bad yield: 42'''
+> >
+> > class MyAwaitable(Awaitable):
+> >     def __await__(self):
+> >         return iter(asyncio.coroutine(lambda: 42)())
+> > # TypeError: __await__() returned a coroutine
+> >
+> > class MyAwaitable(Awaitable):
+> >     def __await__(self):
+> >         yield from asyncio.coroutine(lambda: 42)()
+> > # None
+> >
+> > class MyAwaitable(Awaitable):
+> >     def __await__(self):
+> >         return (yield from asyncio.coroutine(lambda: 42)())
+> > # 42
+> >
+> > async def await_things():
+> >     print(await MyAwaitable())
+> >
+> > asyncio.get_event_loop().run_until_complete(await_things())
+> >
+> >
+> > _______________________________________________
+> > Python-Dev mailing list
+> > Python-Dev at python.org
+> > https://mail.python.org/mailman/listinfo/python-dev
+> > Unsubscribe:
+> > https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+> >
+>
+>
+>
+> --
+> Nathaniel J. Smith -- https://vorpus.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181108/6e8bcb58/attachment.html>
+
