@@ -3402,3 +3402,1047 @@ On Wed, Nov 7, 2018 at 11:27 PM Nathaniel Smith <njs at pobox.com> wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181108/6e8bcb58/attachment.html>
 
+From steve at pearwood.info  Fri Nov  9 06:05:07 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 9 Nov 2018 22:05:07 +1100
+Subject: [Python-Dev] Signalling NANs
+Message-ID: <20181109110507.GK4071@ando.pearwood.info>
+
+I'm trying to understand some unexpected behaviour with float NANs in 
+Python 3.5.
+
+Background: in IEEE-754 maths, NANs (Not A Number) come in two flavours, 
+so called "quiet NANs" and "signalling NANs". By default, arithmetic 
+operations on qnans return a qnan; operations on snans "signal", which 
+in Python terms means raising an exception.
+
+The original IEEE-754 standard didn't specify how to distinguish a qnan 
+from a snan, but a de facto standard arose that bit 51 of the float was 
+the "quiet bit", if it were set, the NAN was quiet.
+
+For the purposes of this email, I'm going to assume that standard is in 
+place, even though technically speaking it is platform-dependent.
+
+According to my tests, it seems that we cannot create snans in Python. 
+The float constructor doesn't recognise "snan", raising ValueError. Nor 
+can we convert a Decimal snan into a float:
+
+py> from decimal import Decimal
+py> snan = Decimal('snan')
+py> float(dsnan)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+ValueError: cannot convert signaling NaN to float
+
+
+But unexpectedly (to me at least), we apparently cannot even create a 
+signalling NAN by casting 64 bits to a float. Here are the functions I 
+use to do the cast:
+
+from struct import pack, unpack
+
+def cast_float2int(x):
+    return unpack('<Q', pack('<d', x))[0]
+
+def cast_int2float(i):
+    return unpack('<d', pack('<Q', i))[0]
+
+
+
+Here's a regular quiet NAN round-tripping, as expected:
+
+py> x = cast_int2float(0x7ff8000000000001)
+py> x
+nan
+py> hex(cast_float2int(x))
+'0x7ff8000000000001'
+
+
+So far so good. But now let me try with a signalling NAN:
+
+
+py> x = cast_int2float(0x7ff0000000000001)
+py> x
+nan
+py> hex(cast_float2int(x))
+'0x7ff8000000000001'
+
+
+So it seems that the "quiet" bit is automatically set, even when using 
+the struct module, making it impossible to create snan floats.
+
+Is this intended? If so, why?
+
+Is this meant as a language feature?
+
+
+
+Thanks in advance,
+
+
+Steve
+
+From storchaka at gmail.com  Fri Nov  9 06:46:12 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 9 Nov 2018 13:46:12 +0200
+Subject: [Python-Dev] Signalling NANs
+In-Reply-To: <20181109110507.GK4071@ando.pearwood.info>
+References: <20181109110507.GK4071@ando.pearwood.info>
+Message-ID: <ps3ru2$h6s$1@blaine.gmane.org>
+
+09.11.18 13:05, Steven D'Aprano ????:
+> py> x = cast_int2float(0x7ff0000000000001)
+> py> x
+> nan
+> py> hex(cast_float2int(x))
+> '0x7ff8000000000001'
+
+I got '0x7ff0000000000001'.
+
+
+From status at bugs.python.org  Fri Nov  9 12:09:53 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri,  9 Nov 2018 18:09:53 +0100 (CET)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20181109170953.393015789C@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-11-02 - 2018-11-09)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6834 ( +6)
+  closed 40118 (+47)
+  total  46952 (+53)
+
+Open issues with patches: 2726 
+
+
+Issues opened (42)
+==================
+
+#10536: Enhancements to gettext docs
+https://bugs.python.org/issue10536  reopened by serhiy.storchaka
+
+#32409: venv activate.bat is UTF-8 encoded but uses current console co
+https://bugs.python.org/issue32409  reopened by pablogsal
+
+#33486: regen autotools related files
+https://bugs.python.org/issue33486  reopened by ned.deily
+
+#34011: Default preference not given to venv DLL's
+https://bugs.python.org/issue34011  reopened by pablogsal
+
+#35145: sqlite3: "select *" should optionally sniff and autoconvert TE
+https://bugs.python.org/issue35145  reopened by matrixise
+
+#35149: pip3 show causing Error for  ConfigParaser
+https://bugs.python.org/issue35149  opened by mdileep
+
+#35151: Python 2 xml.etree.ElementTree documentation tutorial uses und
+https://bugs.python.org/issue35151  opened by epakai
+
+#35153: Allow to set headers in xmlrpc.client.ServerProxy
+https://bugs.python.org/issue35153  opened by ced
+
+#35155: Clarify Protocol Handlers in urllib.request Docs
+https://bugs.python.org/issue35155  opened by Denton-L
+
+#35156: Consider revising documentation on Python Builds from source
+https://bugs.python.org/issue35156  opened by neyuru
+
+#35157: Missing pyconfig.h when building from source and pgo flag is e
+https://bugs.python.org/issue35157  opened by neyuru
+
+#35158: Fix PEP 3115 to NOT imply that the class dictionary is used in
+https://bugs.python.org/issue35158  opened by joydiamond
+
+#35163: locale: setlocale(..., 'eo') sets non-existing locale
+https://bugs.python.org/issue35163  opened by carmenbianca
+
+#35164: socket.getfqdn and socket.gethostbyname fail on MacOS
+https://bugs.python.org/issue35164  opened by ssbarnea
+
+#35165: Possible wrong method name in attribute references doc
+https://bugs.python.org/issue35165  opened by denis-osipov
+
+#35166: BUILD_MAP_UNPACK doesn't function as expected for dict subclas
+https://bugs.python.org/issue35166  opened by bup
+
+#35168: shlex punctuation_chars inconsistency
+https://bugs.python.org/issue35168  opened by tphh
+
+#35169: Improve error messages for assignment
+https://bugs.python.org/issue35169  opened by serhiy.storchaka
+
+#35172: Add support for other MSVC compiler versions to distutils. dis
+https://bugs.python.org/issue35172  opened by Ali Rizvi-Santiago
+
+#35173: Re-use already existing functionality to allow Python 2.7.x (b
+https://bugs.python.org/issue35173  opened by Ali Rizvi-Santiago
+
+#35174: Calling for super().__str__ seems to call self.__repr__ in lis
+https://bugs.python.org/issue35174  opened by Camion
+
+#35177: Add missing dependencies between AST/parser header files
+https://bugs.python.org/issue35177  opened by vstinner
+
+#35178: Typo/trivial mistake in warnings.py (may be related to 2.x to 
+https://bugs.python.org/issue35178  opened by tashrifbillah
+
+#35181: Doc: Namespace Packages: Inconsistent documentation of __loade
+https://bugs.python.org/issue35181  opened by mdk
+
+#35182: Popen.communicate() breaks when child closes its side of pipe 
+https://bugs.python.org/issue35182  opened by and800
+
+#35183: os.path.splitext documentation needs typical example
+https://bugs.python.org/issue35183  opened by shaungriffith
+
+#35184: Makefile is not correctly generated when compiling pyextat wit
+https://bugs.python.org/issue35184  opened by mgmacias95
+
+#35185: Logger race condition - loses lines if removeHandler called fr
+https://bugs.python.org/issue35185  opened by benspiller
+
+#35186: distutils.command.upload uses deprecated platform.dist with bd
+https://bugs.python.org/issue35186  opened by p-ganssle
+
+#35189: PEP 475: fnctl functions are not retried if interrupted by a s
+https://bugs.python.org/issue35189  opened by akeskimo
+
+#35190: collections.abc.Sequence cannot be used to test whether a clas
+https://bugs.python.org/issue35190  opened by hroncok
+
+#35191: socket.setblocking(x) treats multiples of 2**32 as False
+https://bugs.python.org/issue35191  opened by izbyshev
+
+#35192: pathlib mkdir throws FileExistsError when not supposed to
+https://bugs.python.org/issue35192  opened by Adam Dunlap
+
+#35193: Off by one error in peephole call to find_op on case RETURN_VA
+https://bugs.python.org/issue35193  opened by gregory.p.smith
+
+#35194: A typo in a constant in cp932 codec
+https://bugs.python.org/issue35194  opened by izbyshev
+
+#35195: Pandas read_csv() is 3.5X Slower on Python 3.7.1 vs Python 3.6
+https://bugs.python.org/issue35195  opened by Dragoljub
+
+#35196: IDLE text squeezer is too aggressive and is slow
+https://bugs.python.org/issue35196  opened by rhettinger
+
+#35197: graminit.h defines very generic names like 'stmt' or 'test'
+https://bugs.python.org/issue35197  opened by vstinner
+
+#35198: Build issue while compiling cpp files in AIX
+https://bugs.python.org/issue35198  opened by Ayappan
+
+#35199: Convert PyTuple_GET_ITEM() macro to a function call with addit
+https://bugs.python.org/issue35199  opened by vstinner
+
+#35200: Range repr could be better
+https://bugs.python.org/issue35200  opened by mdk
+
+#35201: Recursive '**' matches non-existent directories.
+https://bugs.python.org/issue35201  opened by daniel
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#35201: Recursive '**' matches non-existent directories.
+https://bugs.python.org/issue35201
+
+#35198: Build issue while compiling cpp files in AIX
+https://bugs.python.org/issue35198
+
+#35195: Pandas read_csv() is 3.5X Slower on Python 3.7.1 vs Python 3.6
+https://bugs.python.org/issue35195
+
+#35191: socket.setblocking(x) treats multiples of 2**32 as False
+https://bugs.python.org/issue35191
+
+#35186: distutils.command.upload uses deprecated platform.dist with bd
+https://bugs.python.org/issue35186
+
+#35185: Logger race condition - loses lines if removeHandler called fr
+https://bugs.python.org/issue35185
+
+#35184: Makefile is not correctly generated when compiling pyextat wit
+https://bugs.python.org/issue35184
+
+#35183: os.path.splitext documentation needs typical example
+https://bugs.python.org/issue35183
+
+#35177: Add missing dependencies between AST/parser header files
+https://bugs.python.org/issue35177
+
+#35173: Re-use already existing functionality to allow Python 2.7.x (b
+https://bugs.python.org/issue35173
+
+#35172: Add support for other MSVC compiler versions to distutils. dis
+https://bugs.python.org/issue35172
+
+#35169: Improve error messages for assignment
+https://bugs.python.org/issue35169
+
+#35163: locale: setlocale(..., 'eo') sets non-existing locale
+https://bugs.python.org/issue35163
+
+#35158: Fix PEP 3115 to NOT imply that the class dictionary is used in
+https://bugs.python.org/issue35158
+
+#35155: Clarify Protocol Handlers in urllib.request Docs
+https://bugs.python.org/issue35155
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#35200: Range repr could be better
+https://bugs.python.org/issue35200
+
+#35199: Convert PyTuple_GET_ITEM() macro to a function call with addit
+https://bugs.python.org/issue35199
+
+#35197: graminit.h defines very generic names like 'stmt' or 'test'
+https://bugs.python.org/issue35197
+
+#35194: A typo in a constant in cp932 codec
+https://bugs.python.org/issue35194
+
+#35193: Off by one error in peephole call to find_op on case RETURN_VA
+https://bugs.python.org/issue35193
+
+#35191: socket.setblocking(x) treats multiples of 2**32 as False
+https://bugs.python.org/issue35191
+
+#35189: PEP 475: fnctl functions are not retried if interrupted by a s
+https://bugs.python.org/issue35189
+
+#35186: distutils.command.upload uses deprecated platform.dist with bd
+https://bugs.python.org/issue35186
+
+#35181: Doc: Namespace Packages: Inconsistent documentation of __loade
+https://bugs.python.org/issue35181
+
+#35177: Add missing dependencies between AST/parser header files
+https://bugs.python.org/issue35177
+
+#35173: Re-use already existing functionality to allow Python 2.7.x (b
+https://bugs.python.org/issue35173
+
+#35172: Add support for other MSVC compiler versions to distutils. dis
+https://bugs.python.org/issue35172
+
+#35169: Improve error messages for assignment
+https://bugs.python.org/issue35169
+
+#35155: Clarify Protocol Handlers in urllib.request Docs
+https://bugs.python.org/issue35155
+
+#35153: Allow to set headers in xmlrpc.client.ServerProxy
+https://bugs.python.org/issue35153
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#34805: Explicitly specify `MyClass.__subclasses__()` returns classes 
+https://bugs.python.org/issue34805  11 msgs
+
+#35194: A typo in a constant in cp932 codec
+https://bugs.python.org/issue35194  10 msgs
+
+#35113: inspect.getsource returns incorrect source for classes when cl
+https://bugs.python.org/issue35113   9 msgs
+
+#35145: sqlite3: "select *" should optionally sniff and autoconvert TE
+https://bugs.python.org/issue35145   9 msgs
+
+#32409: venv activate.bat is UTF-8 encoded but uses current console co
+https://bugs.python.org/issue32409   8 msgs
+
+#34155: email.utils.parseaddr mistakenly parse an email
+https://bugs.python.org/issue34155   7 msgs
+
+#35105: Document that CPython accepts "invalid" identifiers
+https://bugs.python.org/issue35105   7 msgs
+
+#35131: Cannot access to customized paths within .pth file
+https://bugs.python.org/issue35131   7 msgs
+
+#35157: Missing pyconfig.h when building from source and pgo flag is e
+https://bugs.python.org/issue35157   7 msgs
+
+#35104: IDLE: On macOS, Command-M minimizes & opens "Open Module..."
+https://bugs.python.org/issue35104   6 msgs
+
+
+
+Issues closed (48)
+==================
+
+#2504: Add gettext.pgettext() and variants support
+https://bugs.python.org/issue2504  closed by serhiy.storchaka
+
+#17560: problem using multiprocessing with really big objects?
+https://bugs.python.org/issue17560  closed by pitrou
+
+#19675: Pool dies with excessive workers, but does not cleanup
+https://bugs.python.org/issue19675  closed by mdk
+
+#21263: test_gdb failures on os x 10.9.2
+https://bugs.python.org/issue21263  closed by ned.deily
+
+#25711: Rewrite zipimport from scratch
+https://bugs.python.org/issue25711  closed by serhiy.storchaka
+
+#29341: Missing accepting path-like object in docstrings of os module 
+https://bugs.python.org/issue29341  closed by pablogsal
+
+#31553: Extend json.tool to handle jsonlines (with a flag)
+https://bugs.python.org/issue31553  closed by serhiy.storchaka
+
+#31583: 2to3 call for file in current directory yields error
+https://bugs.python.org/issue31583  closed by denis-osipov
+
+#32285: In `unicodedata`, it should be possible to check a unistr's no
+https://bugs.python.org/issue32285  closed by benjamin.peterson
+
+#32512: Add an option to profile to run library module as a script
+https://bugs.python.org/issue32512  closed by mariocj89
+
+#33000: IDLE Doc: Text consumes unlimited RAM, consoles likely not
+https://bugs.python.org/issue33000  closed by terry.reedy
+
+#33275: glob.glob should explicitly note that results aren't sorted
+https://bugs.python.org/issue33275  closed by mdk
+
+#33462: reversible dict
+https://bugs.python.org/issue33462  closed by inada.naoki
+
+#33578: cjkcodecs missing getstate and setstate implementations
+https://bugs.python.org/issue33578  closed by inada.naoki
+
+#34205: Ansible: _PyImport_LoadDynamicModuleWithSpec() crash on an inv
+https://bugs.python.org/issue34205  closed by mdk
+
+#34547: Wsgiref server does not handle closed connections gracefully
+https://bugs.python.org/issue34547  closed by chris.jerdonek
+
+#34699: allow path-like objects in program arguments in Windows
+https://bugs.python.org/issue34699  closed by serhiy.storchaka
+
+#34726: Add support of checked hash-based pycs in zipimport
+https://bugs.python.org/issue34726  closed by serhiy.storchaka
+
+#34885: asyncio documention has lost its paragraph about cancellation
+https://bugs.python.org/issue34885  closed by asvetlov
+
+#34898: add mtime argument to gzip.compress
+https://bugs.python.org/issue34898  closed by serhiy.storchaka
+
+#34966: Pydoc: better support of method aliases
+https://bugs.python.org/issue34966  closed by serhiy.storchaka
+
+#34969: Add --fast, --best to the gzip CLI
+https://bugs.python.org/issue34969  closed by mdk
+
+#35015: availability directive breaks po files
+https://bugs.python.org/issue35015  closed by mdk
+
+#35032: Remove the videos from faq/Windows
+https://bugs.python.org/issue35032  closed by matrixise
+
+#35065: Reading received data from a closed TCP stream using `StreamRe
+https://bugs.python.org/issue35065  closed by asvetlov
+
+#35099: Improve the IDLE - console differences doc
+https://bugs.python.org/issue35099  closed by terry.reedy
+
+#35109: Doctest in CI uses python binary built from master causing Dep
+https://bugs.python.org/issue35109  closed by mdk
+
+#35118: Add peek() or first() method in queue
+https://bugs.python.org/issue35118  closed by rhettinger
+
+#35123: Add style guide for sentinel usage
+https://bugs.python.org/issue35123  closed by serhiy.storchaka
+
+#35133: Bugs in concatenating string literals on different lines
+https://bugs.python.org/issue35133  closed by serhiy.storchaka
+
+#35147: _Py_NO_RETURN is always empty on GCC
+https://bugs.python.org/issue35147  closed by vstinner
+
+#35148: cannot activate a venv environment on a Swiss German windows
+https://bugs.python.org/issue35148  closed by vinay.sajip
+
+#35150: Misc/README.valgrind out-of-date
+https://bugs.python.org/issue35150  closed by cheryl.sabella
+
+#35152: too small type for struct.pack/unpack in mutliprocessing.Conne
+https://bugs.python.org/issue35152  closed by serhiy.storchaka
+
+#35154: subprocess.list2cmdline() does not allow running some commands
+https://bugs.python.org/issue35154  closed by Roffild
+
+#35159: Add a link to the devguide in the sidebar of the documentation
+https://bugs.python.org/issue35159  closed by mdk
+
+#35160: PyObjects initialized with PyObject_New have uninitialized poi
+https://bugs.python.org/issue35160  closed by benjamin.peterson
+
+#35161: ASAN: stack-use-after-scope in grp.getgr{nam,gid} and pwd.getp
+https://bugs.python.org/issue35161  closed by serhiy.storchaka
+
+#35162: Inconsistent behaviour around __new__
+https://bugs.python.org/issue35162  closed by serhiy.storchaka
+
+#35167: Specify program for gzip and json.tool command line options
+https://bugs.python.org/issue35167  closed by serhiy.storchaka
+
+#35170: 3.7.1 compile failure on CentOS 6.10; _ctypes did not build
+https://bugs.python.org/issue35170  closed by lana.deere
+
+#35171: test_TimeRE_recreation_timezone failure on systems with non-de
+https://bugs.python.org/issue35171  closed by benjamin.peterson
+
+#35175: Builtin function all() is handling dict() types in a weird way
+https://bugs.python.org/issue35175  closed by josh.r
+
+#35176: for loop range bug
+https://bugs.python.org/issue35176  closed by steven.daprano
+
+#35179: Limit max sendfile chunk to 0x7ffff000
+https://bugs.python.org/issue35179  closed by asvetlov
+
+#35180: Ctypes segfault or TypeError tested for python2.7 and 3
+https://bugs.python.org/issue35180  closed by josh.r
+
+#35187: a bug about np.arrange
+https://bugs.python.org/issue35187  closed by mark.dickinson
+
+#35188: something confused about numpy.arange
+https://bugs.python.org/issue35188  closed by xyl123
+
+From chris.barker at noaa.gov  Fri Nov  9 16:17:09 2018
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Fri, 9 Nov 2018 13:17:09 -0800
+Subject: [Python-Dev] Signalling NANs
+In-Reply-To: <ps3ru2$h6s$1@blaine.gmane.org>
+References: <20181109110507.GK4071@ando.pearwood.info>
+ <ps3ru2$h6s$1@blaine.gmane.org>
+Message-ID: <CALGmxEKNMPbZa7vqMFZmbMdvXxb6py7qPu7zY_vGQ1OHfj302g@mail.gmail.com>
+
+works for me, too:
+
+In [9]: x = cast_int2float(0x7ff8000000000001)
+In [10]: hex(cast_float2int(x))
+Out[10]: '0x7ff8000000000001'
+
+In [11]: x = cast_int2float(0x7ff0000000000001)
+In [12]: hex(cast_float2int(x))
+Out[12]: '0x7ff0000000000001'
+
+OS-X, conda build:
+
+Python 3.7.0 | packaged by conda-forge | (default, Aug 27 2018, 17:24:52)
+[Clang 6.1.0 (clang-602.0.53)] on darwin
+
+I suspect it depends on the compiler's math library
+
+But neither is raising an exception:
+
+In [3]: x = cast_int2float(0x7ff0000000000001)
+
+In [4]: y = cast_int2float(0x7ff8000000000001)
+
+In [5]: 2.0 / x
+Out[5]: nan
+
+In [6]: 2.0 / y
+Out[6]: nan
+
+When should it?
+
+-CHB
+
+
+
+On Fri, Nov 9, 2018 at 3:46 AM, Serhiy Storchaka <storchaka at gmail.com>
+wrote:
+
+> 09.11.18 13:05, Steven D'Aprano ????:
+>
+>> py> x = cast_int2float(0x7ff0000000000001)
+>> py> x
+>> nan
+>> py> hex(cast_float2int(x))
+>> '0x7ff8000000000001'
+>>
+>
+> I got '0x7ff0000000000001'.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/chris.
+> barker%40noaa.gov
+>
+
+
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181109/c96c97a6/attachment.html>
+
+From vstinner at redhat.com  Fri Nov  9 19:30:37 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 10 Nov 2018 01:30:37 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+Message-ID: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+
+Hi,
+
+The current C API of Python is both a strength and a weakness of the
+Python ecosystem as a whole. It's a strength because it allows to
+quickly reuse a huge number of existing libraries by writing a glue
+for them. It made numpy possible and this project is a big sucess!
+It's a weakness because of its cost on the maintenance, it prevents
+optimizations, and more generally it prevents to experiment modifying
+Python internals.
+
+For example, CPython cannot use tagged pointers, because the existing
+C API is heavily based on the ability to dereference a PyObject*
+object and access directly members of objects (like PyTupleObject).
+For example, Py_INCREF() modifies *directly* PyObject.ob_refcnt. It's
+not possible neither to use a Python compiled in debug mode on C
+extensions (compiled in release mode), because the ABI is different in
+debug mode. As a consequence, nobody uses the debug mode, whereas it
+is very helpful to develop C extensions and investigate bugs.
+
+I also consider that the C API gives too much work to PyPy (for their
+"cpyext" module). A better C API (not leaking implementation) details
+would make PyPy more efficient (and simplify its implementation in the
+long term, when the support for the old C API can be removed). For
+example, PyList_GetItem(list, 0) currently converts all items of the
+list to PyObject* in PyPy, it can waste memory if only the first item
+of the list is needed. PyPy has much more efficient storage than an
+array of PyObject* for lists.
+
+I wrote a website to explain all these issues with much more details:
+
+   https://pythoncapi.readthedocs.io/
+
+I identified "bad APIs" like using borrowed references or giving
+access to PyObject** (ex: PySequence_Fast_ITEMS).
+
+I already wrote an (incomplete) implementation of a new C API which
+doesn't leak implementation details:
+
+   https://github.com/pythoncapi/pythoncapi
+
+It uses an opt-in option (Py_NEWCAPI define -- I'm not sure about the
+name) to get the new API. The current C API is unchanged.
+
+Ah, important points. I don't want to touch the current C API nor make
+it less efficient. And compatibility in both directions (current C API
+<=> new C API) is very important for me. There is no such plan as
+"Python 4" which would break the world and *force* everybody to
+upgrade to the new C API, or stay to Python 3 forever. No. The new C
+API must be an opt-in option, and current C API remains the default
+and not be changed.
+
+I have different ideas for the compatibility part, but I'm not sure of
+what are the best options yet.
+
+My short term for the new C API would be to ease the experimentation
+of projects like tagged pointers. Currently, I have to maintain the
+implementation of a new C API which is not really convenient.
+
+--
+
+Today I tried to abuse the Py_DEBUG define for the new C API, but it
+seems to be a bad idea:
+
+   https://github.com/python/cpython/pull/10435
+
+A *new* define is needed to opt-in for the new C API.
+
+Victor
+
+From mike at selik.org  Fri Nov  9 19:49:13 2018
+From: mike at selik.org (Michael Selik)
+Date: Fri, 9 Nov 2018 16:49:13 -0800
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+Message-ID: <CAGgTfkN7=k2zxuJt7OubAeZ0ns8NH_PpuMvSuA+Sf_s2FvRPXw@mail.gmail.com>
+
+On Fri, Nov 9, 2018 at 4:33 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> It uses an opt-in option (Py_NEWCAPI define -- I'm not sure about the
+> name) to get the new API. The current C API is unchanged.
+>
+
+While one can hope that this will be the only time the C API will be
+revised, it may be better to number it instead of calling it "NEW". 20
+years from now, it won't feel new anymore.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181109/bbfb1cf2/attachment.html>
+
+From vstinner at redhat.com  Fri Nov  9 19:53:26 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 10 Nov 2018 01:53:26 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+Message-ID: <CA+3bQGGmvXbH+Tm6e0ii1L0eRc8xwX+o_O4+0OY3R6EiSFjhPg@mail.gmail.com>
+
+To hide all implementation details, I propose to stop using macros and
+use function calls instead. For example, replace:
+
+#define PyTuple_GET_ITEM(op, i) \
+   (((PyTupleObject *)(op))->ob_item[i])
+
+with:
+
+# define PyTuple_GET_ITEM(op, i) PyTuple_GetItem(op, i)
+
+With this change, C extensions using PyTuple_GET_ITEM() does no longer
+dereference PyObject* nor access PyTupleObject.ob_item. For example,
+PyPy doesn't have to convert all tuple items to PyObject, but only
+create one PyObject for the requested item. Another example is that it
+becomes possible to use a "CPython debug runtime" which checks at
+runtime that the first argument is a tuple and that the index is
+valid. For a longer explanation, see the idea of different "Python
+runtimes":
+
+   https://pythoncapi.readthedocs.io/runtimes.html
+
+Replacing macros with function calls is only a first step. It doesn't
+solve the problem of borrowed references for example.
+
+Obviously, such change has a cost on performances. Sadly, I didn't run
+a benchmark yet. At this point, I mostly care about correctness and
+the feasibility of the whole project. I also hope that the new C API
+will allow to implement new optimizations which cannot even be
+imagined today, because of the backward compatibility. The question is
+if the performance balance is positive or not at the all :-)
+Hopefully, there is no urgency to take any decision at this point. The
+whole project is experimental and can be cancelled anytime.
+
+Victor
+
+From vstinner at redhat.com  Fri Nov  9 19:56:02 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 10 Nov 2018 01:56:02 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CAGgTfkN7=k2zxuJt7OubAeZ0ns8NH_PpuMvSuA+Sf_s2FvRPXw@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAGgTfkN7=k2zxuJt7OubAeZ0ns8NH_PpuMvSuA+Sf_s2FvRPXw@mail.gmail.com>
+Message-ID: <CA+3bQGEG9dmCfRP5_kxqJ-==1ad+jYhdtDFv6ZaeW5mc102fWw@mail.gmail.com>
+
+Le sam. 10 nov. 2018 ? 01:49, Michael Selik <mike at selik.org> a ?crit :
+>> It uses an opt-in option (Py_NEWCAPI define -- I'm not sure about the
+>> name) to get the new API. The current C API is unchanged.
+>
+> While one can hope that this will be the only time the C API will be revised, it may be better to number it instead of calling it "NEW". 20 years from now, it won't feel new anymore.
+
+That's exactly why I dislike "New", it's like adding "Ex" or "2" to a
+function name :-)
+
+Well, before bikeshedding on the C define name, I would prefer to see
+if the overall idea of trying to push code for the new C API in the
+master branch is a good idea, or if it's too early and the experiment
+must continue in a fork.
+
+Victor
+
+From njs at pobox.com  Fri Nov  9 20:50:04 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 9 Nov 2018 17:50:04 -0800
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+Message-ID: <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+
+On Fri, Nov 9, 2018 at 4:30 PM, Victor Stinner <vstinner at redhat.com> wrote:
+> Ah, important points. I don't want to touch the current C API nor make
+> it less efficient. And compatibility in both directions (current C API
+> <=> new C API) is very important for me. There is no such plan as
+> "Python 4" which would break the world and *force* everybody to
+> upgrade to the new C API, or stay to Python 3 forever. No. The new C
+> API must be an opt-in option, and current C API remains the default
+> and not be changed.
+
+Doesn't this mean that you're just making the C API larger and more
+complicated, rather than simplifying it? You cite some benefits
+(tagged pointers, changing the layout of PyObject, making PyPy's life
+easier), but I don't see how you can do any of those things so long as
+the current C API remains supported.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From vstinner at redhat.com  Fri Nov  9 21:03:03 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 10 Nov 2018 03:03:03 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+Message-ID: <CA+3bQGFg23bYrSmxtzkXsHAGbrA5EkjxOExOfwZiBmDPu3-jZQ@mail.gmail.com>
+
+Le sam. 10 nov. 2018 ? 02:50, Nathaniel Smith <njs at pobox.com> a ?crit :
+> Doesn't this mean that you're just making the C API larger and more
+> complicated, rather than simplifying it? You cite some benefits
+> (tagged pointers, changing the layout of PyObject, making PyPy's life
+> easier), but I don't see how you can do any of those things so long as
+> the current C API remains supported.
+
+Tagged pointers and changing the layout of PyObject can only be
+experimented in a new different Python runtime which only supports C
+extensions compiled with the new C API. Technically, it can be CPython
+compiled with a different flag, as there is already python3-dbg (debug
+mode, ./configure --with-pydebug) and python3 (release mode). Or it
+can be CPython fork.
+
+I don't propose to experiment tagged pointer or changing the layout of
+PyObject in CPython. It may require too many changes and it's unclear
+if it's worth it or not. I only propose to implement the least
+controversial part of the new C API in the master branch, since
+maintaining this new C API in a fork is painful.
+
+I cannot promise that it will make PyPy's life easier. PyPy developers
+already told me that they already implemented the support of the
+current C API. The promise is that if you use the new C API, PyPy
+should be more efficient, because it would have less things to
+emulate. To be honest, I'm not sure at this point, I don't know PyPy
+internals. I also know that PyPy developers always complain when we
+*add new functions* to the C API, and there is a non-zero risk that I
+would like to add new functions, since current ones have issues :-) I
+am working with PyPy to involve them in the new C API.
+
+Victor
+
+From vstinner at redhat.com  Fri Nov  9 21:14:33 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 10 Nov 2018 03:14:33 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGGmvXbH+Tm6e0ii1L0eRc8xwX+o_O4+0OY3R6EiSFjhPg@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CA+3bQGGmvXbH+Tm6e0ii1L0eRc8xwX+o_O4+0OY3R6EiSFjhPg@mail.gmail.com>
+Message-ID: <CA+3bQGEeTgDdKekTfFb-rbi5o3G7pzCs4xUWaDwL097wBYd-mQ@mail.gmail.com>
+
+Sometimes, code is easier to understand than a long explanation, so
+here is a very simple example of modified function for the new C API:
+
+https://bugs.python.org/issue35206
+https://github.com/python/cpython/pull/10443/files
+
+PyTuple_GET_ITEM() becomes a function call and the function
+implementation checks arguments at runtime if compiled in debug mode.
+
+Technically, the header file still uses a macro, to implicitly cast to
+PyObject*, since currently the macro accepts any type, and the new C
+API should not change that.
+
+Victor
+Le sam. 10 nov. 2018 ? 01:53, Victor Stinner <vstinner at redhat.com> a ?crit :
+>
+> To hide all implementation details, I propose to stop using macros and
+> use function calls instead. For example, replace:
+>
+> #define PyTuple_GET_ITEM(op, i) \
+>    (((PyTupleObject *)(op))->ob_item[i])
+>
+> with:
+>
+> # define PyTuple_GET_ITEM(op, i) PyTuple_GetItem(op, i)
+>
+> With this change, C extensions using PyTuple_GET_ITEM() does no longer
+> dereference PyObject* nor access PyTupleObject.ob_item. For example,
+> PyPy doesn't have to convert all tuple items to PyObject, but only
+> create one PyObject for the requested item. Another example is that it
+> becomes possible to use a "CPython debug runtime" which checks at
+> runtime that the first argument is a tuple and that the index is
+> valid. For a longer explanation, see the idea of different "Python
+> runtimes":
+>
+>    https://pythoncapi.readthedocs.io/runtimes.html
+>
+> Replacing macros with function calls is only a first step. It doesn't
+> solve the problem of borrowed references for example.
+>
+> Obviously, such change has a cost on performances. Sadly, I didn't run
+> a benchmark yet. At this point, I mostly care about correctness and
+> the feasibility of the whole project. I also hope that the new C API
+> will allow to implement new optimizations which cannot even be
+> imagined today, because of the backward compatibility. The question is
+> if the performance balance is positive or not at the all :-)
+> Hopefully, there is no urgency to take any decision at this point. The
+> whole project is experimental and can be cancelled anytime.
+>
+> Victor
+
+From njs at pobox.com  Fri Nov  9 22:02:37 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 9 Nov 2018 19:02:37 -0800
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGFg23bYrSmxtzkXsHAGbrA5EkjxOExOfwZiBmDPu3-jZQ@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CA+3bQGFg23bYrSmxtzkXsHAGbrA5EkjxOExOfwZiBmDPu3-jZQ@mail.gmail.com>
+Message-ID: <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+
+On Fri, Nov 9, 2018 at 6:03 PM, Victor Stinner <vstinner at redhat.com> wrote:
+> Le sam. 10 nov. 2018 ? 02:50, Nathaniel Smith <njs at pobox.com> a ?crit :
+>> Doesn't this mean that you're just making the C API larger and more
+>> complicated, rather than simplifying it? You cite some benefits
+>> (tagged pointers, changing the layout of PyObject, making PyPy's life
+>> easier), but I don't see how you can do any of those things so long as
+>> the current C API remains supported.
+>
+> Tagged pointers and changing the layout of PyObject can only be
+> experimented in a new different Python runtime which only supports C
+> extensions compiled with the new C API. Technically, it can be CPython
+> compiled with a different flag, as there is already python3-dbg (debug
+> mode, ./configure --with-pydebug) and python3 (release mode). Or it
+> can be CPython fork.
+>
+> I don't propose to experiment tagged pointer or changing the layout of
+> PyObject in CPython. It may require too many changes and it's unclear
+> if it's worth it or not. I only propose to implement the least
+> controversial part of the new C API in the master branch, since
+> maintaining this new C API in a fork is painful.
+>
+> I cannot promise that it will make PyPy's life easier. PyPy developers
+> already told me that they already implemented the support of the
+> current C API. The promise is that if you use the new C API, PyPy
+> should be more efficient, because it would have less things to
+> emulate. To be honest, I'm not sure at this point, I don't know PyPy
+> internals. I also know that PyPy developers always complain when we
+> *add new functions* to the C API, and there is a non-zero risk that I
+> would like to add new functions, since current ones have issues :-) I
+> am working with PyPy to involve them in the new C API.
+
+So is it fair to say that your plan is that CPython will always use
+the current ("old") API internally, and the "new" API will be
+essentially an abstraction layer, that's designed to let people write
+C extensions that target the old API, while also being flexible enough
+to target PyPy and other "new different Python runtimes"?
+
+If so, then would it make more sense to develop this as an actual
+separate abstraction layer? That would have the huge advantage that it
+could be distributed and versioned separately from CPython, different
+packages could use different versions of the abstraction layer, PyPy
+isn't forced to immediately add a bunch of new APIs...
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From dinoviehland at gmail.com  Fri Nov  9 23:58:27 2018
+From: dinoviehland at gmail.com (Dino Viehland)
+Date: Fri, 9 Nov 2018 20:58:27 -0800
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGEG9dmCfRP5_kxqJ-==1ad+jYhdtDFv6ZaeW5mc102fWw@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAGgTfkN7=k2zxuJt7OubAeZ0ns8NH_PpuMvSuA+Sf_s2FvRPXw@mail.gmail.com>
+ <CA+3bQGEG9dmCfRP5_kxqJ-==1ad+jYhdtDFv6ZaeW5mc102fWw@mail.gmail.com>
+Message-ID: <CA+fnyjhGqaUZnzQ4sfqqpoC0TaM_R9k2AkvGjX6h2y0KgWRwQw@mail.gmail.com>
+
+>
+> That's exactly why I dislike "New", it's like adding "Ex" or "2" to a
+> function name :-)
+>
+> Well, before bikeshedding on the C define name, I would prefer to see
+> if the overall idea of trying to push code for the new C API in the
+> master branch is a good idea, or if it's too early and the experiment
+> must continue in a fork.
+
+
+Rather than adding yet another pre-processor directive for this I would
+suggest just adding a new header file that only has the new stable API.
+For example it could just be "py.h" or "pyapi.h".  It would have all of the
+definitions for the stable API.
+
+While that would involve some duplication from the existing headers, I
+don't think it would be such a big deal - the idea is the API won't change,
+methods won't be removed, and occasionally new methods will get
+added in a very thoughtful manner.  Having it be separate will force
+thought and conversation about it.
+
+It would also make it very easy to look and see what exactly is in the
+stable API as well.  There's be a pretty flat list which can be consulted,
+and hopefully it ends up not being super huge either.
+
+BTW, thanks for continuing to push on this Victor, it seems like great
+progress!
+
+On Fri, Nov 9, 2018 at 4:57 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Le sam. 10 nov. 2018 ? 01:49, Michael Selik <mike at selik.org> a ?crit :
+> >> It uses an opt-in option (Py_NEWCAPI define -- I'm not sure about the
+> >> name) to get the new API. The current C API is unchanged.
+> >
+> > While one can hope that this will be the only time the C API will be
+> revised, it may be better to number it instead of calling it "NEW". 20
+> years from now, it won't feel new anymore.
+>
+> That's exactly why I dislike "New", it's like adding "Ex" or "2" to a
+> function name :-)
+>
+> Well, before bikeshedding on the C define name, I would prefer to see
+> if the overall idea of trying to push code for the new C API in the
+> master branch is a good idea, or if it's too early and the experiment
+> must continue in a fork.
+>
+> Victor
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/dinoviehland%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181109/a442e92b/attachment.html>
+
