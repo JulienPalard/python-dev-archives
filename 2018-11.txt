@@ -4446,3 +4446,152 @@ On Fri, Nov 9, 2018 at 4:57 PM Victor Stinner <vstinner at redhat.com> wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181109/a442e92b/attachment.html>
 
+From neil at python.ca  Sat Nov 10 14:22:48 2018
+From: neil at python.ca (Neil Schemenauer)
+Date: Sat, 10 Nov 2018 13:22:48 -0600
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+fnyjhGqaUZnzQ4sfqqpoC0TaM_R9k2AkvGjX6h2y0KgWRwQw@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAGgTfkN7=k2zxuJt7OubAeZ0ns8NH_PpuMvSuA+Sf_s2FvRPXw@mail.gmail.com>
+ <CA+3bQGEG9dmCfRP5_kxqJ-==1ad+jYhdtDFv6ZaeW5mc102fWw@mail.gmail.com>
+ <CA+fnyjhGqaUZnzQ4sfqqpoC0TaM_R9k2AkvGjX6h2y0KgWRwQw@mail.gmail.com>
+Message-ID: <20181110192248.lk5ureidahc3yfzi@python.ca>
+
+On 2018-11-09, Dino Viehland wrote:
+> Rather than adding yet another pre-processor directive for this I would
+> suggest just adding a new header file that only has the new stable API.
+> For example it could just be "py.h" or "pyapi.h".  It would have all of the
+> definitions for the stable API.
+
+I like this idea.  It will be easier to define a minimal and clean
+API with this approach.  I believe it can mostly be a subset of the
+current API.
+
+I think we could Dino's idea with Nathaniel's suggestion of
+developing it separate from CPython.  Victor's C-API project is
+already attempting to provide backwards compatibility.  I.e. you can
+have an extension module that uses the new API but compiles and runs
+with older versions of Python (e.g. 3.6).  So, whatever is inside
+this new API, it must be possible to build it on top of the existing
+Python API.
+
+Regards,
+
+  Neil
+
+From steve at pearwood.info  Sat Nov 10 18:26:42 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Sun, 11 Nov 2018 10:26:42 +1100
+Subject: [Python-Dev] Signalling NANs
+In-Reply-To: <CALGmxEKNMPbZa7vqMFZmbMdvXxb6py7qPu7zY_vGQ1OHfj302g@mail.gmail.com>
+References: <20181109110507.GK4071@ando.pearwood.info>
+ <ps3ru2$h6s$1@blaine.gmane.org>
+ <CALGmxEKNMPbZa7vqMFZmbMdvXxb6py7qPu7zY_vGQ1OHfj302g@mail.gmail.com>
+Message-ID: <20181110232642.GS4071@ando.pearwood.info>
+
+On Fri, Nov 09, 2018 at 01:17:09PM -0800, Chris Barker via Python-Dev wrote:
+> works for me, too:
+> 
+> In [9]: x = cast_int2float(0x7ff8000000000001)
+> In [10]: hex(cast_float2int(x))
+> Out[10]: '0x7ff8000000000001'
+> 
+> In [11]: x = cast_int2float(0x7ff0000000000001)
+> In [12]: hex(cast_float2int(x))
+> Out[12]: '0x7ff0000000000001'
+
+
+Fascinating. I borrowed a Debian system and tried it on there, and got 
+the same results as you. So I wonder whether it is something unusual 
+about my Red Hat system that it prevents the formation of signalling 
+NANs?
+
+However, I don't think that explains why the float constructor doesn't 
+allow Decimal('snan') to be converted to a float.
+
+
+> I suspect it depends on the compiler's math library
+
+Unfortunately that's probably true.
+
+
+> But neither is raising an exception:
+[...]
+> When should it?
+
+I think that, by default, any arithmetic operation, comparison or math 
+library function call ought to raise if given a snan, if the underlying 
+math library supports IEEE-754 signals. Which I imagine these days 
+nearly all should do.
+
+So any of these should raise:
+
+snan + 1
+math.sin(snan)
+snan == 0
+
+
+
+-- 
+Steve
+
+From njs at pobox.com  Sat Nov 10 19:27:29 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Sat, 10 Nov 2018 16:27:29 -0800
+Subject: [Python-Dev] Signalling NANs
+In-Reply-To: <20181110232642.GS4071@ando.pearwood.info>
+References: <20181109110507.GK4071@ando.pearwood.info>
+ <ps3ru2$h6s$1@blaine.gmane.org>
+ <CALGmxEKNMPbZa7vqMFZmbMdvXxb6py7qPu7zY_vGQ1OHfj302g@mail.gmail.com>
+ <20181110232642.GS4071@ando.pearwood.info>
+Message-ID: <CAPJVwB=RwskV4tktgfnV-rdexqnKKyfZwkhEErNV5KhganXO1w@mail.gmail.com>
+
+On Sat, Nov 10, 2018 at 3:26 PM, Steven D'Aprano <steve at pearwood.info> wrote:
+> On Fri, Nov 09, 2018 at 01:17:09PM -0800, Chris Barker via Python-Dev wrote:
+>> works for me, too:
+>>
+>> In [9]: x = cast_int2float(0x7ff8000000000001)
+>> In [10]: hex(cast_float2int(x))
+>> Out[10]: '0x7ff8000000000001'
+>>
+>> In [11]: x = cast_int2float(0x7ff0000000000001)
+>> In [12]: hex(cast_float2int(x))
+>> Out[12]: '0x7ff0000000000001'
+>
+>
+> Fascinating. I borrowed a Debian system and tried it on there, and got
+> the same results as you. So I wonder whether it is something unusual
+> about my Red Hat system that it prevents the formation of signalling
+> NANs?
+
+Apparently loading a sNaN into an x87 register silently converts it to
+a qNaN, and on Linux C compilers are allowed to do that at any point:
+
+   https://stackoverflow.com/questions/22816095/signalling-nan-was-corrupted-when-returning-from-x86-function-flds-fstps-of-x87
+
+So the Debian/RH difference may just be different register allocation
+in two slightly different compiler versions.
+
+Also, gcc doesn't even try to support sNaN correctly unless you pass
+-fsignaling-nans, and the docs warn that this isn't very well tested:
+
+   https://www.cleancss.com/explain-command/gcc/5197
+
+IEEE754 is a wonderful thing, and even imperfect implementations are
+still way better than what came before, but real systems are almost
+universally sloppy about details. I don't think any real libm even
+tries to set all the status flags correctly. And I'm not sure sNaN
+support is actually useful anyway...
+
+Of course if all you want is a value that raises an exception whenever
+it's used in an arithmetic expression, then Python does support that
+:-)
+
+   sNaN = object()
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
