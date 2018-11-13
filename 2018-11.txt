@@ -4595,3 +4595,153 @@ it's used in an arithmetic expression, then Python does support that
 -- 
 Nathaniel J. Smith -- https://vorpus.org
 
+From stephane at wirtel.be  Sun Nov 11 09:34:45 2018
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 11 Nov 2018 14:34:45 +0000
+Subject: [Python-Dev] Get a running instance of the doc for a PR.
+In-Reply-To: <CAGbohnYjfMtVBbSSZA=pNW_NNYMwc-WOy_L0V=pXij+tTUwfJw@mail.gmail.com>
+References: <20181104133827.GA25586@xps>
+ <203B5254-326E-43EC-A80D-4A8147791A9D@python.org>
+ <20181104151239.GA14162@xps>
+ <20181104155017.GX3817@ando.pearwood.info>
+ <CAGbohnYjfMtVBbSSZA=pNW_NNYMwc-WOy_L0V=pXij+tTUwfJw@mail.gmail.com>
+Message-ID: <20181111143445.GA23982@xps>
+
+Mariatta,
+
+Do you think we could add a webhook for the build of the documentation
+for each PR where the build of the doc works?
+
+St?phane
+
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From steve at pearwood.info  Sun Nov 11 16:50:23 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Mon, 12 Nov 2018 08:50:23 +1100
+Subject: [Python-Dev] Signalling NANs
+In-Reply-To: <CAPJVwB=RwskV4tktgfnV-rdexqnKKyfZwkhEErNV5KhganXO1w@mail.gmail.com>
+References: <20181109110507.GK4071@ando.pearwood.info>
+ <ps3ru2$h6s$1@blaine.gmane.org>
+ <CALGmxEKNMPbZa7vqMFZmbMdvXxb6py7qPu7zY_vGQ1OHfj302g@mail.gmail.com>
+ <20181110232642.GS4071@ando.pearwood.info>
+ <CAPJVwB=RwskV4tktgfnV-rdexqnKKyfZwkhEErNV5KhganXO1w@mail.gmail.com>
+Message-ID: <20181111215023.GZ4071@ando.pearwood.info>
+
+On Sat, Nov 10, 2018 at 04:27:29PM -0800, Nathaniel Smith wrote:
+
+> Apparently loading a sNaN into an x87 register silently converts it to
+> a qNaN, and on Linux C compilers are allowed to do that at any point:
+> 
+>    https://stackoverflow.com/questions/22816095/signalling-nan-was-corrupted-when-returning-from-x86-function-flds-fstps-of-x87
+
+Thanks for finding that.
+
+> So the Debian/RH difference may just be different register allocation
+> in two slightly different compiler versions.
+
+The Debian box uses an ARM processor, so there's that difference too.
+
+
+-- 
+Steve
+
+From greg.ewing at canterbury.ac.nz  Sun Nov 11 17:05:19 2018
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Mon, 12 Nov 2018 11:05:19 +1300
+Subject: [Python-Dev] Signalling NANs
+In-Reply-To: <20181111215023.GZ4071@ando.pearwood.info>
+References: <20181109110507.GK4071@ando.pearwood.info>
+ <ps3ru2$h6s$1@blaine.gmane.org>
+ <CALGmxEKNMPbZa7vqMFZmbMdvXxb6py7qPu7zY_vGQ1OHfj302g@mail.gmail.com>
+ <20181110232642.GS4071@ando.pearwood.info>
+ <CAPJVwB=RwskV4tktgfnV-rdexqnKKyfZwkhEErNV5KhganXO1w@mail.gmail.com>
+ <20181111215023.GZ4071@ando.pearwood.info>
+Message-ID: <5BE8A79F.70907@canterbury.ac.nz>
+
+Steven D'Aprano wrote:
+
+> The Debian box uses an ARM processor, so there's that difference too.
+
+FWIW, I tried this on MacOSX 10.6 with an Intel Xeon and it also
+seems to suppress sNaNs.
+
+-- 
+Greg
+
+From vstinner at redhat.com  Sun Nov 11 18:19:24 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 12 Nov 2018 00:19:24 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CA+3bQGFg23bYrSmxtzkXsHAGbrA5EkjxOExOfwZiBmDPu3-jZQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+Message-ID: <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+
+Le sam. 10 nov. 2018 ? 04:02, Nathaniel Smith <njs at pobox.com> a ?crit :
+> So is it fair to say that your plan is that CPython will always use
+> the current ("old") API internally, and the "new" API will be
+> essentially an abstraction layer, that's designed to let people write
+> C extensions that target the old API, while also being flexible enough
+> to target PyPy and other "new different Python runtimes"?
+
+What we call is "Python C API" is not really an API. I mean, nobody
+tried to sit down and think about a proper API to access Python from
+C. We happened is that we had an implementation of Python written in C
+and it was cool to just "expose everything". By everything, I mean
+"everything". It's hard to find a secret CPython feature not exposed
+or leaked in the C API.
+
+The problem that I'm trying to solve to "fix the C API" to hide
+implementation details, with one constraint: don't create a new
+"Python 4". I don't want to break the backward compatibility without
+having a slow and smooth transition plan. The "old" and new C API must
+be supported in parallel, at least in the standard CPython,
+/usr/bin/python3.
+
+Writing a new API from scratch is nice, but it's harder to moving all
+existing C extensions from the "old" C API to a new one.
+
+Replacing macros with functions has little impact on backward
+compatibility. Most C extensions should still work if macros become
+functions.
+
+I'm not sure yet how far we should go towards a perfect API which
+doesn't leak everything. We have to move slowly, and make sure that we
+don't break major C extensions. We need to write tools to fully
+automate the conversion. If it's not possible, maybe the whole project
+will fail.
+
+I'm looking for a practical solutions based on the existing C API and
+the existing CPython code base.
+
+> If so, then would it make more sense to develop this as an actual
+> separate abstraction layer? That would have the huge advantage that it
+> could be distributed and versioned separately from CPython, different
+> packages could use different versions of the abstraction layer, PyPy
+> isn't forced to immediately add a bunch of new APIs...
+
+I didn't investigate this option. But I expect that you will have to
+write a full new API using a different prefix than "Py_". Otherwise,
+I'm not sure how you want to handle PyTuple_GET_ITEM() as a macro on
+one side (Include/tupleobject.h) and PyTuple_GET_ITEM() on the other
+side (hypotetical_new_api.h).
+
+Would it mean to duplicate all functions to get a different prefix?
+
+If you keep the "Py_" prefix, what I would like to ensure is that some
+functions are no longer accessible. How you remove
+PySequence_Fast_GET_ITEM() for example?
+
+For me, it seems simpler to modify CPython headers than starting on
+something new. It seems simpler to choose the proper level of
+compatibility. I start from an API 100% compatible (the current C
+API), and decide what is changed and how.
+
+Victor
+
