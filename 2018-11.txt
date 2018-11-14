@@ -4745,3 +4745,195 @@ API), and decide what is changed and how.
 
 Victor
 
+From greg at krypto.org  Tue Nov 13 01:46:30 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Mon, 12 Nov 2018 22:46:30 -0800
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+Message-ID: <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+
+On Fri, Nov 9, 2018 at 5:50 PM Nathaniel Smith <njs at pobox.com> wrote:
+
+> On Fri, Nov 9, 2018 at 4:30 PM, Victor Stinner <vstinner at redhat.com>
+> wrote:
+> > Ah, important points. I don't want to touch the current C API nor make
+> > it less efficient. And compatibility in both directions (current C API
+> > <=> new C API) is very important for me. There is no such plan as
+> > "Python 4" which would break the world and *force* everybody to
+> > upgrade to the new C API, or stay to Python 3 forever. No. The new C
+> > API must be an opt-in option, and current C API remains the default
+> > and not be changed.
+>
+> Doesn't this mean that you're just making the C API larger and more
+> complicated, rather than simplifying it? You cite some benefits
+> (tagged pointers, changing the layout of PyObject, making PyPy's life
+> easier), but I don't see how you can do any of those things so long as
+> the current C API remains supported.
+>
+> -n
+>
+
+I believe the implied missing thing from Victor's description is this:
+
+Experimentation with new internal implementations can begin once we have a
+new C API by explicitly breaking the old C API with-in such experiments (as
+is required for most anything interesting).  All code that is written to
+the new C API still works during this process, thus making the job of
+practical testing of such new VM internals easier.
+
+>From there, you can make decisions on how heavily to push the world towards
+adoption of the new C API and by when so that a runtime not supporting the
+old API can be realized with a list of enticing carrot tasting benefits.
+(devising any necessary pypy cpyext-like compatibility solutions for super
+long lived code or things that sadly want to use the 3.7 ABI for 10 years
+in the process - and similarly an extension to provide some or all of this
+API/ABI on top of older existing stable Python releases!)
+
+I'd *love* to get to a situation where the only valid ABI we support knows
+nothing about internal structs at all. Today, PyObject memory layout is
+exposed to the world and unchangable. :(
+
+This is a long process release wise (assume multiple stable releases go by
+before we could declare that). But *we've got to start* by defining what we
+want to provide as a seriously limited but functional API and ABI even if
+it doesn't perform as well as things compiled against our existing
+exposed-internals C API.  For *most* extension modules, performance of this
+sort is not important. For the numpys of the world life is more
+complicated, we should work with them to figure out their C API needs.
+
+If it wasn't already obvious, you've got my support on this. :)
+-gps
+
+PS If the conversation devolves to arguing about "new" being a bad name,
+that's a good sign.  I suggest calling it the Vorpal API after the bunny.
+Or be boring and just use a year number for the name.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181112/e2f2605e/attachment.html>
+
+From greg at krypto.org  Tue Nov 13 02:13:19 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Mon, 12 Nov 2018 23:13:19 -0800
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CA+3bQGFg23bYrSmxtzkXsHAGbrA5EkjxOExOfwZiBmDPu3-jZQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+Message-ID: <CAGE7PN+ci_Pf_zsVDRssvdcnqmZrx=Q1n84XkwWUSNSTbnKuuw@mail.gmail.com>
+
+On Sun, Nov 11, 2018 at 3:19 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Le sam. 10 nov. 2018 ? 04:02, Nathaniel Smith <njs at pobox.com> a ?crit :
+> > So is it fair to say that your plan is that CPython will always use
+> > the current ("old") API internally, and the "new" API will be
+> > essentially an abstraction layer, that's designed to let people write
+> > C extensions that target the old API, while also being flexible enough
+> > to target PyPy and other "new different Python runtimes"?
+>
+> What we call is "Python C API" is not really an API. I mean, nobody
+> tried to sit down and think about a proper API to access Python from
+> C. We happened is that we had an implementation of Python written in C
+> and it was cool to just "expose everything". By everything, I mean
+> "everything". It's hard to find a secret CPython feature not exposed
+> or leaked in the C API.
+>
+> The problem that I'm trying to solve to "fix the C API" to hide
+> implementation details, with one constraint: don't create a new
+> "Python 4". I don't want to break the backward compatibility without
+> having a slow and smooth transition plan. The "old" and new C API must
+> be supported in parallel, at least in the standard CPython,
+> /usr/bin/python3.
+>
+> Writing a new API from scratch is nice, but it's harder to moving all
+> existing C extensions from the "old" C API to a new one.
+>
+> Replacing macros with functions has little impact on backward
+> compatibility. Most C extensions should still work if macros become
+> functions.
+>
+> I'm not sure yet how far we should go towards a perfect API which
+> doesn't leak everything. We have to move slowly, and make sure that we
+> don't break major C extensions. We need to write tools to fully
+> automate the conversion. If it's not possible, maybe the whole project
+> will fail.
+>
+> I'm looking for a practical solutions based on the existing C API and
+> the existing CPython code base.
+>
+> > If so, then would it make more sense to develop this as an actual
+> > separate abstraction layer? That would have the huge advantage that it
+> > could be distributed and versioned separately from CPython, different
+> > packages could use different versions of the abstraction layer, PyPy
+> > isn't forced to immediately add a bunch of new APIs...
+>
+
+I like where this thought is headed!
+
+I didn't investigate this option. But I expect that you will have to
+> write a full new API using a different prefix than "Py_". Otherwise,
+> I'm not sure how you want to handle PyTuple_GET_ITEM() as a macro on
+> one side (Include/tupleobject.h) and PyTuple_GET_ITEM() on the other
+> side (hypotetical_new_api.h).
+>
+> Would it mean to duplicate all functions to get a different prefix?
+>
+
+For strict C, yes, namespacing has always been manual collision
+avoidance/mangling.  You'd need a new unique name for anything defined as a
+function that conflicts with the old C API function names.  You could hide
+these from code if you are just reusing the name by using #define in the
+new API header of the old name to the new unique name... but that makes
+code a real challenge to read and understand at a glance.  Without
+examining the header file imports the reader wouldn't know for example if
+the code is calling the API that borrows a reference (old api, evil) or one
+that gets its own reference (presumed new api).
+
+When things have only ever been macros (Py_INCREF, etc) the name can be
+reused if there has never been a function of that name in an old C API.
+But beware of reuse for anything where the semantics change to avoid
+misunderstandings about behavior from people familiar with the old API or
+googling API names to look up behavior.
+
+I suspect optimizing for ease of transition from code written to the
+existing C API to the new API by keeping names the same is the wrong thing
+to optimize for.
+
+Using entirely new names may actually be a good thing as it makes it
+immediately clear which way a given piece of code is written. It'd also be
+good for PyObject* the old C API thing be a different type from
+PythonHandle* (a new API thing who's name I just made up) such that they
+could not be passed around and exchanged for one another without a compiler
+complaint.  Code written using both APIs should not be allowed to transit
+objects directly between different APIs.
+
+-gps
+
+
+>
+> If you keep the "Py_" prefix, what I would like to ensure is that some
+> functions are no longer accessible. How you remove
+> PySequence_Fast_GET_ITEM() for example?
+>
+> For me, it seems simpler to modify CPython headers than starting on
+> something new. It seems simpler to choose the proper level of
+> compatibility. I start from an API 100% compatible (the current C
+> API), and decide what is changed and how.
+>
+> Victor
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181112/3db8ccdd/attachment.html>
+
