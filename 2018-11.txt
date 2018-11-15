@@ -4937,3 +4937,471 @@ objects directly between different APIs.
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181112/3db8ccdd/attachment.html>
 
+From vstinner at redhat.com  Tue Nov 13 04:31:35 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 13 Nov 2018 10:31:35 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CAGE7PN+ci_Pf_zsVDRssvdcnqmZrx=Q1n84XkwWUSNSTbnKuuw@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CA+3bQGFg23bYrSmxtzkXsHAGbrA5EkjxOExOfwZiBmDPu3-jZQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+ <CAGE7PN+ci_Pf_zsVDRssvdcnqmZrx=Q1n84XkwWUSNSTbnKuuw@mail.gmail.com>
+Message-ID: <CA+3bQGF8r2M-97SZYDnUpQEha4HzDvxmvHCbdU3N1=N=KG7XRg@mail.gmail.com>
+
+Le mar. 13 nov. 2018 ? 08:13, Gregory P. Smith <greg at krypto.org> a ?crit :
+> When things have only ever been macros (Py_INCREF, etc) the name can be reused if there has never been a function of that name in an old C API.  But beware of reuse for anything where the semantics change to avoid misunderstandings about behavior from people familiar with the old API or googling API names to look up behavior.
+
+My plan is to only keep an existing function if it has no flaw. If it
+has a flaw, it should be removed and maybe replaced with a new
+function (or suggest a replacement using existing APIs). I don't want
+to modify the behavior depending if it's the "old" or the "new" API.
+My plan reuses the same code base, I don't want to put the whole body
+of a function inside a "#ifdef NEWCAPI".
+
+
+> I suspect optimizing for ease of transition from code written to the existing C API to the new API by keeping names the same is the wrong thing to optimize for.
+
+Not all functions in the current C API are bad. Many functions are
+just fine. For example, PyObject_GetAttr() returns a strong reference.
+I don't see anything wrong with this API. Only a small portion of the
+C API is "bad".
+
+
+> Using entirely new names may actually be a good thing as it makes it immediately clear which way a given piece of code is written. It'd also be good for PyObject* the old C API thing be a different type from PythonHandle* (a new API thing who's name I just made up) such that they could not be passed around and exchanged for one another without a compiler complaint.  Code written using both APIs should not be allowed to transit objects directly between different APIs.
+
+On Windows, the HANDLE type is just an integer, it's not a pointer. If
+it's a pointer, some developer may want to dereference it, whereas it
+must really be a dummy integer. Consider tagged pointers: you don't
+want to dereferenced a tagged pointer. But no, I don't plan to replace
+"PyObject*". Again, I want to reduce the number of changes. If the
+PyObject structure is not exposed, I don't think that it's an issue to
+keep "PyObject*" type.
+
+Example:
+---
+#include <stddef.h>
+
+typedef struct _object PyObject;
+
+PyObject* dummy(void)
+{
+    return (PyObject *)NULL;
+}
+
+int main()
+{
+    PyObject *obj = dummy();
+    return obj->ob_type;
+}
+---
+
+This program is valid, except of the single line which attempts to
+dereference PyObject*:
+
+x.c: In function 'main':
+x.c:13:15: error: dereferencing pointer to incomplete type 'PyObject
+{aka struct _object}'
+     return obj->ob_type;
+
+If I could restart from scratch, I would design the C API differently.
+For example, I'm not sure that I would use "global variables" (Python
+thread state) to store the current exception. I would use similar like
+Rust error handling:
+https://doc.rust-lang.org/book/first-edition/error-handling.html
+
+But that's not my plan. My plan is not to write a new bright world. My
+plan is to make a "small step" towards a better API to make PyPy more
+efficient and to allow to write a new more optimized CPython.
+
+I also plan to *iterate* on the API rather than having a frozen API.
+It's just that we cannot jump towards the perfect API at once. We need
+small steps and make sure that we don't break too many C extensions at
+each milestone. Maybe the new API should be versioned as Android NDK
+for example.
+
+Victor
+
+From nd at perlig.de  Tue Nov 13 14:21:59 2018
+From: nd at perlig.de (=?ISO-8859-1?Q?Andr=E9?= Malo)
+Date: Tue, 13 Nov 2018 20:21:59 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+Message-ID: <1614616.psXdYk7axO@chryseis>
+
+Victor Stinner wrote:
+
+> Replacing macros with functions has little impact on backward
+> compatibility. Most C extensions should still work if macros become
+> functions.
+
+As long as they are recompiled. However, they will lose a lot of performance. 
+Both these points have been mentioned somewhere, I'm certain, but it cannot be 
+stressed enough, IMHO.
+
+> 
+> I'm not sure yet how far we should go towards a perfect API which
+> doesn't leak everything. We have to move slowly, and make sure that we
+> don't break major C extensions. We need to write tools to fully
+> automate the conversion. If it's not possible, maybe the whole project
+> will fail.
+
+I'm wondering, how you suggest to measure "major". I believe, every C 
+extension, which is public and running in production somewhere, is major 
+enough.
+
+Maybe "easiness to fix"? Lines of code?
+
+Cheers,
+-- 
+> R?tselnd, was ein Anthroposoph mit Unterwerfung zu tun hat...
+                    ^^^^^^^^^^^^
+[...] Dieses Wort gibt so viele Stellen f?r einen Spelling Flame her, und
+Du g?nnst einem keine einzige.    -- Jean Claude und David Kastrup in dtl
+
+
+
+From nd at perlig.de  Tue Nov 13 14:32:03 2018
+From: nd at perlig.de (=?ISO-8859-1?Q?Andr=E9?= Malo)
+Date: Tue, 13 Nov 2018 20:32:03 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+Message-ID: <3346184.CCZ30flunD@chryseis>
+
+Victor Stinner wrote:
+
+> Replacing macros with functions has little impact on backward
+> compatibility. Most C extensions should still work if macros become
+> functions.
+
+As long as they are recompiled. However, they will lose a lot of performance. 
+Both these points have been mentioned somewhere, I'm certain, but it cannot be 
+stressed enough, IMHO.
+
+> 
+> I'm not sure yet how far we should go towards a perfect API which
+> doesn't leak everything. We have to move slowly, and make sure that we
+> don't break major C extensions. We need to write tools to fully
+> automate the conversion. If it's not possible, maybe the whole project
+> will fail.
+
+I'm wondering, how you suggest to measure "major". I believe, every C 
+extension, which is public and running in production somewhere, is major 
+enough.
+
+Maybe "easiness to fix"? Lines of code?
+
+Cheers,
+-- 
+> R?tselnd, was ein Anthroposoph mit Unterwerfung zu tun hat...
+                    ^^^^^^^^^^^^
+Du g?nnst einem keine einzige.    -- Jean Claude und David Kastrup in dtl[...] 
+Dieses Wort gibt so viele Stellen f?r einen Spelling Flame her, und
+
+
+
+From vstinner at redhat.com  Tue Nov 13 15:59:14 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 13 Nov 2018 21:59:14 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <1614616.psXdYk7axO@chryseis>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+ <1614616.psXdYk7axO@chryseis>
+Message-ID: <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+
+Le mar. 13 nov. 2018 ? 20:32, Andr? Malo <nd at perlig.de> a ?crit :
+> As long as they are recompiled. However, they will lose a lot of performance.
+> Both these points have been mentioned somewhere, I'm certain, but it cannot be
+> stressed enough, IMHO.
+
+Somewhere is here:
+https://pythoncapi.readthedocs.io/performance.html
+
+> I'm wondering, how you suggest to measure "major". I believe, every C
+> extension, which is public and running in production somewhere, is major
+> enough.
+
+My plan is to select something like the top five most popular C
+extensions based on PyPI download statistics. I cannot test
+everything, I have to put practical limits.
+
+Victor
+
+From njs at pobox.com  Tue Nov 13 21:24:46 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 13 Nov 2018 18:24:46 -0800
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+Message-ID: <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+
+On Mon, Nov 12, 2018 at 10:46 PM, Gregory P. Smith <greg at krypto.org> wrote:
+>
+> On Fri, Nov 9, 2018 at 5:50 PM Nathaniel Smith <njs at pobox.com> wrote:
+>>
+>> On Fri, Nov 9, 2018 at 4:30 PM, Victor Stinner <vstinner at redhat.com>
+>> wrote:
+>> > Ah, important points. I don't want to touch the current C API nor make
+>> > it less efficient. And compatibility in both directions (current C API
+>> > <=> new C API) is very important for me. There is no such plan as
+>> > "Python 4" which would break the world and *force* everybody to
+>> > upgrade to the new C API, or stay to Python 3 forever. No. The new C
+>> > API must be an opt-in option, and current C API remains the default
+>> > and not be changed.
+>>
+>> Doesn't this mean that you're just making the C API larger and more
+>> complicated, rather than simplifying it? You cite some benefits
+>> (tagged pointers, changing the layout of PyObject, making PyPy's life
+>> easier), but I don't see how you can do any of those things so long as
+>> the current C API remains supported.
+[...]
+> I'd love to get to a situation where the only valid ABI we support knows nothing about internal structs at all. Today, PyObject memory layout is exposed to the world and unchangable. :(
+> This is a long process release wise (assume multiple stable releases go by before we could declare that).
+
+It seems like the discussion so far is:
+
+Victor: "I know people when people hear 'new API' they get scared and
+think we're going to do a Python-3-like breaking transition, but don't
+worry, we're never going to do that."
+Nathaniel: "But then what does the new API add?"
+Greg: "It lets us do a Python-3-like breaking transition!"
+
+To make a new API work we need to *either* have some plan for how it
+will produce benefits without a big breaking transition, *or* some
+plan for how to make this kind of transition viable. These are both
+super super hard questions -- that's why this discussion has been
+dragging on for a decade now! But you do have to pick one or the other
+:-).
+
+> Experimentation with new internal implementations can begin once we have a new C API by explicitly breaking the old C API with-in such experiments (as is required for most anything interesting).  All code that is written to the new C API still works during this process, thus making the job of practical testing of such new VM internals easier.
+
+So I think what you're saying is that your goal is to get a
+new/better/shinier VM, and the plan to accomplish that is:
+
+1. Define a new C API.
+2. Migrate projects to the new C API.
+3. Build a new VM that gets benefits from only supporting the new API.
+
+This sounds exactly backwards to me?
+
+If you define the new API before you build the VM, then no-one is
+going to migrate, because why should they bother? You'd be asking
+overworked third-party maintainers to do a bunch of work with no
+benefit, except that maybe someday later something good might happen.
+
+And if you define the new API first, then when you start building the
+VM you're 100% guaranteed to discover that the new API isn't *quite*
+right for the optimizations you want to do, and have to change it
+again to make a new-new API. And then go back to the maintainers who
+you did convince to put their neck out and do work on spec, and
+explain that haha whoops actually they need to update their code
+*again*.
+
+There have been lots of Python VM projects at this point. They've
+faced many challenges, but I don't think any have failed because there
+just wasn't enough pure-Python code around to test the VM internals.
+If I were trying to build a new Python VM, that's not even in the top
+10 of issues I'd be worried about...
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From raymond.hettinger at gmail.com  Tue Nov 13 22:06:35 2018
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Tue, 13 Nov 2018 19:06:35 -0800
+Subject: [Python-Dev] General concerns about C API changes
+Message-ID: <62A87B15-0F0E-4242-BF44-9C58FE890D8B@gmail.com>
+
+Overall, I support the efforts to improve the C API, but over the last few weeks have become worried.  I don't want to hold up progress with fear, uncertainty, and doubt.  Yet, I would like to be more comfortable that we're all aware of what is occurring and what are the potential benefits and risks.
+
+* Inline functions are great.  They provide true local variables, better separation of concerns, are far less kludgy than text based macro substitution, and will typically generate the same code as the equivalent macro.  This is good tech when used with in a single source file where it has predictable results.   
+
+However, I'm not at all confident about moving these into header files which are included in multiple target .c files which need be compiled into separate .o files and linked to other existing libraries.
+
+With a macro, I know for sure that the substitution is taking place.  This happens at all levels of optimization and in a debug mode.  The effects are 100% predictable and have a well-established track record in our mature battle-tested code base.  With cross module function calls, I'm less confident about what is happening, partly because compilers are free to ignore inline directives and partly because the semantics of inlining are less clear when the crossing module boundaries.
+
+* Other categories of changes that we make tend to have only a shallow reach.  However, these C API changes will likely touch every C extension that has ever been written, some of which is highly tuned but not actively re-examined.  If any mistakes are make, they will likely be pervasive.  Accordingly, caution is warranted.
+
+My expectation was that the changes would be conducted in experimental branches. But extensive changes are already being made (or about to be made) on the 3.8 master. If a year from now, we decide that the changes were destabilizing or that the promised benefits didn't materialize, they will be difficult to undo because there are so many of them and because they will be interleaved with other changes.
+
+The original motivation was to achieve a 2x speedup in return for significantly churning the C API. However, the current rearranging of the include files and macro-to-inline-function changes only give us churn.  At the very best, they will be performance neutral.  At worst, formerly cheap macro calls will become expensive in places that we haven't thought to run timings on.  Given that compilers don't have to honor an inline directive, we can't really know for sure -- perhaps today it works out fine, and perhaps tomorrow the compilers opt for a different behavior.
+
+Maybe everything that is going on is fine.  Maybe it's not. I am not expert enough to know for sure, but we should be careful before green-lighting such an extensive series of changes directly to master.  Reasonable questions to ask are: 1) What are the risks to third party modules, 2) Do we really know that the macro-to-inline-function transformations are semantically neutral. 3) If there is no performance benefit (none has been seen so far, nor is any promised in the pending PRs), is it worth it?  
+
+We do know that PyPy folks have had their share of issues with the C API, but I'm not sure that we can make any of this go away without changing the foundations of the whole ecosystem.  It is inconvenient for a full GC environment to interact with the API for a reference counted environment -- I don't think we can make this challenge go away without giving up reference counting.  It is inconvenient for a system that manifests objects on demand to interact with an API that assumes that objects have identity and never more once they are created -- I don't think we can make this go away either.  It is inconvenient to a system that uses unboxed data to interact with our API where everything is an object that includes a type pointer and reference count -- We have provided an API for boxing and boxing, but the trip back-and-forth is inconveniently expensive -- I don't think we can make that go away either because too much of the ecosystem depends on that API.  There are some things that can be mitigated such as challenges with borrowed references but that doesn't seem to have been the focus on any of the PRs.
+
+In short, I'm somewhat concerned about the extensive changes that are occurring.  I do know they will touch substantially every C module in the entire ecosystem.  I don't know whether they are safe or whether they will give any real benefit.
+
+FWIW, none of this is a criticism of the work being done.  Someone needs to think deeply about the C API or else progress will never be made.  That said, it is a high risk project with many PRs going directly into master, so it does warrant having buy in that the churn isn't destabilizing and will actually produce a benefit that is worth it.
+
+
+Raymond
+
+
+
+
+
+
+
+
+From njs at pobox.com  Tue Nov 13 22:17:31 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 13 Nov 2018 19:17:31 -0800
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CA+3bQGFg23bYrSmxtzkXsHAGbrA5EkjxOExOfwZiBmDPu3-jZQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+Message-ID: <CAPJVwB=iKT7733oaraoHe3OHbTdoANtUV29WbnB=_Dah3jXVtg@mail.gmail.com>
+
+On Sun, Nov 11, 2018 at 3:19 PM, Victor Stinner <vstinner at redhat.com> wrote:
+> I'm not sure yet how far we should go towards a perfect API which
+> doesn't leak everything. We have to move slowly, and make sure that we
+> don't break major C extensions. We need to write tools to fully
+> automate the conversion. If it's not possible, maybe the whole project
+> will fail.
+
+This is why I'm nervous about adding this directly to CPython. If
+we're just talking about adding a few new API calls to replace old
+ones that are awkward to use, then that's fine, that's not very risky.
+But if you're talking about a large project that makes fundamental
+changes in the C API (e.g., disallowing pointer dereferences, like
+tagged pointers do), then yeah, there's a very large risk that that
+might fail.
+
+>> If so, then would it make more sense to develop this as an actual>> separate abstraction layer? That would have the huge advantage that it
+>> could be distributed and versioned separately from CPython, different
+>> packages could use different versions of the abstraction layer, PyPy
+>> isn't forced to immediately add a bunch of new APIs...
+>
+> I didn't investigate this option. But I expect that you will have to
+> write a full new API using a different prefix than "Py_". Otherwise,
+> I'm not sure how you want to handle PyTuple_GET_ITEM() as a macro on
+> one side (Include/tupleobject.h) and PyTuple_GET_ITEM() on the other
+> side (hypotetical_new_api.h).
+>
+> Would it mean to duplicate all functions to get a different prefix?
+>
+> If you keep the "Py_" prefix, what I would like to ensure is that some
+> functions are no longer accessible. How you remove
+> PySequence_Fast_GET_ITEM() for example?
+>
+> For me, it seems simpler to modify CPython headers than starting on
+> something new. It seems simpler to choose the proper level of
+> compatibility. I start from an API 100% compatible (the current C
+> API), and decide what is changed and how.
+
+It may be simpler, but it's hugely more risky. Once you add something
+to CPython, you can't take it back again without a huge amount of
+work. You said above that the whole project might fail. But if it's in
+CPython, failure is not acceptable! The whole problem you're trying to
+solve is that the C API is too big, but your proposed solution starts
+by making it bigger, so if your project fails then it makes the
+problem even bigger...
+
+I don't know if making it a separate project is the best approach or
+not, it was just an idea :-). But it would have the huge benefit that
+you can actually experiment and try things out without committing to
+supporting them forever.
+
+And I don't know the best answer to all your questions above, that's
+what experimenting is for :-). But it certainly is technically
+possible to make a new API that shares a common subset with the old
+API, e.g.:
+
+/* NewPython.h */
+#include <Python.h>
+#define PyTuple_GET_ITEM PyTuple_Get_Item
+#undef PySequence_Fast_GET_ITEM
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From njs at pobox.com  Tue Nov 13 23:40:48 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 13 Nov 2018 20:40:48 -0800
+Subject: [Python-Dev] General concerns about C API changes
+In-Reply-To: <62A87B15-0F0E-4242-BF44-9C58FE890D8B@gmail.com>
+References: <62A87B15-0F0E-4242-BF44-9C58FE890D8B@gmail.com>
+Message-ID: <CAPJVwBmROGz0Nzmoiu0w_riEbkuaDRX9_fKHmEwVBm+pw5k=Xw@mail.gmail.com>
+
+To me, the "new C API" discussion and the "converting macros into
+inline functions" discussions are very different, almost unrelated.
+There are always lots of small C API changes happening, and AFAIK the
+macros->inline changes fall into that category. It sounds like you
+want to discuss whether inline functions are a good idea? Or are there
+other changes happening that you're worried about? Or is there some
+connection between inline functions and API breakage that I'm not
+aware of? Your email touches on a lot of different topics and I'm
+having trouble understanding how they fit together. (And I guess like
+most people here, I'm not watching every commit to the master branch
+so I may not even know what changes you're referring to.)
+
+On Tue, Nov 13, 2018 at 7:06 PM, Raymond Hettinger
+<raymond.hettinger at gmail.com> wrote:
+> Overall, I support the efforts to improve the C API, but over the last few weeks have become worried.  I don't want to hold up progress with fear, uncertainty, and doubt.  Yet, I would like to be more comfortable that we're all aware of what is occurring and what are the potential benefits and risks.
+>
+> * Inline functions are great.  They provide true local variables, better separation of concerns, are far less kludgy than text based macro substitution, and will typically generate the same code as the equivalent macro.  This is good tech when used with in a single source file where it has predictable results.
+>
+> However, I'm not at all confident about moving these into header files which are included in multiple target .c files which need be compiled into separate .o files and linked to other existing libraries.
+>
+> With a macro, I know for sure that the substitution is taking place.  This happens at all levels of optimization and in a debug mode.  The effects are 100% predictable and have a well-established track record in our mature battle-tested code base.  With cross module function calls, I'm less confident about what is happening, partly because compilers are free to ignore inline directives and partly because the semantics of inlining are less clear when the crossing module boundaries.
+>
+> * Other categories of changes that we make tend to have only a shallow reach.  However, these C API changes will likely touch every C extension that has ever been written, some of which is highly tuned but not actively re-examined.  If any mistakes are make, they will likely be pervasive.  Accordingly, caution is warranted.
+>
+> My expectation was that the changes would be conducted in experimental branches. But extensive changes are already being made (or about to be made) on the 3.8 master. If a year from now, we decide that the changes were destabilizing or that the promised benefits didn't materialize, they will be difficult to undo because there are so many of them and because they will be interleaved with other changes.
+>
+> The original motivation was to achieve a 2x speedup in return for significantly churning the C API. However, the current rearranging of the include files and macro-to-inline-function changes only give us churn.  At the very best, they will be performance neutral.  At worst, formerly cheap macro calls will become expensive in places that we haven't thought to run timings on.  Given that compilers don't have to honor an inline directive, we can't really know for sure -- perhaps today it works out fine, and perhaps tomorrow the compilers opt for a different behavior.
+>
+> Maybe everything that is going on is fine.  Maybe it's not. I am not expert enough to know for sure, but we should be careful before green-lighting such an extensive series of changes directly to master.  Reasonable questions to ask are: 1) What are the risks to third party modules, 2) Do we really know that the macro-to-inline-function transformations are semantically neutral. 3) If there is no performance benefit (none has been seen so far, nor is any promised in the pending PRs), is it worth it?
+>
+> We do know that PyPy folks have had their share of issues with the C API, but I'm not sure that we can make any of this go away without changing the foundations of the whole ecosystem.  It is inconvenient for a full GC environment to interact with the API for a reference counted environment -- I don't think we can make this challenge go away without giving up reference counting.  It is inconvenient for a system that manifests objects on demand to interact with an API that assumes that objects have identity and never more once they are created -- I don't think we can make this go away either.  It is inconvenient to a system that uses unboxed data to interact with our API where everything is an object that includes a type pointer and reference count -- We have provided an API for boxing and boxing, but the trip back-and-forth is inconveniently expensive -- I don't think we can make that go away either because too much of the ecosystem depends on that API.  There are some things that ca
+>  n be mitigated such as challenges with borrowed references but that doesn't seem to have been the focus on any of the PRs.
+>
+> In short, I'm somewhat concerned about the extensive changes that are occurring.  I do know they will touch substantially every C module in the entire ecosystem.  I don't know whether they are safe or whether they will give any real benefit.
+>
+> FWIW, none of this is a criticism of the work being done.  Someone needs to think deeply about the C API or else progress will never be made.  That said, it is a high risk project with many PRs going directly into master, so it does warrant having buy in that the churn isn't destabilizing and will actually produce a benefit that is worth it.
+>
+>
+> Raymond
+>
+>
+>
+>
+>
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+
+
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
