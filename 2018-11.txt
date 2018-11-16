@@ -5405,3 +5405,992 @@ On Tue, Nov 13, 2018 at 7:06 PM, Raymond Hettinger
 -- 
 Nathaniel J. Smith -- https://vorpus.org
 
+From vstinner at redhat.com  Wed Nov 14 05:03:49 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 14 Nov 2018 11:03:49 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+Message-ID: <CA+3bQGGizLP=DbRG1tZ15sXFWuEMjL+hdTw-noX1BY=kcDpAVA@mail.gmail.com>
+
+Le mer. 14 nov. 2018 ? 03:24, Nathaniel Smith <njs at pobox.com> a ?crit :
+> So I think what you're saying is that your goal is to get a
+> new/better/shinier VM, and the plan to accomplish that is:
+>
+> 1. Define a new C API.
+> 2. Migrate projects to the new C API.
+> 3. Build a new VM that gets benefits from only supporting the new API.
+>
+> This sounds exactly backwards to me?
+>
+> If you define the new API before you build the VM, then no-one is
+> going to migrate, because why should they bother? You'd be asking
+> overworked third-party maintainers to do a bunch of work with no
+> benefit, except that maybe someday later something good might happen.
+
+Oh, I should stop to promote my "CPython fork" idea.
+
+There is already an existing VM which is way faster than CPython but
+its performances are limited by the current C API. The VM is called...
+PyPy!
+
+The bet is that migrating to a new C API would make your C extension faster.
+
+Victor
+
+From solipsis at pitrou.net  Wed Nov 14 05:20:55 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 14 Nov 2018 11:20:55 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CA+3bQGGizLP=DbRG1tZ15sXFWuEMjL+hdTw-noX1BY=kcDpAVA@mail.gmail.com>
+Message-ID: <20181114112055.2131d35b@fsol>
+
+On Wed, 14 Nov 2018 11:03:49 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> Oh, I should stop to promote my "CPython fork" idea.
+> 
+> There is already an existing VM which is way faster than CPython but
+> its performances are limited by the current C API. The VM is called...
+> PyPy!
+> 
+> The bet is that migrating to a new C API would make your C extension faster.
+
+Faster on PyPy... but potentially slower on CPython.  That's what we
+(you :-)) need to investigate and solve.  Those macros and inline
+functions are actually important for many use cases.
+
+For example in PyArrow we use PySequence_Fast_GET_ITEM() (*) and even
+PyType_HasFeature() (**) (to quickly check for multiple base types with
+a single fetch and comparison).
+
+(*)
+https://github.com/apache/arrow/blob/master/cpp/src/arrow/python/iterators.h#L39-L86
+(**)
+https://github.com/apache/arrow/blob/master/cpp/src/arrow/python/helpers.cc#L266-L299
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Wed Nov 14 05:48:15 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 14 Nov 2018 11:48:15 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <20181114112055.2131d35b@fsol>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CA+3bQGGizLP=DbRG1tZ15sXFWuEMjL+hdTw-noX1BY=kcDpAVA@mail.gmail.com>
+ <20181114112055.2131d35b@fsol>
+Message-ID: <CA+3bQGHhVjvwScaaMsnW1A2m3+F4JDV9wsa+r0F=tjnCVOce+A@mail.gmail.com>
+
+Le mer. 14 nov. 2018 ? 11:24, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> For example in PyArrow we use PySequence_Fast_GET_ITEM() (*)
+
+Maybe PyArrow is a kind of C extension which should have one
+implementation for the new C API (PyPy) and one implementation for the
+current C API (CPython)?
+
+Cython can be used to generate two different C code from the same
+source code using a different compilation mode.
+
+> and even
+> PyType_HasFeature() (**) (to quickly check for multiple base types with
+> a single fetch and comparison).
+
+I'm not sure that PyType_HasFeature() is an issue?
+
+Victor
+
+From vstinner at redhat.com  Wed Nov 14 06:23:03 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 14 Nov 2018 12:23:03 +0100
+Subject: [Python-Dev] General concerns about C API changes
+In-Reply-To: <CAPJVwBmROGz0Nzmoiu0w_riEbkuaDRX9_fKHmEwVBm+pw5k=Xw@mail.gmail.com>
+References: <62A87B15-0F0E-4242-BF44-9C58FE890D8B@gmail.com>
+ <CAPJVwBmROGz0Nzmoiu0w_riEbkuaDRX9_fKHmEwVBm+pw5k=Xw@mail.gmail.com>
+Message-ID: <CA+3bQGHx-GtLzgvDeWtTrK0W857DOYF=bBmjTSfTBTanUEyXQg@mail.gmail.com>
+
+Hi,
+
+I made many different kinds of changes to the C API last weeks. None
+of them should impact the backward compatibility. If it's the case,
+the changes causing the backward compatibility should be reverted. The
+most controversial changes are the conversion of macros to static
+inline functions, but these changes have been discussed in length and
+approved by multiple core developers.
+
+
+(*) Move private internal API outside Include/: continue the work
+started in Python 3.7 to move it to Include/internal/
+
+This work is almost complete. The remaining issue is the
+_PyObject_GC_TRACK() function.
+
+The main change is that an explicit #include "pycore_<header>.h" is
+now required in C code.
+
+https://bugs.python.org/issue35081
+https://mail.python.org/pipermail/python-dev/2018-October/155587.html
+https://mail.python.org/pipermail/python-dev/2018-November/155688.html
+
+
+(*) Move "unstable" API outside Include/: move "#ifndef
+Py_LIMITED_API" code to a new subdirectory
+
+This work didn't start. It's still being discussed to see how we
+should do it. I chose to try to finish Include/internal/ first.
+
+https://bugs.python.org/issue35134
+
+
+(*) Add a *new* C API which doesn't leak implementation details
+
+This work didn't start. It's still under discussion, I'm not sure that
+it's going to happen in the master branch in the short term.
+
+https://pythoncapi.readthedocs.io/
+https://bugs.python.org/issue35206
+https://mail.python.org/pipermail/python-dev/2018-November/155702.html
+
+
+(*) Convert macros to static inline functions
+
+I guess that Raymond is worried by the impact on performance of these changes.
+
+So far, the following macros have been converted to static inline functions:
+
+* PyObject_INIT(), PyObject_INIT_VAR()
+* _Py_NewReference(), _Py_ForgetReference()
+* Py_INCREF(), Py_DECREF()
+* Py_XINCREF(), Py_XDECREF()
+* _Py_Dealloc()
+
+First, I attempted for "force inlining" (ex:
+__attribute__((always_inline)) for GCC/Clang), but it has been decided
+to not do that. Please read the discussion on the issue for the
+rationale.
+
+https://bugs.python.org/issue35059
+
+I modified the Visual Studio project to ask the compiler to respect
+"inline" *hint* when CPython is compiled in debug mode: "Set
+InlineFunctionExpansion to OnlyExplicitInline ("/Ob1" option) on all
+projects (in pyproject.props) in Debug mode on Win32 and x64 platforms
+to expand functions marked as inline." This change spotted a bug in
+_decimal ("Add missing EXTINLINE in mpdecimal.h").
+
+Macros have many pitfalls, and the intent here is to prevent these pitfalls.:
+https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html
+
+
+_Py_Dealloc() example:
+
+#ifdef COUNT_ALLOCS
+#define _Py_INC_TPFREES(OP)     dec_count(Py_TYPE(OP))
+#define _Py_COUNT_ALLOCS_COMMA  ,
+#else
+#define _Py_INC_TPFREES(OP)
+#define _Py_COUNT_ALLOCS_COMMA
+#endif /* COUNT_ALLOCS */
+
+#define _Py_Dealloc(op) (                               \
+    _Py_INC_TPFREES(op) _Py_COUNT_ALLOCS_COMMA          \
+    (*Py_TYPE(op)->tp_dealloc)((PyObject *)(op)))
+
+_Py_Dealloc() produced something like "dealloc()" or "dec_count(),
+dealloc()" depending on compiler options on Python 3.7. On Python 3.8,
+it's now a well defined function call which returns "void" (no
+result): "[static inline] void _Py_Dealloc(PyObject *);"
+
+
+Another example:
+
+#define Py_DECREF(op)                                   \
+    do {                                                \
+        PyObject *_py_decref_tmp = (PyObject *)(op);    \
+        if (_Py_DEC_REFTOTAL  _Py_REF_DEBUG_COMMA       \
+        --(_py_decref_tmp)->ob_refcnt != 0)             \
+            _Py_CHECK_REFCNT(_py_decref_tmp)            \
+        else                                            \
+            _Py_Dealloc(_py_decref_tmp);                \
+    } while (0)
+
+This macro required a temporary "_py_decref_tmp" variable in Python
+3.7, to cast the argument to PyObject*. It's gone in Python 3.8:
+
+static inline void _Py_DECREF(const char *filename, int lineno,
+                              PyObject *op)
+{
+    _Py_DEC_REFTOTAL;
+    if (--op->ob_refcnt != 0) {
+#ifdef Py_REF_DEBUG
+        if (op->ob_refcnt < 0) {
+            _Py_NegativeRefcount(filename, lineno, op);
+        }
+#endif
+    }
+    else {
+        _Py_Dealloc(op);
+    }
+}
+
+#define Py_DECREF(op) _Py_DECREF(__FILE__, __LINE__, (PyObject *)(op))
+
+The cast is now done in Py_DECREF() macro.
+
+The Py_DECREF() contract is that it accepts basically any pointer. I
+chose to not change that (always require the exact PyObject* type and
+nothing else), since it would create a compiler warning on basically
+every usage of Py_DECREF() for no real benefit.
+
+Victor
+
+From vstinner at redhat.com  Wed Nov 14 06:47:33 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 14 Nov 2018 12:47:33 +0100
+Subject: [Python-Dev] General concerns about C API changes
+In-Reply-To: <CA+3bQGHx-GtLzgvDeWtTrK0W857DOYF=bBmjTSfTBTanUEyXQg@mail.gmail.com>
+References: <62A87B15-0F0E-4242-BF44-9C58FE890D8B@gmail.com>
+ <CAPJVwBmROGz0Nzmoiu0w_riEbkuaDRX9_fKHmEwVBm+pw5k=Xw@mail.gmail.com>
+ <CA+3bQGHx-GtLzgvDeWtTrK0W857DOYF=bBmjTSfTBTanUEyXQg@mail.gmail.com>
+Message-ID: <CA+3bQGEy_MWgXgSZ-jFj8dZ+QU7iOYxzazVdDX8pf+LPoQ7N0w@mail.gmail.com>
+
+> First, I attempted for "force inlining" (ex:
+> __attribute__((always_inline)) for GCC/Clang), but it has been decided
+> to not do that. Please read the discussion on the issue for the
+> rationale.
+>
+> https://bugs.python.org/issue35059
+
+It has been decided to use "static inline" syntax since it's the one
+required by the PEP 7, but I'm open to switch to "inline" (without
+static) or something else. Honestly, I don't understand exactly all
+consequences of the exact syntax, so I relied on other core devs who
+understand C99 that better than me :-)
+
+Join the discussion on the issue ;-)
+
+Victor
+
+From solipsis at pitrou.net  Wed Nov 14 07:10:08 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 14 Nov 2018 13:10:08 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGHhVjvwScaaMsnW1A2m3+F4JDV9wsa+r0F=tjnCVOce+A@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CA+3bQGGizLP=DbRG1tZ15sXFWuEMjL+hdTw-noX1BY=kcDpAVA@mail.gmail.com>
+ <20181114112055.2131d35b@fsol>
+ <CA+3bQGHhVjvwScaaMsnW1A2m3+F4JDV9wsa+r0F=tjnCVOce+A@mail.gmail.com>
+Message-ID: <20181114131008.6ec6c7e0@fsol>
+
+On Wed, 14 Nov 2018 11:48:15 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> Le mer. 14 nov. 2018 ? 11:24, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> > For example in PyArrow we use PySequence_Fast_GET_ITEM() (*)  
+> 
+> Maybe PyArrow is a kind of C extension which should have one
+> implementation for the new C API (PyPy) and one implementation for the
+> current C API (CPython)?
+
+Yes, maybe.  I'm just pointing out that we're using those macros and
+removing them from the C API (or replacing them with non-inline
+functions) would hurt us.
+
+> > and even
+> > PyType_HasFeature() (**) (to quickly check for multiple base types with
+> > a single fetch and comparison).  
+> 
+> I'm not sure that PyType_HasFeature() is an issue?
+
+I don't know.  You're the one who decides :-)
+
+cheers
+
+Antoine.
+
+From nd at perlig.de  Wed Nov 14 08:11:00 2018
+From: nd at perlig.de (=?ISO-8859-1?Q?Andr=E9?= Malo)
+Date: Wed, 14 Nov 2018 14:11:00 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <1614616.psXdYk7axO@chryseis>
+ <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+Message-ID: <220319772.FgY98erabj@finnegan>
+
+On Dienstag, 13. November 2018 21:59:14 CET Victor Stinner wrote:
+> Le mar. 13 nov. 2018 ? 20:32, Andr? Malo <nd at perlig.de> a ?crit :
+> > As long as they are recompiled. However, they will lose a lot of
+> > performance. Both these points have been mentioned somewhere, I'm
+> > certain, but it cannot be stressed enough, IMHO.
+> 
+> Somewhere is here:
+> https://pythoncapi.readthedocs.io/performance.html
+
+> > I'm wondering, how you suggest to measure "major". I believe, every C
+> > extension, which is public and running in production somewhere, is major
+> > enough.
+> 
+> My plan is to select something like the top five most popular C
+> extensions based on PyPI download statistics. I cannot test
+> everything, I have to put practical limits.
+
+You shouldn't. Chances are, that you don't even know them enough to do that. 
+A scalable approach would be to talk to the projects and let them do it 
+instead. No?
+
+Cheers,
+-- 
+package Hacker::Perl::Another::Just;print
+qq~@{[reverse split/::/ =>__PACKAGE__]}~;
+
+#  Andr? Malo  #  http://www.perlig.de  #
+
+
+
+From p.f.moore at gmail.com  Wed Nov 14 08:36:08 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Wed, 14 Nov 2018 13:36:08 +0000
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+ <1614616.psXdYk7axO@chryseis>
+ <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+Message-ID: <CACac1F9oSe=mOh7=Ee2JQ2Tx-upmcQtcmETSQUYz9CdSs1_GVg@mail.gmail.com>
+
+On Tue, 13 Nov 2018 at 21:02, Victor Stinner <vstinner at redhat.com> wrote:
+
+> My plan is to select something like the top five most popular C
+> extensions based on PyPI download statistics. I cannot test
+> everything, I have to put practical limits.
+
+You should probably also consider embedding applications - these have
+the potential to be adversely affected too. One example would be vim,
+which embeds Python, and makes fairly heavy use of the API (in some
+relatively nonstandard ways, for better or worse).
+
+Paul
+
+PS What percentage does "top 5" translate to? In terms of both
+downloads and actual numbers of extensions? With only 5, it would be
+very easy (I suspect) to get only scientific packages, and (for
+example) miss out totally on database APIs, or web helpers. You'll
+likely get a broader sense of where issues lie if you cover a wide
+range of application domains.
+
+PPS I'd like to see a summary of your backward compatibility plan.
+I've not been following this thread so maybe I missed it (if so, a
+pointer would be appreciated), but I'd expect as a user that
+extensions and embedding applications would *not* need a major rewrite
+to work with Python 3.8 - that being the implication of "opt in". I'd
+also expect that to remain true for any future version of Python -
+assuming the experiment is successful, forced (as opposed to opt-in)
+migration to the new API would be handled in a gradual, backward
+compatibility respecting manner, exactly as any other changes to the C
+API are. A hard break like Python 3, even if limited to the C API,
+would be bad for users (for example, preventing adoption of Python 3.X
+until the scientific stack migrates to the new API and works out how
+to handle supporting old-API versions of Python...)
+
+From vstinner at redhat.com  Wed Nov 14 09:28:19 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 14 Nov 2018 15:28:19 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CACac1F9oSe=mOh7=Ee2JQ2Tx-upmcQtcmETSQUYz9CdSs1_GVg@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+ <1614616.psXdYk7axO@chryseis>
+ <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+ <CACac1F9oSe=mOh7=Ee2JQ2Tx-upmcQtcmETSQUYz9CdSs1_GVg@mail.gmail.com>
+Message-ID: <CA+3bQGGaH0mkn5JNYyq7CpLD36B2cOyKBHOG+aRquTKzjmi6Wg@mail.gmail.com>
+
+Le mer. 14 nov. 2018 ? 14:36, Paul Moore <p.f.moore at gmail.com> a ?crit :
+> PS What percentage does "top 5" translate to? In terms of both
+> downloads and actual numbers of extensions? With only 5, it would be
+> very easy (I suspect) to get only scientific packages, and (for
+> example) miss out totally on database APIs, or web helpers. You'll
+> likely get a broader sense of where issues lie if you cover a wide
+> range of application domains.
+
+I don't want to force anyone to move to a new experimental API. I
+don't want to propose patches to third party modules for example. I
+would like to ensure that I don't break too many C extensions, or that
+tools to convert C extensions to the new API work as expected :-)
+
+Everything is experimental.
+
+> PPS I'd like to see a summary of your backward compatibility plan.
+
+https://pythoncapi.readthedocs.io/backward_compatibility.html
+
+> assuming the experiment is successful, forced (as opposed to opt-in)
+> migration to the new API would be handled in a gradual,
+
+No, the current C API will remain available. No one is forced to do
+anything. That's not part of my plan.
+
+Victor
+
+From p.f.moore at gmail.com  Wed Nov 14 09:39:11 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Wed, 14 Nov 2018 14:39:11 +0000
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGGaH0mkn5JNYyq7CpLD36B2cOyKBHOG+aRquTKzjmi6Wg@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+ <1614616.psXdYk7axO@chryseis>
+ <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+ <CACac1F9oSe=mOh7=Ee2JQ2Tx-upmcQtcmETSQUYz9CdSs1_GVg@mail.gmail.com>
+ <CA+3bQGGaH0mkn5JNYyq7CpLD36B2cOyKBHOG+aRquTKzjmi6Wg@mail.gmail.com>
+Message-ID: <CACac1F-smfjmc=X638YGgVokvFKY=j5i37mimu2QZT_m=xCmfA@mail.gmail.com>
+
+On Wed, 14 Nov 2018 at 14:28, Victor Stinner <vstinner at redhat.com> wrote:
+> > assuming the experiment is successful, forced (as opposed to opt-in)
+> > migration to the new API would be handled in a gradual,
+>
+> No, the current C API will remain available. No one is forced to do
+> anything. That's not part of my plan.
+
+Oh, cool. So current code will continue working indefinitely? What's
+the incentive for projects to switch to the new API in that case?
+Won't we just end up having to carry two APIs indefinitely? Sorry if
+this is all obvious, or was explained previously - as I said I've not
+been following precisely because I assumed it was all being handled on
+an "if you don't care you can ignore it and nothing will change"
+basis, but Raymond's comments plus your suggestion that you needed to
+test existing C extensions, made me wonder.
+
+If it is the case that there's no need for any 3rd party code to
+change in order to continue working with 3.8+, then I apologise for
+the interruption.
+Paul
+
+From p.f.moore at gmail.com  Wed Nov 14 09:53:25 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Wed, 14 Nov 2018 14:53:25 +0000
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CACac1F-smfjmc=X638YGgVokvFKY=j5i37mimu2QZT_m=xCmfA@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+ <1614616.psXdYk7axO@chryseis>
+ <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+ <CACac1F9oSe=mOh7=Ee2JQ2Tx-upmcQtcmETSQUYz9CdSs1_GVg@mail.gmail.com>
+ <CA+3bQGGaH0mkn5JNYyq7CpLD36B2cOyKBHOG+aRquTKzjmi6Wg@mail.gmail.com>
+ <CACac1F-smfjmc=X638YGgVokvFKY=j5i37mimu2QZT_m=xCmfA@mail.gmail.com>
+Message-ID: <CACac1F_2xzOifYVS4uOf+zk_NmX9oDJORAaBWT9uSMJMELdjqg@mail.gmail.com>
+
+On Wed, 14 Nov 2018 at 14:39, Paul Moore <p.f.moore at gmail.com> wrote:
+
+> If it is the case that there's no need for any 3rd party code to
+> change in order to continue working with 3.8+, then I apologise for
+> the interruption.
+
+This is where being able to edit posts, a la Discourse would be useful :-)
+
+It occurs to me that we may be talking at cross purposes. I noticed
+https://pythoncapi.readthedocs.io/backward_compatibility.html#forward-compatibility-with-python-3-8-and-newer
+which seems to be saying that 3rd party code *will* need to change for
+3.8. You mention removed functions there, so I guess "stop using the
+removed functions and you'll work with 3.8+ and <=3.7" is the
+compatible approach - but it doesn't offer a way for projects that
+*need* the functionality that's been removed to move forward. That's
+the type of hard break that I was trying to ask about, and which I
+thought you said would not happen when you stated "I don't want to
+force anyone to move to a new experimental API", and "No, the current
+C API will remain available. No one is forced to do anything. That's
+not part of my plan".
+
+So to try to be clear, your proposal is that in 3.8:
+
+1. The existing C API will remain
+2. A new C API will be *added* that 3rd party projects can use should
+they wish to.
+
+And in 3.9 onwards, both C APIs will remain, maybe with gradual and
+incremental changes that move users of the existing C API closer and
+closer to the new one (via deprecations, replacement APIs etc as per
+our normal compatibility rules). Or is the intention that at *some*
+point there will be a compatibility break and the existing API will
+simply be removed in favour of the "new" API? Fundamentally, that's
+what I'm trying to get a clear picture of.
+
+The above is clear, but I don't see what incentive there is in that
+scenario for anyone to actually migrate to the new API...
+Paul
+
+From J.Demeyer at UGent.be  Wed Nov 14 09:48:43 2018
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 14 Nov 2018 15:48:43 +0100
+Subject: [Python-Dev] General concerns about C API changes
+In-Reply-To: <60176b8d36074e1381b301a515467327@xmail203.UGent.be>
+References: <60176b8d36074e1381b301a515467327@xmail203.UGent.be>
+Message-ID: <5BEC35CB.9010101@UGent.be>
+
+On 2018-11-14 04:06, Raymond Hettinger wrote:
+> With cross module function calls, I'm less confident about what is happening
+
+If the functions are "static inline" (as opposed to plain "inline"), 
+those aren't really cross-module function calls. Because the functions 
+are "static" and defined in a header file, every module has its own copy 
+of the function.
+
+If the function is not inlined in the end, this would inflate the 
+compiled size because you end up with multiple compilations of the same 
+code in the CPython library. It would not affect correct functioning in 
+any way though. If the function *is* inlined, then the result should be 
+no different from using a macro.
+
+
+Jeroen.
+
+From vstinner at redhat.com  Wed Nov 14 11:00:35 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 14 Nov 2018 17:00:35 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CACac1F_2xzOifYVS4uOf+zk_NmX9oDJORAaBWT9uSMJMELdjqg@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+ <1614616.psXdYk7axO@chryseis>
+ <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+ <CACac1F9oSe=mOh7=Ee2JQ2Tx-upmcQtcmETSQUYz9CdSs1_GVg@mail.gmail.com>
+ <CA+3bQGGaH0mkn5JNYyq7CpLD36B2cOyKBHOG+aRquTKzjmi6Wg@mail.gmail.com>
+ <CACac1F-smfjmc=X638YGgVokvFKY=j5i37mimu2QZT_m=xCmfA@mail.gmail.com>
+ <CACac1F_2xzOifYVS4uOf+zk_NmX9oDJORAaBWT9uSMJMELdjqg@mail.gmail.com>
+Message-ID: <CA+3bQGFVTXw+6sT-=FG6rrOFQcOHo0p8+mgYY0poTK-+3uyxzw@mail.gmail.com>
+
+In short, you don't have to modify your C extensions and they will
+continue to work as before on Python 3.8.
+
+I only propose to add a new C API, don't touch the existing one in any
+way. Introducing backward incompatible changes to the existing C API
+is out of my plan.
+
+/usr/bin/python3.8 will support C extensions compiled with the old C
+API and C extensions compiled with the new C API.
+
+My plan also includes to be able to write C extensions compatible with
+the old and new C API in a single code base. As we have Python code
+working nicely on Python 2 and Python 3 (thanks to six, mostly). In my
+experience, having two branches or two repositories for two flavors of
+the same code is a nice recipe towards inconsistent code and painful
+workflow.
+
+Le mer. 14 nov. 2018 ? 15:53, Paul Moore <p.f.moore at gmail.com> a ?crit :
+> It occurs to me that we may be talking at cross purposes. I noticed
+> https://pythoncapi.readthedocs.io/backward_compatibility.html#forward-compatibility-with-python-3-8-and-newer
+> which seems to be saying that 3rd party code *will* need to change for
+> 3.8.
+
+Oh. It's badly explained in that case. This section is only about C
+extensions which really want to become compatible with the new C API.
+
+> You mention removed functions there, so I guess "stop using the
+> removed functions and you'll work with 3.8+ and <=3.7" is the
+> compatible approach - but it doesn't offer a way for projects that
+> *need* the functionality that's been removed to move forward.
+
+If you need a removed functions, don't use the new C API.
+
+> So to try to be clear, your proposal is that in 3.8:
+>
+> 1. The existing C API will remain
+> 2. A new C API will be *added* that 3rd party projects can use should
+> they wish to.
+
+Yes, that's it. Add a new API, don't touch existing API.
+
+> And in 3.9 onwards, both C APIs will remain, maybe with gradual and
+> incremental changes that move users of the existing C API closer and
+> closer to the new one (via deprecations, replacement APIs etc as per
+> our normal compatibility rules).
+
+Honestly, it's too early to say if we should modify the current C API
+in any way.
+
+I only plan to put advices in the *documentation*. Something like
+"this function is really broken, don't use it" :-) Or "you can use xxx
+instead which makes your code compatible with the new C API". But I
+don't plan it to modify the doc soon. It's too early at this point.
+
+> Or is the intention that at *some*
+> point there will be a compatibility break and the existing API will
+> simply be removed in favour of the "new" API?
+
+That's out of the scope of *my* plan.
+
+Maybe someone else will show up in 10 years and say "ok, let's
+deprecate the old C API". But in my experience, legacy stuff never
+goes away :-) (Python 2, anyone?)
+
+> The above is clear, but I don't see what incentive there is in that
+> scenario for anyone to actually migrate to the new API...
+
+https://pythoncapi.readthedocs.io/ tries to explain why you should
+want to be compatible with the new C API.
+
+The main advantage of the new C API is to compile your C extension
+once and use it on multiple runtimes:
+
+* use PyPy for better performances (better than with the old C API)
+* use a Python Debug Runtime which contains additional runtime checks
+to detect various kinds of bugs in your C extension
+* distribute a single binary working on multiple Python versions
+(compile on 3.8, use it on 3.9): "stable ABI" -- we are no there yet,
+I didn't check what should be done in practice for that
+
+I hope that "later" we will get a faster CPython using <put amazing
+new optimizations there>, only compatible with C extensions compiled
+with the new C API. My secret hope is that it should ease the
+experimentation of a (yet another) JIT compiler for CPython :-)
+
+Victor
+
+From p.f.moore at gmail.com  Wed Nov 14 11:28:02 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Wed, 14 Nov 2018 16:28:02 +0000
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGFVTXw+6sT-=FG6rrOFQcOHo0p8+mgYY0poTK-+3uyxzw@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+ <1614616.psXdYk7axO@chryseis>
+ <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+ <CACac1F9oSe=mOh7=Ee2JQ2Tx-upmcQtcmETSQUYz9CdSs1_GVg@mail.gmail.com>
+ <CA+3bQGGaH0mkn5JNYyq7CpLD36B2cOyKBHOG+aRquTKzjmi6Wg@mail.gmail.com>
+ <CACac1F-smfjmc=X638YGgVokvFKY=j5i37mimu2QZT_m=xCmfA@mail.gmail.com>
+ <CACac1F_2xzOifYVS4uOf+zk_NmX9oDJORAaBWT9uSMJMELdjqg@mail.gmail.com>
+ <CA+3bQGFVTXw+6sT-=FG6rrOFQcOHo0p8+mgYY0poTK-+3uyxzw@mail.gmail.com>
+Message-ID: <CACac1F9wV_z8-UgeOM1Ss_Z=-ZSK9Ohj53JKUUucw8AOZWunVw@mail.gmail.com>
+
+On Wed, 14 Nov 2018 at 16:00, Victor Stinner <vstinner at redhat.com> wrote:
+>
+> In short, you don't have to modify your C extensions and they will
+> continue to work as before on Python 3.8.
+[...]
+> I hope that "later" we will get a faster CPython using <put amazing
+> new optimizations there>, only compatible with C extensions compiled
+> with the new C API. My secret hope is that it should ease the
+> experimentation of a (yet another) JIT compiler for CPython :-)
+
+OK, got it. Thanks for taking the time to clarify and respond to my
+concerns. Much appreciated.
+Paul
+
+From vstinner at redhat.com  Wed Nov 14 12:25:09 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 14 Nov 2018 18:25:09 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CACac1F9wV_z8-UgeOM1Ss_Z=-ZSK9Ohj53JKUUucw8AOZWunVw@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBm73w6UZdvkddTnhavd+WmFU-L2pBKFG=u+mC=nY2Y6Qg@mail.gmail.com>
+ <CA+3bQGH2bk6Fv_EPnrndRTPVmnX_w4Q4RTkKv6Kx8cXSOJxJiA@mail.gmail.com>
+ <1614616.psXdYk7axO@chryseis>
+ <CA+3bQGFdafXR12MfQBzWz3jQf1VsKWeqgWhjNJ5dgaXphBSp+g@mail.gmail.com>
+ <CACac1F9oSe=mOh7=Ee2JQ2Tx-upmcQtcmETSQUYz9CdSs1_GVg@mail.gmail.com>
+ <CA+3bQGGaH0mkn5JNYyq7CpLD36B2cOyKBHOG+aRquTKzjmi6Wg@mail.gmail.com>
+ <CACac1F-smfjmc=X638YGgVokvFKY=j5i37mimu2QZT_m=xCmfA@mail.gmail.com>
+ <CACac1F_2xzOifYVS4uOf+zk_NmX9oDJORAaBWT9uSMJMELdjqg@mail.gmail.com>
+ <CA+3bQGFVTXw+6sT-=FG6rrOFQcOHo0p8+mgYY0poTK-+3uyxzw@mail.gmail.com>
+ <CACac1F9wV_z8-UgeOM1Ss_Z=-ZSK9Ohj53JKUUucw8AOZWunVw@mail.gmail.com>
+Message-ID: <CA+3bQGEhXeN2a_FbfFT5Ra6dJMhw-i=qMiPfB3YA4ZJpZiYGPw@mail.gmail.com>
+
+Le mer. 14 nov. 2018 ? 17:28, Paul Moore <p.f.moore at gmail.com> a ?crit :
+> OK, got it. Thanks for taking the time to clarify and respond to my
+> concerns. Much appreciated.
+
+I'm my fault. I am failing to explain my plan proplerly. It seems like
+I had to update my website to better explain :-)
+
+Victor
+
+From maik.riechert at arcor.de  Wed Nov 14 12:44:18 2018
+From: maik.riechert at arcor.de (Maik Riechert)
+Date: Wed, 14 Nov 2018 17:44:18 +0000
+Subject: [Python-Dev] Clarify required Visual C++ compiler for binary
+ extensions in 3.7
+Message-ID: <35aa558e-9595-c0f4-24bd-9e8cfcc79d4d@arcor.de>
+
+Hi,
+
+I just wanted to point out that the page 
+https://wiki.python.org/moin/WindowsCompilers doesn't mention Python 3.7 
+in the table. Is the compiler still Visual C++ 14.0?
+
+Thanks
+Maik
+
+
+From vstinner at redhat.com  Wed Nov 14 18:20:56 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 15 Nov 2018 00:20:56 +0100
+Subject: [Python-Dev] Clarify required Visual C++ compiler for binary
+ extensions in 3.7
+In-Reply-To: <35aa558e-9595-c0f4-24bd-9e8cfcc79d4d@arcor.de>
+References: <35aa558e-9595-c0f4-24bd-9e8cfcc79d4d@arcor.de>
+Message-ID: <CA+3bQGFskKd5wjGojDNNs=ZbTTW3D0k0=iVX7dFfcgWLZc9J2g@mail.gmail.com>
+
+I maintain my own compatibility matrix:
+https://pythondev.readthedocs.io/windows.html#python-and-visual-studio-version-matrix
+
+Ned Deily asked to update the devguide from my table :-)
+https://github.com/python/devguide/issues/433
+
+Victor
+Le mer. 14 nov. 2018 ? 18:56, Maik Riechert <maik.riechert at arcor.de> a ?crit :
+>
+> Hi,
+>
+> I just wanted to point out that the page
+> https://wiki.python.org/moin/WindowsCompilers doesn't mention Python 3.7
+> in the table. Is the compiler still Visual C++ 14.0?
+>
+> Thanks
+> Maik
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+From greg at krypto.org  Wed Nov 14 19:03:09 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 14 Nov 2018 16:03:09 -0800
+Subject: [Python-Dev] General concerns about C API changes
+In-Reply-To: <62A87B15-0F0E-4242-BF44-9C58FE890D8B@gmail.com>
+References: <62A87B15-0F0E-4242-BF44-9C58FE890D8B@gmail.com>
+Message-ID: <CAGE7PNLmd3r7jrEwSNQd+ELXoGNkt2JUm-rhaAPkXZpna_A8WQ@mail.gmail.com>
+
+On Tue, Nov 13, 2018 at 7:06 PM Raymond Hettinger <
+raymond.hettinger at gmail.com> wrote:
+
+> Overall, I support the efforts to improve the C API, but over the last few
+> weeks have become worried.  I don't want to hold up progress with fear,
+> uncertainty, and doubt.  Yet, I would like to be more comfortable that
+> we're all aware of what is occurring and what are the potential benefits
+> and risks.
+>
+> * Inline functions are great.  They provide true local variables, better
+> separation of concerns, are far less kludgy than text based macro
+> substitution, and will typically generate the same code as the equivalent
+> macro.  This is good tech when used with in a single source file where it
+> has predictable results.
+>
+> However, I'm not at all confident about moving these into header files
+> which are included in multiple target .c files which need be compiled into
+> separate .o files and linked to other existing libraries.
+>
+> With a macro, I know for sure that the substitution is taking place.  This
+> happens at all levels of optimization and in a debug mode.  The effects are
+> 100% predictable and have a well-established track record in our mature
+> battle-tested code base.  With cross module function calls, I'm less
+> confident about what is happening, partly because compilers are free to
+> ignore inline directives and partly because the semantics of inlining are
+> less clear when the crossing module boundaries.
+>
+> * Other categories of changes that we make tend to have only a shallow
+> reach.  However, these C API changes will likely touch every C extension
+> that has ever been written, some of which is highly tuned but not actively
+> re-examined.  If any mistakes are make, they will likely be pervasive.
+> Accordingly, caution is warranted.
+>
+> My expectation was that the changes would be conducted in experimental
+> branches. But extensive changes are already being made (or about to be
+> made) on the 3.8 master. If a year from now, we decide that the changes
+> were destabilizing or that the promised benefits didn't materialize, they
+> will be difficult to undo because there are so many of them and because
+> they will be interleaved with other changes.
+>
+> The original motivation was to achieve a 2x speedup in return for
+> significantly churning the C API. However, the current rearranging of the
+> include files and macro-to-inline-function changes only give us churn.  At
+> the very best, they will be performance neutral.  At worst, formerly cheap
+> macro calls will become expensive in places that we haven't thought to run
+> timings on.  Given that compilers don't have to honor an inline directive,
+> we can't really know for sure -- perhaps today it works out fine, and
+> perhaps tomorrow the compilers opt for a different behavior.
+>
+> Maybe everything that is going on is fine.  Maybe it's not. I am not
+> expert enough to know for sure, but we should be careful before
+> green-lighting such an extensive series of changes directly to master.
+> Reasonable questions to ask are: 1) What are the risks to third party
+> modules, 2) Do we really know that the macro-to-inline-function
+> transformations are semantically neutral. 3) If there is no performance
+> benefit (none has been seen so far, nor is any promised in the pending
+> PRs), is it worth it?
+>
+> We do know that PyPy folks have had their share of issues with the C API,
+> but I'm not sure that we can make any of this go away without changing the
+> foundations of the whole ecosystem.  It is inconvenient for a full GC
+> environment to interact with the API for a reference counted environment --
+> I don't think we can make this challenge go away without giving up
+> reference counting.  It is inconvenient for a system that manifests objects
+> on demand to interact with an API that assumes that objects have identity
+> and never more once they are created -- I don't think we can make this go
+> away either.  It is inconvenient to a system that uses unboxed data to
+> interact with our API where everything is an object that includes a type
+> pointer and reference count -- We have provided an API for boxing and
+> boxing, but the trip back-and-forth is inconveniently expensive -- I don't
+> think we can make that go away either because too much of the ecosystem
+> depends on that API.  There are some things that ca
+>  n be mitigated such as challenges with borrowed references but that
+> doesn't seem to have been the focus on any of the PRs.
+>
+> In short, I'm somewhat concerned about the extensive changes that are
+> occurring.  I do know they will touch substantially every C module in the
+> entire ecosystem.  I don't know whether they are safe or whether they will
+> give any real benefit.
+>
+> FWIW, none of this is a criticism of the work being done.  Someone needs
+> to think deeply about the C API or else progress will never be made.  That
+> said, it is a high risk project with many PRs going directly into master,
+> so it does warrant having buy in that the churn isn't destabilizing and
+> will actually produce a benefit that is worth it.
+>
+>
+> Raymond
+>
+>
+While I haven't looked at *all* of the existing changes, glancing at an
+example one, the XINCREF and XDECREF macro -> static inline .h function
+change from
+https://github.com/python/cpython/commit/541497e6197268517b0d492856027774c43e0949,
+I don't have any concerns.  Because I am confident that gcc and clang will
+behave well with this type of change.
+
+>From my point of view: A static inline function is a much nicer modern code
+style than a C preprocessor macro.
+
+I expect the largest visible impact may be that a profiler may now
+attribute CPU cycles takes by these code snippets to the function from the
+.h file rather than directly to the functions the macro expanded in in the
+past due to additional debug symbol info attribution. Just more data.
+Consider that a win.
+
+I do not believe any compiler will generate poor code from this on any
+meaningful system and compiler configuration (-O0 or -Og code seems
+irrelevant, nothing ships that way).  Regardless, pablogsal appears to be
+doing the homework to double check which seems like a good plan before we
+release 3.8. :)
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181114/0224b774/attachment.html>
+
+From greg at krypto.org  Wed Nov 14 19:08:41 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 14 Nov 2018 16:08:41 -0800
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+Message-ID: <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+
+>
+> It seems like the discussion so far is:
+>
+> Victor: "I know people when people hear 'new API' they get scared and
+> think we're going to do a Python-3-like breaking transition, but don't
+> worry, we're never going to do that."
+> Nathaniel: "But then what does the new API add?"
+> Greg: "It lets us do a Python-3-like breaking transition!"
+>
+
+That is not what I am proposing but it seems too easy for people to
+misunderstand it as such. Sorry.
+
+Between everything discussed across this thread I believe we have enough
+information to suggest that we can avoid an "everyone's afraid of a new 3"
+mistake by instead making a shim available with a proposed new API that
+works on top of existing Python VM(s) so that if we decide to drop the old
+API being public in the future, we could do so *without a breaking
+transition*.
+
+Given that, I suggest not worrying about defining a new C API within the
+CPython project and release itself (yet).
+
+Without an available benefit, little will use it (and given the function
+call overhead we want to isolate some concepts, we know it will perform
+worse on today's VMs).
+
+That "top-5" module using it idea?  Maintain forks (hooray for git) of
+whatever your definition of "top-5" projects is that use the new API
+instead of the CPython API.  If you attempt this on things like NumPy, you
+may be shocked at the states (plural on purpose) of their extension module
+code.  That holds true for a lot of popular modules.
+
+Part of the point of this work is to demonstrate that non-incremental order
+of magnitude performance change can be had on a Python VM that only
+supports such an API can be done in its own fork of CPython, PyPy,
+VictorBikeshedPy, FbIsAfraidToReleaseANewGcVmPy, etc. implementation to
+help argue for figuring out a viable not-breaking-the-world transition plan
+to do such a C API change thing in CPython itself.
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181114/94a8ca08/attachment.html>
+
+From vstinner at redhat.com  Wed Nov 14 20:28:19 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 15 Nov 2018 02:28:19 +0100
+Subject: [Python-Dev] General concerns about C API changes
+In-Reply-To: <CAGE7PNLmd3r7jrEwSNQd+ELXoGNkt2JUm-rhaAPkXZpna_A8WQ@mail.gmail.com>
+References: <62A87B15-0F0E-4242-BF44-9C58FE890D8B@gmail.com>
+ <CAGE7PNLmd3r7jrEwSNQd+ELXoGNkt2JUm-rhaAPkXZpna_A8WQ@mail.gmail.com>
+Message-ID: <CA+3bQGFCA9WmWqEgoUfUC2yLdMS5euE_0ezqX7Mw5CZjrG4mqw@mail.gmail.com>
+
+Le jeu. 15 nov. 2018 ? 01:06, Gregory P. Smith <greg at krypto.org> a ?crit :
+> I expect the largest visible impact may be that a profiler may now attribute CPU cycles takes by these code snippets to the function from the .h file rather than directly to the functions the macro expanded in in the past due to additional debug symbol info attribution. Just more data. Consider that a win.
+
+Oh. That's very interesting.
+
+I just tried gdb and I confirm that gdb understands well inlined
+function. When I debug Python, gdb moves into Py_INCREF() or
+Py_DECREF() when I use "next".
+
+I also tried perf record/perf report: if I annotate a function
+(assembler code of the function), perf shows me the C code of inlined
+Py_INCREF and Py_DECREF!
+
+That's nice!
+
+Victor
+
