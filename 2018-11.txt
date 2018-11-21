@@ -7925,3 +7925,1053 @@ And they can change, e.g. if you get a personalised plate.
 -- 
 Greg
 
+From solipsis at pitrou.net  Mon Nov 19 04:37:36 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 19 Nov 2018 10:37:36 +0100
+Subject: [Python-Dev] Need discussion for a PR about memory and objects
+References: <20181104104350.GA12859@xps>
+ <20181104130314.GU3817@ando.pearwood.info>
+ <CADiSq7c4YZfaXZUWZ_J3z4d80MMxuoKcKUyCSaYU=awMN5C5WQ@mail.gmail.com>
+Message-ID: <20181119103736.690ef0d7@fsol>
+
+On Sun, 18 Nov 2018 22:32:35 +1000
+Nick Coghlan <ncoghlan at gmail.com> wrote:
+> 
+> Chris's initial suggestion was to use "license number" or "social
+> security number" (i.e. numbers governments assign to people), but I'm
+> thinking a better comparison might be to vehicle registration numbers,
+> since that analogy can be extended to the type and value
+> characteristics in a fairly straightforward way:
+> 
+> - the object identity is like the registration number or license plate
+> (unique within the particular system of registering vehicles, but not
+> unique across systems, and may sometimes be transferred to a new
+> vehicle after the old one is destroyed)
+> - the object type is like the make and model (e.g. a 2007 Toyota
+> Corolla Ascent Sedan)
+> - the object value is a specific car (e.g. "that white Corolla over
+> there with 89000 km on the odometer")
+> 
+> On the other hand, we're talking about the language reference here,
+> not the tutorial, and understanding memory addressing seems like a
+> reasonable assumed pre-requisite in that context.
+
+I'd rather keep the reference to memory addressing than start doing car
+analogies in the reference documentation.
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Mon Nov 19 04:44:22 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 19 Nov 2018 10:44:22 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+ <CAP1=2W47ccNeZBsBjoRpz6XX_St1Qf0XVMPmZqAO1xJ+-53C=w@mail.gmail.com>
+Message-ID: <20181119104422.46d4bb29@fsol>
+
+On Fri, 16 Nov 2018 09:46:36 -0800
+Brett Cannon <brett at python.org> wrote:
+> 
+> I think part of the challenge here (and I believe it has been brought up
+> elsewhere) is no one knows what kind of API is necessary for some faster VM
+> other than PyPy. To me, the only C API that would could potentially start
+> working toward and promoting **today** is one which is stripped to its bare
+> bones and worst mirrors Python syntax. For instance, I have seen
+> PyTuple_GET_ITEM() brought up a couple of times. But that's not syntax in
+> Python, so I wouldn't feel comfortable including that in a simplified API.
+> You really only need attribute access and object calling to make object
+> indexing work, although for simplicity I can see wanting to provide an
+> indexing API.
+
+If the C API only provides Python-level semantics, then it will
+roughly have the speed of pure Python (modulo bytecode execution).
+
+There are important use cases for the C API where it is desired to have
+fast type-specific access to Python objects such as tuples, ints,
+strings, etc.  This is relied upon by modules such as _json and _pickle,
+and third-party extensions as well.
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Mon Nov 19 04:50:58 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 19 Nov 2018 10:50:58 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+ <CAP1=2W47ccNeZBsBjoRpz6XX_St1Qf0XVMPmZqAO1xJ+-53C=w@mail.gmail.com>
+ <20181116231024.bqkn67s2anhdgfk5@python.ca>
+ <pss1pc$aqc$1@blaine.gmane.org>
+Message-ID: <20181119105058.1f95eb58@fsol>
+
+On Sun, 18 Nov 2018 16:53:19 +0100
+Stefan Behnel <stefan_ml at behnel.de> wrote:
+> 
+> So, in Cython, we use macros wherever possible, and often avoid generic
+> protocols in favour of type specialisations. We sometimes keep local copies
+> of C-API helper functions, because inlining them allows the C compiler to
+> strip down and streamline the implementation at compile time, rather than
+> jumping through generic code. (Also, it's sometimes required in order to
+> backport new CPython features to Py2.7+.)
+
+Also this approach allows those ballooning compile times that are part
+of Cython's charm and appeal ;-)
+(sorry, couldn't resist)
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Mon Nov 19 04:52:55 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 19 Nov 2018 10:52:55 +0100
+Subject: [Python-Dev] General concerns about C API changes
+References: <62A87B15-0F0E-4242-BF44-9C58FE890D8B@gmail.com>
+ <CAGE7PNLmd3r7jrEwSNQd+ELXoGNkt2JUm-rhaAPkXZpna_A8WQ@mail.gmail.com>
+ <pss552$33r$1@blaine.gmane.org>
+ <CAPJVwBkm1iQ2-7pOmHGvyYJ=Z7FNALE-q-7HOi+2x1i+-3OkGA@mail.gmail.com>
+Message-ID: <20181119105255.63201e93@fsol>
+
+On Sun, 18 Nov 2018 13:53:54 -0800
+Nathaniel Smith <njs at pobox.com> wrote:
+> On Sun, Nov 18, 2018 at 8:52 AM Stefan Behnel <stefan_ml at behnel.de> wrote:
+> >
+> > Gregory P. Smith schrieb am 15.11.18 um 01:03:  
+> > > From my point of view: A static inline function is a much nicer modern code
+> > > style than a C preprocessor macro.  
+> >
+> > It's also slower to compile, given that function inlining happens at a much
+> > later point in the compiler pipeline than macro expansion. The C compiler
+> > won't even get to see macros in fact, whereas whether to inline a function
+> > or not is a dedicated decision during the optimisation phase based on
+> > metrics collected in earlier stages. For something as ubiquitous as
+> > Py_INCREF/Py_DECREF, it might even be visible in the compilation times.  
+> 
+> Have you measured this? I had the opposite intuition, that macros on
+> average will be slower to compile because they increase the amount of
+> code that the frontend has to process. But I've never checked...
+
+It will certainly depend on how much code the macro expands to.
+Py_INCREF is an extremely simple macro, so expanding everywhere doesn't
+sound like a problem.
+
+On the other hand, modern "macros" that are C++ templates can inline
+vast amounts of code at the call site, and that's a common cause of
+slow C++ compiles.
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Mon Nov 19 05:28:46 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 19 Nov 2018 11:28:46 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <20181119104422.46d4bb29@fsol>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+ <CAP1=2W47ccNeZBsBjoRpz6XX_St1Qf0XVMPmZqAO1xJ+-53C=w@mail.gmail.com>
+ <20181119104422.46d4bb29@fsol>
+Message-ID: <CA+3bQGGJ93-UYZDH9ffe7ryQbBs4vTHa6sc_CGukFutsfef+uw@mail.gmail.com>
+
+Le lun. 19 nov. 2018 ? 10:48, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> If the C API only provides Python-level semantics, then it will
+> roughly have the speed of pure Python (modulo bytecode execution).
+>
+> There are important use cases for the C API where it is desired to have
+> fast type-specific access to Python objects such as tuples, ints,
+> strings, etc.  This is relied upon by modules such as _json and _pickle,
+> and third-party extensions as well.
+
+Are you sure that using PyDict_GetItem() is really way faster than
+PyObject_GetItem()? Did someone run a benchmark to have numbers?
+
+I would expect that the most common source of speed up of a C
+extension is the removal of the cost of bytecode evaluation (ceval.c
+loop).
+
+Python internals rely on internals to implement further optimizations,
+than modifying an "immutable" tuple, bytes or str object, because you
+can do that at the C level. But I'm not sure that I would like 3rd
+party extensions to rely on such things. For example, unicodeobject.c
+uses the following function to check if a str object can be modified
+in-place, or if a new str object must be created:
+
+#ifdef Py_DEBUG
+static int
+unicode_is_singleton(PyObject *unicode)
+{
+    PyASCIIObject *ascii = (PyASCIIObject *)unicode;
+    if (unicode == unicode_empty)
+        return 1;
+    if (ascii->state.kind != PyUnicode_WCHAR_KIND && ascii->length == 1)
+    {
+        Py_UCS4 ch = PyUnicode_READ_CHAR(unicode, 0);
+        if (ch < 256 && unicode_latin1[ch] == unicode)
+            return 1;
+    }
+    return 0;
+}
+#endif
+
+static int
+unicode_modifiable(PyObject *unicode)
+{
+    assert(_PyUnicode_CHECK(unicode));
+    if (Py_REFCNT(unicode) != 1)
+        return 0;
+    if (_PyUnicode_HASH(unicode) != -1)
+        return 0;
+    if (PyUnicode_CHECK_INTERNED(unicode))
+        return 0;
+    if (!PyUnicode_CheckExact(unicode))
+        return 0;
+#ifdef Py_DEBUG
+    /* singleton refcount is greater than 1 */
+    assert(!unicode_is_singleton(unicode));
+#endif
+    return 1;
+}
+
+Victor
+
+From solipsis at pitrou.net  Mon Nov 19 05:53:42 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 19 Nov 2018 11:53:42 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGGJ93-UYZDH9ffe7ryQbBs4vTHa6sc_CGukFutsfef+uw@mail.gmail.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+ <CAP1=2W47ccNeZBsBjoRpz6XX_St1Qf0XVMPmZqAO1xJ+-53C=w@mail.gmail.com>
+ <20181119104422.46d4bb29@fsol>
+ <CA+3bQGGJ93-UYZDH9ffe7ryQbBs4vTHa6sc_CGukFutsfef+uw@mail.gmail.com>
+Message-ID: <20181119115342.5a538507@fsol>
+
+On Mon, 19 Nov 2018 11:28:46 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> I would expect that the most common source of speed up of a C
+> extension is the removal of the cost of bytecode evaluation (ceval.c
+> loop).
+
+Well, I don't.  All previous experiments showed that simply compiling
+Python code to C code using the "generic" C API yielded a 30%
+improvement.
+
+Conversely, the C _pickle module can be 100x faster than the pure
+Python pickle module.  It's doing it *not* by using the generic C
+API, but by special-casing access to concrete types.  You don't get
+that level of performance simply by removing the cost of bytecode
+evaluation:
+
+# C version
+$ python3 -m timeit -s "import pickle; x = list(range(1000))"
+"pickle.dumps(x)" 100000 loops, best of 3: 19 usec per loop
+
+# Python version
+$ python3 -m timeit -s "import pickle; x = list(range(1000))"
+"pickle._dumps(x)" 100 loops, best of 3: 2.25 msec per loop
+
+So, the numbers are on my side.  So is the abundant experience of
+experts such as the Cython developers.
+
+> Python internals rely on internals to implement further optimizations,
+> than modifying an "immutable" tuple, bytes or str object, because you
+> can do that at the C level. But I'm not sure that I would like 3rd
+> party extensions to rely on such things.
+
+I'm not even talking about *modifying* tuples or str objects, I'm
+talking about *accessing* their value without going through an abstract
+API that does slot lookups, indirect function calls and object unboxing.
+
+For example, people may need a fast way to access the UTF-8
+representation of a unicode object.  Without making indirect function
+calls, and ideally without making a copy of the data either.  How do
+you do that using the generic C API?
+
+Regards
+
+Antoine.
+
+From mal at egenix.com  Mon Nov 19 05:59:21 2018
+From: mal at egenix.com (M.-A. Lemburg)
+Date: Mon, 19 Nov 2018 11:59:21 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <20181119115342.5a538507@fsol>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+ <CAP1=2W47ccNeZBsBjoRpz6XX_St1Qf0XVMPmZqAO1xJ+-53C=w@mail.gmail.com>
+ <20181119104422.46d4bb29@fsol>
+ <CA+3bQGGJ93-UYZDH9ffe7ryQbBs4vTHa6sc_CGukFutsfef+uw@mail.gmail.com>
+ <20181119115342.5a538507@fsol>
+Message-ID: <460193ad-6ae0-c54a-4335-8422268db84e@egenix.com>
+
+On 19.11.2018 11:53, Antoine Pitrou wrote:
+> On Mon, 19 Nov 2018 11:28:46 +0100
+> Victor Stinner <vstinner at redhat.com> wrote:
+>> Python internals rely on internals to implement further optimizations,
+>> than modifying an "immutable" tuple, bytes or str object, because you
+>> can do that at the C level. But I'm not sure that I would like 3rd
+>> party extensions to rely on such things.
+> 
+> I'm not even talking about *modifying* tuples or str objects, I'm
+> talking about *accessing* their value without going through an abstract
+> API that does slot lookups, indirect function calls and object unboxing.
+> 
+> For example, people may need a fast way to access the UTF-8
+> representation of a unicode object.  Without making indirect function
+> calls, and ideally without making a copy of the data either.  How do
+> you do that using the generic C API?
+
+Something else you need to consider is creating instances of
+types, e.g. a tuple. In C you will have to be able to put
+values into the data structure before it is passed outside
+the function in order to build the tuple.
+
+If you remove this possibility to have to copy data all the
+time, losing the advantages of having a rich C API.
+ --
+Marc-Andre Lemburg
+eGenix.com
+
+Professional Python Services directly from the Experts (#1, Nov 19 2018)
+>>> Python Projects, Coaching and Consulting ...  http://www.egenix.com/
+>>> Python Database Interfaces ...           http://products.egenix.com/
+>>> Plone/Zope Database Interfaces ...           http://zope.egenix.com/
+________________________________________________________________________
+
+::: We implement business ideas - efficiently in both time and costs :::
+
+   eGenix.com Software, Skills and Services GmbH  Pastor-Loeh-Str.48
+    D-40764 Langenfeld, Germany. CEO Dipl.-Math. Marc-Andre Lemburg
+           Registered at Amtsgericht Duesseldorf: HRB 46611
+               http://www.egenix.com/company/contact/
+                      http://www.malemburg.com/
+
+
+From solipsis at pitrou.net  Mon Nov 19 06:10:19 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 19 Nov 2018 12:10:19 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+ <CAP1=2W47ccNeZBsBjoRpz6XX_St1Qf0XVMPmZqAO1xJ+-53C=w@mail.gmail.com>
+ <20181119104422.46d4bb29@fsol>
+ <CA+3bQGGJ93-UYZDH9ffe7ryQbBs4vTHa6sc_CGukFutsfef+uw@mail.gmail.com>
+ <20181119115342.5a538507@fsol>
+Message-ID: <20181119121019.69f7ba63@fsol>
+
+On Mon, 19 Nov 2018 11:53:42 +0100
+Antoine Pitrou <solipsis at pitrou.net> wrote:
+> On Mon, 19 Nov 2018 11:28:46 +0100
+> Victor Stinner <vstinner at redhat.com> wrote:
+> > I would expect that the most common source of speed up of a C
+> > extension is the removal of the cost of bytecode evaluation (ceval.c
+> > loop).  
+> 
+> Well, I don't.  All previous experiments showed that simply compiling
+> Python code to C code using the "generic" C API yielded a 30%
+> improvement.
+> 
+> Conversely, the C _pickle module can be 100x faster than the pure
+> Python pickle module.  It's doing it *not* by using the generic C
+> API, but by special-casing access to concrete types.  You don't get
+> that level of performance simply by removing the cost of bytecode
+> evaluation:
+> 
+> # C version
+> $ python3 -m timeit -s "import pickle; x = list(range(1000))"
+> "pickle.dumps(x)" 100000 loops, best of 3: 19 usec per loop
+> 
+> # Python version
+> $ python3 -m timeit -s "import pickle; x = list(range(1000))"
+> "pickle._dumps(x)" 100 loops, best of 3: 2.25 msec per loop
+
+And to show that this is important for third-party C extensions as
+well, PyArrow (*) has comparable performance using similar techniques:
+
+$ python -m timeit -s "import pyarrow as pa; x = list(range(1000))"
+"pa.array(x, type=pa.int64())"
+10000 loops, best of 5: 27.2 usec per loop
+
+(*) https://arrow.apache.org/docs/python/
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Mon Nov 19 06:14:52 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 19 Nov 2018 12:14:52 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <460193ad-6ae0-c54a-4335-8422268db84e@egenix.com>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+ <CAP1=2W47ccNeZBsBjoRpz6XX_St1Qf0XVMPmZqAO1xJ+-53C=w@mail.gmail.com>
+ <20181119104422.46d4bb29@fsol>
+ <CA+3bQGGJ93-UYZDH9ffe7ryQbBs4vTHa6sc_CGukFutsfef+uw@mail.gmail.com>
+ <20181119115342.5a538507@fsol>
+ <460193ad-6ae0-c54a-4335-8422268db84e@egenix.com>
+Message-ID: <CA+3bQGEoUDA_+_oK45oqSFxHTNDNJ8k9Ux-gSSP+hGZgx3WBGQ@mail.gmail.com>
+
+To design a new C API, I see 3 options:
+
+(1) add more functions to the existing Py_LIMITED_API
+(2) "fork" the current public C API: remove functions and hide as much
+implementation details as possible
+(3) write a new C API from scratch, based on the current C API.
+Something like #define newcapi_Object_GetItem PyObject_GetItem"?
+Sorry, but "#undef <private_function>" doesn't work. Only very few
+functions are defined using "#define ...".
+
+I dislike (1) because it's too far from what is currently used in
+practice. Moreover, I failed to find anyone who can explain me how the
+C API is used in the wild, which functions are important or not, what
+is the C API, etc.
+
+I propose (2). We control how much changes we do at each milestone,
+and we start from the maximum compatibility with current C API. Each
+change can be discussed and experimented to define what is the C API,
+what we want, etc. I'm working on this approach for 1 year, that's why
+many discussions popped up around specific changes :-)
+
+Some people recently proposed (3) on python-dev. I dislike this option
+because it starts by breaking the backward compatibility. It looks
+like (1), but worse. The goal and the implementation are unclear to
+me.
+
+--
+
+Replacing PyDict_GetItem() (specialized call) with PyObject_Dict()
+(generic API) is not part of my short term plan. I wrote it in the
+roadmap, but as I wrote before, each change should be discusssed,
+experimented, benchmarked, etc.
+
+Victor
+Le lun. 19 nov. 2018 ? 12:02, M.-A. Lemburg <mal at egenix.com> a ?crit :
+>
+> On 19.11.2018 11:53, Antoine Pitrou wrote:
+> > On Mon, 19 Nov 2018 11:28:46 +0100
+> > Victor Stinner <vstinner at redhat.com> wrote:
+> >> Python internals rely on internals to implement further optimizations,
+> >> than modifying an "immutable" tuple, bytes or str object, because you
+> >> can do that at the C level. But I'm not sure that I would like 3rd
+> >> party extensions to rely on such things.
+> >
+> > I'm not even talking about *modifying* tuples or str objects, I'm
+> > talking about *accessing* their value without going through an abstract
+> > API that does slot lookups, indirect function calls and object unboxing.
+> >
+> > For example, people may need a fast way to access the UTF-8
+> > representation of a unicode object.  Without making indirect function
+> > calls, and ideally without making a copy of the data either.  How do
+> > you do that using the generic C API?
+>
+> Something else you need to consider is creating instances of
+> types, e.g. a tuple. In C you will have to be able to put
+> values into the data structure before it is passed outside
+> the function in order to build the tuple.
+>
+> If you remove this possibility to have to copy data all the
+> time, losing the advantages of having a rich C API.
+>  --
+> Marc-Andre Lemburg
+> eGenix.com
+>
+> Professional Python Services directly from the Experts (#1, Nov 19 2018)
+> >>> Python Projects, Coaching and Consulting ...  http://www.egenix.com/
+> >>> Python Database Interfaces ...           http://products.egenix.com/
+> >>> Plone/Zope Database Interfaces ...           http://zope.egenix.com/
+> ________________________________________________________________________
+>
+> ::: We implement business ideas - efficiently in both time and costs :::
+>
+>    eGenix.com Software, Skills and Services GmbH  Pastor-Loeh-Str.48
+>     D-40764 Langenfeld, Germany. CEO Dipl.-Math. Marc-Andre Lemburg
+>            Registered at Amtsgericht Duesseldorf: HRB 46611
+>                http://www.egenix.com/company/contact/
+>                       http://www.malemburg.com/
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+From stefan at bytereef.org  Mon Nov 19 06:59:34 2018
+From: stefan at bytereef.org (Stefan Krah)
+Date: Mon, 19 Nov 2018 12:59:34 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+Message-ID: <20181119115933.GA4918@bytereef.org>
+
+
+Victor Stinner wrote:
+
+> Moreover, I failed to find anyone who can explain me how the C API is used
+> in the wild, which functions are important or not, what is the C API, etc.
+
+In practice people desperately *have* to use whatever is there, including
+functions with underscores that are not even officially in the C-API.
+
+I have to use _PyFloat_Pack* in order to be compatible with CPython, I need
+PySlice_Unpack() etc., I need PyUnicode_KIND(), need PyUnicode_AsUTF8AndSize(),
+I *wish* there were PyUnicode_AsAsciiAndSize().
+
+
+In general, in daily use of the C-API I wish it were *larger* and not smaller.
+
+I often want functions that return C instead of Python values ot functions
+that take C instead of Python values.
+
+The ideal situation for me would be a lower layer library, say libcpython.a
+that has all those functions like _PyFloat_Pack*.
+
+It would be an enormous amount of work though, especially since the status quo
+kind of works.
+
+
+
+Stefan Krah
+
+
+
+
+From vstinner at redhat.com  Mon Nov 19 10:08:07 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 19 Nov 2018 16:08:07 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <20181119115933.GA4918@bytereef.org>
+References: <20181119115933.GA4918@bytereef.org>
+Message-ID: <CA+3bQGFzBcX25LO_Ert2XVckWB9MG-gMFF9pd2o=y-sc=Gqpuw@mail.gmail.com>
+
+Hi Stefan,
+
+Le lun. 19 nov. 2018 ? 13:18, Stefan Krah <stefan at bytereef.org> a ?crit :
+> In practice people desperately *have* to use whatever is there, including
+> functions with underscores that are not even officially in the C-API.
+>
+> I have to use _PyFloat_Pack* in order to be compatible with CPython,
+
+Oh, I never used this function. These functions are private (name
+prefixed by "_") and excluded from the limited API.
+
+For me, the limited API should be functions available on all Python
+implementations. Does it make sense to provide PyFloat_Pack4() in
+MicroPython, Jython, IronPython and PyPy? Or is it something more
+specific to CPython? I don't know the answer. If yes, open an issue to
+propose to make this function public?
+
+> I need PyUnicode_KIND()
+
+IMHO this one should not be part of the public API. The only usage
+would be to micro-optimize, but such API is very specific to one
+Python implementation. For example, PyPy doesn't use "compact string"
+but UTF-8 internally. If you use PyUnicode_KIND(), your code becomes
+incompatible with PyPy.
+
+What is your use case?
+
+I would prefer to expose the "_PyUnicodeWriter" API than PyUnicode_KIND().
+
+> need PyUnicode_AsUTF8AndSize(),
+
+Again, that's a micro-optimization and it's very specific to CPython:
+result cached in the "immutable" str object. I don't want to put it in
+a public API. PyUnicode_AsUTF8String() is better since it doesn't
+require an internal cache.
+
+> I *wish* there were PyUnicode_AsAsciiAndSize().
+
+PyUnicode_AsASCIIString() looks good to me. Sadly, it doesn't return
+the length, but usually the length is not needed.
+
+Victor
+
+From nas-python at arctrix.com  Mon Nov 19 13:13:30 2018
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Mon, 19 Nov 2018 12:13:30 -0600
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGEoUDA_+_oK45oqSFxHTNDNJ8k9Ux-gSSP+hGZgx3WBGQ@mail.gmail.com>
+References: <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+ <CAP1=2W47ccNeZBsBjoRpz6XX_St1Qf0XVMPmZqAO1xJ+-53C=w@mail.gmail.com>
+ <20181119104422.46d4bb29@fsol>
+ <CA+3bQGGJ93-UYZDH9ffe7ryQbBs4vTHa6sc_CGukFutsfef+uw@mail.gmail.com>
+ <20181119115342.5a538507@fsol>
+ <460193ad-6ae0-c54a-4335-8422268db84e@egenix.com>
+ <CA+3bQGEoUDA_+_oK45oqSFxHTNDNJ8k9Ux-gSSP+hGZgx3WBGQ@mail.gmail.com>
+Message-ID: <20181119181330.fb26vkhhkbyxsokd@python.ca>
+
+On 2018-11-19, Victor Stinner wrote:
+> Moreover, I failed to find anyone who can explain me how the C API
+> is used in the wild, which functions are important or not, what is
+> the C API, etc.
+
+One idea is to download a large sample of extension modules from
+PyPI and then analyze them with some automated tool (maybe
+libclang).  I guess it is possible there is a large non-public set
+of extensions that we would miss.
+
+Regards,
+
+  Neil
+
+From ja.py at farowl.co.uk  Mon Nov 19 14:16:21 2018
+From: ja.py at farowl.co.uk (Jeff Allen)
+Date: Mon, 19 Nov 2018 19:16:21 +0000
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <CA+3bQGFzBcX25LO_Ert2XVckWB9MG-gMFF9pd2o=y-sc=Gqpuw@mail.gmail.com>
+References: <20181119115933.GA4918@bytereef.org>
+ <CA+3bQGFzBcX25LO_Ert2XVckWB9MG-gMFF9pd2o=y-sc=Gqpuw@mail.gmail.com>
+Message-ID: <377de449-f028-fdb1-992c-7d96e8d1cea8@farowl.co.uk>
+
+On 19/11/2018 15:08, Victor Stinner wrote:
+> ...
+> For me, the limited API should be functions available on all Python
+> implementations. Does it make sense to provide PyFloat_Pack4() in
+> ..., Jython, ... ? Or is it something more
+> specific to CPython? I don't know the answer.
+I'd say it's a CPython thing. It is helpful to copy a lot of things from 
+the reference implementation, but generally the lexical conventions of 
+the C-API would seem ludicrous in Java, where scope is already provided 
+by a class. And then there's the impossibility of a C-like pointer to 
+byte. Names related to C-API have mnemonic value, though, in 
+translation. Maybe "static void PyFloat.pack4(double, ByteBuffer, 
+boolean)" would do the trick.
+
+It makes sense for JyNI to supply it by the exact C API name, and all 
+other API that C extensions are likely to use.
+
+Jeff Allen
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181119/11561f7b/attachment.html>
+
+From nas-python at arctrix.com  Mon Nov 19 17:03:19 2018
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Mon, 19 Nov 2018 16:03:19 -0600
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <20181119104422.46d4bb29@fsol>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+ <CAP1=2W47ccNeZBsBjoRpz6XX_St1Qf0XVMPmZqAO1xJ+-53C=w@mail.gmail.com>
+ <20181119104422.46d4bb29@fsol>
+Message-ID: <20181119220319.nzbpaglcatwbj2uj@python.ca>
+
+On 2018-11-19, Antoine Pitrou wrote:
+> There are important use cases for the C API where it is desired to have
+> fast type-specific access to Python objects such as tuples, ints,
+> strings, etc.  This is relied upon by modules such as _json and _pickle,
+> and third-party extensions as well.
+
+Thank you for pointing this out.  The feedback from Stefan on what
+Cython would like (e.g. more access to functions that are currently
+"internal") is useful too.  Keeping our dreams tied to reality
+is important. ;-P
+
+It seems to me that we can't "have our cake and eat it too". I.e. on
+the one hand hide CPython implementation internals but on the other
+hand allow extensions that want to take advantage of those internals
+to provide the best performance.
+
+Maybe we could have a multiple levels of API:
+
+A) maximum portability (Py_LIMITED_API)
+
+B) source portability (non-stable ABI, inlined functions)
+
+C) portability but poor performance on non-CPython VMs
+   (PySequence_Fast_ITEMS, borrowed refs, etc)
+
+D) non-portability, CPython specific (access to more internals like
+   Stefan was asking for).  The extension would have to be
+   re-implemented on each VM or provide a pure Python
+   alternative.
+
+I think it would be nice if the extension module could explicitly
+choose which level of API it wants to use.
+
+It would be interesting to do a census on what extensions are out
+there.  If they mostly fall into wanting level "C" then I think this
+API overhaul is not going to work out too well.  Level C is mostly
+what we have now.  No point in putting the effort into A and B if no
+one will use them.
+
+From chris.barker at noaa.gov  Mon Nov 19 19:14:03 2018
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Mon, 19 Nov 2018 16:14:03 -0800
+Subject: [Python-Dev] Need discussion for a PR about memory and objects
+In-Reply-To: <20181119103736.690ef0d7@fsol>
+References: <20181104104350.GA12859@xps>
+ <20181104130314.GU3817@ando.pearwood.info>
+ <CADiSq7c4YZfaXZUWZ_J3z4d80MMxuoKcKUyCSaYU=awMN5C5WQ@mail.gmail.com>
+ <20181119103736.690ef0d7@fsol>
+Message-ID: <CALGmxE+y4gCrEXJZhh7RS_hAQpWhcdmmuKKK4LsWXapQrHoT1w@mail.gmail.com>
+
+On Mon, Nov 19, 2018 at 1:41 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> I'd rather keep the reference to memory addressing than start doing car
+> analogies in the reference documentation.
+>
+
+I agree -- and any of the car analogies will probably be only valid in some
+jurisdictions, anyway.
+
+I think being a bit more explicit about what properties an ID has, and how
+the id() function works, and we may not need an anlogy at all, it's not
+that difficult a concept. And methions that in c_python the id is
+(currently) the memory address is a good idea for those that will wonder
+about it, and if there is enough explanation, folks that don't know about
+memory addresses will not get confused.
+
+This is what's in the docs now (3.8.0a0):
+
+"""
+Every object has an identity, a type and a value. An object?s identity
+never changes once it has been created; you may think of it as the object?s
+address in memory. The ?is? operator compares the identity of two objects;
+the id() function returns an integer representing its identity.
+
+**CPython implementation detail:** For CPython, id(x) is the memory address
+where x is stored.
+"""
+
+I suggest something like the following:
+
+"""
+Every object has an identity, a type and a value. An object?s identity
+uniquely identifies the object. It will remain the same as long as that
+object exists. No two different objects will have the same id at the same
+time, but the same id may be re-used for future objects once one has been
+deleted. The ?is? operator compares the identity of two objects; the id()
+function returns an integer representing its identity. ``id(object_a) ==
+id(object_b)`` if and only if they are the same object.
+
+**CPython implementation detail:** For CPython, id(x) is the memory address
+where x is stored.
+"""
+
+-CHB
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181119/8da6856d/attachment.html>
+
+From v+python at g.nevcal.com  Mon Nov 19 19:39:31 2018
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Mon, 19 Nov 2018 16:39:31 -0800
+Subject: [Python-Dev] Need discussion for a PR about memory and objects
+In-Reply-To: <CALGmxE+y4gCrEXJZhh7RS_hAQpWhcdmmuKKK4LsWXapQrHoT1w@mail.gmail.com>
+References: <20181104104350.GA12859@xps>
+ <20181104130314.GU3817@ando.pearwood.info>
+ <CADiSq7c4YZfaXZUWZ_J3z4d80MMxuoKcKUyCSaYU=awMN5C5WQ@mail.gmail.com>
+ <20181119103736.690ef0d7@fsol>
+ <CALGmxE+y4gCrEXJZhh7RS_hAQpWhcdmmuKKK4LsWXapQrHoT1w@mail.gmail.com>
+Message-ID: <3573cffd-ea04-3178-0cf3-f0353ce59fed@g.nevcal.com>
+
+On 11/19/2018 4:14 PM, Chris Barker via Python-Dev wrote:
+> On Mon, Nov 19, 2018 at 1:41 AM Antoine Pitrou <solipsis at pitrou.net 
+> <mailto:solipsis at pitrou.net>> wrote:
+>
+>     I'd rather keep the reference to memory addressing than start
+>     doing car
+>     analogies in the reference documentation.
+>
+>
+> I agree -- and any of the car analogies will probably be only valid in 
+> some jurisdictions, anyway.
+>
+> I think being a bit more explicit about what properties an ID has, and 
+> how the id() function works, and we may not need an anlogy at all, 
+> it's not that difficult a concept. And methions that in c_python the 
+> id is (currently) the memory address is a good idea for those that 
+> will wonder about it, and if there is enough explanation, folks that 
+> don't know about memory addresses will not get confused.
+>
+> This is what's in the docs now (3.8.0a0):
+>
+> """
+> Every object has an identity, a type and a value. An object?s identity 
+> never changes once it has been created; you may think of it as the 
+> object?s address in memory. The ?is? operator compares the identity of 
+> two objects; the id() function returns an integer representing its 
+> identity.
+>
+> **CPython implementation detail:** For CPython, id(x) is the memory 
+> address where x is stored.
+> """
+>
+> I suggest something like the following:
+>
+> """
+> Every object has an identity, a type and a value. An object?s identity 
+> uniquely identifies the object. It will remain the same as long as 
+> that object exists. No two different objects will have the same id at 
+> the same time, but the same id may be re-used for future objects once 
+> one has been deleted. The ?is? operator compares the identity of two 
+> objects; the id() function returns an integer representing its 
+> identity. ``id(object_a) == id(object_b)`` if and only if they are the 
+> same object.
+>
+> **CPython implementation detail:** For CPython, id(x) is the memory 
+> address where x is stored.
+> """
+>
+
+Well re-worded in my opinion.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181119/116ab55b/attachment.html>
+
+From bcannon at gmail.com  Mon Nov 19 21:17:03 2018
+From: bcannon at gmail.com (Brett Cannon)
+Date: Mon, 19 Nov 2018 18:17:03 -0800
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <20181119220319.nzbpaglcatwbj2uj@python.ca>
+References: <CA+3bQGGcuo_-fdJwrisGP6+h6CuNzcErSoacaQySEb5h4nOQEQ@mail.gmail.com>
+ <CAPJVwBmKHMMKypLDhjhkWHSE7HnHSh_irqaRfCug_+YL4jOtqw@mail.gmail.com>
+ <CAGE7PNJeKGiVA5i8=Xrh6bRS7M=AURUPr8TjadQXEhCQuNwbWw@mail.gmail.com>
+ <CAPJVwBnHefR1R84gC9Z2LzCZCd0VTV5ZR+m=+ri2spk6e2HZXA@mail.gmail.com>
+ <CAGE7PNJWuZBYV0kRRO0n2yiRROkmtmFY7RKfDNsY0dTxY+dFww@mail.gmail.com>
+ <CAP1=2W47ccNeZBsBjoRpz6XX_St1Qf0XVMPmZqAO1xJ+-53C=w@mail.gmail.com>
+ <20181119104422.46d4bb29@fsol> <20181119220319.nzbpaglcatwbj2uj@python.ca>
+Message-ID: <CAP1=2W6XjtG91bOAgdE5sm_prGQA0J6rYY_9u0oULhpcZL8PiA@mail.gmail.com>
+
+On Mon., Nov. 19, 2018, 14:04 Neil Schemenauer <nas-python at arctrix.com
+wrote:
+
+> On 2018-11-19, Antoine Pitrou wrote:
+> > There are important use cases for the C API where it is desired to have
+> > fast type-specific access to Python objects such as tuples, ints,
+> > strings, etc.  This is relied upon by modules such as _json and _pickle,
+> > and third-party extensions as well.
+>
+> Thank you for pointing this out.  The feedback from Stefan on what
+> Cython would like (e.g. more access to functions that are currently
+> "internal") is useful too.  Keeping our dreams tied to reality
+> is important. ;-P
+>
+> It seems to me that we can't "have our cake and eat it too". I.e. on
+> the one hand hide CPython implementation internals but on the other
+> hand allow extensions that want to take advantage of those internals
+> to provide the best performance.
+>
+
+No, but those are different APIs as well. E.g. no one is saying CPython has
+to do away with any of its API. What I and some others have said is the
+CPython API is too broad to be called "universal".
+
+
+> Maybe we could have a multiple levels of API:
+>
+> A) maximum portability (Py_LIMITED_API)
+>
+> B) source portability (non-stable ABI, inlined functions)
+>
+> C) portability but poor performance on non-CPython VMs
+>    (PySequence_Fast_ITEMS, borrowed refs, etc)
+>
+
+I don't know own how doable that is as e.g. borrowed refs are not pleasant
+to simulate.
+
+
+> D) non-portability, CPython specific (access to more internals like
+>    Stefan was asking for).  The extension would have to be
+>    re-implemented on each VM or provide a pure Python
+>    alternative.
+
+
+> I think it would be nice if the extension module could explicitly
+> choose which level of API it wants to use.
+>
+
+Yes, and I thought we were working towards nesting our header files so you
+very clearly opted into your level of compatibility.
+
+In my head there's:
+- bare minimum, cross-VM, gets you FFI
+- CPython API for more performance that we're willing to maintain
+- Everything open for e.g. CPython with no compatibility guarantees
+
+Due note my first point isn't necessarily worrying about crazy performance
+to start. I would assume an alternative VM would help make up for this with
+a faster runtime where dropping into C is more about FFI than performance
+(we all know PyPy, for instance, wished people just wrote more Python code).
+
+Otherwise we're back to the idea of standardizing on some Cython solution
+to help make perfect easier without tying oneself to the C API (like
+Julia's FFI solution).
+
+
+> It would be interesting to do a census on what extensions are out
+> there.  If they mostly fall into wanting level "C" then I think this
+> API overhaul is not going to work out too well.  Level C is mostly
+> what we have now.  No point in putting the effort into A and B if no
+> one will use them.
+
+
+It won't until someone can show benefits for switching. This is very much a
+chicken-and-egg problem.
+
+
+_______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181119/556ccc4d/attachment.html>
+
+From steve at pearwood.info  Mon Nov 19 22:07:27 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Tue, 20 Nov 2018 14:07:27 +1100
+Subject: [Python-Dev] Need discussion for a PR about memory and objects
+In-Reply-To: <CALGmxE+y4gCrEXJZhh7RS_hAQpWhcdmmuKKK4LsWXapQrHoT1w@mail.gmail.com>
+References: <20181104104350.GA12859@xps>
+ <20181104130314.GU3817@ando.pearwood.info>
+ <CADiSq7c4YZfaXZUWZ_J3z4d80MMxuoKcKUyCSaYU=awMN5C5WQ@mail.gmail.com>
+ <20181119103736.690ef0d7@fsol>
+ <CALGmxE+y4gCrEXJZhh7RS_hAQpWhcdmmuKKK4LsWXapQrHoT1w@mail.gmail.com>
+Message-ID: <20181120030725.GB5054@ando.pearwood.info>
+
+Responding to a few points out of order.
+
+On Mon, Nov 19, 2018 at 04:14:03PM -0800, Chris Barker via Python-Dev wrote:
+
+> I think being a bit more explicit about what properties an ID has, and how
+> the id() function works, and we may not need an anlogy at all, it's not
+> that difficult a concept.
+[...]
+
+> I suggest something like the following:
+> 
+> """
+> Every object has an identity, a type and a value. An object?s identity
+> uniquely identifies the object. It will remain the same as long as that
+> object exists. No two different objects will have the same id at the same
+> time, but the same id may be re-used for future objects once one has been
+> deleted. The ?is? operator compares the identity of two objects; the id()
+> function returns an integer representing its identity. ``id(object_a) ==
+> id(object_b)`` if and only if they are the same object.
+
+That looks good to me. However...
+
+> And methions that in c_python the id is
+> (currently) the memory address is a good idea for those that will wonder
+> about it, and if there is enough explanation, folks that don't know about
+> memory addresses will not get confused.
+
+I don't think that the problem is that people don't understand the 
+"memory address as ID" implementation. I think the problem is people who 
+can't separate the implementation from the interface. jThere is a small 
+minority of developers, not just beginners, who insist that 
+(paraphrasing) "the id() function returns the object's memory address", 
+which leads others asking how to dereference the ID to get access to the 
+object.
+
+E.g. I recently saw somebody on Reddit asking how to delete an object 
+given its address in Python.
+
+I admit that this is just a minor point of confusion. We're not exactly 
+innundated with dozens of requests for pointer arithmetic and PEEK/POKE 
+commands *wink* but if we can reduce the confusion even further, that 
+would be nice. We've had 20+ years of telling people that the C memory 
+address of the object is an implementation detail, and some folks still 
+don't get it.
+
+I'd like to that we reduce the emphasis on memory address in the docs. 
+Perhaps all the way to zero :-)
+
+As you quoted, we currently we have a note in the docs that says:
+
+  **CPython implementation detail:** For CPython, id(x) is the memory 
+  address where x is stored.
+
+I'd like to banish that note to the C-API docs (I'm not sure where), the 
+FAQs (which apparently nobody ever reads *wink*) or perhaps just link to 
+the source and let those who care read if for themselves.
+
+Instead, I'd like a more comprehensive comment directly in the 
+description of id, something like:
+
+   There are no guarantees made for the ID number except as above.
+   For example, Python implementations are known to take IDs from a 
+   sequential series of integers (1, 2, 3, ...), or use arbitrary 
+   implementation-defined values (263459012). Any such integer is
+   permitted so long as the ID is constant and unique for the 
+   lifespan of the object.
+
+
+
+-- 
+Steve
+
