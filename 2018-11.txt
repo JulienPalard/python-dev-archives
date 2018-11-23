@@ -9616,3 +9616,239 @@ JITs probably don't! so that leads to the scenario you describe.
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181120/f154403e/attachment.html>
 
+From solipsis at pitrou.net  Wed Nov 21 06:08:06 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 21 Nov 2018 12:08:06 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+References: <20181119115933.GA4918@bytereef.org>
+ <CA+3bQGFzBcX25LO_Ert2XVckWB9MG-gMFF9pd2o=y-sc=Gqpuw@mail.gmail.com>
+ <20181120220439.GA2765@bytereef.org>
+ <CA+3bQGFeQ7WcZkGNEtgJVTm=kmytivs6FKh-UVV8hsrDX-Lx4A@mail.gmail.com>
+Message-ID: <20181121120806.65c9fbcf@fsol>
+
+On Tue, 20 Nov 2018 23:17:05 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> Le mar. 20 nov. 2018 ? 23:08, Stefan Krah <stefan at bytereef.org> a ?crit :
+> > Intuitively, it should probably not be part of a limited API, but I never
+> > quite understood the purpose of this API, because I regularly need any
+> > function that I can get my hands on.
+> > (...)
+> > Reading typed strings directly into an array with minimal overhead.  
+> 
+> IMHO performance and hiding implementation details are exclusive. You
+> should either use the C API with impl. details for best performances,
+> or use a "limited" C API for best compatibility.
+> 
+> Since I would like to not touch the C API with impl. details, you can
+> imagine to have two compilation modes: one for best performances on
+> CPython, one for best compatibility (ex: compatible with PyPy). I'm
+> not sure how the "compilation mode" will be selected.
+
+You mean the same API can compile to two different things depending on
+a configuration?
+
+I expect it to be error-prone.  For example, let's suppose I want to
+compile in a given mode, but I also use Numpy's C API.  Will the
+compile mode "leak" to Numpy as well?  What if a third-party header
+includes "Python.h" before I do the "#define" that's necessary?
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Wed Nov 21 06:52:34 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 21 Nov 2018 12:52:34 +0100
+Subject: [Python-Dev] Experiment an opt-in new C API for Python? (leave
+ current API unchanged)
+In-Reply-To: <20181121120806.65c9fbcf@fsol>
+References: <20181119115933.GA4918@bytereef.org>
+ <CA+3bQGFzBcX25LO_Ert2XVckWB9MG-gMFF9pd2o=y-sc=Gqpuw@mail.gmail.com>
+ <20181120220439.GA2765@bytereef.org>
+ <CA+3bQGFeQ7WcZkGNEtgJVTm=kmytivs6FKh-UVV8hsrDX-Lx4A@mail.gmail.com>
+ <20181121120806.65c9fbcf@fsol>
+Message-ID: <CA+3bQGGXe-G4KzaTO3nncc=YTgVf40VZvvNtjyezn11UBCv_SQ@mail.gmail.com>
+
+Le mer. 21 nov. 2018 ? 12:11, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> You mean the same API can compile to two different things depending on
+> a configuration?
+
+Yes, my current plan is to keep #include <Python.h> but have an opt-in
+define to switch to the new C API.
+
+> I expect it to be error-prone.  For example, let's suppose I want to
+> compile in a given mode, but I also use Numpy's C API.  Will the
+> compile mode "leak" to Numpy as well?
+
+For example, if we continue to use Py_LIMITED_API: I don't think that
+Numpy currently uses #ifdef Py_LIMITED_API, nor plans to do that.
+
+If we add a new define (ex: my current proof-of-concept uses
+Py_NEWCAPI), we can make sure that it's not already used by Numpy :-)
+
+>  What if a third-party header
+> includes "Python.h" before I do the "#define" that's necessary?
+
+IMHO the define should be added by distutils directly, using -D
+<the_define_name> in compiler flags.
+
+I wouldn't suggest:
+
+#define <the_define_name>
+#include <Python.h>
+
+But the two APIs should diverge, so your C extension should also use a
+define to decide to use the old or the new API. So something will
+break if you mess up in the compilation :-)
+
+Victor
+
+From mcepl at cepl.eu  Wed Nov 21 09:38:04 2018
+From: mcepl at cepl.eu (=?UTF-8?Q?Mat=C4=9Bj?= Cepl)
+Date: Wed, 21 Nov 2018 15:38:04 +0100
+Subject: [Python-Dev] Missing functions [Was: Re: Experiment an opt-in new C
+ API for Python? (leave current API unchanged)]
+References: <20181119115933.GA4918@bytereef.org>
+Message-ID: <slrnpvarec.mj6.mcepl@milic.suse.cz>
+
+On 2018-11-19, 11:59 GMT, Stefan Krah wrote:
+> In practice people desperately *have* to use whatever is 
+> there, including functions with underscores that are not even 
+> officially in the C-API.
+
+Yes, there are some functions which evaporated and I have never 
+heard a reason why and how I am supposed to overcome their 
+removal. E.g., when porting M2Crypto to Python3 I had to 
+reimplement my own (bad) version of `FILE* 
+PyFile_AsFile(PyObject *pyfile)` function 
+(https://is.gd/tgQGDw). I think it is obvious why it is 
+necessary for C bindings, and I have never found a way how to 
+get the underlying FILE handle from the Python File object 
+properly.   
+
+Just my ?0.02.
+
+Mat?j
+-- 
+https://matej.ceplovi.cz/blog/, Jabber: mcepl at ceplovi.cz
+GPG Finger: 3C76 A027 CA45 AD70 98B5  BC1D 7920 5802 880B C9D8
+ 
+All of us could take a lesson from the weather. It pays no
+attention to criticism.
+  -- somewhere on the Intenret
+
+
+From benjamin at python.org  Wed Nov 21 09:54:19 2018
+From: benjamin at python.org (Benjamin Peterson)
+Date: Wed, 21 Nov 2018 09:54:19 -0500
+Subject: [Python-Dev] 
+ =?utf-8?q?Missing_functions_=5BWas=3A_Re=3A_Experim?=
+ =?utf-8?q?ent_an_opt-in_new_C_API_for_Python=3F_=28leave_current_API_unch?=
+ =?utf-8?q?anged=29=5D?=
+In-Reply-To: <slrnpvarec.mj6.mcepl@milic.suse.cz>
+References: <20181119115933.GA4918@bytereef.org>
+ <slrnpvarec.mj6.mcepl@milic.suse.cz>
+Message-ID: <7d26c00b-7cac-48c4-8cbd-807448c1df7f@sloti1d3t01>
+
+
+
+On Wed, Nov 21, 2018, at 06:53, Mat?j Cepl wrote:
+> On 2018-11-19, 11:59 GMT, Stefan Krah wrote:
+> > In practice people desperately *have* to use whatever is 
+> > there, including functions with underscores that are not even 
+> > officially in the C-API.
+> 
+> Yes, there are some functions which evaporated and I have never 
+> heard a reason why and how I am supposed to overcome their 
+> removal. E.g., when porting M2Crypto to Python3 I had to 
+> reimplement my own (bad) version of `FILE* 
+> PyFile_AsFile(PyObject *pyfile)` function 
+> (https://is.gd/tgQGDw). I think it is obvious why it is 
+> necessary for C bindings, and I have never found a way how to 
+> get the underlying FILE handle from the Python File object 
+> properly.   
+
+In Python 3, there is no underlying FILE* because the io module is implemented using fds directly rather than C stdio.
+
+From vstinner at redhat.com  Wed Nov 21 10:07:12 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 21 Nov 2018 16:07:12 +0100
+Subject: [Python-Dev] Missing functions [Was: Re: Experiment an opt-in
+ new C API for Python? (leave current API unchanged)]
+In-Reply-To: <slrnpvarec.mj6.mcepl@milic.suse.cz>
+References: <20181119115933.GA4918@bytereef.org>
+ <slrnpvarec.mj6.mcepl@milic.suse.cz>
+Message-ID: <CA+3bQGFaUog6Ey_XNeXSMs9Jdieem_tBnnmS8LsOjWa-QCb5Hg@mail.gmail.com>
+
+Please open a bug report once you have such issue ;-)
+
+Victor
+Le mer. 21 nov. 2018 ? 15:56, Mat?j Cepl <mcepl at cepl.eu> a ?crit :
+>
+> On 2018-11-19, 11:59 GMT, Stefan Krah wrote:
+> > In practice people desperately *have* to use whatever is
+> > there, including functions with underscores that are not even
+> > officially in the C-API.
+>
+> Yes, there are some functions which evaporated and I have never
+> heard a reason why and how I am supposed to overcome their
+> removal. E.g., when porting M2Crypto to Python3 I had to
+> reimplement my own (bad) version of `FILE*
+> PyFile_AsFile(PyObject *pyfile)` function
+> (https://is.gd/tgQGDw). I think it is obvious why it is
+> necessary for C bindings, and I have never found a way how to
+> get the underlying FILE handle from the Python File object
+> properly.
+>
+> Just my ?0.02.
+>
+> Mat?j
+> --
+> https://matej.ceplovi.cz/blog/, Jabber: mcepl at ceplovi.cz
+> GPG Finger: 3C76 A027 CA45 AD70 98B5  BC1D 7920 5802 880B C9D8
+>
+> All of us could take a lesson from the weather. It pays no
+> attention to criticism.
+>   -- somewhere on the Intenret
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+From mcepl at cepl.eu  Wed Nov 21 10:11:54 2018
+From: mcepl at cepl.eu (=?UTF-8?Q?Mat=C4=9Bj?= Cepl)
+Date: Wed, 21 Nov 2018 16:11:54 +0100
+Subject: [Python-Dev] Missing functions [Was: Re: Experiment an opt-in
+ new C API for Python? (leave current API unchanged)]
+References: <20181119115933.GA4918@bytereef.org>
+ <slrnpvarec.mj6.mcepl@milic.suse.cz>
+ <7d26c00b-7cac-48c4-8cbd-807448c1df7f@sloti1d3t01>
+Message-ID: <slrnpvatdq.obr.mcepl@milic.suse.cz>
+
+On 2018-11-21, 14:54 GMT, Benjamin Peterson wrote:
+> In Python 3, there is no underlying FILE* because the io 
+> module is implemented using fds directly rather than C stdio.
+
+OK, so the proper solution is to kill all functions which expect 
+FILE, and if you are anal retentive about stability of API, then 
+you have to fake it by creating FILE structure around the 
+underlying fd handler as I did in M2Crypto, right?
+
+Best,
+
+Mat?j
+-- 
+https://matej.ceplovi.cz/blog/, Jabber: mcepl at ceplovi.cz
+GPG Finger: 3C76 A027 CA45 AD70 98B5  BC1D 7920 5802 880B C9D8
+ 
+If you have a problem and you think awk(1) is the solution, then
+you have two problems.
+   -- David Tilbrook (at least 1989, source of the later famous
+      jwz rant on regular expressions).
+
+
