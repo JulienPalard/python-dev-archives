@@ -9852,3 +9852,66 @@ you have two problems.
       jwz rant on regular expressions).
 
 
+From encukou at gmail.com  Thu Nov 22 05:13:00 2018
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 22 Nov 2018 11:13:00 +0100
+Subject: [Python-Dev] Missing functions [Was: Re: Experiment an opt-in
+ new C API for Python? (leave current API unchanged)]
+In-Reply-To: <slrnpvatdq.obr.mcepl@milic.suse.cz>
+References: <20181119115933.GA4918@bytereef.org>
+ <slrnpvarec.mj6.mcepl@milic.suse.cz>
+ <7d26c00b-7cac-48c4-8cbd-807448c1df7f@sloti1d3t01>
+ <slrnpvatdq.obr.mcepl@milic.suse.cz>
+Message-ID: <23f8b8b8-ce78-bc79-bb33-41b31a77f376@gmail.com>
+
+On 11/21/18 4:11 PM, Mat?j Cepl wrote:
+> On 2018-11-21, 14:54 GMT, Benjamin Peterson wrote:
+>> In Python 3, there is no underlying FILE* because the io
+>> module is implemented using fds directly rather than C stdio.
+> 
+> OK, so the proper solution is to kill all functions which expect
+> FILE
+
+Indeed.
+This has another side to it: there are file-like objects that aren't 
+backed by FILE*. In most case, being a "real" file is an unnecessary 
+distinction, like that between the old `int` vs. `long`. "Fits in the 
+machine register" is a detail from a level below Python, and so is "the 
+kernel treats this as a file".
+
+Of course, this is not how C libraries work -- so, sadly, it makes 
+wrappers harder to write. And a perfect solution might require adding 
+more generic I/O to the C library.
+
+
+> and if you are anal retentive about stability of API, then
+> you have to fake it by creating FILE structure around the
+> underlying fd handler as I did in M2Crypto, right?
+
+Yes, AFAIK that is the least bad solution.
+I did something very similar here: 
+https://github.com/encukou/py3c/blob/master/include/py3c/fileshim.h
+
+
+From mcepl at cepl.eu  Thu Nov 22 06:43:13 2018
+From: mcepl at cepl.eu (=?UTF-8?Q?Mat=C4=9Bj?= Cepl)
+Date: Thu, 22 Nov 2018 12:43:13 +0100
+Subject: [Python-Dev] Missing functions [Was: Re: Experiment an opt-in
+ new C API for Python? (leave current API unchanged)]
+References: <20181119115933.GA4918@bytereef.org>
+ <slrnpvarec.mj6.mcepl@milic.suse.cz>
+ <7d26c00b-7cac-48c4-8cbd-807448c1df7f@sloti1d3t01>
+ <slrnpvatdq.obr.mcepl@milic.suse.cz>
+ <23f8b8b8-ce78-bc79-bb33-41b31a77f376@gmail.com>
+Message-ID: <slrnpvd5ih.vih.mcepl@milic.suse.cz>
+
+On 2018-11-22, 10:13 GMT, Petr Viktorin wrote:
+> Yes, AFAIK that is the least bad solution.
+> I did something very similar here: 
+> https://github.com/encukou/py3c/blob/master/include/py3c/fileshim.h
+
+Thank you.
+
+Mat?j
+
+
