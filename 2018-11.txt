@@ -9915,3 +9915,546 @@ Thank you.
 Mat?j
 
 
+From vstinner at redhat.com  Fri Nov 23 07:58:24 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 23 Nov 2018 13:58:24 +0100
+Subject: [Python-Dev] General concerns about C API changes
+In-Reply-To: <pss552$33r$1@blaine.gmane.org>
+References: <62A87B15-0F0E-4242-BF44-9C58FE890D8B@gmail.com>
+ <CAGE7PNLmd3r7jrEwSNQd+ELXoGNkt2JUm-rhaAPkXZpna_A8WQ@mail.gmail.com>
+ <pss552$33r$1@blaine.gmane.org>
+Message-ID: <CA+3bQGGS8daipO+wCpTwp2U=x2jYTCqEfTKxgfnaxDrfuz-jGQ@mail.gmail.com>
+
+Le dim. 18 nov. 2018 ? 17:54, Stefan Behnel <stefan_ml at behnel.de> a ?crit :
+> It's also slower to compile, given that function inlining happens at a much
+> later point in the compiler pipeline than macro expansion. The C compiler
+> won't even get to see macros in fact, whereas whether to inline a function
+> or not is a dedicated decision during the optimisation phase based on
+> metrics collected in earlier stages. For something as ubiquitous as
+> Py_INCREF/Py_DECREF, it might even be visible in the compilation times.
+
+I ran a benchmark: there is no significant slowdown (+4 seconds, 6%
+slower, in the worst case).
+https://bugs.python.org/issue35059#msg330316
+
+
+> Now imagine that you have an inline function that executes several
+> Py_INCREF/Py_DECREF call cycles, and the C compiler happens to slightly
+> overestimate the weights of these two. Then it might end up deciding
+> against inlining the function now, whereas it previously might have decided
+> for it since it was able to see the exact source code expanded from the
+> macros. I think that's what Raymond meant with his concerns regarding
+> changing macros into inline functions. C compilers might be smart enough to
+> always inline CPython's new inline functions themselves, but the style
+> change can still have unexpected transitive impacts on code that uses them.
+
+I ran the performance benchmark suite to compare C macros to static
+inline functions: there is no significant impact on performance.
+https://bugs.python.org/issue35059#msg330302
+
+
+> I agree with Raymond that as long as there is no clear gain in this code
+> churn, we should not underestimate the risk of degarding code on user side.
+
+I don't understand how what you mean with "degarding code on user
+side". If you are talking about performance, again, my changes have no
+significant impact on performance (not on compilation time nor runtime
+performance).
+
+
+> "there is no clear gain in this code churn"
+
+There are multiple advantages:
+
+* Better development and debugging experience: tools understand
+inlined functions much better than C macros: gdb, Linux perf, etc.
+
+* Better API: arguments now have a type and the function has a return
+type. In practice, some macros still cast their argument to PyObject*
+to not introduce new compiler warnings in Python 3.8. For example,
+even if Py_INCREF() is documented (*) as a function expecting
+PyObject*, it accepts any pointer type (PyTupleObject*,
+PyUnicodeObject*, etc.). Technically, it also accepts PyObject** which
+is a bug, but that's a different story ;-)
+
+* Much better code, just plain regular C. C macros are ugly: "do { ...
+} while (0)" workaround, additional parenthesis around each argument,
+strange "expr1, expr2" syntax of "macro expression" which returns a
+value (inline function just uses regular "return" and ";" at the end
+of instructions), strange indentation, etc.
+
+* No more "macro pitfals":
+https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html
+
+* Local variables no longer need a magic name to avoid risk of name
+conflict, and have a clearly defined scope. Py_DECREF() and
+_Py_XINCREF() no longer need a local variable since it's argument
+already has a clearly defined type: PyObject*. I introduced a new
+variable in _Py_Dealloc() to fix a possible race condition.
+Previously, the variable was probably avoided because it's tricky use
+variables in macros.
+
+* #ifdef can now be used inside the inline function: it makes the code
+easier to understand.
+
+* etc.
+
+
+Are you aware that Python had macros like:
+
+#define _Py_REF_DEBUG_COMMA ,
+#define _Py_CHECK_REFCNT(OP) /* a semicolon */;
+
+I let you judge the quality of this macro:
+
+#define _Py_NewReference(op) (                          \
+    _Py_INC_TPALLOCS(op) _Py_COUNT_ALLOCS_COMMA         \
+    _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA               \
+    Py_REFCNT(op) = 1)
+
+Is it an expression? Can it be used in "if (test)
+_Py_NewReference(op);"? It doesn't use the "do { ... } while (0)"
+protection against macro pitfals.
+
+(*) Py_INCREF doc:
+https://docs.python.org/dev/c-api/refcounting.html#c.Py_INCREF
+
+Victor
+
+From armin.rigo at gmail.com  Fri Nov 23 08:15:27 2018
+From: armin.rigo at gmail.com (Armin Rigo)
+Date: Fri, 23 Nov 2018 15:15:27 +0200
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+Message-ID: <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+
+Hi Hugo, hi all,
+
+On Sun, 18 Nov 2018 at 22:53, Hugh Fisher <hugo.fisher at gmail.com> wrote:
+> I suggest that for the language reference, use the license plate
+> or registration analogy to introduce "handle" and after that use
+> handle throughout. It's short, distinctive, and either will match
+> up with what the programmer already knows or won't clash if
+> or when they encounter handles elsewhere.
+
+FWIW, a "handle" is typically something that users of an API store and
+pass around, and which can be used to do all operations on some
+object.  It is whatever a specific implementation needs to describe
+references to an object.  In the CPython C API, this is ``PyObject*``.
+I think that using "handle" for something more abstract is just going
+to create confusion.
+
+Also FWIW, my own 2 cents on the topic of changing the C API: let's
+entirely drop ``PyObject *`` and instead use more opaque
+handles---like a ``PyHandle`` that is defined as a pointer-sized C
+type but is not actually directly a pointer.  The main difference this
+would make is that the user of the API cannot dereference anything
+from the opaque handle, nor directly compare handles with each other
+to learn about object identity.  They would work exactly like Windows
+handles or POSIX file descriptors.  These handles would be returned by
+C API calls, and would need to be closed when no longer used.  Several
+different handles may refer to the same object, which stays alive for
+at least as long as there are open handles to it.  Doing it this way
+would untangle the notion of objects from their actual implementation.
+In CPython objects would internally use reference counting, a handle
+is really just a PyObject pointer in disguise, and closing a handle
+decreases the reference counter.  In PyPy we'd have a global table of
+"open objects", and a handle would be an index in that table; closing
+a handle means writing NULL into that table entry.  No emulated
+reference counting needed: we simply use the existing GC to keep alive
+objects that are referenced from one or more table entries.  The cost
+is limited to a single indirection.
+
+The C API would change a lot, so it's not reasonable to do that in the
+CPython repo.  But it could be a third-party project, attempting to
+define an API like this and implement it well on top of both CPython
+and PyPy.  IMHO this might be a better idea than just changing the API
+of functions defined long ago to make them more regular (e.g. stop
+returning borrowed references); by now this would mostly mean creating
+more work for the PyPy team to track and adapt to the changes, with no
+real benefits.
+
+
+A bient?t,
+
+Armin.
+
+From status at bugs.python.org  Fri Nov 23 12:10:08 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 23 Nov 2018 18:10:08 +0100 (CET)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20181123171008.15C765657E@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-11-16 - 2018-11-23)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6865 ( +2)
+  closed 40187 (+33)
+  total  47052 (+35)
+
+Open issues with patches: 2735 
+
+
+Issues opened (27)
+==================
+
+#35148: cannot activate a venv environment on a Swiss German windows
+https://bugs.python.org/issue35148  reopened by vinay.sajip
+
+#35267: reproducible deadlock with multiprocessing.Pool
+https://bugs.python.org/issue35267  opened by dzhu
+
+#35268: Windows asyncio reading continously stdin and stdout Stockfish
+https://bugs.python.org/issue35268  opened by Cezary.Wagner
+
+#35270: Cmd.complete does not handle cmd=None
+https://bugs.python.org/issue35270  opened by blueyed
+
+#35271: venv creates pyvenv.cfg with wrong home
+https://bugs.python.org/issue35271  opened by wvxvw
+
+#35272: sqlite3 get the connected database url
+https://bugs.python.org/issue35272  opened by midnio
+
+#35276: Document thread safety
+https://bugs.python.org/issue35276  opened by vstinner
+
+#35277: Upgrade bundled pip/setuptools
+https://bugs.python.org/issue35277  opened by dstufft
+
+#35278: [security] directory traversal in tempfile prefix
+https://bugs.python.org/issue35278  opened by Yusuke Endoh
+
+#35279: asyncio uses too many threads by default
+https://bugs.python.org/issue35279  opened by Vojt??ch Bo??ek
+
+#35280: Interactive shell overwrites history
+https://bugs.python.org/issue35280  opened by dingens
+
+#35281: Allow access to unittest.TestSuite tests
+https://bugs.python.org/issue35281  opened by lbenezriravin
+
+#35282: Add a return value to lib2to3.refactor.refactor_file and refac
+https://bugs.python.org/issue35282  opened by martindemello
+
+#35283: "threading._DummyThread" redefines "is_alive" but forgets "isA
+https://bugs.python.org/issue35283  opened by dmaurer
+
+#35284: Incomplete error handling in Python/compile.c:compiler_call()
+https://bugs.python.org/issue35284  opened by ZackerySpytz
+
+#35285: Make Proactor api extensible for reasonably any file handle
+https://bugs.python.org/issue35285  opened by Ignas Bra??i??kis
+
+#35286: wrong result for difflib.SequenceMatcher
+https://bugs.python.org/issue35286  opened by Boris Yang
+
+#35291: duplicate of memoryview from io.BufferedWriter leaks
+https://bugs.python.org/issue35291  opened by jmadden
+
+#35292: Make SimpleHTTPRequestHandler load mimetypes lazily
+https://bugs.python.org/issue35292  opened by steve.dower
+
+#35293: make doctest (Sphinx) emits a lot of warnings
+https://bugs.python.org/issue35293  opened by vstinner
+
+#35294: Race condition involving SocketServer.TCPServer
+https://bugs.python.org/issue35294  opened by Ruslan Dautkhanov
+
+#35295: Please clarify whether PyUnicode_AsUTF8AndSize() or PyUnicode_
+https://bugs.python.org/issue35295  opened by Marcin Kowalczyk
+
+#35297: untokenize documentation is not correct
+https://bugs.python.org/issue35297  opened by csernazs
+
+#35298: Segfault in _PyObject_GenericGetAttrWithDict
+https://bugs.python.org/issue35298  opened by gilado
+
+#35299: LGHT0091: Duplicate symbol 'File:include_pyconfig.h' found
+https://bugs.python.org/issue35299  opened by neyuru
+
+#35300: Bug with memoization and mutable objects
+https://bugs.python.org/issue35300  opened by bolorsociedad
+
+#35301: python.exe crashes - lzma?
+https://bugs.python.org/issue35301  opened by jonathan-lp
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#35301: python.exe crashes - lzma?
+https://bugs.python.org/issue35301
+
+#35299: LGHT0091: Duplicate symbol 'File:include_pyconfig.h' found
+https://bugs.python.org/issue35299
+
+#35298: Segfault in _PyObject_GenericGetAttrWithDict
+https://bugs.python.org/issue35298
+
+#35297: untokenize documentation is not correct
+https://bugs.python.org/issue35297
+
+#35295: Please clarify whether PyUnicode_AsUTF8AndSize() or PyUnicode_
+https://bugs.python.org/issue35295
+
+#35294: Race condition involving SocketServer.TCPServer
+https://bugs.python.org/issue35294
+
+#35291: duplicate of memoryview from io.BufferedWriter leaks
+https://bugs.python.org/issue35291
+
+#35285: Make Proactor api extensible for reasonably any file handle
+https://bugs.python.org/issue35285
+
+#35284: Incomplete error handling in Python/compile.c:compiler_call()
+https://bugs.python.org/issue35284
+
+#35282: Add a return value to lib2to3.refactor.refactor_file and refac
+https://bugs.python.org/issue35282
+
+#35280: Interactive shell overwrites history
+https://bugs.python.org/issue35280
+
+#35279: asyncio uses too many threads by default
+https://bugs.python.org/issue35279
+
+#35270: Cmd.complete does not handle cmd=None
+https://bugs.python.org/issue35270
+
+#35264: SSL Module build fails with OpenSSL 1.1.0 for Python 2.7
+https://bugs.python.org/issue35264
+
+#35263: Add None handling for get_saved() in IDLE
+https://bugs.python.org/issue35263
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#35284: Incomplete error handling in Python/compile.c:compiler_call()
+https://bugs.python.org/issue35284
+
+#35283: "threading._DummyThread" redefines "is_alive" but forgets "isA
+https://bugs.python.org/issue35283
+
+#35282: Add a return value to lib2to3.refactor.refactor_file and refac
+https://bugs.python.org/issue35282
+
+#35278: [security] directory traversal in tempfile prefix
+https://bugs.python.org/issue35278
+
+#35277: Upgrade bundled pip/setuptools
+https://bugs.python.org/issue35277
+
+#35270: Cmd.complete does not handle cmd=None
+https://bugs.python.org/issue35270
+
+#35266: Add _PyPreConfig and rework _PyCoreConfig and _PyMainInterpret
+https://bugs.python.org/issue35266
+
+#35264: SSL Module build fails with OpenSSL 1.1.0 for Python 2.7
+https://bugs.python.org/issue35264
+
+#35263: Add None handling for get_saved() in IDLE
+https://bugs.python.org/issue35263
+
+#35259: Py_FinalizeEx unconditionally exists in Py_LIMITED_API
+https://bugs.python.org/issue35259
+
+#35255: delete "How do I extract the downloaded documentation" section
+https://bugs.python.org/issue35255
+
+#35252: test_functools dead code after FIXME
+https://bugs.python.org/issue35252
+
+#35250: Minor parameter documentation mismatch for turtle
+https://bugs.python.org/issue35250
+
+#35236: urllib.request.urlopen throws on some valid FTP files
+https://bugs.python.org/issue35236
+
+#35226: mock.call equality surprisingly broken
+https://bugs.python.org/issue35226
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#35134: Add a new Include/cpython/ subdirectory for the "CPython API" 
+https://bugs.python.org/issue35134  14 msgs
+
+#35283: "threading._DummyThread" redefines "is_alive" but forgets "isA
+https://bugs.python.org/issue35283  13 msgs
+
+#34995: functools.cached_property does not maintain the wrapped method
+https://bugs.python.org/issue34995   9 msgs
+
+#35276: Document thread safety
+https://bugs.python.org/issue35276   5 msgs
+
+#22121: IDLE should start with HOME as the initial working directory
+https://bugs.python.org/issue22121   4 msgs
+
+#35021: Assertion failures in datetimemodule.c.
+https://bugs.python.org/issue35021   4 msgs
+
+#35266: Add _PyPreConfig and rework _PyCoreConfig and _PyMainInterpret
+https://bugs.python.org/issue35266   4 msgs
+
+#24658: open().write() fails on 2 GB+ data (OS X)
+https://bugs.python.org/issue24658   3 msgs
+
+#24746: doctest 'fancy diff' formats incorrectly strip trailing whites
+https://bugs.python.org/issue24746   3 msgs
+
+#33416: Add endline and endcolumn to every AST node
+https://bugs.python.org/issue33416   3 msgs
+
+
+
+Issues closed (33)
+==================
+
+#9842: Document ... used in recursive repr of containers
+https://bugs.python.org/issue9842  closed by serhiy.storchaka
+
+#15245: ast.literal_eval fails on some literals
+https://bugs.python.org/issue15245  closed by serhiy.storchaka
+
+#18407: Fix compiler warnings in pythoncore for Win64
+https://bugs.python.org/issue18407  closed by vstinner
+
+#18859: README.valgrind should mention --with-valgrind
+https://bugs.python.org/issue18859  closed by lukasz.langa
+
+#25438: document what codec PyMemberDef T_STRING decodes the char * as
+https://bugs.python.org/issue25438  closed by gregory.p.smith
+
+#28401: Don't support the PEP384 stable ABI in pydebug builds
+https://bugs.python.org/issue28401  closed by brett.cannon
+
+#28604: Exception raised by python3.5 when using en_GB locale
+https://bugs.python.org/issue28604  closed by vstinner
+
+#31115: Py3.6 threading/reference counting issues with `numexpr`
+https://bugs.python.org/issue31115  closed by serhiy.storchaka
+
+#31146: Docs: On non-public translations, language picker fallback to 
+https://bugs.python.org/issue31146  closed by mdk
+
+#32281: bdist_rpm fails if no rpm command and rpmbuild is not in /usr/
+https://bugs.python.org/issue32281  closed by ned.deily
+
+#32892: Remove specific constant AST types in favor of ast.Constant
+https://bugs.python.org/issue32892  closed by serhiy.storchaka
+
+#33211: lineno and col_offset are wrong on function definitions with d
+https://bugs.python.org/issue33211  closed by levkivskyi
+
+#33325: Optimize sequences of constants in the compiler
+https://bugs.python.org/issue33325  closed by serhiy.storchaka
+
+#34532: Windows launcher exits with error after listing available vers
+https://bugs.python.org/issue34532  closed by steve.dower
+
+#35035: Documentation for email.utils is named email.util.rst
+https://bugs.python.org/issue35035  closed by mdk
+
+#35059: Convert Py_INCREF() and PyObject_INIT() to inlined functions
+https://bugs.python.org/issue35059  closed by vstinner
+
+#35081: Move internal headers to Include/internal/
+https://bugs.python.org/issue35081  closed by vstinner
+
+#35169: Improve error messages for assignment
+https://bugs.python.org/issue35169  closed by serhiy.storchaka
+
+#35200: Make the half-open range behaviour easier to teach
+https://bugs.python.org/issue35200  closed by mdk
+
+#35202: Remove unused imports in standard library
+https://bugs.python.org/issue35202  closed by terry.reedy
+
+#35206: [WIP] Add a new experimental _Py_CAPI2 API
+https://bugs.python.org/issue35206  closed by vstinner
+
+#35220: delete "how do I emulate os.kill" section in Windows FAQ
+https://bugs.python.org/issue35220  closed by deronnax
+
+#35221: Enhance venv activate commands readability
+https://bugs.python.org/issue35221  closed by rhettinger
+
+#35265: Internal C API: pass the memory allocator in a context
+https://bugs.python.org/issue35265  closed by vstinner
+
+#35269: A possible segfault involving a newly-created coroutine
+https://bugs.python.org/issue35269  closed by asvetlov
+
+#35273: 'eval' in generator expression behave different in dict from l
+https://bugs.python.org/issue35273  closed by rhettinger
+
+#35274: Running print("\x98") then freeze in Interpreter
+https://bugs.python.org/issue35274  closed by vstinner
+
+#35275: Reading umask (thread-safe)
+https://bugs.python.org/issue35275  closed by serhiy.storchaka
+
+#35287: wrong result for difflib.SequenceMatcher
+https://bugs.python.org/issue35287  closed by Boris Yang
+
+#35288: wrong result for difflib.SequenceMatcher
+https://bugs.python.org/issue35288  closed by Boris Yang
+
+#35289: wrong result for difflib.SequenceMatcher
+https://bugs.python.org/issue35289  closed by Boris Yang
+
+#35290: [FreeBSD] test_c_locale_coercion doesn't support new C.UTF-8 l
+https://bugs.python.org/issue35290  closed by vstinner
+
+#35296: Install Include/internal/ header files
+https://bugs.python.org/issue35296  closed by vstinner
+
+From stefan at bytereef.org  Fri Nov 23 14:09:06 2018
+From: stefan at bytereef.org (Stefan Krah)
+Date: Fri, 23 Nov 2018 20:09:06 +0100
+Subject: [Python-Dev] C API changes
+Message-ID: <20181123190906.GA3114@bytereef.org>
+
+
+Armin Rigo wrote:
+> The C API would change a lot, so it's not reasonable to do that in the
+> CPython repo.  But it could be a third-party project, attempting to
+> define an API like this and implement it well on top of both CPython
+> and PyPy.  IMHO this might be a better idea than just changing the API
+> of functions defined long ago to make them more regular (e.g. stop
+> returning borrowed references); by now this would mostly mean creating
+> more work for the PyPy team to track and adapt to the changes, with no
+> real benefits.
+
+I like this idea.  For example, when writing two versions of a C module,
+one that uses CPython internals indiscriminately and another that uses
+a "clean" API, such a third-party project would help.
+
+I'd also be more motivated to write two versions if I know that the
+project is supported by PyPy devs.
+
+
+Do you think that such an API might be faster than CFFI on PyPy?
+
+
+Stefan Krah
+
+
+
+
