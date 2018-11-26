@@ -10458,3 +10458,212 @@ Stefan Krah
 
 
 
+From ncoghlan at gmail.com  Sat Nov 24 12:27:34 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 25 Nov 2018 03:27:34 +1000
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+Message-ID: <CADiSq7ePdCg9d6uaEvyEB7BekhaK6zmZ3Qvjcg2LkGDMjuiygg@mail.gmail.com>
+
+On Fri, 23 Nov 2018 at 23:24, Armin Rigo <armin.rigo at gmail.com> wrote
+(regarding opaque "handles" in the C API):
+> The C API would change a lot, so it's not reasonable to do that in the
+> CPython repo.  But it could be a third-party project, attempting to
+> define an API like this and implement it well on top of both CPython
+> and PyPy.  IMHO this might be a better idea than just changing the API
+> of functions defined long ago to make them more regular (e.g. stop
+> returning borrowed references); by now this would mostly mean creating
+> more work for the PyPy team to track and adapt to the changes, with no
+> real benefits.
+
+And the nice thing about doing it as a shim is that it can be applied
+to *existing* versions of CPython, rather than having to wait for new
+ones.
+
+Node.js started switching over to doing things this way last year, and
+its a good way to go about it:
+https://medium.com/the-node-js-collection/n-api-next-generation-node-js-apis-for-native-modules-169af5235b06
+
+While this would still be a difficult project to pursue, and would
+suffer from many of the same barriers to adoption as CPython's native
+stable ABI, it does offer a concrete benefit to 3rd party module
+authors: being able to create single wheel files that can be shared
+across multiple Python versions, rather than needing to be built
+separately for each one.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From remi.lapeyre at henki.fr  Sat Nov 24 14:32:40 2018
+From: remi.lapeyre at henki.fr (=?UTF-8?Q?R=C3=A9mi_Lapeyre?=)
+Date: Sat, 24 Nov 2018 14:32:40 -0500
+Subject: [Python-Dev] Usage of tafile.copyfileobj
+Message-ID: <CA+jiYFAN39Z-Kxe3f32W4ZXPJSK+6hQDE+9be9+3xnP1Gy5Qew@mail.gmail.com>
+
+Hi, I?m working on the tarfile module to add support for file objects
+whose size is not know beforehand (https://bugs.python.org/issue35227).
+
+In doing so, I need to adapt `tarfile.copyfileobj` to return the length
+of the file after it has been copied.
+
+Calling this function with `length=None` currently leads to data being
+copied but without adding the necessary padding. This seems weird to me,
+I do not understand why this would be needed and this behaviour is currently
+not used.
+
+This function is not documented in Python documentation so nobody is probably
+using it.
+
+Can I safely change `tarfile.copyfileobj` to make it write the padding when
+`length=None`?
+
+Thanks,
+R?mi
+
+From stefan_ml at behnel.de  Sat Nov 24 15:15:36 2018
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Sat, 24 Nov 2018 21:15:36 +0100
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+Message-ID: <ptcbd6$8jc$1@blaine.gmane.org>
+
+Armin Rigo schrieb am 23.11.18 um 14:15:
+> In PyPy we'd have a global table of
+> "open objects", and a handle would be an index in that table; closing
+> a handle means writing NULL into that table entry.  No emulated
+> reference counting needed: we simply use the existing GC to keep alive
+> objects that are referenced from one or more table entries.  The cost
+> is limited to a single indirection.
+
+Couldn't this also be achieved via reference counting? Count only in C
+space, and delete the "open object" when the refcount goes to 0?
+
+Stefan
+
+
+From armin.rigo at gmail.com  Sun Nov 25 00:15:03 2018
+From: armin.rigo at gmail.com (Armin Rigo)
+Date: Sun, 25 Nov 2018 07:15:03 +0200
+Subject: [Python-Dev] C API changes
+In-Reply-To: <ptcbd6$8jc$1@blaine.gmane.org>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <ptcbd6$8jc$1@blaine.gmane.org>
+Message-ID: <CAMSv6X3UsQUTmk1mRNNXjEOs5EaBL=vB8+KNz-ucqSShw3gezg@mail.gmail.com>
+
+Hi Stefan,
+
+On Sat, 24 Nov 2018 at 22:17, Stefan Behnel <stefan_ml at behnel.de> wrote:
+> Couldn't this also be achieved via reference counting? Count only in C
+> space, and delete the "open object" when the refcount goes to 0?
+
+The point is to remove the need to return the same handle to C code if
+the object is the same one.  This saves one of the largest costs of
+the C API emulation, which is looking up the object in a big
+dictionary to know if there is already a ``PyObject *`` that
+corresponds to it or not---for *all* objects that go from Python to C.
+
+Once we do that, then there is no need for a refcount any more.  Yes,
+you could add your custom refcount code in C, but in practice it is
+rarely done.  For example, with POSIX file descriptors, when you would
+need to "incref" a file descriptor, you instead use dup().  This gives
+you a different file descriptor which can be closed independently of
+the original one, but they both refer to the same file.
+
+
+A bient?t,
+
+Armin.
+
+From stefan_ml at behnel.de  Sun Nov 25 03:13:18 2018
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Sun, 25 Nov 2018 09:13:18 +0100
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAMSv6X3UsQUTmk1mRNNXjEOs5EaBL=vB8+KNz-ucqSShw3gezg@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <ptcbd6$8jc$1@blaine.gmane.org>
+ <CAMSv6X3UsQUTmk1mRNNXjEOs5EaBL=vB8+KNz-ucqSShw3gezg@mail.gmail.com>
+Message-ID: <ptdles$ncd$1@blaine.gmane.org>
+
+Hi Armin,
+
+Armin Rigo schrieb am 25.11.18 um 06:15:
+> On Sat, 24 Nov 2018 at 22:17, Stefan Behnel wrote:
+>> Couldn't this also be achieved via reference counting? Count only in C
+>> space, and delete the "open object" when the refcount goes to 0?
+> 
+> The point is to remove the need to return the same handle to C code if
+> the object is the same one.  This saves one of the largest costs of
+> the C API emulation, which is looking up the object in a big
+> dictionary to know if there is already a ``PyObject *`` that
+> corresponds to it or not---for *all* objects that go from Python to C.
+
+Ok, got it. And since the handle is a simple integer, there's also no
+additional cost for memory allocation on the way out.
+
+
+> Once we do that, then there is no need for a refcount any more.  Yes,
+> you could add your custom refcount code in C, but in practice it is
+> rarely done.  For example, with POSIX file descriptors, when you would
+> need to "incref" a file descriptor, you instead use dup().  This gives
+> you a different file descriptor which can be closed independently of
+> the original one, but they both refer to the same file.
+
+Ok, then an INCREF() would be replaced by such a dup() call that creates
+and returns a new handle. In CPython, it would just INCREF and return the
+PyObject*, which is as fast as the current Py_INCREF().
+
+For PyPy, however, that means that increfs become more costly. One of the
+outcomes of a recent experiment with tagged pointers for integers was that
+they make increfs and decrefs more expensive, and (IIUC) that reduced the
+overall performance quite visibly. In the case of pointers, it's literally
+just adding a tiny condition that makes this so much slower. In the case of
+handles, it would add a lookup and a reference copy in the handles array.
+That's way more costly already than just the simple condition.
+
+Now, it's unclear if this performance degredation is specific to CPython
+(where PyObject* is native), or if it would also apply to PyPy. But I guess
+the only way to find this out would be to try it.
+
+IIUC, the only thing that is needed is to replace
+
+    Py_INCREF(obj);
+
+with
+
+    obj = Py_NEWREF(obj);
+
+which CPython would implement as
+
+    #define Py_NEWREF(obj)  (Py_INCREF(obj), obj)
+
+Py_DECREF() would then just invalidate and clean up the handle under the hood.
+
+There are probably some places in user code where this would end up leaking
+a reference by accident because of unclean reference handling (it could
+overwrite the old handle in the case of a temporary INCREF/DECREF cycle),
+but it might still be enough for trying it out. We could definitely switch
+to this pattern in Cython (in fact, we already use such a NEWREF macro in a
+couple of places, since it's a common pattern).
+
+Overall, this seems like something that PyPy could try out as an
+experiment, by just taking a simple extension module and replacing all
+increfs with newref assignments. And obviously implementing the whole thing
+for the C-API, but IIUC, you might be able to tweak that into your cpyext
+wrapping layer somehow, without manually rewriting all C-API functions?
+
+Stefan
+
+
