@@ -10667,3 +10667,38 @@ wrapping layer somehow, without manually rewriting all C-API functions?
 Stefan
 
 
+From armin.rigo at gmail.com  Mon Nov 26 00:37:37 2018
+From: armin.rigo at gmail.com (Armin Rigo)
+Date: Mon, 26 Nov 2018 07:37:37 +0200
+Subject: [Python-Dev] C API changes
+In-Reply-To: <ptdles$ncd$1@blaine.gmane.org>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <ptcbd6$8jc$1@blaine.gmane.org>
+ <CAMSv6X3UsQUTmk1mRNNXjEOs5EaBL=vB8+KNz-ucqSShw3gezg@mail.gmail.com>
+ <ptdles$ncd$1@blaine.gmane.org>
+Message-ID: <CAMSv6X2h7R2HzAWb=VBrmGw9+EQWOs87PdwK4OR_Zf0b0v20vg@mail.gmail.com>
+
+Hi,
+
+On Sun, 25 Nov 2018 at 10:15, Stefan Behnel <stefan_ml at behnel.de> wrote:
+> Overall, this seems like something that PyPy could try out as an
+> experiment, by just taking a simple extension module and replacing all
+> increfs with newref assignments. And obviously implementing the whole thing
+> for the C-API
+
+Just to be clear, I suggested making a new API, not just tweaking
+Py_INCREF() and hoping that all the rest works as it is.  I'm
+skeptical about that.
+
+To start with, a ``Py_NEWREF()`` like you describe *will* lead people
+just renaming all ``Py_INCREF()`` to ``Py_NEWREF()`` ignoring the
+return value, because that's the easiest change and it would work fine
+on CPython.
+
+
+A bient?t,
+
+Armin.
+
