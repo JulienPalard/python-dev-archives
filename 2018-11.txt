@@ -10702,3 +10702,328 @@ A bient?t,
 
 Armin.
 
+From erik.m.bray at gmail.com  Mon Nov 26 03:53:32 2018
+From: erik.m.bray at gmail.com (E. Madison Bray)
+Date: Mon, 26 Nov 2018 09:53:32 +0100
+Subject: [Python-Dev] Ping on PR #8712
+Message-ID: <CAOTD34YEXiMxtxEcSPeFjkhRyWAaauJ2HyB5EMSgSoPn+3kdHw@mail.gmail.com>
+
+Hi folks,
+
+I've had a PR open for nearly 3 months now with no review at:
+https://github.com/python/cpython/pull/8712
+
+I know everyone is overextended so normally I wouldn't fuss about it.
+But I would still like to remain committed to providing better Cygwin
+(and to a lesser extent, personally, MinGW) support in CPython.  I
+have had a buildbot chugging along rather uselessly due to the blocker
+issue that the above PR fixes:
+https://buildbot.python.org/all/#/builders/164
+
+Only when the above issue is fixed will it be possible to get some
+semi-useful builds and test runs on this buildbot.
+
+The issue that is fixed is really a general bug, it just happens to
+only affect builds on those platforms that implement a POSIX layer on
+top of Windows.  Specifically, modules that are built into the
+libpython DLL are not linked properly.  This is a regression that was
+introduced by https://bugs.python.org/issue30860
+
+The fix I've proposed is simple and undisruptive on unaffected platforms.
+
+Thanks for having a look!
+
+From erik.m.bray at gmail.com  Mon Nov 26 04:03:41 2018
+From: erik.m.bray at gmail.com (E. Madison Bray)
+Date: Mon, 26 Nov 2018 10:03:41 +0100
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+Message-ID: <CAOTD34aHBQGt_2fZJ2HPk=xrK-xpD7ygQC4A7qNhktrWWAibBQ@mail.gmail.com>
+
+On Fri, Nov 23, 2018 at 2:22 PM Armin Rigo <armin.rigo at gmail.com> wrote:
+>
+> Hi Hugo, hi all,
+>
+> On Sun, 18 Nov 2018 at 22:53, Hugh Fisher <hugo.fisher at gmail.com> wrote:
+> > I suggest that for the language reference, use the license plate
+> > or registration analogy to introduce "handle" and after that use
+> > handle throughout. It's short, distinctive, and either will match
+> > up with what the programmer already knows or won't clash if
+> > or when they encounter handles elsewhere.
+>
+> FWIW, a "handle" is typically something that users of an API store and
+> pass around, and which can be used to do all operations on some
+> object.  It is whatever a specific implementation needs to describe
+> references to an object.  In the CPython C API, this is ``PyObject*``.
+> I think that using "handle" for something more abstract is just going
+> to create confusion.
+>
+> Also FWIW, my own 2 cents on the topic of changing the C API: let's
+> entirely drop ``PyObject *`` and instead use more opaque
+> handles---like a ``PyHandle`` that is defined as a pointer-sized C
+> type but is not actually directly a pointer.  The main difference this
+> would make is that the user of the API cannot dereference anything
+> from the opaque handle, nor directly compare handles with each other
+> to learn about object identity.  They would work exactly like Windows
+> handles or POSIX file descriptors.  These handles would be returned by
+> C API calls, and would need to be closed when no longer used.  Several
+> different handles may refer to the same object, which stays alive for
+> at least as long as there are open handles to it.  Doing it this way
+> would untangle the notion of objects from their actual implementation.
+> In CPython objects would internally use reference counting, a handle
+> is really just a PyObject pointer in disguise, and closing a handle
+> decreases the reference counter.  In PyPy we'd have a global table of
+> "open objects", and a handle would be an index in that table; closing
+> a handle means writing NULL into that table entry.  No emulated
+> reference counting needed: we simply use the existing GC to keep alive
+> objects that are referenced from one or more table entries.  The cost
+> is limited to a single indirection.
+
++1
+
+As another point of reference, if you're interested, I've been working
+lately on the special purpose computer algebra system GAP.  It also
+uses an approach like this: Objects are referenced throughout via an
+opaque "Obj" type (which is really just a typedef of "Bag", the
+internal storage reference handle of its "GASMAN" garbage collector
+[1]).  A nice benefit of this, along with the others discussed above,
+is that it has being relatively easy to replace the garbage collector
+in GAP--there are options for it to use Boehm-GC, as well as Julia's
+GC.
+
+GAP has its own problems, but it's relatively simple and has been
+inspiring to look at; I was coincidentally wondering just recently if
+there's anything Python could take from it (conversely, I'm trying to
+bring some things I've learned from Python to improve GAP...).
+
+[1] https://github.com/gap-system/gap/blob/master/src/gasman.c
+
+From stefan_ml at behnel.de  Mon Nov 26 12:06:16 2018
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Mon, 26 Nov 2018 18:06:16 +0100
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAMSv6X2h7R2HzAWb=VBrmGw9+EQWOs87PdwK4OR_Zf0b0v20vg@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <ptcbd6$8jc$1@blaine.gmane.org>
+ <CAMSv6X3UsQUTmk1mRNNXjEOs5EaBL=vB8+KNz-ucqSShw3gezg@mail.gmail.com>
+ <ptdles$ncd$1@blaine.gmane.org>
+ <CAMSv6X2h7R2HzAWb=VBrmGw9+EQWOs87PdwK4OR_Zf0b0v20vg@mail.gmail.com>
+Message-ID: <pth925$mrn$1@blaine.gmane.org>
+
+Armin Rigo schrieb am 26.11.18 um 06:37:
+> On Sun, 25 Nov 2018 at 10:15, Stefan Behnel wrote:
+>> Overall, this seems like something that PyPy could try out as an
+>> experiment, by just taking a simple extension module and replacing all
+>> increfs with newref assignments. And obviously implementing the whole thing
+>> for the C-API
+> 
+> Just to be clear, I suggested making a new API, not just tweaking
+> Py_INCREF() and hoping that all the rest works as it is.  I'm
+> skeptical about that.
+
+Oh, I'm not skeptical at all. I'm actually sure that it's not that easy. I
+would guess that such an automatic transformation should work in something
+like 70% of the cases. Another 25% should be trivial to fix manually, and
+the remaining 5% ? well. They can probably still be changed with some
+thinking and refactoring. That also involves cases where pointer equality
+is used to detect object identity. Having a macro for that might be a good
+idea.
+
+Overall, relatively easy. And therefore not unlikely to happen. The lower
+the bar, the more likely we will see adoption.
+
+Also note that explicit Py_INCREF() calls are actually not that common. I
+just checked and found only 465 calls in 124K lines of Cython generated C
+code for Cython itself, and 725 calls in 348K C lines of lxml. Not exactly
+a snap, but definitely not huge. All other objects originate from the C-API
+in one way or another, which you control.
+
+
+> To start with, a ``Py_NEWREF()`` like you describe *will* lead people
+> just renaming all ``Py_INCREF()`` to ``Py_NEWREF()`` ignoring the
+> return value, because that's the easiest change and it would work fine
+> on CPython.
+
+First of all, as long as Py_INCREF() is not going away, they probably won't
+change anything. Therefore, before we discuss how laziness will hinder the
+adoption, I would rather like to see an actual motivation for them to do
+it. And since this change seems to have zero advantages in CPython, but
+adds a tiny bit of complexity, I think it's now up to PyPy to show that
+this added complexity has an advantage that is large enough to motivates
+it. If you could come up with a prototype that demonstrates the advantage
+(or at least uncovers the problems we'd face), we could actually discuss
+about real solutions rather than uncertain ideas.
+
+Stefan
+
+
+From larry at hastings.org  Mon Nov 26 19:08:55 2018
+From: larry at hastings.org (Larry Hastings)
+Date: Mon, 26 Nov 2018 16:08:55 -0800
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+Message-ID: <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+
+On 11/23/18 5:15 AM, Armin Rigo wrote:
+> Also FWIW, my own 2 cents on the topic of changing the C API: let's
+> entirely drop ``PyObject *`` and instead use more opaque
+> handles---like a ``PyHandle`` that is defined as a pointer-sized C
+> type but is not actually directly a pointer.  The main difference this
+> would make is that the user of the API cannot dereference anything
+> from the opaque handle, nor directly compare handles with each other
+> to learn about object identity.  They would work exactly like Windows
+> handles or POSIX file descriptors.
+
+Why would this be better than simply returning the pointer? Sure, it 
+prevents ever dereferencing the pointer and messing with the object, it 
+is true.? So naughty people would be prevented from messing with the 
+object directly instead of using the API as they should.? But my 
+understanding is that the implementation would be slightly 
+slower--there'd be all that looking up objects based on handles, and 
+managing the handle namespace too.? I'm not convinced the nice-to-have 
+of "you can't dereference the pointer anymore" is worth this runtime 
+overhead.
+
+Or maybe you have something pretty cheap in mind, e.g. "handle = pointer 
+^ 49"?? Or even "handle = pointer ^ (random odd number picked at 
+startup)" to punish the extra-naughty?
+
+
+
+//arry/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181126/23654aa6/attachment.html>
+
+From eric at trueblade.com  Mon Nov 26 20:26:09 2018
+From: eric at trueblade.com (Eric V. Smith)
+Date: Mon, 26 Nov 2018 20:26:09 -0500
+Subject: [Python-Dev] C API changes
+In-Reply-To: <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+Message-ID: <d671484e-dd60-4a2a-58ba-a85d697ffd4b@trueblade.com>
+
+On 11/26/2018 7:08 PM, Larry Hastings wrote:
+> On 11/23/18 5:15 AM, Armin Rigo wrote:
+>> Also FWIW, my own 2 cents on the topic of changing the C API: let's
+>> entirely drop ``PyObject *`` and instead use more opaque
+>> handles---like a ``PyHandle`` that is defined as a pointer-sized C
+>> type but is not actually directly a pointer.  The main difference this
+>> would make is that the user of the API cannot dereference anything
+>> from the opaque handle, nor directly compare handles with each other
+>> to learn about object identity.  They would work exactly like Windows
+>> handles or POSIX file descriptors.
+> 
+> Why would this be better than simply returning the pointer? Sure, it 
+> prevents ever dereferencing the pointer and messing with the object, it 
+> is true.? So naughty people would be prevented from messing with the 
+> object directly instead of using the API as they should.? But my 
+> understanding is that the implementation would be slightly 
+> slower--there'd be all that looking up objects based on handles, and 
+> managing the handle namespace too.? I'm not convinced the nice-to-have 
+> of "you can't dereference the pointer anymore" is worth this runtime 
+> overhead.
+> 
+> Or maybe you have something pretty cheap in mind, e.g. "handle = pointer 
+> ^ 49"?? Or even "handle = pointer ^ (random odd number picked at 
+> startup)" to punish the extra-naughty?
+
+I thought the important part of the proposal was to have multiple 
+PyHandles that point to the same PyObject (you couldn't "directly 
+compare handles with each other to learn about object identity"). But 
+I'll admit I'm not sure why this would be a win. Then of course they 
+couldn't be regular pointers.
+
+Eric
+
+From python at mrabarnett.plus.com  Mon Nov 26 22:40:22 2018
+From: python at mrabarnett.plus.com (MRAB)
+Date: Tue, 27 Nov 2018 03:40:22 +0000
+Subject: [Python-Dev] C API changes
+In-Reply-To: <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+Message-ID: <cff6bd7d-1074-1cf1-48c1-fc3a71ee652b@mrabarnett.plus.com>
+
+On 2018-11-27 00:08, Larry Hastings wrote:
+> On 11/23/18 5:15 AM, Armin Rigo wrote:
+>> Also FWIW, my own 2 cents on the topic of changing the C API: let's
+>> entirely drop ``PyObject *`` and instead use more opaque
+>> handles---like a ``PyHandle`` that is defined as a pointer-sized C
+>> type but is not actually directly a pointer.  The main difference this
+>> would make is that the user of the API cannot dereference anything
+>> from the opaque handle, nor directly compare handles with each other
+>> to learn about object identity.  They would work exactly like Windows
+>> handles or POSIX file descriptors.
+> 
+> Why would this be better than simply returning the pointer? Sure, it 
+> prevents ever dereferencing the pointer and messing with the object, it 
+> is true.? So naughty people would be prevented from messing with the 
+> object directly instead of using the API as they should.? But my 
+> understanding is that the implementation would be slightly 
+> slower--there'd be all that looking up objects based on handles, and 
+> managing the handle namespace too.? I'm not convinced the nice-to-have 
+> of "you can't dereference the pointer anymore" is worth this runtime 
+> overhead.
+> 
+> Or maybe you have something pretty cheap in mind, e.g. "handle = pointer 
+> ^ 49"?? Or even "handle = pointer ^ (random odd number picked at 
+> startup)" to punish the extra-naughty?
+> 
+An advantage would be that objects could be moved to reduce memory 
+fragmentation.
+
+From njs at pobox.com  Mon Nov 26 23:15:10 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Mon, 26 Nov 2018 20:15:10 -0800
+Subject: [Python-Dev] C API changes
+In-Reply-To: <d671484e-dd60-4a2a-58ba-a85d697ffd4b@trueblade.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <d671484e-dd60-4a2a-58ba-a85d697ffd4b@trueblade.com>
+Message-ID: <CAPJVwB=+1-1TpY_6H2j0dbzA7m5oxTUh41gXD+GHbTnPyFOadw@mail.gmail.com>
+
+On Mon, Nov 26, 2018 at 6:12 PM Eric V. Smith <eric at trueblade.com> wrote:
+> I thought the important part of the proposal was to have multiple
+> PyHandles that point to the same PyObject (you couldn't "directly
+> compare handles with each other to learn about object identity"). But
+> I'll admit I'm not sure why this would be a win. Then of course they
+> couldn't be regular pointers.
+
+Whenever PyPy passes an object from PyPy -> C, then it has to invent a
+"PyObject*" to represent the PyPy object. 0.1% of the time, the C code
+will use C pointer comparison to implement an "is" check on this
+PyObject*. But PyPy doesn't know which 0.1% of the time this will
+happen, so 100% of the time an object goes from PyPy -> C, PyPy has to
+check and update some global intern table to figure out whether this
+particular object has ever made the transition before and use the same
+PyObject*. 99.9% of the time, this is pure overhead, and it slows down
+one of *the* most common operations C extension code does. If C
+extensions checked object identity using some explicit operation like
+PyObject_Is() instead of comparing pointers, then PyPy could defer the
+expensive stuff until someone actually called PyObject_Is().
+
+Note: numbers are made up and I have no idea how much overhead this
+actually adds. But I'm pretty sure this is the basic idea that Armin's
+talking about.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
