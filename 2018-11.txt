@@ -11027,3 +11027,139 @@ talking about.
 -- 
 Nathaniel J. Smith -- https://vorpus.org
 
+From vstinner at redhat.com  Tue Nov 27 09:09:41 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 27 Nov 2018 15:09:41 +0100
+Subject: [Python-Dev] C API changes
+In-Reply-To: <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+Message-ID: <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+
+Le mar. 27 nov. 2018 ? 01:13, Larry Hastings <larry at hastings.org> a ?crit :
+> (...) I'm not convinced the nice-to-have of "you can't dereference the pointer anymore" is worth this runtime overhead.
+
+About the general idea of a new C API.
+
+If you only look at CPython in release mode, there is no benefit. But
+you should consider the overall picture:
+
+* ability to distribute a single binary for CPython in release mode,
+CPython in debug mode, PyPy, and maybe some new more funky Python
+runtimes
+* better performance on PyPy
+
+The question is if we can implement new optimizations in CPython (like
+tagged pointer) which would move the overall performance impact to at
+least "not significant" (not slower, not faster), or maybe even to
+"faster".
+
+Note: Again, in my plan, the new C API would be an opt-in API. The old
+C API would remain unchanged and fully supported. So there is no
+impact on performance if you consider to use the old C API.
+
+Victor
+
+From steve.dower at python.org  Tue Nov 27 12:12:31 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 27 Nov 2018 09:12:31 -0800
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+Message-ID: <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+
+On 27Nov2018 0609, Victor Stinner wrote:
+> Note: Again, in my plan, the new C API would be an opt-in API. The old
+> C API would remain unchanged and fully supported. So there is no
+> impact on performance if you consider to use the old C API.
+
+This is one of the things that makes me think your plan is not feasible.
+
+I *hope* that remaining on the old C API eventually has a performance 
+impact, since the whole point is to enable new optimizations that 
+currently require tricky emulation to remain compatible with the old 
+API. If we never have to add any emulation for the old API, we haven't 
+added anything useful for the new one.
+
+Over time, the old C API's performance (not functionality) should 
+degrade as the new C API's performance increases. If the increase isn't 
+significantly better than the degradation, the whole project can be 
+declared a failure, as we would have been better off leaving the API 
+alone and not changing anything.
+
+But this is great discussion. Looking forward to seeing some of it turn 
+into reality :)
+
+Cheers,
+Steve
+
+From greg at krypto.org  Tue Nov 27 19:24:31 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Tue, 27 Nov 2018 16:24:31 -0800
+Subject: [Python-Dev] C API changes
+In-Reply-To: <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+Message-ID: <CAGE7PNKFhpPCwk5diXSOOfoL8QJnXeHkEnpLjSPVjs3Uf9fLtw@mail.gmail.com>
+
+On Mon, Nov 26, 2018 at 4:10 PM Larry Hastings <larry at hastings.org> wrote:
+
+> On 11/23/18 5:15 AM, Armin Rigo wrote:
+>
+> Also FWIW, my own 2 cents on the topic of changing the C API: let's
+> entirely drop ``PyObject *`` and instead use more opaque
+> handles---like a ``PyHandle`` that is defined as a pointer-sized C
+> type but is not actually directly a pointer.  The main difference this
+> would make is that the user of the API cannot dereference anything
+> from the opaque handle, nor directly compare handles with each other
+> to learn about object identity.  They would work exactly like Windows
+> handles or POSIX file descriptors.
+>
+>
+> Why would this be better than simply returning the pointer?  Sure, it
+> prevents ever dereferencing the pointer and messing with the object, it is
+> true.  So naughty people would be prevented from messing with the object
+> directly instead of using the API as they should.  But my understanding is
+> that the implementation would be slightly slower--there'd be all that
+> looking up objects based on handles, and managing the handle namespace
+> too.  I'm not convinced the nice-to-have of "you can't dereference the
+> pointer anymore" is worth this runtime overhead.
+>
+> Or maybe you have something pretty cheap in mind, e.g. "handle = pointer ^
+> 49"?  Or even "handle = pointer ^ (random odd number picked at startup)" to
+> punish the extra-naughty?
+>
+Heck, it'd be find if someones implementation (such as a simple shim for
+CPython's existing API) wants to internally keep a PyObject structure and
+have PyHandle's implementation just be a typecast from PyObject* to
+PyHandle.  The real point is that a handle is opaque and cannot be depended
+on by any API _user_ as being a pointer.  What it means behind the scenes
+of a given VM is left entirely up to the VM.
+
+When an API returns a handle, that is an implicit internal INCREF if a VM
+is reference counting.  When code calls an API that consumes a handle by
+taking ownership of it for itself (Py_DECREF could be considered one of
+these if you have a Py_DECREF equivalent API) that means "I can no longer
+using this handle".
+
+Comparisons get documented as being invalid, pointing to the API to call
+for an identity check, but it is up to each implementation to decide if it
+wants to force the handles to be unique. Anyone depending on that behavior
+is being bad and should not be supported.
+
+-gps
+
+PS ... use C++ and you could actually make handle identity comparisons do
+the right thing...
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181127/35f34448/attachment.html>
+
