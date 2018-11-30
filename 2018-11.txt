@@ -11163,3 +11163,716 @@ the right thing...
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181127/35f34448/attachment.html>
 
+From jonathan.underwood at gmail.com  Wed Nov 28 05:28:19 2018
+From: jonathan.underwood at gmail.com (Jonathan Underwood)
+Date: Wed, 28 Nov 2018 10:28:19 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+Message-ID: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+
+Hi,
+
+I have for sometime maintained the Python bindings to the LZ4
+compression library[0, 1]:
+
+I am wondering if there is interest in having these bindings move to
+the standard library to sit alongside the gzip, lzma etc bindings?
+Obviously the code would need to be modified to fit the coding
+guidelines etc.
+
+I'm following the guidelines [2] and asking here first before
+committing any work to this endeavour, but if folks think this would
+be a useful addition, I would be willing to put in the hours to create
+a PR and continued maintenance. Would welcome any thoughts.
+
+
+Cheers,
+Jonathan.
+
+[0] https://github.com/python-lz4/python-lz4
+[1] https://python-lz4.readthedocs.io/en/stable/
+[2] https://devguide.python.org/stdlibchanges/
+
+From solipsis at pitrou.net  Wed Nov 28 11:43:43 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 28 Nov 2018 17:43:43 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+Message-ID: <20181128174343.6bc8760b@fsol>
+
+On Wed, 28 Nov 2018 10:28:19 +0000
+Jonathan Underwood <jonathan.underwood at gmail.com> wrote:
+> Hi,
+> 
+> I have for sometime maintained the Python bindings to the LZ4
+> compression library[0, 1]:
+> 
+> I am wondering if there is interest in having these bindings move to
+> the standard library to sit alongside the gzip, lzma etc bindings?
+> Obviously the code would need to be modified to fit the coding
+> guidelines etc.
+
+Personally I would find it useful indeed.  LZ4 is very attractive
+when (de)compression speed is a primary factor, for example when
+sending data over a fast network link or a fast local SSD.
+
+Another compressor worth including is Zstandard (by the same author as
+LZ4). Actually, Zstandard and LZ4 cover most of the (speed /
+compression ratio) range quite well. Informative graphs below:
+https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
+
+Regards
+
+Antoine.
+
+
+
+From brett at python.org  Wed Nov 28 12:51:57 2018
+From: brett at python.org (Brett Cannon)
+Date: Wed, 28 Nov 2018 09:51:57 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <20181128174343.6bc8760b@fsol>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+Message-ID: <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+
+Are we getting to the point that we want a compresslib like hashlib if we
+are going to be adding more compression algorithms?
+
+On Wed, 28 Nov 2018 at 08:44, Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> On Wed, 28 Nov 2018 10:28:19 +0000
+> Jonathan Underwood <jonathan.underwood at gmail.com> wrote:
+> > Hi,
+> >
+> > I have for sometime maintained the Python bindings to the LZ4
+> > compression library[0, 1]:
+> >
+> > I am wondering if there is interest in having these bindings move to
+> > the standard library to sit alongside the gzip, lzma etc bindings?
+> > Obviously the code would need to be modified to fit the coding
+> > guidelines etc.
+>
+> Personally I would find it useful indeed.  LZ4 is very attractive
+> when (de)compression speed is a primary factor, for example when
+> sending data over a fast network link or a fast local SSD.
+>
+> Another compressor worth including is Zstandard (by the same author as
+> LZ4). Actually, Zstandard and LZ4 cover most of the (speed /
+> compression ratio) range quite well. Informative graphs below:
+> https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181128/8d4a2720/attachment.html>
+
+From mertz at gnosis.cx  Wed Nov 28 12:59:26 2018
+From: mertz at gnosis.cx (David Mertz)
+Date: Wed, 28 Nov 2018 12:59:26 -0500
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+Message-ID: <CAEbHw4bQBMUSbAWp2OJi_pePj1VUzox+XeaQwdzs0EtbQonReg@mail.gmail.com>
+
++1 to Brett's idea. It's hard to have a good mental model already of which
+compression algorithms are and are not in stdlib. A package to contain them
+all would help a lot.
+
+On Wed, Nov 28, 2018, 12:56 PM Brett Cannon <brett at python.org wrote:
+
+> Are we getting to the point that we want a compresslib like hashlib if we
+> are going to be adding more compression algorithms?
+>
+> On Wed, 28 Nov 2018 at 08:44, Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+>> On Wed, 28 Nov 2018 10:28:19 +0000
+>> Jonathan Underwood <jonathan.underwood at gmail.com> wrote:
+>> > Hi,
+>> >
+>> > I have for sometime maintained the Python bindings to the LZ4
+>> > compression library[0, 1]:
+>> >
+>> > I am wondering if there is interest in having these bindings move to
+>> > the standard library to sit alongside the gzip, lzma etc bindings?
+>> > Obviously the code would need to be modified to fit the coding
+>> > guidelines etc.
+>>
+>> Personally I would find it useful indeed.  LZ4 is very attractive
+>> when (de)compression speed is a primary factor, for example when
+>> sending data over a fast network link or a fast local SSD.
+>>
+>> Another compressor worth including is Zstandard (by the same author as
+>> LZ4). Actually, Zstandard and LZ4 cover most of the (speed /
+>> compression ratio) range quite well. Informative graphs below:
+>>
+>> https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
+>>
+>> Regards
+>>
+>> Antoine.
+>>
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mertz%40gnosis.cx
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181128/34b910dd/attachment.html>
+
+From solipsis at pitrou.net  Wed Nov 28 12:59:08 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 28 Nov 2018 18:59:08 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+Message-ID: <20181128185908.0e7fac1d@fsol>
+
+On Wed, 28 Nov 2018 09:51:57 -0800
+Brett Cannon <brett at python.org> wrote:
+> Are we getting to the point that we want a compresslib like hashlib if we
+> are going to be adding more compression algorithms?
+
+It may be useful as a generic abstraction wrapper for simple usage but
+some compression libraries have custom facilities that would still
+require a dedicated interface.
+
+For example, LZ4 has two formats: a raw format and a framed format.
+Zstandard allows you to pass a custom dictionary to optimize
+compression of small data. I believe lzma has many tunables.
+
+Regards
+
+Antoine.
+
+From greg at krypto.org  Wed Nov 28 13:43:04 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 28 Nov 2018 10:43:04 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+Message-ID: <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+
+On Wed, Nov 28, 2018 at 9:52 AM Brett Cannon <brett at python.org> wrote:
+
+> Are we getting to the point that we want a compresslib like hashlib if we
+> are going to be adding more compression algorithms?
+>
+
+Lets avoid the lib suffix when unnecessary.  I used the name hashlib
+because the name hash was already taken by a builtin that people normally
+shouldn't be using.  zlib gets a lib suffix because a one letter name is
+evil and it matches the project name. ;)  "compress" sounds nicer.
+
+... looking on PyPI to see if that name is taken:
+https://pypi.org/project/compress/ exists and is already effectively what
+you are describing.  (never used it or seen it used, no idea about quality)
+
+I don't think adding lz4 to the stdlib is worthwhile.  It isn't required
+for core functionality as zlib is (lowest common denominator zip support).
+I'd argue that bz2 doesn't even belong in the stdlib, but we shouldn't go
+removing things.  PyPI makes getting more algorithms easy.
+
+If anything, it'd be nice to standardize on some stdlib namespaces that
+others could plug their modules into.  Create a compress in the stdlib with
+zlib and bz2 in it, and a way for extension modules to add themselves in a
+managed manner instead of requiring a top level name?  Opening up a
+designated namespace to third party modules is not something we've done as
+a project in the past though.  It requires care.  I haven't thought that
+through.
+
+-gps
+
+
+>
+> On Wed, 28 Nov 2018 at 08:44, Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+>> On Wed, 28 Nov 2018 10:28:19 +0000
+>> Jonathan Underwood <jonathan.underwood at gmail.com> wrote:
+>> > Hi,
+>> >
+>> > I have for sometime maintained the Python bindings to the LZ4
+>> > compression library[0, 1]:
+>> >
+>> > I am wondering if there is interest in having these bindings move to
+>> > the standard library to sit alongside the gzip, lzma etc bindings?
+>> > Obviously the code would need to be modified to fit the coding
+>> > guidelines etc.
+>>
+>> Personally I would find it useful indeed.  LZ4 is very attractive
+>> when (de)compression speed is a primary factor, for example when
+>> sending data over a fast network link or a fast local SSD.
+>>
+>> Another compressor worth including is Zstandard (by the same author as
+>> LZ4). Actually, Zstandard and LZ4 cover most of the (speed /
+>> compression ratio) range quite well. Informative graphs below:
+>>
+>> https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
+>>
+>> Regards
+>>
+>> Antoine.
+>>
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181128/61c0121d/attachment.html>
+
+From solipsis at pitrou.net  Wed Nov 28 13:54:44 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 28 Nov 2018 19:54:44 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+Message-ID: <20181128195444.727883c3@fsol>
+
+On Wed, 28 Nov 2018 10:43:04 -0800
+"Gregory P. Smith" <greg at krypto.org> wrote:
+> On Wed, Nov 28, 2018 at 9:52 AM Brett Cannon <brett at python.org> wrote:
+> 
+> > Are we getting to the point that we want a compresslib like hashlib if we
+> > are going to be adding more compression algorithms?
+> >  
+> 
+> Lets avoid the lib suffix when unnecessary.  I used the name hashlib
+> because the name hash was already taken by a builtin that people normally
+> shouldn't be using.  zlib gets a lib suffix because a one letter name is
+> evil and it matches the project name. ;)  "compress" sounds nicer.
+> 
+> ... looking on PyPI to see if that name is taken:
+> https://pypi.org/project/compress/ exists and is already effectively what
+> you are describing.  (never used it or seen it used, no idea about quality)
+> 
+> I don't think adding lz4 to the stdlib is worthwhile.  It isn't required
+> for core functionality as zlib is (lowest common denominator zip support).
+
+Actually, if some people are interested in compressing .pyc files, lz4
+is probably the best candidate (will yield significant compression
+benefits with very little CPU overhead).
+
+Regards
+
+Antoine.
+
+From jonathan.underwood at gmail.com  Wed Nov 28 14:35:31 2018
+From: jonathan.underwood at gmail.com (Jonathan Underwood)
+Date: Wed, 28 Nov 2018 19:35:31 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <20181128195444.727883c3@fsol>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128195444.727883c3@fsol>
+Message-ID: <CAANOHNkvycv4ppB2Yc72LLk8ny2TOwi_Q2+UqtcrUQEfeVs2+g@mail.gmail.com>
+
+On Wed, 28 Nov 2018 at 18:57, Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+> On Wed, 28 Nov 2018 10:43:04 -0800
+> "Gregory P. Smith" <greg at krypto.org> wrote:
+[snip]
+> > I don't think adding lz4 to the stdlib is worthwhile.  It isn't required
+> > for core functionality as zlib is (lowest common denominator zip support).
+>
+> Actually, if some people are interested in compressing .pyc files, lz4
+> is probably the best candidate (will yield significant compression
+> benefits with very little CPU overhead).
+>
+
+It's interesting to note that there's an outstanding feature request
+to enable "import modules from a library.tar.lz4", justified on the
+basis that it would be helpful to the python-for-android project:
+
+https://github.com/python-lz4/python-lz4/issues/45
+
+Cheers,
+Jonathan
+
+From solipsis at pitrou.net  Wed Nov 28 15:06:12 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 28 Nov 2018 21:06:12 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128195444.727883c3@fsol>
+ <CAANOHNkvycv4ppB2Yc72LLk8ny2TOwi_Q2+UqtcrUQEfeVs2+g@mail.gmail.com>
+Message-ID: <20181128210612.58ecd96a@fsol>
+
+On Wed, 28 Nov 2018 19:35:31 +0000
+Jonathan Underwood <jonathan.underwood at gmail.com> wrote:
+> On Wed, 28 Nov 2018 at 18:57, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> >
+> > On Wed, 28 Nov 2018 10:43:04 -0800
+> > "Gregory P. Smith" <greg at krypto.org> wrote:  
+> [snip]
+> > > I don't think adding lz4 to the stdlib is worthwhile.  It isn't required
+> > > for core functionality as zlib is (lowest common denominator zip support).  
+> >
+> > Actually, if some people are interested in compressing .pyc files, lz4
+> > is probably the best candidate (will yield significant compression
+> > benefits with very little CPU overhead).
+> >  
+> 
+> It's interesting to note that there's an outstanding feature request
+> to enable "import modules from a library.tar.lz4", justified on the
+> basis that it would be helpful to the python-for-android project:
+> 
+> https://github.com/python-lz4/python-lz4/issues/45
+
+Interesting.  The tar format isn't adequate for this: the whole tar
+file will be compressed at once, so you need to uncompress it all even
+to import a single module.  The zip format is more adapted, but it
+doesn't seem to have LZ4 in its registered codecs.
+
+At least for pyc files, though, this could be done at the marshal level
+rather than at the importlib level.
+
+Regards
+
+Antoine.
+
+
+
+From steve at pearwood.info  Wed Nov 28 16:27:37 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 29 Nov 2018 08:27:37 +1100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+Message-ID: <20181128212736.GW4319@ando.pearwood.info>
+
+On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+
+> PyPI makes getting more algorithms easy.
+
+Can we please stop over-generalising like this? PyPI makes getting 
+more algorithms easy for *SOME* people. (Sorry for shouting, but you 
+just pressed one of my buttons.)
+
+PyPI might as well not exist for those who cannot, for technical or 
+policy reasons, install addition software beyond the std lib on the 
+computers they use. (I hesitate to say "their computers".)
+
+In many school or corporate networks, installing unapproved software can 
+get you expelled or fired. And getting approval may be effectively 
+impossible, or take months of considerable effort navigating some 
+complex bureaucratic process.
+
+This is not an argument either for or against adding LZ4, I have no 
+opinion either way. But it is a reminder that "just get it from PyPI" 
+represents an extremely privileged position that not all Python users 
+are capable of taking, and we shouldn't be so blase about abandoning 
+those who can't to future std lib improvements.
+
+
+
+-- 
+Steve
+
+From njs at pobox.com  Wed Nov 28 16:37:33 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Wed, 28 Nov 2018 13:37:33 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <20181128210612.58ecd96a@fsol>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128195444.727883c3@fsol>
+ <CAANOHNkvycv4ppB2Yc72LLk8ny2TOwi_Q2+UqtcrUQEfeVs2+g@mail.gmail.com>
+ <20181128210612.58ecd96a@fsol>
+Message-ID: <CAPJVwBm7rCiGuT5HVPaor0djZ3JMRgcKgJS2eUMio7b7epmv1Q@mail.gmail.com>
+
+On Wed, Nov 28, 2018, 12:08 Antoine Pitrou <solipsis at pitrou.net wrote:
+
+> On Wed, 28 Nov 2018 19:35:31 +0000
+> Jonathan Underwood <jonathan.underwood at gmail.com> wrote:
+> > On Wed, 28 Nov 2018 at 18:57, Antoine Pitrou <solipsis at pitrou.net>
+> wrote:
+> > >
+> > > On Wed, 28 Nov 2018 10:43:04 -0800
+> > > "Gregory P. Smith" <greg at krypto.org> wrote:
+> > [snip]
+> > > > I don't think adding lz4 to the stdlib is worthwhile.  It isn't
+> required
+> > > > for core functionality as zlib is (lowest common denominator zip
+> support).
+> > >
+> > > Actually, if some people are interested in compressing .pyc files, lz4
+> > > is probably the best candidate (will yield significant compression
+> > > benefits with very little CPU overhead).
+> > >
+> >
+> > It's interesting to note that there's an outstanding feature request
+> > to enable "import modules from a library.tar.lz4", justified on the
+> > basis that it would be helpful to the python-for-android project:
+> >
+> > https://github.com/python-lz4/python-lz4/issues/45
+>
+> Interesting.  The tar format isn't adequate for this: the whole tar
+> file will be compressed at once, so you need to uncompress it all even
+> to import a single module.  The zip format is more adapted, but it
+> doesn't seem to have LZ4 in its registered codecs.
+>
+
+Zip can be used without compression as a simple container for files,
+though, and there's nothing that says those can't be .pyc.lz4 files.
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181128/7d166c1d/attachment-0001.html>
+
+From brett at python.org  Wed Nov 28 22:14:03 2018
+From: brett at python.org (Brett Cannon)
+Date: Wed, 28 Nov 2018 19:14:03 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <20181128212736.GW4319@ando.pearwood.info>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+Message-ID: <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+
+On Wed, 28 Nov 2018 at 13:29, Steven D'Aprano <steve at pearwood.info> wrote:
+
+> On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+>
+> > PyPI makes getting more algorithms easy.
+>
+> Can we please stop over-generalising like this? PyPI makes getting
+> more algorithms easy for *SOME* people. (Sorry for shouting, but you
+> just pressed one of my buttons.)
+>
+
+Is shouting necessary to begin with, though? I understand people relying on
+PyPI more and more can be troublesome for some and a sticking point, but if
+you know it's a trigger for you then waiting until you didn't feel like
+shouting seems like a reasonable course of action while still getting your
+point across.
+
+
+>
+> PyPI might as well not exist for those who cannot, for technical or
+> policy reasons, install addition software beyond the std lib on the
+> computers they use. (I hesitate to say "their computers".)
+>
+> In many school or corporate networks, installing unapproved software can
+> get you expelled or fired. And getting approval may be effectively
+> impossible, or take months of considerable effort navigating some
+> complex bureaucratic process.
+>
+> This is not an argument either for or against adding LZ4, I have no
+> opinion either way.
+
+
+
+> But it is a reminder that "just get it from PyPI"
+> represents an extremely privileged position that not all Python users
+> are capable of taking, and we shouldn't be so blase about abandoning
+> those who can't to future std lib improvements.
+>
+
+We have never really had a discussion about how we want to guide the stdlib
+going forward (e.g. how much does PyPI influence things, focus/theme,
+etc.). Maybe we should consider finally having that discussion once the
+governance model is chosen and before we consider adding a new module as
+things like people's inability to access PyPI come up pretty consistently
+(e.g. I know Paul Moore also brings this up regularly).
+
+-Brett
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181128/481d95a2/attachment.html>
+
+From steve at pearwood.info  Thu Nov 29 00:02:29 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 29 Nov 2018 16:02:29 +1100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+Message-ID: <20181129050229.GA4319@ando.pearwood.info>
+
+On Wed, Nov 28, 2018 at 07:14:03PM -0800, Brett Cannon wrote:
+> On Wed, 28 Nov 2018 at 13:29, Steven D'Aprano <steve at pearwood.info> wrote:
+> 
+> > On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+> >
+> > > PyPI makes getting more algorithms easy.
+> >
+> > Can we please stop over-generalising like this? PyPI makes getting
+> > more algorithms easy for *SOME* people. (Sorry for shouting, but you
+> > just pressed one of my buttons.)
+> 
+> Is shouting necessary to begin with, though?
+
+Yes.
+
+My apology was a polite fiction, a left over from the old Victorian 
+British "stiff upper lip" attitude that showing emotion in public is Not 
+The Done Thing. I should stop making those faux apologies, it is a bad 
+habit.
+
+We aren't robots, we're human beings and we shouldn't apologise for 
+showing our emotions. Nothing important ever got done without people 
+having, and showing, strong emotions either for or against it.
+
+Of course I'm not genuinely sorry for showing my strength of feeling 
+over this issue. Its just a figure of speech: all-caps is used to give 
+emphasis in a plain text medium, it is not literal shouting.
+
+In any case, I retract the faux apology, it was a silly thing for me to 
+say that undermines my own message as well as reinforcing the pernicious 
+message that expressing the strength of emotional feeling about an issue 
+is a bad thing that needs to be surpressed.
+
+
+
+-- 
+Steve
+
+From armin.rigo at gmail.com  Thu Nov 29 01:08:01 2018
+From: armin.rigo at gmail.com (Armin Rigo)
+Date: Thu, 29 Nov 2018 08:08:01 +0200
+Subject: [Python-Dev] C API changes
+In-Reply-To: <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+Message-ID: <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+
+Hi Steve,
+
+On Tue, 27 Nov 2018 at 19:14, Steve Dower <steve.dower at python.org> wrote:
+> On 27Nov2018 0609, Victor Stinner wrote:
+> > Note: Again, in my plan, the new C API would be an opt-in API. The old
+> > C API would remain unchanged and fully supported. So there is no
+> > impact on performance if you consider to use the old C API.
+>
+> This is one of the things that makes me think your plan is not feasible.
+
+I can easily imagine the new API having two different implementations
+even for CPython:
+
+A) you can use the generic implementation, which produces a
+cross-python-compatible .so.  All function calls go through the API at
+runtime.  The same .so works on any version of CPython or PyPy.
+
+B) you can use a different set of headers or a #define or something,
+and you get a higher-performance version of your unmodified
+code---with the issue that the .so only runs on the exact version of
+CPython.  This is done by defining some of the functions as macros.  I
+would expect this version to be of similar speed than the current C
+API in most cases.
+
+This might give a way forward: people would initially port their
+extensions hoping to use the option B; once that is done, they can
+easily measure---not guess--- the extra performance costs of the
+option A, and decide based on actual data if the difference is really
+worth the additional troubles of distributing many versions.  Even if
+it is, they can distribute an A version for PyPy and for unsupported
+CPython versions, and add a few B versions on top of that.
+
+
+...Also, although I'm discussing it here, I think the whole approach
+would be better if done as a third-party extension for now, without
+requiring changes to CPython---just use the existing C API to
+implement the CPython version.  The B option discussed above can even
+be mostly *just* a set of macros, with a bit of runtime that we might
+as well include in the produced .so in order to make it a standalone,
+regular CPython C extension module.
+
+
+A bient?t,
+
+Armin.
+
+PS: on CPython could use ``typedef struct { PyObject *_obj; }
+PyHandle;``.  This works like a pointer, but you can't use ``==`` to
+compare them.
+
+From rosuav at gmail.com  Thu Nov 29 01:19:28 2018
+From: rosuav at gmail.com (Chris Angelico)
+Date: Thu, 29 Nov 2018 17:19:28 +1100
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+ <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+Message-ID: <CAPTjJmrmCPVs7H2xDKhEbtJ_hwsXPibo=vT1MZ7PBwUhk09VWg@mail.gmail.com>
+
+On Thu, Nov 29, 2018 at 5:10 PM Armin Rigo <armin.rigo at gmail.com> wrote:
+> PS: on CPython could use ``typedef struct { PyObject *_obj; }
+> PyHandle;``.  This works like a pointer, but you can't use ``==`` to
+> compare them.
+
+And then you could have a macro or inline function to compare them,
+simply by looking at that private member, and it should compile down
+to the exact same machine code as comparing the original pointers
+directly. It'd be a not-unreasonable migration path, should you want
+to work that way - zero run-time cost.
+
+ChrisA
+
