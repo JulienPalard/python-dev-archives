@@ -11876,3 +11876,3550 @@ to work that way - zero run-time cost.
 
 ChrisA
 
+From greg at krypto.org  Thu Nov 29 04:10:01 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Thu, 29 Nov 2018 01:10:01 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+Message-ID: <CAGE7PNLLneiM5B0D0fC+bzTiMAm5ubFQ4O1Zr-0iY1hNMprAVA@mail.gmail.com>
+
+On Wed, Nov 28, 2018 at 10:43 AM Gregory P. Smith <greg at krypto.org> wrote:
+
+>
+> On Wed, Nov 28, 2018 at 9:52 AM Brett Cannon <brett at python.org> wrote:
+>
+>> Are we getting to the point that we want a compresslib like hashlib if we
+>> are going to be adding more compression algorithms?
+>>
+>
+> Lets avoid the lib suffix when unnecessary.  I used the name hashlib
+> because the name hash was already taken by a builtin that people normally
+> shouldn't be using.  zlib gets a lib suffix because a one letter name is
+> evil and it matches the project name. ;)  "compress" sounds nicer.
+>
+> ... looking on PyPI to see if that name is taken:
+> https://pypi.org/project/compress/ exists and is already effectively what
+> you are describing.  (never used it or seen it used, no idea about quality)
+>
+> I don't think adding lz4 to the stdlib is worthwhile.  It isn't required
+> for core functionality as zlib is (lowest common denominator zip support).
+> I'd argue that bz2 doesn't even belong in the stdlib, but we shouldn't go
+> removing things.  PyPI makes getting more algorithms easy.
+>
+> If anything, it'd be nice to standardize on some stdlib namespaces that
+> others could plug their modules into.  Create a compress in the stdlib with
+> zlib and bz2 in it, and a way for extension modules to add themselves in a
+> managed manner instead of requiring a top level name?  Opening up a
+> designated namespace to third party modules is not something we've done as
+> a project in the past though.  It requires care.  I haven't thought that
+> through.
+>
+> -gps
+>
+
+While my gut reaction was to say "no" to adding lz4 to the stdlib above...
+
+I'm finding myself reconsidering and not against adding lz4 to the stdlib.
+
+I just want us to have a good reason if we do. This type of extension
+module tends to be very easy to maintain (and you are volunteering). A good
+reason in the past has been the algorithm being widely used.  Obviously the
+case with zlib (gzip and zipfile), bz2, and lzma (.xz).  Those are all
+slower and tighter though.  lz4 is extremely fast, especially for
+decompression.  It could make a nice addition as that is an area our
+standard library offers nothing.
+
+So change my -1 to a +0.5.
+
+Q: Are there other popular alternatives to fill that niche that we should
+strongly consider instead or as well?
+
+5 years ago the answer would've been Snappy.  15 years ago the answer
+would've been LZO.
+
+I suggest not rabbit-holing this on whether we should adopt a top level
+namespace for these such as "compress".  A good question to ask, but we can
+resolve that larger topic on its own without blocking anything.
+
+lz4 has claimed the global pypi lz4 module namespace today so moving it to
+the stdlib under that name is normal - A pretty transparent transition.  If
+we do that, the PyPI version of lz4 should remain for use on older CPython
+versions, but effectively be frozen, never to gain new features once lz4
+has landed in its first actual CPython release.
+
+-gps
+
+
+>
+>>
+>> On Wed, 28 Nov 2018 at 08:44, Antoine Pitrou <solipsis at pitrou.net> wrote:
+>>
+>>> On Wed, 28 Nov 2018 10:28:19 +0000
+>>> Jonathan Underwood <jonathan.underwood at gmail.com> wrote:
+>>> > Hi,
+>>> >
+>>> > I have for sometime maintained the Python bindings to the LZ4
+>>> > compression library[0, 1]:
+>>> >
+>>> > I am wondering if there is interest in having these bindings move to
+>>> > the standard library to sit alongside the gzip, lzma etc bindings?
+>>> > Obviously the code would need to be modified to fit the coding
+>>> > guidelines etc.
+>>>
+>>> Personally I would find it useful indeed.  LZ4 is very attractive
+>>> when (de)compression speed is a primary factor, for example when
+>>> sending data over a fast network link or a fast local SSD.
+>>>
+>>> Another compressor worth including is Zstandard (by the same author as
+>>> LZ4). Actually, Zstandard and LZ4 cover most of the (speed /
+>>> compression ratio) range quite well. Informative graphs below:
+>>>
+>>> https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
+>>>
+>>> Regards
+>>>
+>>> Antoine.
+>>>
+>>>
+>>> _______________________________________________
+>>> Python-Dev mailing list
+>>> Python-Dev at python.org
+>>> https://mail.python.org/mailman/listinfo/python-dev
+>>> Unsubscribe:
+>>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/52e3f9d7/attachment.html>
+
+From jonathan.underwood at gmail.com  Thu Nov 29 04:39:45 2018
+From: jonathan.underwood at gmail.com (Jonathan Underwood)
+Date: Thu, 29 Nov 2018 09:39:45 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAGE7PNLLneiM5B0D0fC+bzTiMAm5ubFQ4O1Zr-0iY1hNMprAVA@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <CAGE7PNLLneiM5B0D0fC+bzTiMAm5ubFQ4O1Zr-0iY1hNMprAVA@mail.gmail.com>
+Message-ID: <CAANOHNm8UZBf-jzai+ZEqqRHWOxinxmxBg20e8_cgfDN4jdh6A@mail.gmail.com>
+
+On Thu, 29 Nov 2018 at 09:13, Gregory P. Smith <greg at krypto.org> wrote:
+> Q: Are there other popular alternatives to fill that niche that we should strongly consider instead or as well?
+>
+> 5 years ago the answer would've been Snappy.  15 years ago the answer would've been LZO.
+>
+
+Today LZ4 hits a sweet spot for fast compression and decompression at
+the lower compression ratio end of the spectrum, offering
+significantly faster compression and decompression than zlib or bz2,
+but not as high compression ratios (at usable speeds). It's also had
+time to stabilize, and a standard frame format for compressed data has
+been adopted by the community.
+
+The other main contenders in town are zstd, which was mentioned
+earlier in the thread, and brotli. Both are based on dictionary
+compression. Zstd is very impressive, offering high compression
+ratios, but is being very actively developed at present, so is a bit
+more of a moving target.Brotli is in the same ballpark as Zstd. They
+both cover the higher compression end of the spectrum than lz4. Some
+nice visualizations are here (although the data is now a bit out of
+date - lz4 has had some speed improvements at the higher compression
+ratio end):
+
+https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
+
+> I suggest not rabbit-holing this on whether we should adopt a top level namespace for these such as "compress".  A good question to ask, but we can resolve that larger topic on its own without blocking anything.
+>
+
+It's funny, but I had gone around in that loop in my head ahead of
+sending my email. My thinking was: there's a real need for some
+unification and simplification in the compression space, but I'll work
+on integrating LZ4, and in the process look at opportunities for the
+new interface design. I'm a fan of learning through iteration, rather
+than spending 5 years designing the ultimate compression abstraction
+and then finding a corner case that it doesn't fit.
+
+> lz4 has claimed the global pypi lz4 module namespace today so moving it to the stdlib under that name is normal - A pretty transparent transition.  If we do that, the PyPI version of lz4 should remain for use on older CPython versions, but effectively be frozen, never to gain new features once lz4 has landed in its first actual CPython release.
+>
+
+Yes, that was what I was presuming would be the path forward.
+
+Cheers,
+Jonathan
+
+From p.f.moore at gmail.com  Thu Nov 29 04:52:29 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 29 Nov 2018 09:52:29 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+Message-ID: <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+
+[This is getting off-topic, so I'll limit my comments to this one email]
+
+On Thu, 29 Nov 2018 at 03:17, Brett Cannon <brett at python.org> wrote:
+> We have never really had a discussion about how we want to guide the stdlib going forward (e.g. how much does PyPI influence things, focus/theme, etc.). Maybe we should consider finally having that discussion once the governance model is chosen and before we consider adding a new module as things like people's inability to access PyPI come up pretty consistently (e.g. I know Paul Moore also brings this up regularly).
+
+I'm not sure a formal discussion on this matter will help much - my
+feeling is that most people have relatively fixed views on how they
+would like things to go (large stdlib/batteries included vs external
+modules/PyPI/slim stdlib). The "problem" isn't so much with people
+having different views (as a group, we're pretty good at achieving
+workable compromises in the face of differing views) as it is about
+people forgetting that their experience isn't the only reality, which
+causes unnecessary frustration in discussions. That's more of a people
+problem than a technical one.
+
+What would be nice would be if we could persuade people *not* to
+assume "adding an external dependency is easy" in all cases, and frame
+their arguments in a way that doesn't make that mistaken assumption.
+The arguments/debates are fine, what's not so fine is having to
+repeatedly explain how people are making fundamentally unsound
+assumptions. Having said that, what *is* difficult to know, is how
+*many* people are in situations where adding an external dependency is
+hard, and how hard it is in practice. The sorts of environment where
+PyPI access is hard are also the sorts of environment where
+participation in open source discussions is rare, so getting good
+information is hard.
+
+Paul
+
+From songofacandy at gmail.com  Thu Nov 29 05:01:55 2018
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Thu, 29 Nov 2018 19:01:55 +0900
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <20181128212736.GW4319@ando.pearwood.info>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+Message-ID: <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+
+On Thu, Nov 29, 2018 at 6:27 AM Steven D'Aprano <steve at pearwood.info> wrote:
+>
+> On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+>
+> > PyPI makes getting more algorithms easy.
+>
+> Can we please stop over-generalising like this? PyPI makes getting
+> more algorithms easy for *SOME* people. (Sorry for shouting, but you
+> just pressed one of my buttons.)
+
+I don't think this is over-generalising.
+
+If "get it from PyPI" is not easy enough, why not adding hundreds of
+famous libraries?
+Because we can't maintain all of them well.
+
+When considering adding new format (not only compression, but also
+serialization like toml), I think it should be stable, widely used, and will
+be used widely for a long time.  If we want to use the format in Python core
+or Python stdlib, it's good reasoning too.  gzip and json are good example.
+
+When we say "we can use PyPI", it means "are there enough reasons
+make the package special enough to add to stdlib?"  We don't mean
+"everyone can use PyPI."
+
+Regards,
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+
+From solipsis at pitrou.net  Thu Nov 29 05:54:15 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 29 Nov 2018 11:54:15 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+Message-ID: <20181129115415.0ee3e1f1@fsol>
+
+On Thu, 29 Nov 2018 09:52:29 +0000
+Paul Moore <p.f.moore at gmail.com> wrote:
+> [This is getting off-topic, so I'll limit my comments to this one email]
+> 
+> On Thu, 29 Nov 2018 at 03:17, Brett Cannon <brett at python.org> wrote:
+> > We have never really had a discussion about how we want to guide the stdlib going forward (e.g. how much does PyPI influence things, focus/theme, etc.). Maybe we should consider finally having that discussion once the governance model is chosen and before we consider adding a new module as things like people's inability to access PyPI come up pretty consistently (e.g. I know Paul Moore also brings this up regularly).  
+> 
+> I'm not sure a formal discussion on this matter will help much - my
+> feeling is that most people have relatively fixed views on how they
+> would like things to go (large stdlib/batteries included vs external
+> modules/PyPI/slim stdlib). The "problem" isn't so much with people
+> having different views (as a group, we're pretty good at achieving
+> workable compromises in the face of differing views) as it is about
+> people forgetting that their experience isn't the only reality, which
+> causes unnecessary frustration in discussions. That's more of a people
+> problem than a technical one.
+
+I'd like to point the discussion is asymmetric here.
+
+On the one hand, people who don't have access to PyPI would _really_
+benefit from a larger stdlib with more batteries included.
+
+On the other hand, people who have access to PyPI _don't_ benefit from
+having a slim stdlib.  There's nothing virtuous or advantageous about
+having _less_ batteries included.  Python doesn't become magically
+faster or more powerful by including less in its standard
+distribution: the best it does is make the distribution slightly
+smaller.
+
+So there's really one bunch of people arguing for practical benefits,
+and another bunch of people arguing for mostly aesthetical or
+philosophical reasons.
+
+Regards
+
+Antoine.
+
+
+
+From andrew.svetlov at gmail.com  Thu Nov 29 05:55:07 2018
+From: andrew.svetlov at gmail.com (Andrew Svetlov)
+Date: Thu, 29 Nov 2018 12:55:07 +0200
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+Message-ID: <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+
+5 cents about lz4 alternatives: Broli (mentioned above) is widely supported
+by web.
+
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding
+mentions it along with gzip and deflate methods.
+I don't recall lz4 or Zstd metioning in this context.
+
+Both Chrome/Chromium and Firefox accepts it by default (didn't check
+Microsoft products yet).
+
+P.S.
+I worked with lz4 python binding a year ago.
+It sometimes crashed to core dump when used in multithreaded environment
+(we used to run compressor/decompresson with asyncio by
+loop.run_in_executor() call).
+I hope the bug is fixed now, have no update for the current state.
+
+On Thu, Nov 29, 2018 at 12:04 PM INADA Naoki <songofacandy at gmail.com> wrote:
+
+> On Thu, Nov 29, 2018 at 6:27 AM Steven D'Aprano <steve at pearwood.info>
+> wrote:
+> >
+> > On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+> >
+> > > PyPI makes getting more algorithms easy.
+> >
+> > Can we please stop over-generalising like this? PyPI makes getting
+> > more algorithms easy for *SOME* people. (Sorry for shouting, but you
+> > just pressed one of my buttons.)
+>
+> I don't think this is over-generalising.
+>
+> If "get it from PyPI" is not easy enough, why not adding hundreds of
+> famous libraries?
+> Because we can't maintain all of them well.
+>
+> When considering adding new format (not only compression, but also
+> serialization like toml), I think it should be stable, widely used, and
+> will
+> be used widely for a long time.  If we want to use the format in Python
+> core
+> or Python stdlib, it's good reasoning too.  gzip and json are good example.
+>
+> When we say "we can use PyPI", it means "are there enough reasons
+> make the package special enough to add to stdlib?"  We don't mean
+> "everyone can use PyPI."
+>
+> Regards,
+> --
+> INADA Naoki  <songofacandy at gmail.com>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/andrew.svetlov%40gmail.com
+>
+
+
+-- 
+Thanks,
+Andrew Svetlov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/68017538/attachment.html>
+
+From solipsis at pitrou.net  Thu Nov 29 06:01:07 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 29 Nov 2018 12:01:07 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <20181129050229.GA4319@ando.pearwood.info>
+Message-ID: <20181129120107.5bd6e6b1@fsol>
+
+On Thu, 29 Nov 2018 16:02:29 +1100
+Steven D'Aprano <steve at pearwood.info> wrote:
+> On Wed, Nov 28, 2018 at 07:14:03PM -0800, Brett Cannon wrote:
+> > On Wed, 28 Nov 2018 at 13:29, Steven D'Aprano <steve at pearwood.info> wrote:
+> >   
+> > > On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+> > >  
+> > > > PyPI makes getting more algorithms easy.  
+> > >
+> > > Can we please stop over-generalising like this? PyPI makes getting
+> > > more algorithms easy for *SOME* people. (Sorry for shouting, but you
+> > > just pressed one of my buttons.)  
+> > 
+> > Is shouting necessary to begin with, though?  
+> 
+> Yes.
+> 
+> My apology was a polite fiction, a left over from the old Victorian 
+> British "stiff upper lip" attitude that showing emotion in public is Not 
+> The Done Thing. I should stop making those faux apologies, it is a bad 
+> habit.
+> 
+> We aren't robots, we're human beings and we shouldn't apologise for 
+> showing our emotions. Nothing important ever got done without people 
+> having, and showing, strong emotions either for or against it.
+
++1.  Not that this is very important to discuss, but I don't think
+putting a single word in caps is offensive or agressive behavior.
+Let's cut people some slack :-)
+
+Regards
+
+Antoine.
+
+
+
+From jonathan.underwood at gmail.com  Thu Nov 29 08:45:34 2018
+From: jonathan.underwood at gmail.com (Jonathan Underwood)
+Date: Thu, 29 Nov 2018 13:45:34 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+Message-ID: <CAANOHNn8O5abUZ3x3Eqh5BA5pq1rp9VkXO7-+80REZOrQm4tNw@mail.gmail.com>
+
+On Thu, 29 Nov 2018 at 11:00, Andrew Svetlov <andrew.svetlov at gmail.com> wrote:
+> I worked with lz4 python binding a year ago.
+> It sometimes crashed to core dump when used in multithreaded environment (we used to run compressor/decompresson with asyncio by loop.run_in_executor() call).
+> I hope the bug is fixed now, have no update for the current state.
+
+Andrew and I discussed this off-list. The upshot is that this was
+happening in a situation where a (de)compression context was being
+used simultaneously by multiple threads, which is not supported. I'll
+look at making this use case not crash, though.
+
+From benjamin at python.org  Thu Nov 29 09:36:51 2018
+From: benjamin at python.org (Benjamin Peterson)
+Date: Thu, 29 Nov 2018 09:36:51 -0500
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <20181129115415.0ee3e1f1@fsol>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+Message-ID: <52341a7b-7299-44fa-abfd-be0765277a35@sloti1d3t01>
+
+
+
+On Thu, Nov 29, 2018, at 04:54, Antoine Pitrou wrote:
+> On Thu, 29 Nov 2018 09:52:29 +0000
+> Paul Moore <p.f.moore at gmail.com> wrote:
+> > [This is getting off-topic, so I'll limit my comments to this one email]
+> > 
+> > On Thu, 29 Nov 2018 at 03:17, Brett Cannon <brett at python.org> wrote:
+> > > We have never really had a discussion about how we want to guide the stdlib going forward (e.g. how much does PyPI influence things, focus/theme, etc.). Maybe we should consider finally having that discussion once the governance model is chosen and before we consider adding a new module as things like people's inability to access PyPI come up pretty consistently (e.g. I know Paul Moore also brings this up regularly).  
+> > 
+> > I'm not sure a formal discussion on this matter will help much - my
+> > feeling is that most people have relatively fixed views on how they
+> > would like things to go (large stdlib/batteries included vs external
+> > modules/PyPI/slim stdlib). The "problem" isn't so much with people
+> > having different views (as a group, we're pretty good at achieving
+> > workable compromises in the face of differing views) as it is about
+> > people forgetting that their experience isn't the only reality, which
+> > causes unnecessary frustration in discussions. That's more of a people
+> > problem than a technical one.
+> 
+> I'd like to point the discussion is asymmetric here.
+> 
+> On the one hand, people who don't have access to PyPI would _really_
+> benefit from a larger stdlib with more batteries included.
+> 
+> On the other hand, people who have access to PyPI _don't_ benefit from
+> having a slim stdlib.  There's nothing virtuous or advantageous about
+> having _less_ batteries included.  Python doesn't become magically
+> faster or more powerful by including less in its standard
+> distribution: the best it does is make the distribution slightly
+> smaller.
+> 
+> So there's really one bunch of people arguing for practical benefits,
+> and another bunch of people arguing for mostly aesthetical or
+> philosophical reasons.
+
+I don't think it's asymmetric. People have raised several practical problems with a large stdlib in this thread. These include:
+- The evelopment of stdlib modules slows to the rate of the Python release schedule.
+- stdlib modules become a permanent maintenance burden to CPython core developers.
+- The blessed status of stdlib modules means that users might use a substandard stdlib modules when a better thirdparty alternative exists.
+
+From antoine at python.org  Thu Nov 29 09:45:39 2018
+From: antoine at python.org (Antoine Pitrou)
+Date: Thu, 29 Nov 2018 15:45:39 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <52341a7b-7299-44fa-abfd-be0765277a35@sloti1d3t01>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <52341a7b-7299-44fa-abfd-be0765277a35@sloti1d3t01>
+Message-ID: <4380075d-c8cd-8b11-56b2-e194ed4d41f8@python.org>
+
+
+Le 29/11/2018 ? 15:36, Benjamin Peterson a ?crit?:
+>>
+>> I'd like to point the discussion is asymmetric here.
+>>
+>> On the one hand, people who don't have access to PyPI would _really_
+>> benefit from a larger stdlib with more batteries included.
+>>
+>> On the other hand, people who have access to PyPI _don't_ benefit from
+>> having a slim stdlib.  There's nothing virtuous or advantageous about
+>> having _less_ batteries included.  Python doesn't become magically
+>> faster or more powerful by including less in its standard
+>> distribution: the best it does is make the distribution slightly
+>> smaller.
+>>
+>> So there's really one bunch of people arguing for practical benefits,
+>> and another bunch of people arguing for mostly aesthetical or
+>> philosophical reasons.
+> 
+> I don't think it's asymmetric. People have raised several practical problems with a large stdlib in this thread. These include:
+> - The evelopment of stdlib modules slows to the rate of the Python release schedule.
+
+Can you explain why that would be the case?  As a matter of fact, the
+Python release schedule seems to remain largely the same even though we
+accumulate more stdlib modules and functionality.
+
+The only risk is the prematurate inclusion of an unstable or ill-written
+module which may lengthen the stabilization cycle.
+
+> - stdlib modules become a permanent maintenance burden to CPython core developers.
+
+This is true.  We should only accept modules that we think are useful
+for a reasonable part of the user base.
+
+> - The blessed status of stdlib modules means that users might use a substandard stdlib modules when a better thirdparty alternative exists.
+
+We can always mention the better thirdparty alternative in the docs
+where desired.  But there are many cases where the stdlib module is good
+enough for what people use it.
+
+For example, the upstream simplejson module may have slightly more
+advanced functionality, but for most purposes the stdlib json module
+fits the bill and spares you from tracking a separate dependency.
+
+Regards
+
+Antoine.
+
+From benjamin at python.org  Thu Nov 29 09:53:30 2018
+From: benjamin at python.org (Benjamin Peterson)
+Date: Thu, 29 Nov 2018 09:53:30 -0500
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <20181128212736.GW4319@ando.pearwood.info>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+Message-ID: <e04f3625-f242-4d42-8406-2ea2b15183c6@sloti1d3t01>
+
+
+
+On Wed, Nov 28, 2018, at 15:27, Steven D'Aprano wrote:
+> On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+> 
+> > PyPI makes getting more algorithms easy.
+> 
+> Can we please stop over-generalising like this? PyPI makes getting 
+> more algorithms easy for *SOME* people. (Sorry for shouting, but you 
+> just pressed one of my buttons.)
+> 
+> PyPI might as well not exist for those who cannot, for technical or 
+> policy reasons, install addition software beyond the std lib on the 
+> computers they use. (I hesitate to say "their computers".)
+> 
+> In many school or corporate networks, installing unapproved software can 
+> get you expelled or fired. And getting approval may be effectively 
+> impossible, or take months of considerable effort navigating some 
+> complex bureaucratic process.
+> 
+> This is not an argument either for or against adding LZ4, I have no 
+> opinion either way. But it is a reminder that "just get it from PyPI" 
+> represents an extremely privileged position that not all Python users 
+> are capable of taking, and we shouldn't be so blase about abandoning 
+> those who can't to future std lib improvements.
+
+While I'm sympathetic to users in such situations, I'm not sure how much we can really help them. These are the sorts of users who are likely to still be stuck using Python 2.6. Any stdlib improvements we discuss and implement today are easily a decade away from benefiting users in restrictive environments. On that kind of timescale, it's very hard to know what to do, especially since, as Paul says, we don't hear much feedback from such users.
+
+The model these users are living in is increasingly at odds with how software is written and used these days. Browsers and Rust are updated every month. The node.js world is a frenzy of change. Are these users' environments running 5 year old browsers? I hope not for security's sake. At some point, languorous corporate environments will have to catch up to how modern software development is done to avoid seriously hampering their employees' effectiveness (and security!).
+
+From benjamin at python.org  Thu Nov 29 10:05:47 2018
+From: benjamin at python.org (Benjamin Peterson)
+Date: Thu, 29 Nov 2018 10:05:47 -0500
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <4380075d-c8cd-8b11-56b2-e194ed4d41f8@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <52341a7b-7299-44fa-abfd-be0765277a35@sloti1d3t01>
+ <4380075d-c8cd-8b11-56b2-e194ed4d41f8@python.org>
+Message-ID: <171a9da9-559b-4c80-a2b3-3e8d286eb988@sloti1d3t01>
+
+
+
+On Thu, Nov 29, 2018, at 08:45, Antoine Pitrou wrote:
+> 
+> Le 29/11/2018 ? 15:36, Benjamin Peterson a ?crit :
+> >>
+> >> I'd like to point the discussion is asymmetric here.
+> >>
+> >> On the one hand, people who don't have access to PyPI would _really_
+> >> benefit from a larger stdlib with more batteries included.
+> >>
+> >> On the other hand, people who have access to PyPI _don't_ benefit from
+> >> having a slim stdlib.  There's nothing virtuous or advantageous about
+> >> having _less_ batteries included.  Python doesn't become magically
+> >> faster or more powerful by including less in its standard
+> >> distribution: the best it does is make the distribution slightly
+> >> smaller.
+> >>
+> >> So there's really one bunch of people arguing for practical benefits,
+> >> and another bunch of people arguing for mostly aesthetical or
+> >> philosophical reasons.
+> > 
+> > I don't think it's asymmetric. People have raised several practical problems with a large stdlib in this thread. These include:
+> > - The evelopment of stdlib modules slows to the rate of the Python release schedule.
+> 
+> Can you explain why that would be the case?  As a matter of fact, the
+> Python release schedule seems to remain largely the same even though we
+> accumulate more stdlib modules and functionality.
+
+The problem is the length of the Python release schedule. It means, in the extreme case, that stdlib modifications won't see the light of day for 2 years (feature freeze + 1.5 year release schedule). And that's only if people update Python immediately after a release. PyPI modules can evolve much more rapidly.
+
+CPython releases come in one big chunk. Even if you want to use improvements to one stdlib module in a new Python version, you may be hampered by breakages in your code from language changes or changes in a different stdlib module. Modules on PyPI, being decoupled, don't have this problem.
+
+> 
+> The only risk is the prematurate inclusion of an unstable or ill-written
+> module which may lengthen the stabilization cycle.
+> 
+> > - stdlib modules become a permanent maintenance burden to CPython core developers.
+> 
+> This is true.  We should only accept modules that we think are useful
+> for a reasonable part of the user base.
+
+We agree with in the ultimate conclusion then.
+
+> 
+> > - The blessed status of stdlib modules means that users might use a substandard stdlib modules when a better thirdparty alternative exists.
+> 
+> We can always mention the better thirdparty alternative in the docs
+> where desired.  But there are many cases where the stdlib module is good
+> enough for what people use it.
+> 
+> For example, the upstream simplejson module may have slightly more
+> advanced functionality, but for most purposes the stdlib json module
+> fits the bill and spares you from tracking a separate dependency.
+
+Yes, I think json was a fine addition to the stdlib. However, we also have stdlib modules where there is a universally better alternative. For example, requests is better than urllib.* both in simple and complex cases.
+
+From steve at pearwood.info  Thu Nov 29 10:07:35 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 30 Nov 2018 02:07:35 +1100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <52341a7b-7299-44fa-abfd-be0765277a35@sloti1d3t01>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <52341a7b-7299-44fa-abfd-be0765277a35@sloti1d3t01>
+Message-ID: <20181129150734.GE4319@ando.pearwood.info>
+
+On Thu, Nov 29, 2018 at 09:36:51AM -0500, Benjamin Peterson wrote:
+
+> I don't think it's asymmetric. People have raised several practical 
+> problems with a large stdlib in this thread. These include:
+>
+> - The evelopment of stdlib modules slows to the rate of the Python 
+> release schedule.
+
+That's not a bug, that's a feature :-)
+
+Of course that's a concern for rapidly changing libraries, but they 
+won't be considered for the stdlib because they are rapidly changing.
+
+
+> - stdlib modules become a permanent maintenance burden to CPython core 
+> developers.
+
+That's a concern, of course. Every proposed library needs to convince 
+that the potential benefit outweighs the potential costs.
+
+On the other hand mature, stable software can survive with little or 
+no maintenance for a very long time. The burden is not necessarily high.
+
+
+> - The blessed status of stdlib modules means that users might use a 
+> substandard stdlib modules when a better thirdparty alternative 
+> exists.
+
+Or they might re-invent the wheel and write something worse than either. 
+
+I don't think it is productive to try to guess what users will do and 
+protect them from making the "wrong" choice. Wrong choice according to 
+whose cost-benefit analysis?
+
+
+-- 
+Steve
+
+From a.badger at gmail.com  Thu Nov 29 10:10:53 2018
+From: a.badger at gmail.com (Toshio Kuratomi)
+Date: Thu, 29 Nov 2018 07:10:53 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <e04f3625-f242-4d42-8406-2ea2b15183c6@sloti1d3t01>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <e04f3625-f242-4d42-8406-2ea2b15183c6@sloti1d3t01>
+Message-ID: <CABVPEKqFi1UY7z1U7NHuDLR2QvY6mHZVUn6dRSTfUtCTZaoCXA@mail.gmail.com>
+
+On Thu, Nov 29, 2018, 6:56 AM Benjamin Peterson <benjamin at python.org wrote:
+
+>
+>
+> On Wed, Nov 28, 2018, at 15:27, Steven D'Aprano wrote:
+> > On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+> >
+> > > PyPI makes getting more algorithms easy.
+> >
+> > Can we please stop over-generalising like this? PyPI makes getting
+> > more algorithms easy for *SOME* people. (Sorry for shouting, but you
+> > just pressed one of my buttons.)
+> >
+> > PyPI might as well not exist for those who cannot, for technical or
+> > policy reasons, install addition software beyond the std lib on the
+> > computers they use. (I hesitate to say "their computers".)
+> >
+> > In many school or corporate networks, installing unapproved software can
+> > get you expelled or fired. And getting approval may be effectively
+> > impossible, or take months of considerable effort navigating some
+> > complex bureaucratic process.
+> >
+> > This is not an argument either for or against adding LZ4, I have no
+> > opinion either way. But it is a reminder that "just get it from PyPI"
+> > represents an extremely privileged position that not all Python users
+> > are capable of taking, and we shouldn't be so blase about abandoning
+> > those who can't to future std lib improvements.
+>
+> While I'm sympathetic to users in such situations, I'm not sure how much
+> we can really help them. These are the sorts of users who are likely to
+> still be stuck using Python 2.6. Any stdlib improvements we discuss and
+> implement today are easily a decade away from benefiting users in
+> restrictive environments. On that kind of timescale, it's very hard to know
+> what to do, especially since, as Paul says, we don't hear much feedback
+> from such users.
+>
+
+As a developer of software that has to run in such environments, having a
+library be in the stdlib is helpful as it is easier to convince the rest of
+the team to bundle a backport of something that's in a future stdlib than a
+random package from pypi.  Stdlib inclusion gives the library a known
+future and a (perhaps illusory, perhaps real) blessing from the core devs
+that helps to sell the library as the preferred solution.
+
+-Toshio
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/e9cd301c/attachment.html>
+
+From solipsis at pitrou.net  Thu Nov 29 10:32:53 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 29 Nov 2018 16:32:53 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <52341a7b-7299-44fa-abfd-be0765277a35@sloti1d3t01>
+ <4380075d-c8cd-8b11-56b2-e194ed4d41f8@python.org>
+ <171a9da9-559b-4c80-a2b3-3e8d286eb988@sloti1d3t01>
+Message-ID: <20181129163253.06297d9d@fsol>
+
+On Thu, 29 Nov 2018 10:05:47 -0500
+"Benjamin Peterson" <benjamin at python.org> wrote:
+> On Thu, Nov 29, 2018, at 08:45, Antoine Pitrou wrote:
+> > 
+> > Le 29/11/2018 ? 15:36, Benjamin Peterson a ?crit :  
+> > >>
+> > >> I'd like to point the discussion is asymmetric here.
+> > >>
+> > >> On the one hand, people who don't have access to PyPI would _really_
+> > >> benefit from a larger stdlib with more batteries included.
+> > >>
+> > >> On the other hand, people who have access to PyPI _don't_ benefit from
+> > >> having a slim stdlib.  There's nothing virtuous or advantageous about
+> > >> having _less_ batteries included.  Python doesn't become magically
+> > >> faster or more powerful by including less in its standard
+> > >> distribution: the best it does is make the distribution slightly
+> > >> smaller.
+> > >>
+> > >> So there's really one bunch of people arguing for practical benefits,
+> > >> and another bunch of people arguing for mostly aesthetical or
+> > >> philosophical reasons.  
+> > > 
+> > > I don't think it's asymmetric. People have raised several practical problems with a large stdlib in this thread. These include:
+> > > - The evelopment of stdlib modules slows to the rate of the Python release schedule.  
+> > 
+> > Can you explain why that would be the case?  As a matter of fact, the
+> > Python release schedule seems to remain largely the same even though we
+> > accumulate more stdlib modules and functionality.  
+> 
+> The problem is the length of the Python release schedule. It means, in the extreme case, that stdlib modifications won't see the light of day for 2 years (feature freeze + 1.5 year release schedule). And that's only if people update Python immediately after a release. PyPI modules can evolve much more rapidly.
+
+Ah, I realize I had misread as "the development of stdlib modules slows
+the rate of the Python release schedule" (instead of "slows *to* the
+rate").
+
+Regards
+
+Antoine.
+
+
+
+From steve at pearwood.info  Thu Nov 29 10:39:24 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 30 Nov 2018 02:39:24 +1100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <e04f3625-f242-4d42-8406-2ea2b15183c6@sloti1d3t01>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <e04f3625-f242-4d42-8406-2ea2b15183c6@sloti1d3t01>
+Message-ID: <20181129153923.GF4319@ando.pearwood.info>
+
+On Thu, Nov 29, 2018 at 09:53:30AM -0500, Benjamin Peterson wrote:
+
+[...]
+> > This is not an argument either for or against adding LZ4, I have no 
+> > opinion either way. But it is a reminder that "just get it from PyPI" 
+> > represents an extremely privileged position that not all Python users 
+> > are capable of taking, and we shouldn't be so blase about abandoning 
+> > those who can't to future std lib improvements.
+> 
+> While I'm sympathetic to users in such situations, I'm not sure how 
+> much we can really help them. These are the sorts of users who are 
+> likely to still be stuck using Python 2.6.
+
+Not necessarily. They may have approval for the latest approved vendor 
+software, but not for third party packages.
+
+Nick has been quiet lately, it would be good to hear from him, because I 
+expect Red Hat's corporate userbase will be an informative example. I 
+hear Red Hat has now moved to Python 3 for its system Python, so I 
+expect that many of their corporate users will be, or will soon be, 
+running Python 3.x too.
+
+In any case, it's not the users stuck on 2.6 *now* that I'm so concerned 
+about, since as you say there's nothing we can do for them. Its the 
+users stuck on 3.9 ten years from now, who are missing out on 
+functionality because we keep saying "its easy to get it from PyPI".
+
+(To be clear, this isn't a plea to add everything to the stdlib.)
+
+
+> Any stdlib improvements we 
+> discuss and implement today are easily a decade away from benefiting 
+> users in restrictive environments. On that kind of timescale, it's 
+> very hard to know what to do, especially since, as Paul says, we don't 
+> hear much feedback from such users.
+
+Indeed, it isn't easy to know where to draw the line. That's what makes 
+the PyPI argument all the more pernicious: it makes it *seem* easy, 
+"just get it from PyPI", because it is easy for we privileged users who 
+control the computers we use.
+
+
+> The model these users are living in is increasingly at odds with how 
+> software is written and used these days. Browsers and Rust are updated 
+> every month. The node.js world is a frenzy of change. 
+
+The node.js world is hardly the paragon of excellence in software 
+development we ought to emulate.
+
+
+> Are these users' 
+> environments running 5 year old browsers? I hope not for security's 
+> sake. At some point, languorous corporate environments will have to 
+> catch up to how modern software development is done to avoid seriously 
+> hampering their employees' effectiveness (and security!).
+
+Arguably, modern software development will have to slow down and stop 
+introducing a dozen zero-day exploits every week. (Only half tongue in 
+cheek.)
+
+Browsers are at the interface of the most hostile, exposed part of the 
+computer ecosystem. Not all software operates in such an exposed 
+position, and *stability* remains important for many uses and users.
+
+I don't see that this is really relevant to Python though, not unless 
+you're thinking about accelerating the pace of new releases.
+
+
+
+-- 
+Steve
+
+From p.f.moore at gmail.com  Thu Nov 29 10:44:54 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 29 Nov 2018 15:44:54 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <e04f3625-f242-4d42-8406-2ea2b15183c6@sloti1d3t01>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <e04f3625-f242-4d42-8406-2ea2b15183c6@sloti1d3t01>
+Message-ID: <CACac1F-8mDZAhYPn+MxMbwN1Lt7KcxL3WU9aW0K=E+jGPxTkeg@mail.gmail.com>
+
+On Thu, 29 Nov 2018 at 14:56, Benjamin Peterson <benjamin at python.org> wrote:
+> While I'm sympathetic to users in such situations, I'm not sure how much we can really help them. These are the sorts of users who are likely to still be stuck using Python 2.6. Any stdlib improvements we discuss and implement today are easily a decade away from benefiting users in restrictive environments. On that kind of timescale, it's very hard to know what to do, especially since, as Paul says, we don't hear much feedback from such users.
+
+As a user in that situation, I can confirm that there *are* situations
+where I am stuck using older versions of Python (2.6? Ha - luxury! I
+have to use 2.4 on some of our systems!) But there are also situations
+where I can do a one-off install of the latest version of Python
+(typically by copying install files from one machine to another, until
+I get it to a machine with no internet access) but installing
+additional modules, while possible (by similar means) is too painful
+to be worthwhile. Also, when sharing scripts with other users who are
+able to handle "download and run the installer from python.org", but
+for whom "pip install" (including the proxy configuration to let pip
+see the internet, which isn't needed for the installer because our
+browsers auto-configure) is impossibly hard. So "latest Python, no
+PyPI access" is not an unrealistic model for me to work to.
+
+I can't offer more than one person's feedback, but my experience is a
+real-life situation. And it's one where I've been able to push Python
+over other languages (such as Perl) *precisely* because the stdlib
+provides a big chunk of built in functionality as part of the base
+install. If we hadn't been able to use Python with its stdlib, I'd
+have probably had to argue for Java (for the same "large stdlib"
+reasons).
+
+> The model these users are living in is increasingly at odds with how software is written and used these days.
+
+I'd dispute that. It's increasingly at odds with how *open source*
+software, and modern web applications are written (and my experience
+is just as limited in the opposite direction, so I'm sure this
+statement is just as inaccurate as the one I'm disputing ;-)). But
+from what I can see there's a huge base of people in "enterprise"
+companies (the people who 20 years ago were still writing COBOL) who
+are just starting to use "modern" tools like Python, usually in a
+"grass roots" fashion, but whose corporate infrastructure hasn't got a
+clue how to deal with the sort of "everything is downloaded from the
+web as needed" environment that web-based development is embracing.
+
+> Browsers and Rust are updated every month. The node.js world is a frenzy of change. Are these users' environments running 5 year old browsers? I hope not for security's sake.
+
+For people in those environments, I hope not as well. For people in
+locked down environments where upgrading internal applications is a
+massive project, and upgrading browsers without suffcient testing
+could potentially break old but key business applications, and for
+whom "limit internet access" is a draconian but mostly effective
+solution, slow change and limited connectivity is a practical
+solution.
+
+It frustrates me enormously, and I hate having to argue that it's the
+right solution, but it's certainly *not* as utterly wrong-headed as
+some people try to argue. Priorities differ.
+
+> At some point, languorous corporate environments will have to catch up to how modern software development is done to avoid seriously hampering their employees' effectiveness (and security!).
+
+And employees making a grass-roots effort to do so by gradually
+introducing modern tools like Python are part of that process. Making
+it harder to demonstrate benefits without needing infrastructure-level
+changes is not helping them do so. It's not necessarily Python's role
+to help that process, admittedly - but I personally have that goal,
+and therefore I'll continue to argue that the benefits of having a
+comprehensive stdlib are worth it.
+
+Paul
+
+From phd at phdru.name  Thu Nov 29 10:17:51 2018
+From: phd at phdru.name (Oleg Broytman)
+Date: Thu, 29 Nov 2018 16:17:51 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <52341a7b-7299-44fa-abfd-be0765277a35@sloti1d3t01>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <52341a7b-7299-44fa-abfd-be0765277a35@sloti1d3t01>
+Message-ID: <20181129151751.pd23uxuvl2wbtvsx@phdru.name>
+
+On Thu, Nov 29, 2018 at 09:36:51AM -0500, Benjamin Peterson <benjamin at python.org> wrote:
+> - stdlib modules become a permanent maintenance burden to CPython core developers.
+
+   Add ditributions maintainers here.
+
+Oleg.
+-- 
+    Oleg Broytman            https://phdru.name/            phd at phdru.name
+           Programmers don't die, they just GOSUB without RETURN.
+
+From p.f.moore at gmail.com  Thu Nov 29 10:57:25 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 29 Nov 2018 15:57:25 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <20181129151751.pd23uxuvl2wbtvsx@phdru.name>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <52341a7b-7299-44fa-abfd-be0765277a35@sloti1d3t01>
+ <20181129151751.pd23uxuvl2wbtvsx@phdru.name>
+Message-ID: <CACac1F9_YbxBFsGkh8w5kKU0_3VwrBQp28G+uWYo_5Wq1C8deQ@mail.gmail.com>
+
+On Thu, 29 Nov 2018 at 15:52, Oleg Broytman <phd at phdru.name> wrote:
+>
+> On Thu, Nov 29, 2018 at 09:36:51AM -0500, Benjamin Peterson <benjamin at python.org> wrote:
+> > - stdlib modules become a permanent maintenance burden to CPython core developers.
+>
+>    Add ditributions maintainers here.
+
+Well, given that "you shouldn't use pip install on your
+distribution-installed Python", I'm not sure that's as clear cut a
+factor as it first seems. Yes, I know people should use virtual
+environments, or use "--user" installs, but distributions still have a
+maintenance burden providing distro-packaged modules, whether they are
+in the stdlib or not. If unittest were removed from the stdlib, I'd
+confidently expect that distributions would still provide a
+python3-unittest package, for example...
+
+Paul
+
+From steve.dower at python.org  Thu Nov 29 11:19:49 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 29 Nov 2018 08:19:49 -0800
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+ <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+Message-ID: <cf3bf917-b4da-96ac-349f-c3993b52cce0@python.org>
+
+On 28Nov2018 2208, Armin Rigo wrote:
+> Hi Steve,
+> 
+> On Tue, 27 Nov 2018 at 19:14, Steve Dower <steve.dower at python.org> wrote:
+>> On 27Nov2018 0609, Victor Stinner wrote:
+>>> Note: Again, in my plan, the new C API would be an opt-in API. The old
+>>> C API would remain unchanged and fully supported. So there is no
+>>> impact on performance if you consider to use the old C API.
+>>
+>> This is one of the things that makes me think your plan is not feasible.
+> 
+> I can easily imagine the new API having two different implementations
+> even for CPython:
+> 
+> A) you can use the generic implementation, which produces a
+> cross-python-compatible .so.  All function calls go through the API at
+> runtime.  The same .so works on any version of CPython or PyPy.
+> 
+> B) you can use a different set of headers or a #define or something,
+> and you get a higher-performance version of your unmodified
+> code---with the issue that the .so only runs on the exact version of
+> CPython.  This is done by defining some of the functions as macros.  I
+> would expect this version to be of similar speed than the current C
+> API in most cases.
+> 
+> This might give a way forward: people would initially port their
+> extensions hoping to use the option B; once that is done, they can
+> easily measure---not guess--- the extra performance costs of the
+> option A, and decide based on actual data if the difference is really
+> worth the additional troubles of distributing many versions.  Even if
+> it is, they can distribute an A version for PyPy and for unsupported
+> CPython versions, and add a few B versions on top of that.
+
+This makes sense, but unless it results in PyPy drastically gaining 
+popularity as a production runtime, it basically leaves us in the status 
+quo. We continue to not be able to change CPython internals at all, 
+since that will break people using option B.
+
+Though potentially if we picked an official option for A, we could 
+deprecate the stability of option B (over a few releases) and require 
+people using it to thoroughly test, update and #ifdef their code for 
+each version. That would allow us to make changes to the runtime while 
+preserving option A as the reliable version.
+
+You might want to have a look at https://github.com/Microsoft/xlang/ 
+which is not yet ready for showtime (in particular, there's no "make it 
+look Pythonic" support yet), but is going to extend our existing 
+cross-language ABI to Python (alongside C++/.NET/JS) and non-Windows 
+platforms. It's been in use for years in Windows and has been just fine. 
+(Sample generated output at 
+https://github.com/devhawk/pywinrt-output/tree/master/generated/pyrt/src 
+but the design docs at the first link are probably most interesting.)
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Thu Nov 29 11:25:38 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 29 Nov 2018 08:25:38 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <20181129115415.0ee3e1f1@fsol>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+Message-ID: <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+
+On 29Nov2018 0254, Antoine Pitrou wrote:
+> I'd like to point the discussion is asymmetric here.
+> 
+> On the one hand, people who don't have access to PyPI would _really_
+> benefit from a larger stdlib with more batteries included.
+> 
+> On the other hand, people who have access to PyPI _don't_ benefit from
+> having a slim stdlib.  There's nothing virtuous or advantageous about
+> having _less_ batteries included.  Python doesn't become magically
+> faster or more powerful by including less in its standard
+> distribution: the best it does is make the distribution slightly
+> smaller.
+> 
+> So there's really one bunch of people arguing for practical benefits,
+> and another bunch of people arguing for mostly aesthetical or
+> philosophical reasons.
+
+My experience is that the first group would benefit from a larger 
+_standard distribution_, which is not necessarily the same thing as a 
+larger stdlib.
+
+I'm firmly on the "smaller core, larger distribution" side of things, 
+where we as the core team take responsibility for the bare minimum 
+needed to be an effective language and split more functionality out to 
+individual libraries. We then also prepare/recommend a standard 
+distribution that bundles many of these libraries by default (Anaconda 
+style), as well as a minimal one that is a better starting point for 
+low-footprint systems (Miniconda style) or embedding into other apps.
+
+Cheers,
+Steve
+
+From antoine at python.org  Thu Nov 29 11:32:31 2018
+From: antoine at python.org (Antoine Pitrou)
+Date: Thu, 29 Nov 2018 17:32:31 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+Message-ID: <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+
+
+Le 29/11/2018 ? 17:25, Steve Dower a ?crit?:
+> 
+> My experience is that the first group would benefit from a larger 
+> _standard distribution_, which is not necessarily the same thing as a 
+> larger stdlib.
+> 
+> I'm firmly on the "smaller core, larger distribution" side of things, 
+> where we as the core team take responsibility for the bare minimum 
+> needed to be an effective language and split more functionality out to 
+> individual libraries.
+
+We may ask ourselves if there is really a large difference between a
+"standard distribution" and a "standard library".  The primary
+difference seems to be that the distribution is modular, while the
+stdlib is not.
+
+As for reviews and CI, though, we would probably want a standard
+distribution to be high-quality, so to go through a review process and
+be tested by the same buildbot fleet as the stdlib.
+
+Regards
+
+Antoine.
+
+From christian at python.org  Thu Nov 29 11:45:46 2018
+From: christian at python.org (Christian Heimes)
+Date: Thu, 29 Nov 2018 17:45:46 +0100
+Subject: [Python-Dev] Extended Python distribution [was: Inclusion of lz4
+ bindings in stdlib?]
+In-Reply-To: <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+Message-ID: <24f7db41-319a-0cdd-228e-789cb749f62a@python.org>
+
+On 29/11/2018 17.25, Steve Dower wrote:
+> On 29Nov2018 0254, Antoine Pitrou wrote:
+>> I'd like to point the discussion is asymmetric here.
+>>
+>> On the one hand, people who don't have access to PyPI would _really_
+>> benefit from a larger stdlib with more batteries included.
+>>
+>> On the other hand, people who have access to PyPI _don't_ benefit from
+>> having a slim stdlib.? There's nothing virtuous or advantageous about
+>> having _less_ batteries included.? Python doesn't become magically
+>> faster or more powerful by including less in its standard
+>> distribution: the best it does is make the distribution slightly
+>> smaller.
+>>
+>> So there's really one bunch of people arguing for practical benefits,
+>> and another bunch of people arguing for mostly aesthetical or
+>> philosophical reasons.
+> 
+> My experience is that the first group would benefit from a larger
+> _standard distribution_, which is not necessarily the same thing as a
+> larger stdlib.
+> 
+> I'm firmly on the "smaller core, larger distribution" side of things,
+> where we as the core team take responsibility for the bare minimum
+> needed to be an effective language and split more functionality out to
+> individual libraries. We then also prepare/recommend a standard
+> distribution that bundles many of these libraries by default (Anaconda
+> style), as well as a minimal one that is a better starting point for
+> low-footprint systems (Miniconda style) or embedding into other apps.
+
+I was about to suggest the same proposal. Thanks, Steve!
+
+The core dev team is already busy to keep Python running and evolving.
+Pulling more modules into the stdlib has multiple downsides.
+
+An extended Python distribution would solve the issue for users on
+restricted machines. It's also something that can be handled by a
+working group instead of a the core dev team. A SIG can do the selection
+of packages, deal with legal issues, politics and create releases. An
+extended Python distribution can also be updated outside the release
+cycle of CPython. This allows out-of-band security updates of libraries
+that are bundled with an extended distribution.
+
+Christian
+
+Christian
+
+From christian at python.org  Thu Nov 29 12:17:10 2018
+From: christian at python.org (Christian Heimes)
+Date: Thu, 29 Nov 2018 18:17:10 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+Message-ID: <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+
+On 29/11/2018 17.32, Antoine Pitrou wrote:
+> We may ask ourselves if there is really a large difference between a
+> "standard distribution" and a "standard library".  The primary
+> difference seems to be that the distribution is modular, while the
+> stdlib is not.
+
+Yes, there is a huge difference between a larger distribution and a
+stdlib. I'm going to ignore all legal issues and human drama of "choose
+your favorite kid", but start with a simple example.
+
+I'm sure we can all agree that the requests library should be part of an
+extended Python distribution. After all it's the best and easiest HTTP
+library for Python. I'm using it on a daily basis. However I would
+require some changes to align it with other stdlib modules. Among others
+requests and urllib3 would have to obey sys.flags.ignore_environment and
+accept an SSLContext object. Requests depends on certifi to provide a CA
+trust store. I would definitely veto against the inclusion of certifi,
+because it's not just dangerous but also breaks my code.
+
+If we would keep the standard distribution of Python as it is and just
+have a Python SIG offer an additional extended distribution on
+python.org, then I don't have to care about the quality and security of
+additional code. The Python core team would neither own the code nor
+takes responsibility of the code. Instead the extended distribution SIG
+merely set the quality standards and leave the maintance burden to the
+original owners. In case a library doesn't keep up or has severe flaws,
+the SIG may even decide to remove a package from the extended distribution.
+
+Christian
+
+From greg at krypto.org  Thu Nov 29 12:20:15 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Thu, 29 Nov 2018 09:20:15 -0800
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+Message-ID: <CAGE7PN+X_wn3QN+eHLhhFigbNecU_sp3d8VpKres1Hp+amo48w@mail.gmail.com>
+
+meta: I'm not participating in this sub-thread. Just changing the subject
+line.
+
+On Thu, Nov 29, 2018 at 9:17 AM Christian Heimes <christian at python.org>
+wrote:
+
+> On 29/11/2018 17.32, Antoine Pitrou wrote:
+> > We may ask ourselves if there is really a large difference between a
+> > "standard distribution" and a "standard library".  The primary
+> > difference seems to be that the distribution is modular, while the
+> > stdlib is not.
+>
+> Yes, there is a huge difference between a larger distribution and a
+> stdlib. I'm going to ignore all legal issues and human drama of "choose
+> your favorite kid", but start with a simple example.
+>
+> I'm sure we can all agree that the requests library should be part of an
+> extended Python distribution. After all it's the best and easiest HTTP
+> library for Python. I'm using it on a daily basis. However I would
+> require some changes to align it with other stdlib modules. Among others
+> requests and urllib3 would have to obey sys.flags.ignore_environment and
+> accept an SSLContext object. Requests depends on certifi to provide a CA
+> trust store. I would definitely veto against the inclusion of certifi,
+> because it's not just dangerous but also breaks my code.
+>
+> If we would keep the standard distribution of Python as it is and just
+> have a Python SIG offer an additional extended distribution on
+> python.org, then I don't have to care about the quality and security of
+> additional code. The Python core team would neither own the code nor
+> takes responsibility of the code. Instead the extended distribution SIG
+> merely set the quality standards and leave the maintance burden to the
+> original owners. In case a library doesn't keep up or has severe flaws,
+> the SIG may even decide to remove a package from the extended distribution.
+>
+> Christian
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/548cb7f2/attachment.html>
+
+From antoine at python.org  Thu Nov 29 12:23:51 2018
+From: antoine at python.org (Antoine Pitrou)
+Date: Thu, 29 Nov 2018 18:23:51 +0100
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+Message-ID: <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+
+
+Le 29/11/2018 ? 18:17, Christian Heimes a ?crit?:
+> 
+> If we would keep the standard distribution of Python as it is and just
+> have a Python SIG offer an additional extended distribution on
+> python.org, then I don't have to care about the quality and security of
+> additional code. The Python core team would neither own the code nor
+> takes responsibility of the code.
+
+Then it's an argument against the extended distribution.
+If its security and quality are not up to Python's quality standards,
+those people who don't want to install from PyPI may not accept the
+extended distribution either.  And we may not want to offer those
+downloads from the main python.org page either, lest it taints the
+project's reputation.
+
+I think the whole argument amounts to hand waving anyway.  You are
+inventing an extended distribution which doesn't exist (except as
+Anaconda) to justify that we shouldn't accept more modules in the
+stdlib.  But obviously maintaining an extended distribution is a lot
+more work than accepting a single module in the stdlib, and that's why
+you don't see anyone doing it, even though people have been floating the
+idea for years.
+
+Regards
+
+Antoine.
+
+From njs at pobox.com  Thu Nov 29 12:49:32 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 29 Nov 2018 09:49:32 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+Message-ID: <CAPJVwB=OZYzFWkX7aVk2bcD570t-S6=uOCbmeax6uZjS1MMgrA@mail.gmail.com>
+
+On Thu, Nov 29, 2018, 08:34 Antoine Pitrou <antoine at python.org wrote:
+
+>
+> Le 29/11/2018 ? 17:25, Steve Dower a ?crit :
+> >
+> > My experience is that the first group would benefit from a larger
+> > _standard distribution_, which is not necessarily the same thing as a
+> > larger stdlib.
+> >
+> > I'm firmly on the "smaller core, larger distribution" side of things,
+> > where we as the core team take responsibility for the bare minimum
+> > needed to be an effective language and split more functionality out to
+> > individual libraries.
+>
+> We may ask ourselves if there is really a large difference between a
+> "standard distribution" and a "standard library".  The primary
+> difference seems to be that the distribution is modular, while the
+> stdlib is not.
+>
+
+Some differences that come to mind:
+
+- a standard distribution provides a clear path for creating and managing
+subsets, which is useful when disk/download weight is an issue. (This is
+another situation that only affects some people and is easy for most of us
+to forget about.) I guess this is your "modular" point?
+
+- a standard distribution lets those who *do* have internet access install
+upgrades incrementally as needed.
+
+- This may be controversial, but my impression is that keeping package
+development outside the stdlib almost always produces better packages in
+the long run. You get faster feedback cycles, more responsive maintainers,
+and it's just easier to find people to help maintain one focused package in
+an area they care about than it is to get new core devs on board. Of course
+there's probably some survivorship bias here too (urllib is worse than
+requests, but is it worse than the average third-party package http
+client?). But that's my impression.
+
+Concretely: requests, pip, numpy, setuptools are all examples of packages
+that should *obviously* be included in any self-respecting set of
+batteries, but where we're not willing to put them in the stdlib. Obviously
+we aren't doing a great job of supporting offline users, regardless of
+whether we add lz4.
+
+There are a lot of challenges to switching to a "standard distribution"
+model. I'm not certain it's the best option. But what I like about it is
+that it could potentially reduce the conflict between what our different
+user groups need, instead of playing zero-sum tug-of-war every time this
+comes up.
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/d5953b7d/attachment.html>
+
+From steve.dower at python.org  Thu Nov 29 13:07:13 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 29 Nov 2018 10:07:13 -0800
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+Message-ID: <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+
+On 29Nov2018 0923, Antoine Pitrou wrote:
+> I think the whole argument amounts to hand waving anyway.  You are
+> inventing an extended distribution which doesn't exist (except as
+> Anaconda) to justify that we shouldn't accept more modules in the
+> stdlib.  But obviously maintaining an extended distribution is a lot
+> more work than accepting a single module in the stdlib, and that's why
+> you don't see anyone doing it, even though people have been floating the
+> idea for years.
+
+https://anaconda.com/
+https://www.activestate.com/products/activepython/
+http://winpython.github.io/
+http://python-xy.github.io/
+https://www.enthought.com/product/canopy/
+https://software.intel.com/en-us/distribution-for-python
+http://every-linux-distro-ever.example.com
+
+Do I need to keep going?
+
+Accepting a module in the stdlib means accepting the full development 
+and maintenance burden. Maintaining a list of "we recommend these so 
+strongly here's an installer that will give them to you" is a very 
+different kind of burden, and one that is significantly easier to bear.
+
+Cheers,
+Steve
+
+From christian at python.org  Thu Nov 29 13:08:56 2018
+From: christian at python.org (Christian Heimes)
+Date: Thu, 29 Nov 2018 19:08:56 +0100
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+Message-ID: <ba8604bc-c070-5aae-b3fc-6875286b9c11@python.org>
+
+On 29/11/2018 18.23, Antoine Pitrou wrote:
+> 
+> Le 29/11/2018 ? 18:17, Christian Heimes a ?crit?:
+>>
+>> If we would keep the standard distribution of Python as it is and just
+>> have a Python SIG offer an additional extended distribution on
+>> python.org, then I don't have to care about the quality and security of
+>> additional code. The Python core team would neither own the code nor
+>> takes responsibility of the code.
+> 
+> Then it's an argument against the extended distribution.
+> If its security and quality are not up to Python's quality standards,
+> those people who don't want to install from PyPI may not accept the
+> extended distribution either.  And we may not want to offer those
+> downloads from the main python.org page either, lest it taints the
+> project's reputation.
+
+You are assuming that you can convince or force upstream developers to
+change their project and development style. Speaking from personal
+experience, that is even unrealistic for projects that are already
+developed and promoted by officially acknowledged and PSF approved
+Python authorities.
+
+The owners and developers of these projects set their own terms and
+don't follow the same rigorous CI, backwards compatibility and security
+policies as Python core. You can't force projects to work differently.
+
+Christian
+
+From antoine at python.org  Thu Nov 29 13:20:01 2018
+From: antoine at python.org (Antoine Pitrou)
+Date: Thu, 29 Nov 2018 19:20:01 +0100
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+Message-ID: <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+
+
+Le 29/11/2018 ? 19:07, Steve Dower a ?crit?:
+> On 29Nov2018 0923, Antoine Pitrou wrote:
+>> I think the whole argument amounts to hand waving anyway.  You are
+>> inventing an extended distribution which doesn't exist (except as
+>> Anaconda) to justify that we shouldn't accept more modules in the
+>> stdlib.  But obviously maintaining an extended distribution is a lot
+>> more work than accepting a single module in the stdlib, and that's why
+>> you don't see anyone doing it, even though people have been floating the
+>> idea for years.
+> 
+> https://anaconda.com/
+> https://www.activestate.com/products/activepython/
+> http://winpython.github.io/
+> http://python-xy.github.io/
+> https://www.enthought.com/product/canopy/
+> https://software.intel.com/en-us/distribution-for-python
+> http://every-linux-distro-ever.example.com
+> 
+> Do I need to keep going?
+
+I'm sure you could.  So what?  The point is that it's a lot of work to
+maintain if you want to do it seriously and with quality standards that
+would actually _satisfy_ the people for whom PyPI is not an option.
+
+Notice how the serious efforts in the list above are from commercial
+companies.  Not small groups of volunteers.  Yes, it's not unheard to
+have distributions maintained by volunteers (Debian?).  It's just _hard_
+and an awful lot of work, and apparently you're not volunteering to
+start it.  So saying "we should make an extended distribution" if you're
+just waiting for others to do the job doesn't sound convincing to me, it
+just feels like you are derailing the discussion.
+
+Regards
+
+Antoine.
+
+From solipsis at pitrou.net  Thu Nov 29 13:23:55 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 29 Nov 2018 19:23:55 +0100
+Subject: [Python-Dev] Standard library vs Standard distribution?
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <ba8604bc-c070-5aae-b3fc-6875286b9c11@python.org>
+Message-ID: <20181129192355.48c2665b@fsol>
+
+On Thu, 29 Nov 2018 19:08:56 +0100
+Christian Heimes <christian at python.org> wrote:
+> 
+> The owners and developers of these projects set their own terms and
+> don't follow the same rigorous CI, backwards compatibility and security
+> policies as Python core. You can't force projects to work differently.
+
+Who's talking about forcing anyone?  We only include modules in the
+stdlib when authors are _willing_ for them to go into the stdlib.
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Thu Nov 29 13:30:07 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 29 Nov 2018 19:30:07 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <CAPJVwB=OZYzFWkX7aVk2bcD570t-S6=uOCbmeax6uZjS1MMgrA@mail.gmail.com>
+Message-ID: <20181129193007.156b7c1a@fsol>
+
+On Thu, 29 Nov 2018 09:49:32 -0800
+Nathaniel Smith <njs at pobox.com> wrote:
+> 
+> There are a lot of challenges to switching to a "standard distribution"
+> model. I'm not certain it's the best option. But what I like about it is
+> that it could potentially reduce the conflict between what our different
+> user groups need, instead of playing zero-sum tug-of-war every time this
+> comes up.
+
+There is no conflict between what different _user_ groups need.
+Including lz4 in the stdlib will not create a conflict for people who
+prefer numpy or cryptography.
+
+Regards
+
+Antoine.
+
+
+
+From p.f.moore at gmail.com  Thu Nov 29 13:40:42 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 29 Nov 2018 18:40:42 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+Message-ID: <CACac1F_ZHuQ+=WLzX9ZPrRHGn2wi2918QO3N93a8xb6X8OVgcA@mail.gmail.com>
+
+On Thu, 29 Nov 2018 at 16:28, Steve Dower <steve.dower at python.org> wrote:
+> My experience is that the first group would benefit from a larger
+> _standard distribution_, which is not necessarily the same thing as a
+> larger stdlib.
+>
+> I'm firmly on the "smaller core, larger distribution" side of things,
+> where we as the core team take responsibility for the bare minimum
+> needed to be an effective language and split more functionality out to
+> individual libraries. We then also prepare/recommend a standard
+> distribution that bundles many of these libraries by default (Anaconda
+> style), as well as a minimal one that is a better starting point for
+> low-footprint systems (Miniconda style) or embedding into other apps.
+
+For the environments I'm familiar with, a "large standard
+distribution" would be just as acceptable as a "large standard
+library". However, we have to be *very* careful that we understand
+each other if we're going to make a fine distinction like this. So,
+specifically, my requirements are:
+
+1. The installers shipped from python.org as the "official" Windows
+builds would need to be the "standard distribution", not a stripped
+down core. People not familiar with the nuances (colleagues who want
+to use a Python script I wrote, corporate auditors making decisions on
+"what's allowed", etc) can't be expected to deal with "Python, but not
+the one at python.org, this one instead" or even "Python, but make
+sure you get this non-default download".[1]
+2. The various other distributions (Anaconda, ActiveState, ...) would
+need to buy into, and ship, the "standard distribution" (having to
+deal with debates around "I have Python", "No you don't, that
+distribution has different libraries" is problematic for grass-roots
+adoption - well, for any sort of consistent experience). This is
+probably both the most difficult requirement to achieve, and the one
+I'd have the best chance of being somewhat flexible over. But only
+"somewhat" flexible - we'd rapidly get bogged down in debating
+questions on a module-by-module basis...
+3. The distribution needs to be versioned as a whole. A key point of a
+"standard set of modules" is not to have to deal with a combinatorial
+explosion of version management issues. Even "Python x.y.z with
+library a.b.c" offers some risks, unless the library is pretty stable
+(slow pace of change is, of course, one of the problems with the
+stdlib that proponents of a decoupled library hope to solve...)
+
+At this point, I've talked myself into a position where I don't see
+any practical difference between a stdlib and a standard distribution.
+So what I think I need is for someone to describe a concrete proposal
+for a "standard distribution", and explain clearly how it differs from
+the stdlib, and where it *fails* to meet the above criteria. Then, and
+only then, can I form a clear view on whether I would be OK with their
+version of a "standard distribution".
+
+Paul
+
+From steve.dower at python.org  Thu Nov 29 13:46:23 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 29 Nov 2018 10:46:23 -0800
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+Message-ID: <c84234c3-c34e-6ce9-7fc4-0ff4a5b5a2af@python.org>
+
+On 29Nov2018 1020, Antoine Pitrou wrote:
+> It's just _hard_
+> and an awful lot of work, and apparently you're not volunteering to
+> start it.  So saying "we should make an extended distribution" if you're
+> just waiting for others to do the job doesn't sound convincing to me, it
+> just feels like you are derailing the discussion.
+
+The problem with volunteering is that I'll immediately get told to just 
+go off and do it as a separate thing, when the condition under which I 
+will contribute to selecting and maintaining a set of 
+bundled-but-not-stdlib packages is that we're actively trying to reduce 
+the stdlib and hence the core maintenance burden. Without it being a 
+core project, it's just more work with no benefit.
+
+I've previously volunteered to move certain modules to their own PyPI 
+packages and bundle them (omitting package names to avoid upsetting 
+people again), and I've done various analyses of which modules can be 
+moved out. I've also deliberately designed functionality into the 
+Windows installer to be able to bundle and install arbitrary packages 
+whenever we like (there's an example in 
+https://github.com/python/cpython/blob/master/Tools/msi/bundle/packagegroups/packageinstall.wxs).
+
+Plus I've been involved in packaging longer than I've been involved in 
+core development. I find it highly embarrassing, but there are people 
+out there who publicly credit me with "making it possible to use any 
+packages at all on Windows". Please don't accuse me of throwing out 
+ideas in this area without doing any work.
+
+When the discussion is about getting Python modules onto people's 
+machines, discussing ways to get Python modules onto people's machines 
+is actually keeping it on topic.
+
+Cheers,
+Steve
+
+From njs at pobox.com  Thu Nov 29 14:05:28 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 29 Nov 2018 11:05:28 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <20181129193007.156b7c1a@fsol>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <CAPJVwB=OZYzFWkX7aVk2bcD570t-S6=uOCbmeax6uZjS1MMgrA@mail.gmail.com>
+ <20181129193007.156b7c1a@fsol>
+Message-ID: <CAPJVwBmte1Pe9P==EmRjbp6_KfMkd6Fa37esXx92R+mAFpDM0w@mail.gmail.com>
+
+On Thu, Nov 29, 2018, 10:32 Antoine Pitrou <solipsis at pitrou.net wrote:
+
+> On Thu, 29 Nov 2018 09:49:32 -0800
+> Nathaniel Smith <njs at pobox.com> wrote:
+> >
+> > There are a lot of challenges to switching to a "standard distribution"
+> > model. I'm not certain it's the best option. But what I like about it is
+> > that it could potentially reduce the conflict between what our different
+> > user groups need, instead of playing zero-sum tug-of-war every time this
+> > comes up.
+>
+> There is no conflict between what different _user_ groups need.
+> Including lz4 in the stdlib will not create a conflict for people who
+> prefer numpy or cryptography.
+
+
+Some users need as much functionality as possible in the standard download.
+Some users need the best quality, most up to date software. The current
+stdlib design makes it impossible to serve both sets of users well.
+
+The conflict is less extreme for software that's stable, tightly scoped,
+and ubiquitous, like zlib or json; maybe lz4 is in the same place. But
+every time we talk about adding a new package, it turns into a flashpoint
+for these underlying tensions. I'm talking about the underlying issue, not
+about lz4 in particular.
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/25596150/attachment.html>
+
+From antoine at python.org  Thu Nov 29 14:17:13 2018
+From: antoine at python.org (Antoine Pitrou)
+Date: Thu, 29 Nov 2018 20:17:13 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAPJVwBmte1Pe9P==EmRjbp6_KfMkd6Fa37esXx92R+mAFpDM0w@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <CAPJVwB=OZYzFWkX7aVk2bcD570t-S6=uOCbmeax6uZjS1MMgrA@mail.gmail.com>
+ <20181129193007.156b7c1a@fsol>
+ <CAPJVwBmte1Pe9P==EmRjbp6_KfMkd6Fa37esXx92R+mAFpDM0w@mail.gmail.com>
+Message-ID: <5044da26-389d-3488-404e-ed4e81c07dc3@python.org>
+
+
+Le 29/11/2018 ? 20:05, Nathaniel Smith a ?crit?:
+> On Thu, Nov 29, 2018, 10:32 Antoine Pitrou <solipsis at pitrou.net
+> <mailto:solipsis at pitrou.net> wrote:
+> 
+>     On Thu, 29 Nov 2018 09:49:32 -0800
+>     Nathaniel Smith <njs at pobox.com <mailto:njs at pobox.com>> wrote:
+>     >
+>     > There are a lot of challenges to switching to a "standard
+>     distribution"
+>     > model. I'm not certain it's the best option. But what I like about
+>     it is
+>     > that it could potentially reduce the conflict between what our
+>     different
+>     > user groups need, instead of playing zero-sum tug-of-war every
+>     time this
+>     > comes up.
+> 
+>     There is no conflict between what different _user_ groups need.
+>     Including lz4 in the stdlib will not create a conflict for people who
+>     prefer numpy or cryptography.
+> 
+> Some users need as much functionality as possible in the standard
+> download. Some users need the best quality, most up to date software.
+> The current stdlib design makes it impossible to serve both sets of
+> users well.
+
+But it doesn't have to.  Obviously not every need can be solved by the
+stdlib, unless every Python package that has at least one current user
+is put in the stdlib.
+
+So, yes, there's a discussion for each concretely proposed package about
+whether it's sufficiently useful (and stable etc.) to be put in the
+stdlib.  Every time it's a balancing act, and obviously it's an
+imperfect decision.  That doesn't mean it cannot be done.  You'd
+actually end up having the same discussions if designing a distribution,
+only the overall bar would probably be lower.
+
+By the way, I'll argue that putting modules in the stdlib does produce
+better quality modules.  For example, putting multiprocessing in the
+stdlib uncovered many defects that were previously largely unseen
+(thanks in part to the extended CI that Python runs on).  Improving it
+was a sometimes painful process, but today multiprocessing's quality is
+far beyond what it was when originally included, and it can be
+reasonably considered rock-solid within its intended domain.
+
+One argument against putting lz4 in the stdlib is that compression
+algorithms come by and, unless there's a large use base already, can
+disappear quickly if they get outdated by some newer and better
+algorithm.  I'm surprised I haven't seen that argument yet.
+
+Regards
+
+Antoine.
+
+From p.f.moore at gmail.com  Thu Nov 29 14:52:47 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 29 Nov 2018 19:52:47 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAPJVwBmte1Pe9P==EmRjbp6_KfMkd6Fa37esXx92R+mAFpDM0w@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <CAPJVwB=OZYzFWkX7aVk2bcD570t-S6=uOCbmeax6uZjS1MMgrA@mail.gmail.com>
+ <20181129193007.156b7c1a@fsol>
+ <CAPJVwBmte1Pe9P==EmRjbp6_KfMkd6Fa37esXx92R+mAFpDM0w@mail.gmail.com>
+Message-ID: <CACac1F9n-TU-bQ98Pvgwm9bRNMM0FXPEB1Qo27r8E7A1Mazo3g@mail.gmail.com>
+
+On Thu, 29 Nov 2018 at 19:08, Nathaniel Smith <njs at pobox.com> wrote:
+>
+> On Thu, Nov 29, 2018, 10:32 Antoine Pitrou <solipsis at pitrou.net wrote:
+>>
+>> On Thu, 29 Nov 2018 09:49:32 -0800
+>> Nathaniel Smith <njs at pobox.com> wrote:
+>> >
+>> > There are a lot of challenges to switching to a "standard distribution"
+>> > model. I'm not certain it's the best option. But what I like about it is
+>> > that it could potentially reduce the conflict between what our different
+>> > user groups need, instead of playing zero-sum tug-of-war every time this
+>> > comes up.
+>>
+>> There is no conflict between what different _user_ groups need.
+>> Including lz4 in the stdlib will not create a conflict for people who
+>> prefer numpy or cryptography.
+>
+>
+> Some users need as much functionality as possible in the standard download. Some users need the best quality, most up to date software. The current stdlib design makes it impossible to serve both sets of users well.
+
+... and some users need a single, unambiguous choice for the
+"official, complete" distribution. Which need the current stdlib
+serves extremely well.
+
+> The conflict is less extreme for software that's stable, tightly scoped, and ubiquitous, like zlib or json; maybe lz4 is in the same place. But every time we talk about adding a new package, it turns into a flashpoint for these underlying tensions. I'm talking about the underlying issue, not about lz4 in particular.
+
+Agreed, there are functional areas that are less foundational, and
+more open to debate. But historically, we've been very good at
+achieving a balance in those areas. In exploring alternatives, let's
+not lose sight of the fact that the stdlib has been a huge success, so
+we know we *can* deliver an extremely successful distribution based on
+that model, no matter how much it might trigger regular debates :-)
+
+Paul
+
+From p.f.moore at gmail.com  Thu Nov 29 15:00:19 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 29 Nov 2018 20:00:19 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAPJVwB=OZYzFWkX7aVk2bcD570t-S6=uOCbmeax6uZjS1MMgrA@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <CAPJVwB=OZYzFWkX7aVk2bcD570t-S6=uOCbmeax6uZjS1MMgrA@mail.gmail.com>
+Message-ID: <CACac1F8h69dPSJ+esRAJTzb+2CQRtKjRswg_WaaHKJ_FVoGj6A@mail.gmail.com>
+
+On Thu, 29 Nov 2018 at 17:52, Nathaniel Smith <njs at pobox.com> wrote:
+>
+> On Thu, Nov 29, 2018, 08:34 Antoine Pitrou <antoine at python.org wrote:
+>>
+>>
+>> Le 29/11/2018 ? 17:25, Steve Dower a ?crit :
+>> >
+>> > My experience is that the first group would benefit from a larger
+>> > _standard distribution_, which is not necessarily the same thing as a
+>> > larger stdlib.
+>> >
+>> > I'm firmly on the "smaller core, larger distribution" side of things,
+>> > where we as the core team take responsibility for the bare minimum
+>> > needed to be an effective language and split more functionality out to
+>> > individual libraries.
+>>
+>> We may ask ourselves if there is really a large difference between a
+>> "standard distribution" and a "standard library".  The primary
+>> difference seems to be that the distribution is modular, while the
+>> stdlib is not.
+>
+>
+> Some differences that come to mind:
+
+Ha. That arrived after I'd sent my other email. I'm not going to
+discuss these points case by case, except to say that there are some
+definite aspects of your interpretation of a "standard distribution"
+that are in conflict with what would work best for my use case.[1]
+
+Regardless of the details that we discuss here, it seems self-evident
+to me that any proposal to move away from the current "core+stdlib"
+distribution would be a significant change and would absolutely
+require a PEP, which would have to cover all of these trade-offs in
+detail. But until there is such a PEP, that clearly explains the
+precise variant of "standard distribution" model that is being
+proposed, I don't see much point in getting into details. There's
+simply too much likelihood of people talking past each other because
+of differing assumptions.
+
+Paul
+
+[1] Which, to reiterate, remains just one particular environment, plus
+a lot of extrapolation that there are "many other enterprise
+environments like mine"[2]
+[2] Oh, I really hope not - pity the poor souls who would work there :-)
+
+From mertz at gnosis.cx  Thu Nov 29 15:09:47 2018
+From: mertz at gnosis.cx (David Mertz)
+Date: Thu, 29 Nov 2018 15:09:47 -0500
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CACac1F9n-TU-bQ98Pvgwm9bRNMM0FXPEB1Qo27r8E7A1Mazo3g@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <CAPJVwB=OZYzFWkX7aVk2bcD570t-S6=uOCbmeax6uZjS1MMgrA@mail.gmail.com>
+ <20181129193007.156b7c1a@fsol>
+ <CAPJVwBmte1Pe9P==EmRjbp6_KfMkd6Fa37esXx92R+mAFpDM0w@mail.gmail.com>
+ <CACac1F9n-TU-bQ98Pvgwm9bRNMM0FXPEB1Qo27r8E7A1Mazo3g@mail.gmail.com>
+Message-ID: <CAEbHw4bcxAX1QSyv_MWFdi-JZ=tGt3naaYgRVJ2n6b6bAsqpfQ@mail.gmail.com>
+
+On Thu, Nov 29, 2018, 2:55 PM Paul Moore <p.f.moore at gmail.com wrote:
+
+> ... and some users need a single, unambiguous choice for the
+> "official, complete" distribution. Which need the current stdlib
+> serves extremely well.
+>
+
+Except it doesn't. At least not for a large swatch of users.
+
+10 years ago, what I wanted in Python was pretty much entirely in the
+stdlib. The contents of stdlib haven't changed that much since then, but MY
+needs have.
+
+For what I do personally, a distribution without NumPy, Pandas, Numba,
+scikit-learn, and matplotlib is unusably incomplete. On the other hand, I
+rarely care about Django, Twisted, Whoosh, or Sphinx. But some users need
+those things, and even lots of supporting packages in their ecosystems.
+
+What makes a "complete distribution?" It really depends on context. The
+stdlib is an extremely good compromise, but it absolutely is a compromise.
+I feel like there is plenty of room for different purpose-driven supersets
+of the stdlib to make different compromises. Steve Dower lists 10 or so
+such distros; what they have in common is that SOMEONE, decided to curate a
+collection... which does not need any approval from the PSF or the core
+developers.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/90e858e2/attachment.html>
+
+From p.f.moore at gmail.com  Thu Nov 29 15:29:49 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 29 Nov 2018 20:29:49 +0000
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+Message-ID: <CACac1F-_bfYUY1Fh1KJ_ZoBCZKYS+-Dt601c+8HqEZ_9kf-QGw@mail.gmail.com>
+
+On Thu, 29 Nov 2018 at 18:09, Steve Dower <steve.dower at python.org> wrote:
+>
+> On 29Nov2018 0923, Antoine Pitrou wrote:
+> > I think the whole argument amounts to hand waving anyway.  You are
+> > inventing an extended distribution which doesn't exist (except as
+> > Anaconda) to justify that we shouldn't accept more modules in the
+> > stdlib.  But obviously maintaining an extended distribution is a lot
+> > more work than accepting a single module in the stdlib, and that's why
+> > you don't see anyone doing it, even though people have been floating the
+> > idea for years.
+>
+> https://anaconda.com/
+> https://www.activestate.com/products/activepython/
+> http://winpython.github.io/
+> http://python-xy.github.io/
+> https://www.enthought.com/product/canopy/
+> https://software.intel.com/en-us/distribution-for-python
+> http://every-linux-distro-ever.example.com
+>
+> Do I need to keep going?
+
+Nope, you've already demonstrated the problem with recommending
+external distributions :-)
+
+Which one do I promote within my company? Suppose I say "the Linux
+distro packaged version", Then Windows clients are out of the picture.
+If I say "Anaconda" for them, they will use (for example) numpy, and
+the resulting scripts won't work on the Linux machines. Choice is not
+always an advantage.
+
+Every single one of those distributions includes the stdlib. If we
+remove the stdlib, what will end up as the lowest common denominator
+functionality that all Python scripts can assume? Obviously at least
+initially, inertia will mean the stdlib will still be present, but how
+long will it be before someone removes urllib in favour of the
+(better, but with an incompatible API) requests library? And how then
+can a "generic" Python script get a resource from the web?
+
+> Accepting a module in the stdlib means accepting the full development
+> and maintenance burden.
+
+Absolutely. And yes, that's a significant cost that we pay.
+
+> Maintaining a list of "we recommend these so
+> strongly here's an installer that will give them to you" is a very
+> different kind of burden, and one that is significantly easier to bear.
+
+OK, so that reduces our costs. But what about our users? Does it
+increase their costs, offer a benefit to them, or is it cost-neutral?
+Obviously it depends on the user, but I contend that overall, it's a
+cost for our user base (even users who have easy access to PyPI will
+still incur overheads for an extra external dependency). So we're
+asking our users to pay the cost for a benefit to us. That may be
+reasonable, but let's at least be clear about it. Alternatively, if
+you *do* see it as a benefit for our users, I'd like to know how,
+because I'm missing that point.
+
+Paul
+
+From greg at krypto.org  Thu Nov 29 15:30:09 2018
+From: greg at krypto.org (Gregory P. Smith)
+Date: Thu, 29 Nov 2018 12:30:09 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+Message-ID: <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+
+On Thu, Nov 29, 2018 at 2:58 AM Andrew Svetlov <andrew.svetlov at gmail.com>
+wrote:
+
+> 5 cents about lz4 alternatives: Broli (mentioned above) is widely
+> supported by web.
+>
+> https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding
+> mentions it along with gzip and deflate methods.
+> I don't recall lz4 or Zstd metioning in this context.
+>
+> Both Chrome/Chromium and Firefox accepts it by default (didn't check
+> Microsoft products yet).
+>
+
+Acceptance by multiple popular browsers is a good reason to *also* propose
+brotli support in the stdlib. Though it'd probably make sense to actually
+_support_ Accept-Encoding based on available compression modules within the
+stdlib http.client (and potentially server) as a prerequisite for that
+reasoning.
+https://github.com/python/cpython/blob/master/Lib/http/client.py#L1168.
+
+-gps
+
+
+> P.S.
+> I worked with lz4 python binding a year ago.
+> It sometimes crashed to core dump when used in multithreaded environment
+> (we used to run compressor/decompresson with asyncio by
+> loop.run_in_executor() call).
+> I hope the bug is fixed now, have no update for the current state.
+>
+> On Thu, Nov 29, 2018 at 12:04 PM INADA Naoki <songofacandy at gmail.com>
+> wrote:
+>
+>> On Thu, Nov 29, 2018 at 6:27 AM Steven D'Aprano <steve at pearwood.info>
+>> wrote:
+>> >
+>> > On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+>> >
+>> > > PyPI makes getting more algorithms easy.
+>> >
+>> > Can we please stop over-generalising like this? PyPI makes getting
+>> > more algorithms easy for *SOME* people. (Sorry for shouting, but you
+>> > just pressed one of my buttons.)
+>>
+>> I don't think this is over-generalising.
+>>
+>> If "get it from PyPI" is not easy enough, why not adding hundreds of
+>> famous libraries?
+>> Because we can't maintain all of them well.
+>>
+>> When considering adding new format (not only compression, but also
+>> serialization like toml), I think it should be stable, widely used, and
+>> will
+>> be used widely for a long time.  If we want to use the format in Python
+>> core
+>> or Python stdlib, it's good reasoning too.  gzip and json are good
+>> example.
+>>
+>> When we say "we can use PyPI", it means "are there enough reasons
+>> make the package special enough to add to stdlib?"  We don't mean
+>> "everyone can use PyPI."
+>>
+>> Regards,
+>> --
+>> INADA Naoki  <songofacandy at gmail.com>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/andrew.svetlov%40gmail.com
+>>
+>
+>
+> --
+> Thanks,
+> Andrew Svetlov
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/0f1781ca/attachment.html>
+
+From njs at pobox.com  Thu Nov 29 16:08:35 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 29 Nov 2018 13:08:35 -0800
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <ba8604bc-c070-5aae-b3fc-6875286b9c11@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <ba8604bc-c070-5aae-b3fc-6875286b9c11@python.org>
+Message-ID: <CAPJVwBn5XJv+oYJQN+NJfhErzAkN9KxUqB+hGZ9KKrc0zpe8HA@mail.gmail.com>
+
+On Thu, Nov 29, 2018 at 10:11 AM Christian Heimes <christian at python.org> wrote:
+> You are assuming that you can convince or force upstream developers to
+> change their project and development style. Speaking from personal
+> experience, that is even unrealistic for projects that are already
+> developed and promoted by officially acknowledged and PSF approved
+> Python authorities.
+>
+> The owners and developers of these projects set their own terms and
+> don't follow the same rigorous CI, backwards compatibility and security
+> policies as Python core. You can't force projects to work differently.
+
+Python core does an excellent job at CI, backcompat, security, etc.,
+and everyone who works to make that happen should be proud.
+
+But... I think we should be careful not to frame this as Python core
+just having higher standards than everyone else. For some projects
+that's probably true. But for the major projects where I have some
+knowledge of the development process -- like requests, urllib3, numpy,
+pip, setuptools, cryptography -- the main blocker to putting them in
+the stdlib is that the maintainers don't think a stdlibized version
+could meet their quality standards.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From steve.dower at python.org  Thu Nov 29 16:18:46 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 29 Nov 2018 13:18:46 -0800
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <CACac1F-_bfYUY1Fh1KJ_ZoBCZKYS+-Dt601c+8HqEZ_9kf-QGw@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <CACac1F-_bfYUY1Fh1KJ_ZoBCZKYS+-Dt601c+8HqEZ_9kf-QGw@mail.gmail.com>
+Message-ID: <d9239ca4-5f94-882a-8806-e29976e51a2a@python.org>
+
+On 29Nov2018 1229, Paul Moore wrote:
+> On Thu, 29 Nov 2018 at 18:09, Steve Dower <steve.dower at python.org> wrote:
+>> Maintaining a list of "we recommend these so
+>> strongly here's an installer that will give them to you" is a very
+>> different kind of burden, and one that is significantly easier to bear.
+> 
+> OK, so that reduces our costs. But what about our users? Does it
+> increase their costs, offer a benefit to them, or is it cost-neutral?
+> Obviously it depends on the user, but I contend that overall, it's a
+> cost for our user base (even users who have easy access to PyPI will
+> still incur overheads for an extra external dependency). So we're
+> asking our users to pay the cost for a benefit to us. That may be
+> reasonable, but let's at least be clear about it. Alternatively, if
+> you *do* see it as a benefit for our users, I'd like to know how,
+> because I'm missing that point.
+
+Probably an assumption I'm making (because I've argued the case 
+previously) is that anything we remove from the current stdlib becomes a 
+pip installable package that is preinstalled with the main distro. 
+Perhaps our distro doesn't even grow from what it is today - it simply 
+gets rearranged a bit on disk.
+
+The benefits for users is now backports are on the same footing as core 
+libraries, as are per-package updates.
+
+The "core+precise dependencies" model for deployment could drastically 
+improve install times in some circumstances (particularly Windows, but 
+hey, that's my area so I care about it :) ).
+
+A number of core packages aren't really tied to the version of Python 
+they ship with, and so users could safely backport all fixes and 
+improvements at any time.
+
+Longer term, if something happens like "the core only includes a very 
+high-level HTTPS API and 'socket' is an extra module if you need that 
+API", then we can use the OS APIs and give proper proxy/TLS behaviour in 
+core for a narrower set of uses (and sure, maybe the Linux core still 
+requires socket and OpenSSL, but other platforms don't have to require 
+them for functionality provided by the OS).
+
+Of course, any churn has a risk of causing new issues and so it has a 
+cost both to us and users. There will certainly be new shadowing 
+concerns, and code changes to unwind tricky dependencies could lead to 
+new bugs. I think the upsides are worth it in the long run, but 
+obviously that's not (yet) the consensus or we'd be doing it already :)
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Thu Nov 29 16:22:24 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 29 Nov 2018 13:22:24 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+ <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+Message-ID: <83fbba69-d862-40d4-38a8-8e96c8e7f93b@python.org>
+
+On 29Nov2018 1230, Gregory P. Smith wrote:
+> 
+> On Thu, Nov 29, 2018 at 2:58 AM Andrew Svetlov <andrew.svetlov at gmail.com 
+> <mailto:andrew.svetlov at gmail.com>> wrote:
+> 
+>     5 cents about lz4 alternatives: Broli (mentioned above) is widely
+>     supported by web.
+> 
+>     https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding
+>     mentions it along with gzip and deflate methods.
+>     I don't recall lz4 or Zstd metioning in this context.
+> 
+>     Both Chrome/Chromium and Firefox accepts it by default (didn't check
+>     Microsoft products yet).
+> 
+> 
+> Acceptance by multiple popular browsers is a good reason to /also/ 
+> propose brotli support in the stdlib. Though it'd probably make sense to 
+> actually _support_ Accept-Encoding based on available compression 
+> modules within the stdlib http.client (and potentially server) as a 
+> prerequisite for that reasoning. 
+> https://github.com/python/cpython/blob/master/Lib/http/client.py#L1168.
+
+FWIW, Brotli has been supported in Microsoft Edge since early last year:
+ 
+https://blogs.windows.com/msedgedev/2016/12/20/introducing-brotli-compression/
+
+> -gps
+
+From njs at pobox.com  Thu Nov 29 16:30:28 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 29 Nov 2018 13:30:28 -0800
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+Message-ID: <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+
+On Thu, Nov 29, 2018 at 10:22 AM Antoine Pitrou <antoine at python.org> wrote:
+>
+> Le 29/11/2018 ? 19:07, Steve Dower a ?crit :
+> > On 29Nov2018 0923, Antoine Pitrou wrote:
+> >> I think the whole argument amounts to hand waving anyway.  You are
+> >> inventing an extended distribution which doesn't exist (except as
+> >> Anaconda) to justify that we shouldn't accept more modules in the
+> >> stdlib.  But obviously maintaining an extended distribution is a lot
+> >> more work than accepting a single module in the stdlib, and that's why
+> >> you don't see anyone doing it, even though people have been floating the
+> >> idea for years.
+> >
+> > https://anaconda.com/
+> > https://www.activestate.com/products/activepython/
+> > http://winpython.github.io/
+> > http://python-xy.github.io/
+> > https://www.enthought.com/product/canopy/
+> > https://software.intel.com/en-us/distribution-for-python
+> > http://every-linux-distro-ever.example.com
+> >
+> > Do I need to keep going?
+>
+> I'm sure you could.  So what?  The point is that it's a lot of work to
+> maintain if you want to do it seriously and with quality standards that
+> would actually _satisfy_ the people for whom PyPI is not an option.
+
+Yeah, I draw two conclusions from the list above:
+
+- Paul expressed uncertainty about how many people are in his position
+of needing a single download with all the batteries included, but
+obviously he's not alone. So many people want a
+single-box-of-batteries that whole businesses are being built on
+fulfilling that need.
+
+- Currently, our single-box-of-batteries is doing such a lousy job of
+solving Paul's problem, that people are building whole businesses on
+our failure.
+
+If Python core wants to be in the business of providing a
+single-box-of-batteries that solves Paul's problem, then we need to
+rethink how the stdlib works. Or, we could decide we want to leave
+that to the distros that are better at it, and focus on our core
+strengths like the language and interpreter. But if the stdlib isn't a
+single-box-of-batteries, then what is it?
+
+It's really hard to tell whether specific packages would be good or
+bad additions to the stdlib, when we don't even know what the stdlib
+is supposed to be.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From steve.dower at python.org  Thu Nov 29 16:46:56 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 29 Nov 2018 13:46:56 -0800
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+Message-ID: <5bfea260-42d0-f091-5a84-385b7cc213f3@python.org>
+
+On 29Nov2018 1330, Nathaniel Smith wrote:
+> On Thu, Nov 29, 2018 at 10:22 AM Antoine Pitrou <antoine at python.org> wrote:
+>>
+>> Le 29/11/2018 ? 19:07, Steve Dower a ?crit :
+>>> On 29Nov2018 0923, Antoine Pitrou wrote:
+>>>> I think the whole argument amounts to hand waving anyway.  You are
+>>>> inventing an extended distribution which doesn't exist (except as
+>>>> Anaconda) to justify that we shouldn't accept more modules in the
+>>>> stdlib.  But obviously maintaining an extended distribution is a lot
+>>>> more work than accepting a single module in the stdlib, and that's why
+>>>> you don't see anyone doing it, even though people have been floating the
+>>>> idea for years.
+>>>
+>>> https://anaconda.com/
+>>> https://www.activestate.com/products/activepython/
+>>> http://winpython.github.io/
+>>> http://python-xy.github.io/
+>>> https://www.enthought.com/product/canopy/
+>>> https://software.intel.com/en-us/distribution-for-python
+>>> http://every-linux-distro-ever.example.com
+>>>
+>>> Do I need to keep going?
+>>
+>> I'm sure you could.  So what?  The point is that it's a lot of work to
+>> maintain if you want to do it seriously and with quality standards that
+>> would actually _satisfy_ the people for whom PyPI is not an option.
+> 
+> Yeah, I draw two conclusions from the list above:
+> 
+> - Paul expressed uncertainty about how many people are in his position
+> of needing a single download with all the batteries included, but
+> obviously he's not alone. So many people want a
+> single-box-of-batteries that whole businesses are being built on
+> fulfilling that need.
+> 
+> - Currently, our single-box-of-batteries is doing such a lousy job of
+> solving Paul's problem, that people are building whole businesses on
+> our failure.
+
+I agree with these two conclusions, and for what it's worth, I don't 
+think we would do anything to put these out of business - they each have 
+their own value that we wouldn't reproduce.
+
+Python's box of batteries these days are really the building blocks 
+needed to ensure the libraries in these bigger distributions can 
+communicate with each other. For example, asyncio has its place in the 
+stdlib for this reason, as does pathlib (though perhaps the __fspath__ 
+protocol makes the latter one a little less compelling). If the stdlib 
+was to grow a fundamental data type somehow shared by 
+numpy/scipy/pandas/etc. then I'd consider that a very good candidate for 
+the stdlib to help those libraries share data, even if none of those 
+packages were in the standard distro.
+
+At the same time, why carry that data type into your embedded app if it 
+won't be used? Why design it in such a way that it can't be used with 
+earlier versions of Python even if it reasonably could be? We already do 
+backports for many new stdlib modules, so why aren't we just installing 
+the backport module in the newer version by default and running it on 
+its own release schedule? I forget which one, but there was one backport 
+that ended up being recommended in place of its stdlib counterpart for a 
+while because it got critical bugfixes sooner. Installing pip in this 
+manner hasn't broken anyone's world (that I'm aware of).
+
+There's plenty of space for businesses to be built on being "the best 
+Python distro for <X>", and if the stdlib is the best layer for enabling 
+third-party libraries to agree on how to work with each other, then we 
+make the entire ecosystem stronger.
+
+(That simple agreement got longer than I intended :) )
+
+Cheers,
+Steve
+
+From christian at python.org  Thu Nov 29 17:04:15 2018
+From: christian at python.org (Christian Heimes)
+Date: Thu, 29 Nov 2018 23:04:15 +0100
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <CAPJVwBn5XJv+oYJQN+NJfhErzAkN9KxUqB+hGZ9KKrc0zpe8HA@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <ba8604bc-c070-5aae-b3fc-6875286b9c11@python.org>
+ <CAPJVwBn5XJv+oYJQN+NJfhErzAkN9KxUqB+hGZ9KKrc0zpe8HA@mail.gmail.com>
+Message-ID: <9c0071c2-a455-53cd-756c-4ae95a487a41@python.org>
+
+On 29/11/2018 22.08, Nathaniel Smith wrote:
+> On Thu, Nov 29, 2018 at 10:11 AM Christian Heimes <christian at python.org> wrote:
+>> You are assuming that you can convince or force upstream developers to
+>> change their project and development style. Speaking from personal
+>> experience, that is even unrealistic for projects that are already
+>> developed and promoted by officially acknowledged and PSF approved
+>> Python authorities.
+>>
+>> The owners and developers of these projects set their own terms and
+>> don't follow the same rigorous CI, backwards compatibility and security
+>> policies as Python core. You can't force projects to work differently.
+> 
+> Python core does an excellent job at CI, backcompat, security, etc.,
+> and everyone who works to make that happen should be proud.
+> 
+> But... I think we should be careful not to frame this as Python core
+> just having higher standards than everyone else. For some projects
+> that's probably true. But for the major projects where I have some
+> knowledge of the development process -- like requests, urllib3, numpy,
+> pip, setuptools, cryptography -- the main blocker to putting them in
+> the stdlib is that the maintainers don't think a stdlibized version
+> could meet their quality standards.
+
+It looks like I phrased my statement unclear. CPython's backwards
+compatibility and security policy isn't necessarily superior to that of
+other projects. Our policy is just different and more "enterprisy".
+
+Let's take cryptography as an example. I contribute to cryptography once
+in a while and I maintain the official Fedora and RHEL packages.
+
+- Alex and Paul release a new version about a day after each OpenSSL
+security release. That's much better than CPython's policy, because
+CPython only updates OpenSSL with its regularly scheduled updates.
+
+- However they don't release fixes for older minor releases while
+CPython has multiple maintained minor releases that get backports of
+fixes. That means I have to manually backport security fixes for
+cryptography because I can't just introduce new features or API changes
+in RHEL.
+
+The policy is different from CPython's policy. Some aspects are better,
+in other aspects CPython and cryptography follow a different philosophy.
+
+Christian
+
+From andrew.svetlov at gmail.com  Thu Nov 29 17:10:48 2018
+From: andrew.svetlov at gmail.com (Andrew Svetlov)
+Date: Fri, 30 Nov 2018 00:10:48 +0200
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+ <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+Message-ID: <CAL3CFcW_GzBHMCO1NbV6uuhqCPw5TWUFXgBOKnRkZX6=ck_ryg@mail.gmail.com>
+
+Neither http.client nor http.server doesn't support compression
+(gzip/compress/deflate) at all.
+I doubt if we want to add this feature: for client better to use requests
+or, well, aiohttp.
+The same for servers: almost any production ready web server from PyPI
+supports compression.
+
+I don't insist on adding brotli to standard library.
+There is officiall brotli library on PyPI from google, binary wheels are
+provided.
+Unfortunately installing from a tarball requires C++ compiler
+On other hand writing a binding in pure C looks very easy.
+
+On Thu, Nov 29, 2018 at 10:30 PM Gregory P. Smith <greg at krypto.org> wrote:
+
+>
+> On Thu, Nov 29, 2018 at 2:58 AM Andrew Svetlov <andrew.svetlov at gmail.com>
+> wrote:
+>
+>> 5 cents about lz4 alternatives: Broli (mentioned above) is widely
+>> supported by web.
+>>
+>> https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding
+>> mentions it along with gzip and deflate methods.
+>> I don't recall lz4 or Zstd metioning in this context.
+>>
+>> Both Chrome/Chromium and Firefox accepts it by default (didn't check
+>> Microsoft products yet).
+>>
+>
+> Acceptance by multiple popular browsers is a good reason to *also*
+> propose brotli support in the stdlib. Though it'd probably make sense to
+> actually _support_ Accept-Encoding based on available compression modules
+> within the stdlib http.client (and potentially server) as a prerequisite
+> for that reasoning.
+> https://github.com/python/cpython/blob/master/Lib/http/client.py#L1168.
+>
+> -gps
+>
+>
+>> P.S.
+>> I worked with lz4 python binding a year ago.
+>> It sometimes crashed to core dump when used in multithreaded environment
+>> (we used to run compressor/decompresson with asyncio by
+>> loop.run_in_executor() call).
+>> I hope the bug is fixed now, have no update for the current state.
+>>
+>> On Thu, Nov 29, 2018 at 12:04 PM INADA Naoki <songofacandy at gmail.com>
+>> wrote:
+>>
+>>> On Thu, Nov 29, 2018 at 6:27 AM Steven D'Aprano <steve at pearwood.info>
+>>> wrote:
+>>> >
+>>> > On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+>>> >
+>>> > > PyPI makes getting more algorithms easy.
+>>> >
+>>> > Can we please stop over-generalising like this? PyPI makes getting
+>>> > more algorithms easy for *SOME* people. (Sorry for shouting, but you
+>>> > just pressed one of my buttons.)
+>>>
+>>> I don't think this is over-generalising.
+>>>
+>>> If "get it from PyPI" is not easy enough, why not adding hundreds of
+>>> famous libraries?
+>>> Because we can't maintain all of them well.
+>>>
+>>> When considering adding new format (not only compression, but also
+>>> serialization like toml), I think it should be stable, widely used, and
+>>> will
+>>> be used widely for a long time.  If we want to use the format in Python
+>>> core
+>>> or Python stdlib, it's good reasoning too.  gzip and json are good
+>>> example.
+>>>
+>>> When we say "we can use PyPI", it means "are there enough reasons
+>>> make the package special enough to add to stdlib?"  We don't mean
+>>> "everyone can use PyPI."
+>>>
+>>> Regards,
+>>> --
+>>> INADA Naoki  <songofacandy at gmail.com>
+>>> _______________________________________________
+>>> Python-Dev mailing list
+>>> Python-Dev at python.org
+>>> https://mail.python.org/mailman/listinfo/python-dev
+>>> Unsubscribe:
+>>> https://mail.python.org/mailman/options/python-dev/andrew.svetlov%40gmail.com
+>>>
+>>
+>>
+>> --
+>> Thanks,
+>> Andrew Svetlov
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>>
+>
+
+-- 
+Thanks,
+Andrew Svetlov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181130/fd729c91/attachment-0001.html>
+
+From andrew.svetlov at gmail.com  Thu Nov 29 17:11:37 2018
+From: andrew.svetlov at gmail.com (Andrew Svetlov)
+Date: Fri, 30 Nov 2018 00:11:37 +0200
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <83fbba69-d862-40d4-38a8-8e96c8e7f93b@python.org>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+ <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+ <83fbba69-d862-40d4-38a8-8e96c8e7f93b@python.org>
+Message-ID: <CAL3CFcXDpFguNf8S_2Zyes0ohdeRZMbUEq_NLSjkB-00f0UAtg@mail.gmail.com>
+
+On Thu, Nov 29, 2018 at 11:22 PM Steve Dower <steve.dower at python.org> wrote:
+
+> FWIW, Brotli has been supported in Microsoft Edge since early last year:
+>
+>
+> https://blogs.windows.com/msedgedev/2016/12/20/introducing-brotli-compression/
+>
+>
+Thanks, good to know.
+
+-- 
+Thanks,
+Andrew Svetlov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181130/e5daa8fe/attachment.html>
+
+From p.f.moore at gmail.com  Thu Nov 29 17:29:33 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 29 Nov 2018 22:29:33 +0000
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+Message-ID: <CACac1F_6-O8nfEmSyOJ3=q2K_LgG83nV8avmbQvJco3evpqSWw@mail.gmail.com>
+
+On Thu, 29 Nov 2018 at 21:33, Nathaniel Smith <njs at pobox.com> wrote:
+>
+> On Thu, Nov 29, 2018 at 10:22 AM Antoine Pitrou <antoine at python.org> wrote:
+> >
+> > Le 29/11/2018 ? 19:07, Steve Dower a ?crit :
+> > > On 29Nov2018 0923, Antoine Pitrou wrote:
+> > >> I think the whole argument amounts to hand waving anyway.  You are
+> > >> inventing an extended distribution which doesn't exist (except as
+> > >> Anaconda) to justify that we shouldn't accept more modules in the
+> > >> stdlib.  But obviously maintaining an extended distribution is a lot
+> > >> more work than accepting a single module in the stdlib, and that's why
+> > >> you don't see anyone doing it, even though people have been floating the
+> > >> idea for years.
+> > >
+> > > https://anaconda.com/
+> > > https://www.activestate.com/products/activepython/
+> > > http://winpython.github.io/
+> > > http://python-xy.github.io/
+> > > https://www.enthought.com/product/canopy/
+> > > https://software.intel.com/en-us/distribution-for-python
+> > > http://every-linux-distro-ever.example.com
+> > >
+> > > Do I need to keep going?
+> >
+> > I'm sure you could.  So what?  The point is that it's a lot of work to
+> > maintain if you want to do it seriously and with quality standards that
+> > would actually _satisfy_ the people for whom PyPI is not an option.
+>
+> Yeah, I draw two conclusions from the list above:
+>
+> - Paul expressed uncertainty about how many people are in his position
+> of needing a single download with all the batteries included, but
+> obviously he's not alone. So many people want a
+> single-box-of-batteries that whole businesses are being built on
+> fulfilling that need.
+>
+> - Currently, our single-box-of-batteries is doing such a lousy job of
+> solving Paul's problem, that people are building whole businesses on
+> our failure.
+
+Ouch. Congratulations on neatly using my own arguments to reverse my
+position :-)
+
+Those are both very good points. However...
+
+> If Python core wants to be in the business of providing a
+> single-box-of-batteries that solves Paul's problem, then we need to
+> rethink how the stdlib works. Or, we could decide we want to leave
+> that to the distros that are better at it, and focus on our core
+> strengths like the language and interpreter. But if the stdlib isn't a
+> single-box-of-batteries, then what is it?
+
+IMO, the CPython stdlib is the *reference* library. It's what you can
+rely on if you want to publish code that "just works" *everywhere*. By
+"publish" here, I don't particularly mean "distribute code as .py
+files". I'm thinking much more of StackOverflow answers to "how do I
+do X in Python" questions, books and tutorials teaching Python, etc
+etc. It solves my problem, even if other distributions also do - and
+it has the advantage of being the solution that every other solution
+is a superset of, so I can say "this works on Python", and know that
+my statement encompasses "this works on Anaconda", "this works on
+ActiveState Python", "this works on your distribution's Python", ... -
+whereas the converse is *not* true.
+
+In the environment I work in, various groups and environments may get
+management buy in (or more often, just management who are willing to
+not object) for using Python. But they don't always end up using the
+same version (the data science people use Anaconda, the automation
+people use the distro Python, the integration guys like me use the
+python.org Python, ...), so having that common denominator means we
+can still share code.[1]
+
+Steve Dower's explanation of how he sees "splitting up the stdlib"
+working strikes me as potentially a good way of removing some of the
+maintenance cost of the stdlib *without* losing the "this is stuff you
+can expect to be available in every version of Python" aspect of the
+stdlib. But I'd want to see a more concrete proposal on how it would
+work, and how we could ensure that (for example) we retain the ability
+for *every* Python implementation to get data from a URL, even if it's
+clunky old urllib and the cool distributions with requests only supply
+it "for compatibility", before I'd be completely sold on the idea.
+
+> It's really hard to tell whether specific packages would be good or
+> bad additions to the stdlib, when we don't even know what the stdlib
+> is supposed to be.
+
+Agreed. But I think you're making things sound worse than they are. We
+(collectively) probably *do* know what the stdlib is, even if it's not
+easy to articulate. It's what we confidently expect to be present in
+any Python environment we sit down at. Much like you'd expect every
+Linux distribution to include grep, even though newer tools like ag or
+rg may be much better and what you'd prefer to use in practice. And
+just like Linux isn't much if all you have is the kernel, so Python is
+more than just the core language and builtins.
+
+Paul
+
+[1] Actually, things are currently not that far advanced - the various
+groups don't interact at all, yet. So focusing on the stdlib for me is
+a way of preparing for the time when we *do* start sharing, and making
+that transition relatively effortless and hence an argument in favour
+of Python rather than demonstrating that "these special-purpose
+languages just create silos".
+
+From brett at python.org  Thu Nov 29 19:12:29 2018
+From: brett at python.org (Brett Cannon)
+Date: Thu, 29 Nov 2018 16:12:29 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAL3CFcW_GzBHMCO1NbV6uuhqCPw5TWUFXgBOKnRkZX6=ck_ryg@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+ <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+ <CAL3CFcW_GzBHMCO1NbV6uuhqCPw5TWUFXgBOKnRkZX6=ck_ryg@mail.gmail.com>
+Message-ID: <CAP1=2W5WOyaUDvSi9ZypaJL9nqO+o1cv311LfHzTtAYXo6mWSg@mail.gmail.com>
+
+On Thu, 29 Nov 2018 at 14:12, Andrew Svetlov <andrew.svetlov at gmail.com>
+wrote:
+
+> Neither http.client nor http.server doesn't support compression
+> (gzip/compress/deflate) at all.
+> I doubt if we want to add this feature: for client better to use requests
+> or, well, aiohttp.
+> The same for servers: almost any production ready web server from PyPI
+> supports compression.
+>
+
+There was actually a PR to add compressions support to http.server but I
+closed it in the name of maintainability since http.server, as you said,
+isn't for production use so compression isn't critical.
+
+-Brett
+
+
+>
+> I don't insist on adding brotli to standard library.
+> There is officiall brotli library on PyPI from google, binary wheels are
+> provided.
+> Unfortunately installing from a tarball requires C++ compiler
+> On other hand writing a binding in pure C looks very easy.
+>
+> On Thu, Nov 29, 2018 at 10:30 PM Gregory P. Smith <greg at krypto.org> wrote:
+>
+>>
+>> On Thu, Nov 29, 2018 at 2:58 AM Andrew Svetlov <andrew.svetlov at gmail.com>
+>> wrote:
+>>
+>>> 5 cents about lz4 alternatives: Broli (mentioned above) is widely
+>>> supported by web.
+>>>
+>>> https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding
+>>> mentions it along with gzip and deflate methods.
+>>> I don't recall lz4 or Zstd metioning in this context.
+>>>
+>>> Both Chrome/Chromium and Firefox accepts it by default (didn't check
+>>> Microsoft products yet).
+>>>
+>>
+>> Acceptance by multiple popular browsers is a good reason to *also*
+>> propose brotli support in the stdlib. Though it'd probably make sense to
+>> actually _support_ Accept-Encoding based on available compression modules
+>> within the stdlib http.client (and potentially server) as a prerequisite
+>> for that reasoning.
+>> https://github.com/python/cpython/blob/master/Lib/http/client.py#L1168.
+>>
+>> -gps
+>>
+>>
+>>> P.S.
+>>> I worked with lz4 python binding a year ago.
+>>> It sometimes crashed to core dump when used in multithreaded environment
+>>> (we used to run compressor/decompresson with asyncio by
+>>> loop.run_in_executor() call).
+>>> I hope the bug is fixed now, have no update for the current state.
+>>>
+>>> On Thu, Nov 29, 2018 at 12:04 PM INADA Naoki <songofacandy at gmail.com>
+>>> wrote:
+>>>
+>>>> On Thu, Nov 29, 2018 at 6:27 AM Steven D'Aprano <steve at pearwood.info>
+>>>> wrote:
+>>>> >
+>>>> > On Wed, Nov 28, 2018 at 10:43:04AM -0800, Gregory P. Smith wrote:
+>>>> >
+>>>> > > PyPI makes getting more algorithms easy.
+>>>> >
+>>>> > Can we please stop over-generalising like this? PyPI makes getting
+>>>> > more algorithms easy for *SOME* people. (Sorry for shouting, but you
+>>>> > just pressed one of my buttons.)
+>>>>
+>>>> I don't think this is over-generalising.
+>>>>
+>>>> If "get it from PyPI" is not easy enough, why not adding hundreds of
+>>>> famous libraries?
+>>>> Because we can't maintain all of them well.
+>>>>
+>>>> When considering adding new format (not only compression, but also
+>>>> serialization like toml), I think it should be stable, widely used, and
+>>>> will
+>>>> be used widely for a long time.  If we want to use the format in Python
+>>>> core
+>>>> or Python stdlib, it's good reasoning too.  gzip and json are good
+>>>> example.
+>>>>
+>>>> When we say "we can use PyPI", it means "are there enough reasons
+>>>> make the package special enough to add to stdlib?"  We don't mean
+>>>> "everyone can use PyPI."
+>>>>
+>>>> Regards,
+>>>> --
+>>>> INADA Naoki  <songofacandy at gmail.com>
+>>>> _______________________________________________
+>>>> Python-Dev mailing list
+>>>> Python-Dev at python.org
+>>>> https://mail.python.org/mailman/listinfo/python-dev
+>>>> Unsubscribe:
+>>>> https://mail.python.org/mailman/options/python-dev/andrew.svetlov%40gmail.com
+>>>>
+>>>
+>>>
+>>> --
+>>> Thanks,
+>>> Andrew Svetlov
+>>> _______________________________________________
+>>> Python-Dev mailing list
+>>> Python-Dev at python.org
+>>> https://mail.python.org/mailman/listinfo/python-dev
+>>> Unsubscribe:
+>>> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>>>
+>>
+>
+> --
+> Thanks,
+> Andrew Svetlov
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/5d0d0a1b/attachment.html>
+
+From steve at pearwood.info  Thu Nov 29 19:14:47 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 30 Nov 2018 11:14:47 +1100
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+References: <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+Message-ID: <20181130001447.GG4319@ando.pearwood.info>
+
+On Thu, Nov 29, 2018 at 01:30:28PM -0800, Nathaniel Smith wrote:
+
+[...]
+> > > https://anaconda.com/
+> > > https://www.activestate.com/products/activepython/
+> > > http://winpython.github.io/
+> > > http://python-xy.github.io/
+> > > https://www.enthought.com/product/canopy/
+> > > https://software.intel.com/en-us/distribution-for-python
+> > > http://every-linux-distro-ever.example.com
+
+> Yeah, I draw two conclusions from the list above:
+> 
+> - Paul expressed uncertainty about how many people are in his position
+> of needing a single download with all the batteries included, but
+> obviously he's not alone. So many people want a
+> single-box-of-batteries that whole businesses are being built on
+> fulfilling that need.
+
+I think that's inaccurate: at least some of those are not "box of 
+batteries" but "nuclear reactor" distros, aimed at adding significant 
+value to above and beyond anything that the stdlib can practically 
+include. Things like numpy/scipy, or a powerful IDE.
+
+I'm confident that they're ALL likely to be nuclear reactor distros, 
+for different values of nuclear reactors, but just in case one of them 
+is not, I'll say "at least some" *wink*
+
+Another nuclear reactor is packaging itself. Despite pip, installing 
+third-party packages is still enough of a burden and annoyance that some 
+people are willing to pay money to have a third-party deal with the 
+installation hassles. That's a data point going against the "just get it 
+from PyPI" mindset.
+
+
+> - Currently, our single-box-of-batteries is doing such a lousy job of
+> solving Paul's problem, that people are building whole businesses on
+> our failure.
+
+That's an unfairly derogatory way of describing it.
+
+Nobody has suggested that the stdlib could be, or ought to be, the one 
+solution for *everyone*. That would be impossible. Even Java has a rich 
+ecosystem of third-party add-ons.
+
+No matter what we have in the stdlib, there's always going to be 
+opportunities for people to attempt to build businesses on the gaps left 
+over. And that is how it should be, and we should not conclude that the 
+stdlib is doing "such a lousy job" at solving problems.
+
+Especially not *Paul's* problems, as I understand he personally is 
+reasonably satisfied with the stdlib and doesn't use any of those 
+third-party distros. (Paul, did I get that right?)
+
+We don't know how niche the above distros are. We don't know how 
+successful their businesses are. All we know is:
+
+(1) they fill at least some gaps in the stdlib;
+
+(2) such gaps are inevitable, no matter how small or large the stdlib 
+is, it can't be all things to all people;
+
+(3) and this is a sign of a healthy Python ecosystem, not a sign of 
+failure of the stdlib.
+
+
+
+> If Python core wants to be in the business of providing a
+> single-box-of-batteries that solves Paul's problem, then we need to
+> rethink how the stdlib works.
+
+No we don't "need" to rethink anything. The current model has worked 
+fine for 25+ years and grew Python from a tiny one-person skunkworks 
+project in Guido's home to one of the top ten most popular programming 
+languages in the world, however you measure popularity. And alone(?) 
+among them, Python is the only one without either an ISO standard or a 
+major corporate backer pushing it.
+
+We don't absolutely know that Python's success was due to the "batteries 
+included" policy, but it seems pretty likely. We ought to believe people 
+when they say that they were drawn to Python because of the stdlib.
+
+There are plenty of other languages that come with a tiny stdlib and 
+leave everything else to third parties. Outside of those like 
+Javascript, which has a privileged position due to it being the standard 
+browser scripting language (and is backed by an ISO standard and at 
+least one major companies vigourously driving it), how is that working 
+out for them? 
+
+The current model for the stdlib seems to be working well, and we mess 
+with it at our peril.
+
+
+
+-- 
+Steve
+
+From oscar.j.benjamin at gmail.com  Thu Nov 29 20:45:17 2018
+From: oscar.j.benjamin at gmail.com (Oscar Benjamin)
+Date: Fri, 30 Nov 2018 01:45:17 +0000
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <20181130001447.GG4319@ando.pearwood.info>
+References: <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+ <20181130001447.GG4319@ando.pearwood.info>
+Message-ID: <CAHVvXxT7CXF0iq2B1PG5QDGMFaKKf94P8dM7i3rFAj5LRrFYZQ@mail.gmail.com>
+
+On Fri, 30 Nov 2018 at 00:17, Steven D'Aprano <steve at pearwood.info> wrote:
+>
+> On Thu, Nov 29, 2018 at 01:30:28PM -0800, Nathaniel Smith wrote:
+>
+> [...]
+> > > > https://anaconda.com/
+> > > > https://www.activestate.com/products/activepython/
+> > > > http://winpython.github.io/
+> > > > http://python-xy.github.io/
+> > > > https://www.enthought.com/product/canopy/
+> > > > https://software.intel.com/en-us/distribution-for-python
+> > > > http://every-linux-distro-ever.example.com
+>
+> > Yeah, I draw two conclusions from the list above:
+> >
+> > - Paul expressed uncertainty about how many people are in his position
+> > of needing a single download with all the batteries included, but
+> > obviously he's not alone. So many people want a
+> > single-box-of-batteries that whole businesses are being built on
+> > fulfilling that need.
+>
+> I think that's inaccurate: at least some of those are not "box of
+> batteries" but "nuclear reactor" distros, aimed at adding significant
+> value to above and beyond anything that the stdlib can practically
+> include. Things like numpy/scipy, or a powerful IDE.
+
+Of those listed above I have used Canopy, Anaconda and Python-xy. All
+three fulfil the same need from my perspective which is that they
+include the missing batteries needed even for basic scientific
+computing. In the past I've generally solved that problem for myself
+by using Linux and having e.g. apt install the other pieces. Since I
+can't expect my students to do the same I've always recommended for
+them to use something like Anaconda which we/they can for free.
+
+They do include much more than we need so I'd agree that Anaconda is a
+nuclear reactor. The things I want from it are not though. Numpy is
+not a nuclear reactor: at it's core it's just providing a
+multidimensional array. Some form of multidimensional array is
+included as standard in many programming languages. In large part
+numpy is the most frequency cited dependency on PyPI because of this
+omission from the stdlib.
+
+> Another nuclear reactor is packaging itself. Despite pip, installing
+> third-party packages is still enough of a burden and annoyance that some
+> people are willing to pay money to have a third-party deal with the
+> installation hassles. That's a data point going against the "just get it
+> from PyPI" mindset.
+
+Not really. Each of those distributions predates the point where pip
+was usable for installing basic extension modules like numpy. They
+arose out of necessity because particularly on Windows it would be
+very difficult (impossible for a novice) for someone to compile the
+various packages themselves.
+
+There have been significant improvements in pip, pypi and the whole
+packaging ecosystem in recent years thanks to the efforts of many
+including Paul. I've been pushing students and others to Anaconda
+simply because I knew that at minimum they would need numpy, scipy and
+matplotlib and that pip would fail to install those. That has changed
+in the last year or two: it is now possible to pip install binaries
+for those packages and many others on the 3 major OSes. I don't see
+any reason to recommend Anaconda to my students now.
+
+It's not a huge problem for my students but I think an important thing
+missing from all of this is a GUI for pip. The situation Paul
+described is that you can instruct someone to install Python using the
+python.org installer but cannot then instruct them to use pip from a
+terminal and I can certainly relate to that. If installing Python gave
+you a GUI from the programs menu that could install the other pieces
+that would be a significant improvement.
+
+--
+Oscar
+
+From mike at selik.org  Thu Nov 29 20:51:23 2018
+From: mike at selik.org (Michael Selik)
+Date: Thu, 29 Nov 2018 17:51:23 -0800
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+Message-ID: <CAGgTfkP9Beupfc2KEfvzt9ra0kcJPTBW0LsXojRx5Ex2Bnk3SQ@mail.gmail.com>
+
+On Thu, Nov 29, 2018 at 1:33 PM Nathaniel Smith <njs at pobox.com> wrote:
+
+> > > https://anaconda.com/
+> > > https://www.activestate.com/products/activepython/
+> > > http://winpython.github.io/
+> > > http://python-xy.github.io/
+> > > https://www.enthought.com/product/canopy/
+> > > https://software.intel.com/en-us/distribution-for-python
+> > > http://every-linux-distro-ever.example.com
+>
+> - Currently, our single-box-of-batteries is doing such a lousy job of
+> solving Paul's problem, that people are building whole businesses on
+> our failure.
+>
+
+Would you say that the Linux community made the same failure, since
+companies like Red Hat and Canonical exist? One reason a company might
+purchase a distribution is simply to have someone to sue, maybe
+indemnification against licensing issues.
+
+Even if there were an official free distribution, companies might still
+choose to purchase one.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/68c21b09/attachment-0001.html>
+
+From mike at selik.org  Thu Nov 29 21:02:10 2018
+From: mike at selik.org (Michael Selik)
+Date: Thu, 29 Nov 2018 18:02:10 -0800
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <CAHVvXxT7CXF0iq2B1PG5QDGMFaKKf94P8dM7i3rFAj5LRrFYZQ@mail.gmail.com>
+References: <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+ <20181130001447.GG4319@ando.pearwood.info>
+ <CAHVvXxT7CXF0iq2B1PG5QDGMFaKKf94P8dM7i3rFAj5LRrFYZQ@mail.gmail.com>
+Message-ID: <CAGgTfkNX9VH_7W0BRzaad979XuVPVYCWzL7wnqMSf3KQEbh97Q@mail.gmail.com>
+
+On Thu, Nov 29, 2018 at 5:48 PM Oscar Benjamin <oscar.j.benjamin at gmail.com>
+wrote:
+
+> There have been significant improvements in pip, pypi and the whole
+> packaging ecosystem in recent years thanks to the efforts of many
+> including Paul. I've been pushing students and others to Anaconda
+> simply because I knew that at minimum they would need numpy, scipy and
+> matplotlib and that pip would fail to install those. That has changed
+> in the last year or two: it is now possible to pip install binaries
+> for those packages and many others on the 3 major OSes. I don't see
+> any reason to recommend Anaconda to my students now.
+>
+
+One advantage of conda over pip is avoidance of typosquatting on PyPI.
+
+
+It's not a huge problem for my students but I think an important thing
+> missing from all of this is a GUI for pip. The situation Paul
+> described is that you can instruct someone to install Python using the
+> python.org installer but cannot then instruct them to use pip from a
+> terminal and I can certainly relate to that. If installing Python gave
+> you a GUI from the programs menu that could install the other pieces
+> that would be a significant improvement.
+>
+
+I haven't checked in about a year, but the Windows installer from python.org
+wouldn't set the PATH such that python or pip were not valid executables at
+the DOS prompt. Fixing that one (simple?) thing would also be a significant
+improvement.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181129/da91412c/attachment.html>
+
+From armin.rigo at gmail.com  Fri Nov 30 01:06:44 2018
+From: armin.rigo at gmail.com (Armin Rigo)
+Date: Fri, 30 Nov 2018 08:06:44 +0200
+Subject: [Python-Dev] C API changes
+In-Reply-To: <cf3bf917-b4da-96ac-349f-c3993b52cce0@python.org>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+ <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+ <cf3bf917-b4da-96ac-349f-c3993b52cce0@python.org>
+Message-ID: <CAMSv6X2d3Pedy6kkvA3yaLqhM8-5+95kk8p3VgnfhBQxtqFXfw@mail.gmail.com>
+
+Hi,
+
+On Thu, 29 Nov 2018 at 18:19, Steve Dower <steve.dower at python.org> wrote:
+> quo. We continue to not be able to change CPython internals at all,
+> since that will break people using option B.
+
+No?  That will only break users if they only have an option-B
+``foo.cpython-318m-x86_64-linux-gnu.so``, no option-A .so and no
+source code, and want to run it elsewhere than CPython 3.18.  That's
+the same as today.  If you want option-B .so for N versions of
+CPython, recompile the source code N times.
+
+Just to be clear, if done correctly there should be no need for
+#ifdefs in the source code of the extension module.
+
+
+A bient?t,
+
+Armin.
+
