@@ -15423,3 +15423,1152 @@ A bient?t,
 
 Armin.
 
+From p.f.moore at gmail.com  Fri Nov 30 04:00:35 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Fri, 30 Nov 2018 09:00:35 +0000
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <20181130001447.GG4319@ando.pearwood.info>
+References: <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+ <20181130001447.GG4319@ando.pearwood.info>
+Message-ID: <CACac1F9n-=CW16BfC5-TUvhbcZvZoP0pQLBGniMO_6zU5TdYGQ@mail.gmail.com>
+
+On Fri, 30 Nov 2018 at 00:17, Steven D'Aprano <steve at pearwood.info> wrote:
+> Especially not *Paul's* problems, as I understand he personally is
+> reasonably satisfied with the stdlib and doesn't use any of those
+> third-party distros. (Paul, did I get that right?)
+
+That's correct. And not just "reasonably satisfied" - I strongly
+prefer the python.org distribution (with "just" the stdlib) over those
+others.
+
+But we should be careful making comparisons like this. The benefit of
+the stdlib is as a "common denominator" core functionality. It's not
+that I don't need other modules. I use data analysis packages a lot,
+but I still prefer the core distribution (plus PyPI) over Anaconda,
+because when I'm *not* using data analysis packages (which I use in a
+virtualenv) my "base" environment is something that exists in *every*
+Python installation, no matter what distribution. And the core is
+available in places where I *can't* use extra modules.
+
+Paul
+
+From andrew.svetlov at gmail.com  Fri Nov 30 05:17:17 2018
+From: andrew.svetlov at gmail.com (Andrew Svetlov)
+Date: Fri, 30 Nov 2018 12:17:17 +0200
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAP1=2W5WOyaUDvSi9ZypaJL9nqO+o1cv311LfHzTtAYXo6mWSg@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+ <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+ <CAL3CFcW_GzBHMCO1NbV6uuhqCPw5TWUFXgBOKnRkZX6=ck_ryg@mail.gmail.com>
+ <CAP1=2W5WOyaUDvSi9ZypaJL9nqO+o1cv311LfHzTtAYXo6mWSg@mail.gmail.com>
+Message-ID: <CAL3CFcWEVWCxx7yZ3-ZCChy+-mQOE1LL41+0p9UGjCi22Q5Y=A@mail.gmail.com>
+
+On Fri, Nov 30, 2018 at 2:12 AM Brett Cannon <brett at python.org> wrote:
+
+>
+>
+> On Thu, 29 Nov 2018 at 14:12, Andrew Svetlov <andrew.svetlov at gmail.com>
+> wrote:
+>
+>> Neither http.client nor http.server doesn't support compression
+>> (gzip/compress/deflate) at all.
+>> I doubt if we want to add this feature: for client better to use requests
+>> or, well, aiohttp.
+>> The same for servers: almost any production ready web server from PyPI
+>> supports compression.
+>>
+>
+> There was actually a PR to add compressions support to http.server but I
+> closed it in the name of maintainability since http.server, as you said,
+> isn't for production use so compression isn't critical.
+>
+> I remember this PR and agree with your decision.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181130/be5df039/attachment.html>
+
+From solipsis at pitrou.net  Fri Nov 30 05:38:28 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 30 Nov 2018 11:38:28 +0100
+Subject: [Python-Dev] Standard library vs Standard distribution?
+References: <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+ <20181130001447.GG4319@ando.pearwood.info>
+Message-ID: <20181130113828.599861bf@fsol>
+
+On Fri, 30 Nov 2018 11:14:47 +1100
+Steven D'Aprano <steve at pearwood.info> wrote:
+> 
+> There are plenty of other languages that come with a tiny stdlib and 
+> leave everything else to third parties. Outside of those like 
+> Javascript, which has a privileged position due to it being the standard 
+> browser scripting language (and is backed by an ISO standard and at 
+> least one major companies vigourously driving it), how is that working 
+> out for them? 
+
+And even for Javascript, that seems to be a problem, with the myriad of
+dependencies JS apps seem to have for almost trivial matters, and the
+security issues that come with relying on so many (sometimes
+ill-maintained) third-party libraries.
+
+Actually, PyPI is also been targeted these days, even though hopefully
+it didn't (yet?) have the ramifications such attacks have had in the JS
+world (see e.g. the recent "event-stream" incident:
+https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident )
+
+I agree with you that the stdlib's "batteries included" is a major
+feature of Python.
+
+Regards
+
+Antoine.
+
+
+
+From steve at pearwood.info  Fri Nov 30 07:24:38 2018
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 30 Nov 2018 23:24:38 +1100
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <CAHVvXxT7CXF0iq2B1PG5QDGMFaKKf94P8dM7i3rFAj5LRrFYZQ@mail.gmail.com>
+References: <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <CAPJVwBkrZkiH6RH07ed8qR_dp1UND2s6CGyK3=k0+mjvrnx3XQ@mail.gmail.com>
+ <20181130001447.GG4319@ando.pearwood.info>
+ <CAHVvXxT7CXF0iq2B1PG5QDGMFaKKf94P8dM7i3rFAj5LRrFYZQ@mail.gmail.com>
+Message-ID: <20181130122436.GI4319@ando.pearwood.info>
+
+On Fri, Nov 30, 2018 at 01:45:17AM +0000, Oscar Benjamin wrote:
+
+> They do include much more than we need so I'd agree that Anaconda is a
+> nuclear reactor. The things I want from it are not though. Numpy is
+> not a nuclear reactor: at it's core it's just providing a
+> multidimensional array.
+
+And a metric tonne of functions in linear algebra, root finding, special 
+functions, polynomials, statistics, generation of random numbers, 
+datetime calculations, FFTs, interfacing with C, and including *eight* 
+different specialist variations of sorting alone.
+
+Just because some people don't use the entire output of the nuclear 
+reactor, doesn't mean it isn't one.
+
+
+
+-- 
+Steve
+
+From status at bugs.python.org  Fri Nov 30 12:10:07 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 30 Nov 2018 18:10:07 +0100 (CET)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20181130171007.0180D15366C@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-11-23 - 2018-11-30)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6880 (+15)
+  closed 40234 (+47)
+  total  47114 (+62)
+
+Open issues with patches: 2736 
+
+
+Issues opened (41)
+==================
+
+#33015: Fix function cast warning in thread_pthread.h
+https://bugs.python.org/issue33015  reopened by vstinner
+
+#35302: create_connection with local_addr misses valid socket bindings
+https://bugs.python.org/issue35302  opened by kyuupichan
+
+#35305: subprocess.Popen(['/sbin/ldconfig', '-p'], stdin=PIPE) itself 
+https://bugs.python.org/issue35305  opened by Henrik Bengtsson
+
+#35306: OSError [WinError 123] when testing if pathlib.Path('*') (aste
+https://bugs.python.org/issue35306  opened by jimbo1qaz_
+
+#35307: Command line help example  is missing "--prompt" option
+https://bugs.python.org/issue35307  opened by daftwullie
+
+#35310: select which was interrupted by EINTR isn't re-run if the time
+https://bugs.python.org/issue35310  opened by Brian Maissy
+
+#35311: exception unpickling error causes `multiprocessing.Pool` to ha
+https://bugs.python.org/issue35311  opened by Anthony Sottile
+
+#35312: lib2to3.pgen2.parse.ParseError is not roundtrip pickleable
+https://bugs.python.org/issue35312  opened by Anthony Sottile
+
+#35316: test_eintr fails randomly on macOS
+https://bugs.python.org/issue35316  opened by vstinner
+
+#35318: Check accuracy of str() doc string for its encoding argument
+https://bugs.python.org/issue35318  opened by rhettinger
+
+#35319: pkgutil.get_data() is a wrapper for a deprecated class
+https://bugs.python.org/issue35319  opened by Kevin.Norris
+
+#35321: None _frozen_importlib.__spec__.origin attribute
+https://bugs.python.org/issue35321  opened by maggyero
+
+#35324: ssl: FileNotFoundError when do handshake
+https://bugs.python.org/issue35324  opened by josephshi at yahoo.com
+
+#35325: imp.find_module() return value documentation discrepancy
+https://bugs.python.org/issue35325  opened by StefanBauerTT
+
+#35327: Using skipTest with subTest gives a misleading UI.
+https://bugs.python.org/issue35327  opened by p-ganssle
+
+#35328: Set a environment variable for venv prompt
+https://bugs.python.org/issue35328  opened by batisteo
+
+#35329: Documentation - capitalization issue
+https://bugs.python.org/issue35329  opened by Strijker
+
+#35330: When using mock to wrap an existing object, side_effect requir
+https://bugs.python.org/issue35330  opened by noamraph
+
+#35331: Incorrect __module__ attribute for _struct.Struct and perhaps 
+https://bugs.python.org/issue35331  opened by bup
+
+#35332: shutil.rmtree(..., ignore_errors=True) doesn't ignore errors f
+https://bugs.python.org/issue35332  opened by rabraham
+
+#35333: Rename private structs to use names closer to types
+https://bugs.python.org/issue35333  opened by vstinner
+
+#35335: msgfmt should be able to merge more than one po file
+https://bugs.python.org/issue35335  opened by s-ball
+
+#35337: Check index in PyTuple_GET_ITEM/PyTuple_SET_ITEM in debug mode
+https://bugs.python.org/issue35337  opened by vstinner
+
+#35338: set union/intersection/difference could accept zero arguments
+https://bugs.python.org/issue35338  opened by carandraug
+
+#35341: Add generic version of OrderedDict to typing module
+https://bugs.python.org/issue35341  opened by itoijala
+
+#35342: email "default" policy raises exception iterating over unparse
+https://bugs.python.org/issue35342  opened by rptb1
+
+#35344: platform: get macOS version rather than darwin version?
+https://bugs.python.org/issue35344  opened by vstinner
+
+#35346: Modernize Lib/platform.py code
+https://bugs.python.org/issue35346  opened by vstinner
+
+#35348: Problems with handling the file command output in platform.arc
+https://bugs.python.org/issue35348  opened by serhiy.storchaka
+
+#35350: importing "ctypes" immediately causes a segmentation fault
+https://bugs.python.org/issue35350  opened by n0s69z
+
+#35351: LTOFLAGS are passed to BASECFLAGS when using LTO
+https://bugs.python.org/issue35351  opened by cstratak
+
+#35352: test_asyncio fails on RHEL8
+https://bugs.python.org/issue35352  opened by cstratak
+
+#35353: Add frame command to pdb
+https://bugs.python.org/issue35353  opened by cnklein
+
+#35354: Generator functions stack overflow
+https://bugs.python.org/issue35354  opened by asdwqii
+
+#35357: unittest.mock.call can't represent calls to a method called 'p
+https://bugs.python.org/issue35357  opened by cjw296
+
+#35358: avoid '-' in importlib.import_module and builtins.__import__
+https://bugs.python.org/issue35358  opened by matrixise
+
+#35359: [2.7][Windows] Define _CRT_SECURE_NO_WARNINGS to build Modules
+https://bugs.python.org/issue35359  opened by vstinner
+
+#35360: [Windows] Update SQLite dependency
+https://bugs.python.org/issue35360  opened by vstinner
+
+#35361: Update libffi dependency to 3.2.1?
+https://bugs.python.org/issue35361  opened by vstinner
+
+#35362: list inheritor with abstract content does not raise
+https://bugs.python.org/issue35362  opened by vaslem
+
+#35363: test_eintr: test_open() hangs randomly on x86-64 El Capitan 3.
+https://bugs.python.org/issue35363  opened by vstinner
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#35362: list inheritor with abstract content does not raise
+https://bugs.python.org/issue35362
+
+#35361: Update libffi dependency to 3.2.1?
+https://bugs.python.org/issue35361
+
+#35359: [2.7][Windows] Define _CRT_SECURE_NO_WARNINGS to build Modules
+https://bugs.python.org/issue35359
+
+#35357: unittest.mock.call can't represent calls to a method called 'p
+https://bugs.python.org/issue35357
+
+#35353: Add frame command to pdb
+https://bugs.python.org/issue35353
+
+#35351: LTOFLAGS are passed to BASECFLAGS when using LTO
+https://bugs.python.org/issue35351
+
+#35332: shutil.rmtree(..., ignore_errors=True) doesn't ignore errors f
+https://bugs.python.org/issue35332
+
+#35331: Incorrect __module__ attribute for _struct.Struct and perhaps 
+https://bugs.python.org/issue35331
+
+#35329: Documentation - capitalization issue
+https://bugs.python.org/issue35329
+
+#35324: ssl: FileNotFoundError when do handshake
+https://bugs.python.org/issue35324
+
+#35302: create_connection with local_addr misses valid socket bindings
+https://bugs.python.org/issue35302
+
+#35298: Segfault in _PyObject_GenericGetAttrWithDict
+https://bugs.python.org/issue35298
+
+#35297: untokenize documentation is not correct
+https://bugs.python.org/issue35297
+
+#35295: Please clarify whether PyUnicode_AsUTF8AndSize() or PyUnicode_
+https://bugs.python.org/issue35295
+
+#35294: Race condition involving SocketServer.TCPServer
+https://bugs.python.org/issue35294
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#35359: [2.7][Windows] Define _CRT_SECURE_NO_WARNINGS to build Modules
+https://bugs.python.org/issue35359
+
+#35352: test_asyncio fails on RHEL8
+https://bugs.python.org/issue35352
+
+#35351: LTOFLAGS are passed to BASECFLAGS when using LTO
+https://bugs.python.org/issue35351
+
+#35346: Modernize Lib/platform.py code
+https://bugs.python.org/issue35346
+
+#35344: platform: get macOS version rather than darwin version?
+https://bugs.python.org/issue35344
+
+#35337: Check index in PyTuple_GET_ITEM/PyTuple_SET_ITEM in debug mode
+https://bugs.python.org/issue35337
+
+#35328: Set a environment variable for venv prompt
+https://bugs.python.org/issue35328
+
+#35316: test_eintr fails randomly on macOS
+https://bugs.python.org/issue35316
+
+#35312: lib2to3.pgen2.parse.ParseError is not roundtrip pickleable
+https://bugs.python.org/issue35312
+
+#35310: select which was interrupted by EINTR isn't re-run if the time
+https://bugs.python.org/issue35310
+
+#35307: Command line help example  is missing "--prompt" option
+https://bugs.python.org/issue35307
+
+#35284: Incomplete error handling in Python/compile.c:compiler_call()
+https://bugs.python.org/issue35284
+
+#35283: "threading._DummyThread" redefines "is_alive" but forgets "isA
+https://bugs.python.org/issue35283
+
+#35282: Add a return value to lib2to3.refactor.refactor_file and refac
+https://bugs.python.org/issue35282
+
+#35278: [security] directory traversal in tempfile prefix
+https://bugs.python.org/issue35278
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#35134: Add a new Include/cpython/ subdirectory for the "CPython API" 
+https://bugs.python.org/issue35134  11 msgs
+
+#33930: Segfault with deep recursion into object().__dir__
+https://bugs.python.org/issue33930   8 msgs
+
+#35338: set union/intersection/difference could accept zero arguments
+https://bugs.python.org/issue35338   8 msgs
+
+#35352: test_asyncio fails on RHEL8
+https://bugs.python.org/issue35352   8 msgs
+
+#33015: Fix function cast warning in thread_pthread.h
+https://bugs.python.org/issue33015   7 msgs
+
+#35316: test_eintr fails randomly on macOS
+https://bugs.python.org/issue35316   7 msgs
+
+#35346: Modernize Lib/platform.py code
+https://bugs.python.org/issue35346   7 msgs
+
+#35344: platform: get macOS version rather than darwin version?
+https://bugs.python.org/issue35344   6 msgs
+
+#35327: Using skipTest with subTest gives a misleading UI.
+https://bugs.python.org/issue35327   5 msgs
+
+#35337: Check index in PyTuple_GET_ITEM/PyTuple_SET_ITEM in debug mode
+https://bugs.python.org/issue35337   5 msgs
+
+
+
+Issues closed (46)
+==================
+
+#27903: Avoid ResourceWarnings from platform._dist_try_harder
+https://bugs.python.org/issue27903  closed by xtreak
+
+#29877: compileall hangs when accessing urandom even if number of work
+https://bugs.python.org/issue29877  closed by inada.naoki
+
+#30167: site.main() does not work on Python 3.6 and superior if PYTHON
+https://bugs.python.org/issue30167  closed by inada.naoki
+
+#31241: ast col_offset wrong for list comprehensions, generators and t
+https://bugs.python.org/issue31241  closed by serhiy.storchaka
+
+#31628: test_emails failure on FreeBSD
+https://bugs.python.org/issue31628  closed by vstinner
+
+#31900: localeconv() should decode numeric fields from LC_NUMERIC enco
+https://bugs.python.org/issue31900  closed by vstinner
+
+#32035: Documentation of zipfile.ZipFile().writestr() fails to mention
+https://bugs.python.org/issue32035  closed by serhiy.storchaka
+
+#33012: Invalid function cast warnings with gcc 8 for METH_NOARGS
+https://bugs.python.org/issue33012  closed by serhiy.storchaka
+
+#33029: Invalid function cast warnings with gcc 8 for getter and sette
+https://bugs.python.org/issue33029  closed by serhiy.storchaka
+
+#33954: float.__format__('n') fails with _PyUnicode_CheckConsistency a
+https://bugs.python.org/issue33954  closed by vstinner
+
+#34021: [2.7] test_regrtest: test_env_changed() fails on x86 Windows X
+https://bugs.python.org/issue34021  closed by vstinner
+
+#34022: 6 tests fail using SOURCE_DATE_EPOCH env var
+https://bugs.python.org/issue34022  closed by vstinner
+
+#34100: Same constants in tuples are not merged while compile()
+https://bugs.python.org/issue34100  closed by inada.naoki
+
+#34212: Cygwin link failure with builtin modules since issue30860
+https://bugs.python.org/issue34212  closed by benjamin.peterson
+
+#34279: RFC: issue a warning in regrtest when no tests have been execu
+https://bugs.python.org/issue34279  closed by vstinner
+
+#34812: [Security] support.args_from_interpreter_flags() doesn't inher
+https://bugs.python.org/issue34812  closed by vstinner
+
+#34893: Add 2to3 fixer to change send and recv methods of socket objec
+https://bugs.python.org/issue34893  closed by benjamin.peterson
+
+#34978: check type of object in fix_dict.py in 2to3
+https://bugs.python.org/issue34978  closed by benjamin.peterson
+
+#35189: PEP 475: fnctl functions are not retried if interrupted by a s
+https://bugs.python.org/issue35189  closed by vstinner
+
+#35217: REPL history is broken when python is invoked with cmd /c
+https://bugs.python.org/issue35217  closed by eryksun
+
+#35240: Travis CI: xvfb-run: error: Xvfb failed to start
+https://bugs.python.org/issue35240  closed by vstinner
+
+#35255: delete "How do I extract the downloaded documentation" section
+https://bugs.python.org/issue35255  closed by mdk
+
+#35281: Allow access to unittest.TestSuite tests
+https://bugs.python.org/issue35281  closed by brett.cannon
+
+#35300: Document what functions are suitable for use with the lru_cach
+https://bugs.python.org/issue35300  closed by rhettinger
+
+#35303: A reference leak in _operator.c's methodcaller_repr()
+https://bugs.python.org/issue35303  closed by serhiy.storchaka
+
+#35304: The return of truncate(size=None) (file io) is unexpected
+https://bugs.python.org/issue35304  closed by martin.panter
+
+#35308: webbrowser regression: BROWSER env var not respected
+https://bugs.python.org/issue35308  closed by serhiy.storchaka
+
+#35309: Typo in urllib.request warning: cpath ??? capath
+https://bugs.python.org/issue35309  closed by benjamin.peterson
+
+#35313: test_embed fails in travis CI when tests are executed from a v
+https://bugs.python.org/issue35313  closed by vstinner
+
+#35314: fnmatch failed with leading caret (^)
+https://bugs.python.org/issue35314  closed by serhiy.storchaka
+
+#35315: Error (Segmentation fault - core dumped) while installing Pyth
+https://bugs.python.org/issue35315  closed by christian.heimes
+
+#35317: test_email: test_localtime_daylight_false_dst_true() fails dep
+https://bugs.python.org/issue35317  closed by vstinner
+
+#35320: Writable __spec__.has_location attribute
+https://bugs.python.org/issue35320  closed by brett.cannon
+
+#35322: test_datetime leaks memory on Windows
+https://bugs.python.org/issue35322  closed by vstinner
+
+#35323: Windows x86 executable installer can't install
+https://bugs.python.org/issue35323  closed by outofthink
+
+#35326: ctypes cast and from_address cause crash on Windows 10
+https://bugs.python.org/issue35326  closed by eryksun
+
+#35334: urllib3 fails with type error exception, when cannot reach PyP
+https://bugs.python.org/issue35334  closed by christian.heimes
+
+#35336: Bug in C locale coercion with PYTHONCOERCECLOCALE=1
+https://bugs.python.org/issue35336  closed by vstinner
+
+#35339: Populating instances of class automatically
+https://bugs.python.org/issue35339  closed by steven.daprano
+
+#35340: global symbol "freegrammar" should be made static ore renamed
+https://bugs.python.org/issue35340  closed by benjamin.peterson
+
+#35343: Importlib.reload has different behaviour in script and interac
+https://bugs.python.org/issue35343  closed by brett.cannon
+
+#35345: Remove platform.popen(), deprecated since Python 3.3
+https://bugs.python.org/issue35345  closed by vstinner
+
+#35347: test_socket: NonBlockingTCPTests.testRecv() uses a weak 100 ms
+https://bugs.python.org/issue35347  closed by vstinner
+
+#35349: collections.abc.Sequence isn't an abstract base class for arra
+https://bugs.python.org/issue35349  closed by serhiy.storchaka
+
+#35355: Some Errors involving formatted strings aren't reported in the
+https://bugs.python.org/issue35355  closed by terry.reedy
+
+#35356: A possible reference leak in the nis module
+https://bugs.python.org/issue35356  closed by serhiy.storchaka
+
+From steve.dower at python.org  Fri Nov 30 12:22:30 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 30 Nov 2018 09:22:30 -0800
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAMSv6X2d3Pedy6kkvA3yaLqhM8-5+95kk8p3VgnfhBQxtqFXfw@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+ <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+ <cf3bf917-b4da-96ac-349f-c3993b52cce0@python.org>
+ <CAMSv6X2d3Pedy6kkvA3yaLqhM8-5+95kk8p3VgnfhBQxtqFXfw@mail.gmail.com>
+Message-ID: <550a5261-c4de-7cfb-eac4-f25035505301@python.org>
+
+On 29Nov2018 2206, Armin Rigo wrote:
+> On Thu, 29 Nov 2018 at 18:19, Steve Dower <steve.dower at python.org> wrote:
+>> quo. We continue to not be able to change CPython internals at all,
+>> since that will break people using option B.
+> 
+> No?  That will only break users if they only have an option-B
+> ``foo.cpython-318m-x86_64-linux-gnu.so``, no option-A .so and no
+> source code, and want to run it elsewhere than CPython 3.18.  That's
+> the same as today.  If you want option-B .so for N versions of
+> CPython, recompile the source code N times.
+> 
+> Just to be clear, if done correctly there should be no need for
+> #ifdefs in the source code of the extension module.
+
+The problem is that if option B remains as compatible as it is today, we 
+can't make option A faster enough to be attractive. The marketing pitch 
+for this looks like: "rewrite all your existing code to be slower but 
+works with PyPy, or don't rewrite your existing code and it'll be 
+fastest with CPython and won't break in the future". This is status quo 
+(where option A today is something like CFFI or Cython), and we can 
+already see how many people have made the switch (FWIW, I totally prefer 
+Cython over pure C for my own projects :) ).
+
+My proposed marketing pitch is: "rewrite your existing code to be 
+forward-compatible today and faster in the future without more work, or 
+be prepared to rewrite/update your source code for each CPython release 
+to remain compatible with the low level API". The promise of "faster in 
+the future" needs to be justified (and I think there's plenty of 
+precedent in PyPy, Larry's Gilectomy and the various JavaScript VMs to 
+assume that we can do it).
+
+We've already done enough investigation to know that making the runtime 
+faster requires changing the low level APIs, and otherwise we're stuck 
+in a local optima. Offering a stable, loosely coupled option A and then 
+*planning* to break the low level APIs each version in the name of 
+performance is the only realistic way to change what we're currently doing.
+
+Cheers,
+Steve
+
+From solipsis at pitrou.net  Fri Nov 30 12:32:08 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 30 Nov 2018 18:32:08 +0100
+Subject: [Python-Dev] C API changes
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+ <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+ <cf3bf917-b4da-96ac-349f-c3993b52cce0@python.org>
+ <CAMSv6X2d3Pedy6kkvA3yaLqhM8-5+95kk8p3VgnfhBQxtqFXfw@mail.gmail.com>
+ <550a5261-c4de-7cfb-eac4-f25035505301@python.org>
+Message-ID: <20181130183208.4b4d6264@fsol>
+
+On Fri, 30 Nov 2018 09:22:30 -0800
+Steve Dower <steve.dower at python.org> wrote:
+> 
+> My proposed marketing pitch is: "rewrite your existing code to be 
+> forward-compatible today and faster in the future without more work, or 
+> be prepared to rewrite/update your source code for each CPython release 
+> to remain compatible with the low level API". The promise of "faster in 
+> the future" needs to be justified (and I think there's plenty of 
+> precedent in PyPy, Larry's Gilectomy and the various JavaScript VMs to 
+> assume that we can do it).
+
+I think that should be qualified.  Technically it's certainly possible
+to have a faster CPython with different internals.  Socially and
+organisationally I'm not sure we're equipped to achieve it.
+
+Regards
+
+Antoine.
+
+
+
+From stefan at bytereef.org  Fri Nov 30 13:10:21 2018
+From: stefan at bytereef.org (Stefan Krah)
+Date: Fri, 30 Nov 2018 19:10:21 +0100
+Subject: [Python-Dev] C API changes
+Message-ID: <20181130181021.GA15863@bytereef.org>
+
+
+Steve Dower wrote:
+> My proposed marketing pitch is: "rewrite your existing code to be 
+> forward-compatible today and faster in the future without more work, or 
+> be prepared to rewrite/update your source code for each CPython release 
+> to remain compatible with the low level API". The promise of "faster in 
+> the future" needs to be justified (and I think there's plenty of 
+> precedent in PyPy, Larry's Gilectomy and the various JavaScript VMs to 
+> assume that we can do it).
+
+It's hard to discuss this in the abstract without knowing how big the
+breakage between each version is going to be.
+
+But for the scientific ecosystem this sounds a bit like a potential
+Python-4.0 breakage, which was universally rejected (so far).
+
+In the extreme case I can imagine people staying on 3.7.
+
+But it really depends on the nature of the changes.
+
+
+
+Stefan Krah
+
+
+
+
+
+From nas-python at arctrix.com  Fri Nov 30 14:06:11 2018
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Fri, 30 Nov 2018 13:06:11 -0600
+Subject: [Python-Dev] C API changes
+In-Reply-To: <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+ <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+Message-ID: <20181130190611.tvk3xlv5qb3wlpyj@python.ca>
+
+On 2018-11-29, Armin Rigo wrote:
+> ...Also, although I'm discussing it here, I think the whole approach
+> would be better if done as a third-party extension for now, without
+> requiring changes to CPython---just use the existing C API to
+> implement the CPython version.
+
+Hello Armin,
+
+Thank you for providing your input on this subject.  I too like the
+idea of an API "shim layer" as a separate project.
+
+What do you think of writing the shim layer in C++?  I'm not a C++
+programmer but my understanding is that modern C++ compilers are
+much better than years ago.  Using C++ would allow us to provide a
+higher level API with smaller runtime costs.  However, it would
+require that any project using the shim layer would have to be
+compiled with a C++ compiler (CPython and PyPy could still expose a
+C compatible API).
+
+Perhaps it is a bad idea.  If someone does create such a shim layer,
+it will already be challenging to convince extension authors to move
+to it.  If it requires them to switch to using a C++ compiler rather
+than a C compiler, maybe that's too much effort.  OTOH, with C++ I
+think you could do things like use smart pointers to automatically
+handle refcounts on the handles.  Or maybe we should just skip C++
+and implement the layer in Rust.  Then the Rust borrow checker can
+handle the refcounts. ;-)
+
+Regards,
+
+  Neil
+
+From armin.rigo at gmail.com  Fri Nov 30 14:14:22 2018
+From: armin.rigo at gmail.com (Armin Rigo)
+Date: Fri, 30 Nov 2018 21:14:22 +0200
+Subject: [Python-Dev] C API changes
+In-Reply-To: <550a5261-c4de-7cfb-eac4-f25035505301@python.org>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+ <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+ <cf3bf917-b4da-96ac-349f-c3993b52cce0@python.org>
+ <CAMSv6X2d3Pedy6kkvA3yaLqhM8-5+95kk8p3VgnfhBQxtqFXfw@mail.gmail.com>
+ <550a5261-c4de-7cfb-eac4-f25035505301@python.org>
+Message-ID: <CAMSv6X1N+75Oej+353zUDGJH+6dnwZhf-RQt4kSEj4eVZxGzHQ@mail.gmail.com>
+
+Hi Steve,
+
+On 30/11/2018, Steve Dower <steve.dower at python.org> wrote:
+> On 29Nov2018 2206, Armin Rigo wrote:
+>> On Thu, 29 Nov 2018 at 18:19, Steve Dower <steve.dower at python.org> wrote:
+>>> quo. We continue to not be able to change CPython internals at all,
+>>> since that will break people using option B.
+>>
+>> No?  That will only break users if they only have an option-B
+>> ``foo.cpython-318m-x86_64-linux-gnu.so``, no option-A .so and no
+>> source code, and want to run it elsewhere than CPython 3.18.  That's
+>> the same as today.  If you want option-B .so for N versions of
+>> CPython, recompile the source code N times.
+>>
+>> Just to be clear, if done correctly there should be no need for
+>> #ifdefs in the source code of the extension module.
+>
+> The problem is that if option B remains as compatible as it is today, we
+> can't make option A faster enough to be attractive. The marketing pitch
+> for this looks like: "rewrite all your existing code to be slower but
+> works with PyPy, or don't rewrite your existing code and it'll be
+> fastest with CPython and won't break in the future". This is status quo
+> (where option A today is something like CFFI or Cython), and we can
+> already see how many people have made the switch (FWIW, I totally prefer
+> Cython over pure C for my own projects :) ).
+>
+> My proposed marketing pitch is: "rewrite your existing code to be
+> forward-compatible today and faster in the future without more work, or
+> be prepared to rewrite/update your source code for each CPython release
+> to remain compatible with the low level API".
+> (...)
+
+Discussing marketing pitches on python-dev is not one of my favorite
+past-times, so I'll excuse myself out of this conversation.  Instead,
+I might try to implement the basics, check out the performance on
+CPython and on PyPy, and seek out interest---I'm thinking about
+Cython, for example, which might relatively easily be adapted to
+generate that kind of code.  This might be a solution for the poor
+performance of Cython on PyPy...  If everything works out, maybe I'll
+come back here at some point, with the argument "the CPython C API is
+blocking CPython from evolution more and more?  Here's one possible
+path forward."
+
+
+A bient?t,
+
+Armin.
+
+From solipsis at pitrou.net  Fri Nov 30 14:33:49 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 30 Nov 2018 20:33:49 +0100
+Subject: [Python-Dev] C API changes
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+ <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+ <20181130190611.tvk3xlv5qb3wlpyj@python.ca>
+Message-ID: <20181130203349.1ac12768@fsol>
+
+On Fri, 30 Nov 2018 13:06:11 -0600
+Neil Schemenauer <nas-python at arctrix.com> wrote:
+> On 2018-11-29, Armin Rigo wrote:
+> > ...Also, although I'm discussing it here, I think the whole approach
+> > would be better if done as a third-party extension for now, without
+> > requiring changes to CPython---just use the existing C API to
+> > implement the CPython version.  
+> 
+> Hello Armin,
+> 
+> Thank you for providing your input on this subject.  I too like the
+> idea of an API "shim layer" as a separate project.
+> 
+> What do you think of writing the shim layer in C++?  I'm not a C++
+> programmer but my understanding is that modern C++ compilers are
+> much better than years ago.  Using C++ would allow us to provide a
+> higher level API with smaller runtime costs.
+
+The main problem with exposing a C++ *API* is that all people
+implementing that API suddenly must understand and implement the C++
+*ABI* (with itself varies from platform to platform :-)).  That's
+trivially easy if your implementation is itself written in C++, but not
+if it's written in something else such as RPython, Java, Rust, etc.
+
+C is really the lingua franca when exposing an interface that can be
+understood, implemented and/or interfaced with from many different
+languages.
+
+So I'd turn the proposal on its head: you can implement the internals
+of your interpreter or object layer in C++ (and indeed I think it
+would be crazy to start writing a new Python VM in raw C), but you
+should still expose a C-compatible API for third-party providers and
+consumers.
+
+Regards
+
+Antoine.
+
+
+
+From steve.dower at python.org  Fri Nov 30 14:45:20 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 30 Nov 2018 11:45:20 -0800
+Subject: [Python-Dev] C API changes
+In-Reply-To: <20181130203349.1ac12768@fsol>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+ <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+ <20181130190611.tvk3xlv5qb3wlpyj@python.ca> <20181130203349.1ac12768@fsol>
+Message-ID: <85e2ff3f-0f00-3544-5ab4-d7072059c521@python.org>
+
+On 30Nov2018 1133, Antoine Pitrou wrote:
+> On Fri, 30 Nov 2018 13:06:11 -0600
+> Neil Schemenauer <nas-python at arctrix.com> wrote:
+>> On 2018-11-29, Armin Rigo wrote:
+>>> ...Also, although I'm discussing it here, I think the whole approach
+>>> would be better if done as a third-party extension for now, without
+>>> requiring changes to CPython---just use the existing C API to
+>>> implement the CPython version.
+>>
+>> Hello Armin,
+>>
+>> Thank you for providing your input on this subject.  I too like the
+>> idea of an API "shim layer" as a separate project.
+>>
+>> What do you think of writing the shim layer in C++?  I'm not a C++
+>> programmer but my understanding is that modern C++ compilers are
+>> much better than years ago.  Using C++ would allow us to provide a
+>> higher level API with smaller runtime costs.
+> 
+> The main problem with exposing a C++ *API* is that all people
+> implementing that API suddenly must understand and implement the C++
+> *ABI* (with itself varies from platform to platform :-)).  That's
+> trivially easy if your implementation is itself written in C++, but not
+> if it's written in something else such as RPython, Java, Rust, etc.
+> 
+> C is really the lingua franca when exposing an interface that can be
+> understood, implemented and/or interfaced with from many different
+> languages.
+> 
+> So I'd turn the proposal on its head: you can implement the internals
+> of your interpreter or object layer in C++ (and indeed I think it
+> would be crazy to start writing a new Python VM in raw C), but you
+> should still expose a C-compatible API for third-party providers and
+> consumers.
+
+I totally agree with Antoine here. C++ is great for internals, but not 
+the public interfaces.
+
+The one additional point I'd add is that there are other ABIs that C++ 
+can use (such as xlang, Corba and COM), which can provide stability in 
+ways the plain-old C++ ABI does not. So we wouldn't necessarily have to 
+design a new C-based ABI for this, we could adopt an existing one that 
+is already proven and already has supporting tools.
+
+Cheers,
+Steve
+
+
+
+From v+python at g.nevcal.com  Fri Nov 30 16:00:37 2018
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Fri, 30 Nov 2018 13:00:37 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAL3CFcW_GzBHMCO1NbV6uuhqCPw5TWUFXgBOKnRkZX6=ck_ryg@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+ <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+ <CAL3CFcW_GzBHMCO1NbV6uuhqCPw5TWUFXgBOKnRkZX6=ck_ryg@mail.gmail.com>
+Message-ID: <1921b844-f1a9-6434-b367-7aa118ee187e@g.nevcal.com>
+
+On 11/29/2018 2:10 PM, Andrew Svetlov wrote:
+> Neither http.client nor http.server doesn't support compression 
+> (gzip/compress/deflate) at all.
+> I doubt if we want to add this feature: for client better to use 
+> requests or, well, aiohttp.
+> The same for servers: almost any production ready web server from PyPI 
+> supports compression.
+>
+What production ready web servers exist on PyPi? Are there any that 
+don't bring lots of baggage, their own enhanced way of doing things? The 
+nice thing about the http.server is that it does things in a 
+standard-conforming way, the bad thing about it is that it doesn't 
+implement all the standards, and isn't maintained very well.
+
+ From just reading PyPi, it is hard to discover whether a particular 
+package is production-ready or not.
+
+I had used CherryPy for a while, but at the time it didn't support 
+Python 3, and to use the same scripts behind CherryPy or Apache CGI (my 
+deployment target, because that was what web hosts provided) became 
+difficult for complex scripts.... so I reverted to http.server with a 
+few private extensions (private because no one merged the bugs I 
+reported some 3 versions of Python-development-process ago; back then I 
+submitted patches, but I haven't had time to keep up with the churn of 
+technologies Pythondev has used since Python 3 came out, which is when I 
+started using Python, and I'm sure the submitted patches have bit-rotted 
+by now).
+
+When I google "python web server" the first hit is the doc page for 
+http.server, the second is a wiki page that mentions CherryPy and a 
+bunch of others, but the descriptions, while terse, mostly point out 
+some special capabilities of the server, making it seem like you not 
+only get a web server, but a philosophy. I just want a web server. The 
+last one, Waitress, is the only one that doesn't seem to have a 
+philosophy in its description.
+
+So it would be nice if http.server and http.client could get some basic 
+improvements to be complete, or if the docs could point to a replacement 
+that is a complete server, but without a philosophy or framework 
+(bloatware) to have to learn and/or work around.
+
+Glenn
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181130/9a173fa8/attachment-0001.html>
+
+From solipsis at pitrou.net  Fri Nov 30 16:13:43 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 30 Nov 2018 22:13:43 +0100
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+ <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+ <CAL3CFcW_GzBHMCO1NbV6uuhqCPw5TWUFXgBOKnRkZX6=ck_ryg@mail.gmail.com>
+ <1921b844-f1a9-6434-b367-7aa118ee187e@g.nevcal.com>
+Message-ID: <20181130221343.0c08dcbe@fsol>
+
+On Fri, 30 Nov 2018 13:00:37 -0800
+Glenn Linderman <v+python at g.nevcal.com> wrote:
+> 
+> So it would be nice if http.server and http.client could get some basic 
+> improvements to be complete, or if the docs could point to a replacement 
+> that is a complete server, but without a philosophy or framework 
+> (bloatware) to have to learn and/or work around.
+
+Why do you think http.server is any different?  If you want to
+implement your own Web service with http.server you must implement your
+own handler class, which is not very different from writing a handler
+for a third-party HTTP server.  Maybe you're so used to this way of
+doing that you find it "natural", but in reality http.server is as
+opinionated as any other HTTP server implementation.
+
+By the way, there is a framework in the stdlib, it's called asyncio.
+And I'm sure you'll find production-ready HTTP servers written for
+it :-)
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Fri Nov 30 17:10:50 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 30 Nov 2018 23:10:50 +0100
+Subject: [Python-Dev] C API changes
+In-Reply-To: <85e2ff3f-0f00-3544-5ab4-d7072059c521@python.org>
+References: <mailman.30.1542560403.14897.python-dev@python.org>
+ <CAAahdHMx=zsQgkXxvgiLLi=EEmE_paw=1+YARmrh_8cFL9T=rA@mail.gmail.com>
+ <CAMSv6X3Yih_6GCmZ5dpzpcA=Kg87=JPJT3oeHXii1WD7EytyKg@mail.gmail.com>
+ <83fca743-5874-ee27-9717-b407ccdcb60d@hastings.org>
+ <CA+3bQGEq49fcLSa-9eKaPTG6s1Qbm71Xbc_asiYLP8y1dfF0ow@mail.gmail.com>
+ <99b32440-1c8a-8a92-7729-c037648fbbce@python.org>
+ <CAMSv6X3B8WqpJpxuFmo6TzHhRgVtt=de6V1jPAsXed_bmDd9iw@mail.gmail.com>
+ <20181130190611.tvk3xlv5qb3wlpyj@python.ca> <20181130203349.1ac12768@fsol>
+ <85e2ff3f-0f00-3544-5ab4-d7072059c521@python.org>
+Message-ID: <CA+3bQGHKCfi1Z3QzpgRw2_GAGKtoa=HihVczoBkZMzHjbd_V6A@mail.gmail.com>
+
+I just would want to say that I'm very happy to read the discussions
+about the C API finally happening on python-dev :-) The discussion is
+very interesting!
+
+> C is really the lingua franca
+
+Sorry, but why not writing the API directly in french?
+
+Victor
+
+From solipsis at pitrou.net  Fri Nov 30 17:35:30 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 30 Nov 2018 23:35:30 +0100
+Subject: [Python-Dev] Standard library vs Standard distribution?
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <c84234c3-c34e-6ce9-7fc4-0ff4a5b5a2af@python.org>
+Message-ID: <20181130233530.2cb0ef42@fsol>
+
+On Thu, 29 Nov 2018 10:46:23 -0800
+Steve Dower <steve.dower at python.org> wrote:
+> 
+> I've previously volunteered to move certain modules to their own PyPI 
+> packages and bundle them (omitting package names to avoid upsetting 
+> people again), and I've done various analyses of which modules can be 
+> moved out. I've also deliberately designed functionality into the 
+> Windows installer to be able to bundle and install arbitrary packages 
+> whenever we like (there's an example in 
+> https://github.com/python/cpython/blob/master/Tools/msi/bundle/packagegroups/packageinstall.wxs).
+> 
+> Plus I've been involved in packaging longer than I've been involved in 
+> core development. I find it highly embarrassing, but there are people 
+> out there who publicly credit me with "making it possible to use any 
+> packages at all on Windows". Please don't accuse me of throwing out 
+> ideas in this area without doing any work.
+
+Sorry.  I've been unfair and unduly antagonistic.
+
+Regards
+
+Antoine.
+
+
+
+From steve.dower at python.org  Fri Nov 30 18:14:29 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 30 Nov 2018 15:14:29 -0800
+Subject: [Python-Dev] Standard library vs Standard distribution?
+In-Reply-To: <20181130233530.2cb0ef42@fsol>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAP1=2W7QBwcGGvJHDcupVAPVGPy6kTf7KMUDS08OFtyaH9muWg@mail.gmail.com>
+ <CACac1F-Z1q1_1FhL=qwG2g7dJ24jiCuNpMOp07Ssif_Hru7sDA@mail.gmail.com>
+ <20181129115415.0ee3e1f1@fsol>
+ <34544e1d-fc87-32ab-7b4c-40cb1e59c228@python.org>
+ <aedd6c72-3120-acd0-e40b-c852e376dd52@python.org>
+ <a19017af-2045-fb95-cd94-2b318d57218c@python.org>
+ <29a69029-3e16-4717-21c6-8084d2d7eae4@python.org>
+ <a8c4dc46-f3fb-f5b8-23b4-eb748fe79b18@python.org>
+ <ed72eb7f-48f1-2b50-196a-f73f14e57397@python.org>
+ <c84234c3-c34e-6ce9-7fc4-0ff4a5b5a2af@python.org>
+ <20181130233530.2cb0ef42@fsol>
+Message-ID: <127cfde6-1033-a1d0-b95f-fe523e1bc0b0@python.org>
+
+On 30Nov2018 1435, Antoine Pitrou wrote:
+> Sorry.  I've been unfair and unduly antagonistic.
+
+Apology is totally accepted and all is forgiven. Thank you.
+
+Cheers,
+Steve
+
