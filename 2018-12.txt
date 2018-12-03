@@ -1,0 +1,142 @@
+From steve at holdenweb.com  Sat Dec  1 09:54:00 2018
+From: steve at holdenweb.com (Steve Holden)
+Date: Sat, 1 Dec 2018 14:54:00 +0000
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <1921b844-f1a9-6434-b367-7aa118ee187e@g.nevcal.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+ <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+ <CAL3CFcW_GzBHMCO1NbV6uuhqCPw5TWUFXgBOKnRkZX6=ck_ryg@mail.gmail.com>
+ <1921b844-f1a9-6434-b367-7aa118ee187e@g.nevcal.com>
+Message-ID: <CAMofdRD5gp1OK_W+EA=WA+oSR867Jtc=GSe51x+hnZJTHYJXsA@mail.gmail.com>
+
+We* should probably do more collectively to point people at
+production-quality third-party modules, as I believe we currently do with
+pipenv which, while not a part of the standard library, is still
+recommended in the documentation as the preferred method of dependency
+management. We should also be even more strident when a library module is a
+basic version, not to be used for production purposes.
+
+This inevitably means, however, that there will be lag in the
+documentation, which generally speaking lags current best practices.
+
+Steve Holden
+
+* I am not a significant contributor to the code base.
+
+
+
+On Fri, Nov 30, 2018 at 9:02 PM Glenn Linderman <v+python at g.nevcal.com>
+wrote:
+
+> On 11/29/2018 2:10 PM, Andrew Svetlov wrote:
+>
+> Neither http.client nor http.server doesn't support compression
+> (gzip/compress/deflate) at all.
+> I doubt if we want to add this feature: for client better to use requests
+> or, well, aiohttp.
+> The same for servers: almost any production ready web server from PyPI
+> supports compression.
+>
+> What production ready web servers exist on PyPi? Are there any that don't
+> bring lots of baggage, their own enhanced way of doing things? The nice
+> thing about the http.server is that it does things in a standard-conforming
+> way, the bad thing about it is that it doesn't implement all the standards,
+> and isn't maintained very well.
+>
+> From just reading PyPi, it is hard to discover whether a particular
+> package is production-ready or not.
+>
+> I had used CherryPy for a while, but at the time it didn't support Python
+> 3, and to use the same scripts behind CherryPy or Apache CGI (my deployment
+> target, because that was what web hosts provided) became difficult for
+> complex scripts.... so I reverted to http.server with a few private
+> extensions (private because no one merged the bugs I reported some 3
+> versions of Python-development-process ago; back then I submitted patches,
+> but I haven't had time to keep up with the churn of technologies Pythondev
+> has used since Python 3 came out, which is when I started using Python, and
+> I'm sure the submitted patches have bit-rotted by now).
+>
+> When I google "python web server" the first hit is the doc page for
+> http.server, the second is a wiki page that mentions CherryPy and a bunch
+> of others, but the descriptions, while terse, mostly point out some special
+> capabilities of the server, making it seem like you not only get a web
+> server, but a philosophy. I just want a web server. The last one, Waitress,
+> is the only one that doesn't seem to have a philosophy in its description.
+>
+> So it would be nice if http.server and http.client could get some basic
+> improvements to be complete, or if the docs could point to a replacement
+> that is a complete server, but without a philosophy or framework
+> (bloatware) to have to learn and/or work around.
+>
+> Glenn
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181201/4314752d/attachment.html>
+
+From njs at pobox.com  Sat Dec  1 12:38:14 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Sat, 1 Dec 2018 09:38:14 -0800
+Subject: [Python-Dev] Inclusion of lz4 bindings in stdlib?
+In-Reply-To: <CAMofdRD5gp1OK_W+EA=WA+oSR867Jtc=GSe51x+hnZJTHYJXsA@mail.gmail.com>
+References: <CAANOHNmAoTr3JALTdr2DZ6mTjD1hVPpDVp8Di-s1N554SKTa5g@mail.gmail.com>
+ <20181128174343.6bc8760b@fsol>
+ <CAP1=2W4JKa2OxcWGeB4goERueBX7YGw6ScDMuPLufZtKohDBuw@mail.gmail.com>
+ <CAGE7PN+=bdYfSbUNuy+jTLNV9g2+bykkvAahpGocnXZatTbm6w@mail.gmail.com>
+ <20181128212736.GW4319@ando.pearwood.info>
+ <CAEfz+TxAX6B1a3oLTbiPibvZAaAAT+vSnk9T8V30h1Y7GnD=UQ@mail.gmail.com>
+ <CAL3CFcXdSf+5MfgbVi_PdWB2gkLERSKVGkVMUmfjn0iYDQ3Usw@mail.gmail.com>
+ <CAGE7PN+vSXSYufwau-HSjX7OdR=k381wgjWGPDGUFKDaBzcKXA@mail.gmail.com>
+ <CAL3CFcW_GzBHMCO1NbV6uuhqCPw5TWUFXgBOKnRkZX6=ck_ryg@mail.gmail.com>
+ <1921b844-f1a9-6434-b367-7aa118ee187e@g.nevcal.com>
+ <CAMofdRD5gp1OK_W+EA=WA+oSR867Jtc=GSe51x+hnZJTHYJXsA@mail.gmail.com>
+Message-ID: <CAPJVwBnRpzTwJSBs4VoJ_kzpTfOPG_dTD1dUZA95H9xfBS+6Fg@mail.gmail.com>
+
+On Sat, Dec 1, 2018, 06:56 Steve Holden <steve at holdenweb.com wrote:
+
+> We* should probably do more collectively to point people at
+> production-quality third-party modules, as I believe we currently do with
+> pipenv which, while not a part of the standard library, is still
+> recommended in the documentation as the preferred method of dependency
+> management.
+>
+
+Small correction: the only "official" recommendation for pipenv is that
+packaging.python.org (which is maintained by pypa, not python-dev) contains
+several tutorials, and one of them discusses how to use pipenv. For a while
+Kenneth used this as justification for telling everyone pipenv was "the
+officially recommended install tool", and this created a lot of ill will,
+so the pipenv team has been working on rolling that back.
+
+A better precedent is requests. There was a long discussion a few years ago
+about whether requests should move to the stdlib, and the outcome was that
+it didn't, but the urllib docs got a note added recommending the use of
+requests, which you can see here:
+
+https://docs.python.org/3/library/urllib.request.html#module-urllib.request
+
+Personally I would have phrased the note more strongly, but my perspective
+is skewed by having tried to understand the internals. I'm glad urllib has
+helped a lot of people solve their problems, but there's also a lot of ways
+that it's flat out broken.
+
+Anyway, I agree that there are probably other places where the docs could
+use this technique.
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181201/ddf7a0ae/attachment.html>
+
