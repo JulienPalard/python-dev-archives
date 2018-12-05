@@ -217,3 +217,229 @@ On Sun, 2 Dec 2018 at 08:28, Chris Withers <chris at withers.org> wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181202/935dd04a/attachment.html>
 
+From vstinner at redhat.com  Mon Dec  3 05:26:52 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 3 Dec 2018 11:26:52 +0100
+Subject: [Python-Dev] getting merge rights back on github
+In-Reply-To: <390ddce3-9d42-d270-4495-69f6bd567fc8@simplistix.co.uk>
+References: <390ddce3-9d42-d270-4495-69f6bd567fc8@simplistix.co.uk>
+Message-ID: <CA+3bQGHviAseg3SmZgM=DJEqHAyrMZG6ajDqYHx8JjG8gQ+BXg@mail.gmail.com>
+
+Hi,
+
+unittest.mock definitely needs your help :-) I merged a few changes
+last months, but I had to rely on Mario Corchero (who authored the new
+seal() method) for the review, since I don't know well this module.
+Michael Foord (original author) doesn't seem available for reviews.
+More reviewers shouldn't hurt :-) If you search for "mock" in pull
+requests:
+https://github.com/python/cpython/pulls?utf8=%E2%9C%93&q=is%3Apr+is%3Aopen+mock
+
+I see at least 5 open PRs:
+
+https://github.com/python/cpython/pull/10555
+https://github.com/python/cpython/pull/9296
+https://github.com/python/cpython/pull/7491
+https://github.com/python/cpython/pull/4476
+https://github.com/python/cpython/pull/1982
+
+You can also search into the bug tracker ;-)
+
+
+unittest.mock changes that I merged last months:
+
+commit 552be9d7e64f91b8e4ba5b29cd5dcc442d56f92c
+Author: Mario Corchero <mariocj89 at gmail.com>
+Date:   Tue Oct 17 12:35:11 2017 +0100
+
+    bpo-30541: Add new method to seal mocks (GH61923)
+
+    The new method allows the developer to control when to stop the
+    feature of mocks that automagically creates new mocks when accessing
+    an attribute that was not declared before
+
+    Signed-off-by: Mario Corchero <mariocj89 at gmail.com>
+
+commit 6c4fab0f4b95410a1a964a75dcdd953697eff089
+Author: John Reese <john at noswap.com>
+Date:   Tue May 22 13:01:10 2018 -0700
+
+    bpo-33516: Add support for __round__ in MagicMock (GH-6880)
+
+    unittest.mock.MagicMock now supports the __round__() magic method.
+
+commit 96200eb2ffcda05de14099cf23f60d5091366e3e
+Author: Mario Corchero <mariocj89 at gmail.com>
+Date:   Fri Oct 19 22:57:37 2018 +0100
+
+    unittest.mock doc: Fix references to recursive seal of Mocks (GH-9028)
+
+    The docs in `library/unittest.mock` have been updated to remove
+    confusing terms about submock and be explicit about the behavior
+    expected.
+
+commit 6c83d9f4a72905d968418bef670bb3091d2744db
+Author: Max B?langer <aeromax at gmail.com>
+Date:   Thu Oct 25 14:48:58 2018 -0700
+
+    bpo-35022: unittest.mock.MagicMock now also supports __fspath__ (GH-9960)
+
+    The MagicMock class supports many magic methods, but not __fspath__. To ease
+    testing with modules such as os.path, this function is now
+supported by default.
+
+commit 47d94241a383e2b8a2c40e81d12d40d5947fb170
+Author: Petter Strandmark <petter.strandmark at gmail.com>
+Date:   Sun Oct 28 21:37:10 2018 +0100
+
+    bpo-35047, unittest.mock: Better error messages on
+assert_called_xxx failures (GH-10090)
+
+    unittest.mock now includes mock calls in exception messages if
+    assert_not_called, assert_called_once, or assert_called_once_with
+    fails.
+
+commit edeca92c84a3b08902ecdfe987cde00c7e617887
+Author: Xtreak <tirkarthi at users.noreply.github.com>
+Date:   Sat Dec 1 15:33:54 2018 +0530
+
+    bpo-31177: Skip deleted attributes while calling reset_mock (GH-9302)
+
+Victor
+Le dim. 2 d?c. 2018 ? 15:45, Chris Withers <chris at simplistix.co.uk> a ?crit :
+>
+> Hi All,
+>
+> It's been quite a long time since I last used my python commit rights,
+> and it appears they've evaporated in the move to GitHub.
+>
+> I'd like to get back into helping out, particularly with unittest.mock
+> where I've recently started helping out as a maintainer over on
+> https://github.com/testing-cabal/mock.
+>
+> Please let me know what I need to do,
+>
+> Chris
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+From chris at simplistix.co.uk  Mon Dec  3 13:34:42 2018
+From: chris at simplistix.co.uk (Chris Withers)
+Date: Mon, 3 Dec 2018 18:34:42 +0000
+Subject: [Python-Dev] getting merge rights back on github
+In-Reply-To: <CA+3bQGHviAseg3SmZgM=DJEqHAyrMZG6ajDqYHx8JjG8gQ+BXg@mail.gmail.com>
+References: <390ddce3-9d42-d270-4495-69f6bd567fc8@simplistix.co.uk>
+ <CA+3bQGHviAseg3SmZgM=DJEqHAyrMZG6ajDqYHx8JjG8gQ+BXg@mail.gmail.com>
+Message-ID: <c470029b-e658-e13a-68a1-a2adb346347b@simplistix.co.uk>
+
+Noted, I'll see what I can do...
+
+On 03/12/2018 10:26, Victor Stinner wrote:
+> Hi,
+>
+> unittest.mock definitely needs your help :-) I merged a few changes
+> last months, but I had to rely on Mario Corchero (who authored the new
+> seal() method) for the review, since I don't know well this module.
+> Michael Foord (original author) doesn't seem available for reviews.
+> More reviewers shouldn't hurt :-) If you search for "mock" in pull
+> requests:
+> https://github.com/python/cpython/pulls?utf8=%E2%9C%93&q=is%3Apr+is%3Aopen+mock
+>
+> I see at least 5 open PRs:
+>
+> https://github.com/python/cpython/pull/10555
+> https://github.com/python/cpython/pull/9296
+> https://github.com/python/cpython/pull/7491
+> https://github.com/python/cpython/pull/4476
+> https://github.com/python/cpython/pull/1982
+>
+> You can also search into the bug tracker ;-)
+>
+>
+> unittest.mock changes that I merged last months:
+>
+> commit 552be9d7e64f91b8e4ba5b29cd5dcc442d56f92c
+> Author: Mario Corchero <mariocj89 at gmail.com>
+> Date:   Tue Oct 17 12:35:11 2017 +0100
+>
+>      bpo-30541: Add new method to seal mocks (GH61923)
+>
+>      The new method allows the developer to control when to stop the
+>      feature of mocks that automagically creates new mocks when accessing
+>      an attribute that was not declared before
+>
+>      Signed-off-by: Mario Corchero <mariocj89 at gmail.com>
+>
+> commit 6c4fab0f4b95410a1a964a75dcdd953697eff089
+> Author: John Reese <john at noswap.com>
+> Date:   Tue May 22 13:01:10 2018 -0700
+>
+>      bpo-33516: Add support for __round__ in MagicMock (GH-6880)
+>
+>      unittest.mock.MagicMock now supports the __round__() magic method.
+>
+> commit 96200eb2ffcda05de14099cf23f60d5091366e3e
+> Author: Mario Corchero <mariocj89 at gmail.com>
+> Date:   Fri Oct 19 22:57:37 2018 +0100
+>
+>      unittest.mock doc: Fix references to recursive seal of Mocks (GH-9028)
+>
+>      The docs in `library/unittest.mock` have been updated to remove
+>      confusing terms about submock and be explicit about the behavior
+>      expected.
+>
+> commit 6c83d9f4a72905d968418bef670bb3091d2744db
+> Author: Max B?langer <aeromax at gmail.com>
+> Date:   Thu Oct 25 14:48:58 2018 -0700
+>
+>      bpo-35022: unittest.mock.MagicMock now also supports __fspath__ (GH-9960)
+>
+>      The MagicMock class supports many magic methods, but not __fspath__. To ease
+>      testing with modules such as os.path, this function is now
+> supported by default.
+>
+> commit 47d94241a383e2b8a2c40e81d12d40d5947fb170
+> Author: Petter Strandmark <petter.strandmark at gmail.com>
+> Date:   Sun Oct 28 21:37:10 2018 +0100
+>
+>      bpo-35047, unittest.mock: Better error messages on
+> assert_called_xxx failures (GH-10090)
+>
+>      unittest.mock now includes mock calls in exception messages if
+>      assert_not_called, assert_called_once, or assert_called_once_with
+>      fails.
+>
+> commit edeca92c84a3b08902ecdfe987cde00c7e617887
+> Author: Xtreak <tirkarthi at users.noreply.github.com>
+> Date:   Sat Dec 1 15:33:54 2018 +0530
+>
+>      bpo-31177: Skip deleted attributes while calling reset_mock (GH-9302)
+>
+> Victor
+> Le dim. 2 d?c. 2018 ? 15:45, Chris Withers <chris at simplistix.co.uk> a ?crit :
+>> Hi All,
+>>
+>> It's been quite a long time since I last used my python commit rights,
+>> and it appears they've evaporated in the move to GitHub.
+>>
+>> I'd like to get back into helping out, particularly with unittest.mock
+>> where I've recently started helping out as a maintainer over on
+>> https://github.com/testing-cabal/mock.
+>>
+>> Please let me know what I need to do,
+>>
+>> Chris
+>>
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
