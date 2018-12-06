@@ -443,3 +443,254 @@ On 03/12/2018 10:26, Victor Stinner wrote:
 >> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
 
 
+From nad at python.org  Tue Dec  4 03:42:28 2018
+From: nad at python.org (Ned Deily)
+Date: Tue, 4 Dec 2018 03:42:28 -0500
+Subject: [Python-Dev] 3.7.2rc1 and 3.6.8rc1 cutoffs ahead,
+ last 3.6.x bugfix release!
+Message-ID: <95B9F244-38A8-4E47-8E9D-6DAD289C84A2@python.org>
+
+https://discuss.python.org/t/3-7-2rc1-and-3-6-8rc1-cutoffs-ahead-last-3-6-x-bugfix-release/510
+
+
+We're reaching the end of the year and it's time for another pair of Python 3 maintenance releases, 3.7.2 and 3.6.8, before we ring out 2018.  Since there are still some open release blocker issues and I haven't been bugging you about them, I've moved the code cutoff for the release candidates to this coming Friday, 12-07, by the end of the day (AOE).  That gives us all another 4 days to review open issues and PRs.  Please give highest attention to any release blockers you have been shepherding or reviewing.  Thanks!
+
+A reminder: as previously announced, 3.6.8 is planned to be the last bugfix release of the 3.6 series.  Python 3.6.0 was released on 2016-12-23, so by the time 3.6.8 is released, 3.6.x will have been in bugfix mode almost exactly 2 years.  When a new feature release is made and enters "bugfix" mode, our policy has long been to continue to maintain the previous bugfix branch for at least one more release and then move that branch to "security fix only" mode.  3.7.0 (and 3.6.6) was released nearly six months ago and, with the release of 3.6.8, there will have been two additional 3.6.x bugfix releases since then.  So, barring any showstopper issues that might arise, the upcoming 3.6.8rc1 is your last chance to make bugfix changes for 3.6.x.  Following the successful release of 3.6.8, only security fixes will be accepted for the 3.6 branch and future 3.6.x releases will be source-only and scheduled as needed; no further binary installers will be produced for 3.6.  Refer to the Dev Guide sections and release PEPs linked below for more information.
+
+
+https://devguide.python.org/devcycle/
+https://devguide.python.org/#branchstatus
+https://www.python.org/dev/peps/pep-0494/
+https://www.python.org/dev/peps/pep-0537/
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From vstinner at redhat.com  Tue Dec  4 10:19:46 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 4 Dec 2018 16:19:46 +0100
+Subject: [Python-Dev] Internal header files (Include/internal/*.h) are now
+ installed
+Message-ID: <CA+3bQGG-gTgspvM0nS+0472RxyqEVpJOUL5-5UwcaMjnzjpwKg@mail.gmail.com>
+
+Hi,
+
+Since Python 3.7, "internal" C API (only declared if Py_BUILD_CORE is
+defined) are moving from Include/*.h to Include/internal/*.h. These
+API must not be used outside CPython. In Python 3.7, "make install"
+doesn't install them for example.
+
+I would like to move more private functions (prefixed by "_Py") to the
+"internal" API. Since I'm not 100% sure that it's ok, I decided to
+modify "make install" to also install Include/internal/ headers (to
+$prefix/include/python3.8m/internal/).
+
+These headers might be useful for low-level debug tools like debuggers
+or profilers, to access directly memory without calling functions.
+These APIs require to use the same compiler and likely the same
+compiler options than CPython. It's especially true for atomic
+variables (Include/internal/pycore_atomic.h).
+
+Are you ok to install "internal" header files? If yes, should we
+modify "make install" of Python 3.7 to also install them?
+
+Victor
+
+From solipsis at pitrou.net  Tue Dec  4 10:31:57 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 4 Dec 2018 16:31:57 +0100
+Subject: [Python-Dev] Internal header files (Include/internal/*.h) are
+ now installed
+References: <CA+3bQGG-gTgspvM0nS+0472RxyqEVpJOUL5-5UwcaMjnzjpwKg@mail.gmail.com>
+Message-ID: <20181204163157.2b15cf6a@fsol>
+
+On Tue, 4 Dec 2018 16:19:46 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> Hi,
+> 
+> Since Python 3.7, "internal" C API (only declared if Py_BUILD_CORE is
+> defined) are moving from Include/*.h to Include/internal/*.h. These
+> API must not be used outside CPython. In Python 3.7, "make install"
+> doesn't install them for example.
+> 
+> I would like to move more private functions (prefixed by "_Py") to the
+> "internal" API. Since I'm not 100% sure that it's ok, I decided to
+> modify "make install" to also install Include/internal/ headers (to
+> $prefix/include/python3.8m/internal/).
+> 
+> These headers might be useful for low-level debug tools like debuggers
+> or profilers, to access directly memory without calling functions.
+> These APIs require to use the same compiler and likely the same
+> compiler options than CPython. It's especially true for atomic
+> variables (Include/internal/pycore_atomic.h).
+> 
+> Are you ok to install "internal" header files? If yes, should we
+> modify "make install" of Python 3.7 to also install them?
+
++1 to both.
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Tue Dec  4 11:17:12 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 4 Dec 2018 17:17:12 +0100
+Subject: [Python-Dev] Internal header files (Include/internal/*.h) are
+ now installed
+In-Reply-To: <20181204163157.2b15cf6a@fsol>
+References: <CA+3bQGG-gTgspvM0nS+0472RxyqEVpJOUL5-5UwcaMjnzjpwKg@mail.gmail.com>
+ <20181204163157.2b15cf6a@fsol>
+Message-ID: <CA+3bQGFoe1QXosWi2hTtZVtV7n2fTXdhboRGVK7QCjc3Vy7o_Q@mail.gmail.com>
+
+Le mar. 4 d?c. 2018 ? 16:35, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> > Are you ok to install "internal" header files? If yes, should we
+> > modify "make install" of Python 3.7 to also install them?
+>
+> +1 to both.
+
+Ok, I reopened https://bugs.python.org/issue35296 and wrote a PR:
+
+https://github.com/python/cpython/pull/10897
+
+Victor
+
+From chris at withers.org  Tue Dec  4 14:13:32 2018
+From: chris at withers.org (Chris Withers)
+Date: Tue, 4 Dec 2018 19:13:32 +0000
+Subject: [Python-Dev] any way to subscribe to bugs and PRs on a particular
+ topic?
+Message-ID: <bbc873f2-dfb2-2fa6-0852-a68d9672daf1@withers.org>
+
+Hello,
+
+I'd like to see if I can help with unittest.mock, but don't have a huge 
+amount of bandwidth and can't even parse let alone process the whole 
+firehose of bpo and GH PRs.
+
+Is there? any way I can get bugs.python.org and github PRs to only tell 
+me about things, preferably by email, that affect or involve unittest.mock?
+
+cheers,
+
+Chris
+
+From storchaka at gmail.com  Tue Dec  4 14:42:10 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Tue, 4 Dec 2018 21:42:10 +0200
+Subject: [Python-Dev] any way to subscribe to bugs and PRs on a
+ particular topic?
+In-Reply-To: <bbc873f2-dfb2-2fa6-0852-a68d9672daf1@withers.org>
+References: <bbc873f2-dfb2-2fa6-0852-a68d9672daf1@withers.org>
+Message-ID: <pu6l6f$hdg$1@blaine.gmane.org>
+
+04.12.18 21:13, Chris Withers ????:
+> I'd like to see if I can help with unittest.mock, but don't have a huge 
+> amount of bandwidth and can't even parse let alone process the whole 
+> firehose of bpo and GH PRs.
+> 
+> Is there? any way I can get bugs.python.org and github PRs to only tell 
+> me about things, preferably by email, that affect or involve unittest.mock?
+
+You can add yourself into the experts list:
+https://github.com/python/devguide/blob/master/experts.rst. This will 
+help to add you to nosy list in new issues.
+
+You can find existing unittest.mock related issues and PRs by using 
+search on the bug tracker and GitHub.
+
+
+From mariatta at python.org  Tue Dec  4 14:46:12 2018
+From: mariatta at python.org (Mariatta Wijaya)
+Date: Tue, 4 Dec 2018 11:46:12 -0800
+Subject: [Python-Dev] any way to subscribe to bugs and PRs on a
+ particular topic?
+In-Reply-To: <bbc873f2-dfb2-2fa6-0852-a68d9672daf1@withers.org>
+References: <bbc873f2-dfb2-2fa6-0852-a68d9672daf1@withers.org>
+Message-ID: <CAGbohnYRPzh1-oV=Ks+XVEYdmxcKBdZDR10Ausb_R0gNkSXfJg@mail.gmail.com>
+
+For GitHub PRs, you can add yourself to CODEOWNERS file, so you will be
+automatically requested review if a PR contains changes to unittest.mock.
+(and you'll receive review-request notification)
+https://github.com/python/cpython/blob/master/.github/CODEOWNERS
+
+When GitHub sends you review request notification email, it will cc
+review_requested at noreply.github.com, so you can create a filter based on
+that.
+?
+
+On Tue, Dec 4, 2018 at 11:21 AM Chris Withers <chris at withers.org> wrote:
+
+> Hello,
+>
+> I'd like to see if I can help with unittest.mock, but don't have a huge
+> amount of bandwidth and can't even parse let alone process the whole
+> firehose of bpo and GH PRs.
+>
+> Is there  any way I can get bugs.python.org and github PRs to only tell
+> me about things, preferably by email, that affect or involve unittest.mock?
+>
+> cheers,
+>
+> Chris
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mariatta%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181204/51c8e999/attachment.html>
+
+From tjreedy at udel.edu  Tue Dec  4 15:01:45 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Tue, 4 Dec 2018 15:01:45 -0500
+Subject: [Python-Dev] any way to subscribe to bugs and PRs on a
+ particular topic?
+In-Reply-To: <bbc873f2-dfb2-2fa6-0852-a68d9672daf1@withers.org>
+References: <bbc873f2-dfb2-2fa6-0852-a68d9672daf1@withers.org>
+Message-ID: <pu6mb9$lvs$1@blaine.gmane.org>
+
+On 12/4/2018 2:13 PM, Chris Withers wrote:
+> Hello,
+
+Welcome back.  unittest.mock is important for everyone writing 
+non-trivial tests.
+
+> I'd like to see if I can help with unittest.mock, but don't have a huge 
+> amount of bandwidth and can't even parse let alone process the whole 
+> firehose of bpo and GH PRs.
+> 
+> Is there? any way I can get bugs.python.org and github PRs to only tell 
+> me about things, preferably by email, that affect or involve unittest.mock?
+
+Tracker: Edit https://devguide.python.org/experts/ to add yourself as 
+expert for unittest.mock and you will see such issues if the OP or 
+triager types 'unittest.mock' in the nosy field and clicks the list.
+
+Note: consider adding yourself also as unittest and Misc - testing expert.
+
+Certain people, such as Zach Ware, can make nosy listing automatic upon 
+a selection of a component, such as 'testing'.
+
+Every Friday, a list of new issues for the last week is posted here 
+(pydev).  It does not take too long to scan +-50 titles.
+
+PRs. In the repository, add a line to .github/CODEOWNERS (which starts 
+with instructions) so you are notified whenever a PR touches 
+Lib/unittest/mock.py.  From other example, it seem that the following 
+might work (but I am not an expert on this).
+
+@@/*unittest*/*mock*                     <github name>
+
+-- 
+Terry Jan Reedy
+
+
+
