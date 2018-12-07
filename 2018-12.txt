@@ -694,3 +694,143 @@ Terry Jan Reedy
 
 
 
+From vstinner at redhat.com  Wed Dec  5 05:51:04 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 5 Dec 2018 11:51:04 +0100
+Subject: [Python-Dev] test_urllib2net fixed to repair Travis CI
+Message-ID: <CA+3bQGFZ-GLCTBV=+hugP=PSbSWixBhQEZPhWF0=whYDCwm2=w@mail.gmail.com>
+
+Hi,
+
+It seems like Travis CI changed its security or network configuration:
+some FTP tests of test_urllib2net started to fail with "425 Security:
+Bad IP connecting" yesterday:
+
+   https://bugs.python.org/issue35411
+
+The failure seems to be reproducible and so prevents to merge any
+change in any branch. It blocked our whole workflow :-(
+
+Good news: I quickly fixed the CI! (2.7, 3.6, 3.7 and master branches)
+I skipped the test on Travis CI: AppVeyor runs these tests in
+pre-commit and the buildbot farm run them in post-commit.
+
+Bad news: You may have to update your pull requests (ex: merge master
+into your branch) to retrieve this fix if the test_urllib2net failed
+on Travis CI with "425 Security: Bad IP connecting" on your PR.
+
+Victor
+
+From njs at pobox.com  Wed Dec  5 10:18:00 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Wed, 5 Dec 2018 07:18:00 -0800
+Subject: [Python-Dev] test_urllib2net fixed to repair Travis CI
+In-Reply-To: <CA+3bQGFZ-GLCTBV=+hugP=PSbSWixBhQEZPhWF0=whYDCwm2=w@mail.gmail.com>
+References: <CA+3bQGFZ-GLCTBV=+hugP=PSbSWixBhQEZPhWF0=whYDCwm2=w@mail.gmail.com>
+Message-ID: <CAPJVwB=5NqK=eSTexihtw3xmGp2tc-ujNnb+Kwz_zFHGZ62spA@mail.gmail.com>
+
+Travis is in the middle of moving everything from AWS to GCE, which is
+probably related:
+
+https://blog.travis-ci.com/2018-11-19-required-linux-infrastructure-migration
+
+As noted there, GCE has different IP addresses. But I suspect it's not the
+new IP address that's the problem, but rather the fact that the GCE setup
+is known to break outgoing ftp:
+
+https://blog.travis-ci.com/2018-07-23-the-tale-of-ftp-at-travis-ci
+
+-n
+
+On Wed, Dec 5, 2018, 02:53 Victor Stinner <vstinner at redhat.com wrote:
+
+> Hi,
+>
+> It seems like Travis CI changed its security or network configuration:
+> some FTP tests of test_urllib2net started to fail with "425 Security:
+> Bad IP connecting" yesterday:
+>
+>    https://bugs.python.org/issue35411
+>
+> The failure seems to be reproducible and so prevents to merge any
+> change in any branch. It blocked our whole workflow :-(
+>
+> Good news: I quickly fixed the CI! (2.7, 3.6, 3.7 and master branches)
+> I skipped the test on Travis CI: AppVeyor runs these tests in
+> pre-commit and the buildbot farm run them in post-commit.
+>
+> Bad news: You may have to update your pull requests (ex: merge master
+> into your branch) to retrieve this fix if the test_urllib2net failed
+> on Travis CI with "425 Security: Bad IP connecting" on your PR.
+>
+> Victor
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181205/7cc8559e/attachment.html>
+
+From noreply at pypi.org  Wed Dec  5 15:01:53 2018
+From: noreply at pypi.org (PyPI)
+Date: Wed, 5 Dec 2018 20:01:53 +0000
+Subject: [Python-Dev] [PyPI] Email verification
+Message-ID: <010101677ff66451-5cf87aad-b3f5-49f6-aa10-e42c74fb9d74-000000@us-west-2.amazonses.com>
+
+
+Someone, perhaps you, has added this email address to their PyPI account:
+
+  Python-dev at python.org
+
+If you wish to proceed with this request, follow the link below to verify your
+email address:
+
+  https://pypi.org/account/verify-email/?token=eyJhY3Rpb24iOiJlbWFpbC12ZXJpZnkiLCJlbWFpbC5pZCI6IjMyODU0NyJ9.XAgusA.38y3N4T1GonyEeWWpwxm6bE7cn-JDJe0P6LD0tom2vV5WFoS-DDNrUs22weH1UK8kWsqaIhneX9J7tof-my0Jw
+
+This link will expire in 72 hours.
+
+If you did not make this request, you can safely ignore this email.
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181205/4f49d538/attachment.html>
+
+From brett at python.org  Wed Dec  5 19:28:43 2018
+From: brett at python.org (Brett Cannon)
+Date: Wed, 5 Dec 2018 16:28:43 -0800
+Subject: [Python-Dev] [PyPI] Email verification
+In-Reply-To: <010101677ff66451-5cf87aad-b3f5-49f6-aa10-e42c74fb9d74-000000@us-west-2.amazonses.com>
+References: <010101677ff66451-5cf87aad-b3f5-49f6-aa10-e42c74fb9d74-000000@us-west-2.amazonses.com>
+Message-ID: <CAP1=2W5hdPr816cFE4hcKp_CzjifqYjJbSMAtmcz6QDiT8n6Lw@mail.gmail.com>
+
+I've reported this to infrastructure at .
+
+On Wed., Dec. 5, 2018, 12:05 PyPI <noreply at pypi.org wrote:
+
+> Someone, perhaps you, has added this email address (Python-dev at python.org)
+> to their PyPI account.
+>
+> If you wish to proceed with this request, click this link to verify your
+> email address
+> <https://pypi.org/account/verify-email/?token=eyJhY3Rpb24iOiJlbWFpbC12ZXJpZnkiLCJlbWFpbC5pZCI6IjMyODU0NyJ9.XAgusA.38y3N4T1GonyEeWWpwxm6bE7cn-JDJe0P6LD0tom2vV5WFoS-DDNrUs22weH1UK8kWsqaIhneX9J7tof-my0Jw>
+>
+> This link will expire in 72 hours.
+>
+> If you did not make this request, you can safely ignore this email.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181205/323d6a86/attachment.html>
+
