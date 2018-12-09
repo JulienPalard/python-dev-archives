@@ -834,3 +834,1469 @@ On Wed., Dec. 5, 2018, 12:05 PyPI <noreply at pypi.org wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20181205/323d6a86/attachment.html>
 
+From vstinner at redhat.com  Fri Dec  7 07:35:17 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 7 Dec 2018 13:35:17 +0100
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+Message-ID: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+
+Hi,
+
+I had to revert a change since it broke buildbots. Sadly, I don't have
+the bandwidth to investigate the failures and try to fix the change
+:-(
+
+
+A large change has been pushed into the 3.7 and master branches to
+"Add Windows App Store package":
+
+"Release Windows Store app containing Python"
+https://bugs.python.org/issue34977
+
+These changes broke all Windows buildbots:
+
+"Almost all Windows buildbots are failing to compile"
+https://bugs.python.org/issue35437
+
+So I reverted these two changes.
+
+It's a large change which mostly add new files, but also make changes
+in different files:
+---
+commit 468a15aaf9206448a744fc5eab3fc21f51966aad
+Author: Steve Dower <steve.dower at microsoft.com>
+Date:   Thu Dec 6 21:09:20 2018 -0800
+
+    bpo-34977: Add Windows App Store package (GH-10245)
+
+ .azure-pipelines/windows-appx-test.yml             |  65 +++
+ .gitattributes                                     |   1 +
+ Doc/make.bat                                       |   2 +
+ Lib/test/test_pathlib.py                           |   2 +-
+ Lib/test/test_venv.py                              |   1 +
+ Lib/venv/__init__.py                               |  49 +-
+ .../2018-10-30-13-39-17.bpo-34977.0l7_QV.rst       |   1 +
+ PC/classicAppCompat.can.xml                        | Bin 0 -> 3978 bytes
+ PC/classicAppCompat.cat                            | Bin 0 -> 10984 bytes
+ PC/classicAppCompat.sccd                           | Bin 0 -> 18503 bytes
+ PC/getpathp.c                                      |   8 +-
+ PC/icons/pythonwx150.png                           | Bin 0 -> 8187 bytes
+ PC/icons/pythonwx44.png                            | Bin 0 -> 2232 bytes
+ PC/icons/pythonx150.png                            | Bin 0 -> 8271 bytes
+ PC/icons/pythonx44.png                             | Bin 0 -> 2178 bytes
+ PC/icons/pythonx50.png                             | Bin 0 -> 2190 bytes
+ PC/launcher.c                                      | 220 +++++++-
+ PC/layout/__init__.py                              |   0
+ PC/layout/__main__.py                              |  14 +
+ PC/layout/main.py                                  | 612 +++++++++++++++++++++
+ PC/layout/support/__init__.py                      |   0
+ PC/layout/support/appxmanifest.py                  | 487 ++++++++++++++++
+ PC/layout/support/catalog.py                       |  44 ++
+ PC/layout/support/constants.py                     |  28 +
+ .../support/distutils.command.bdist_wininst.py     |  25 +
+ PC/layout/support/filesets.py                      | 100 ++++
+ PC/layout/support/logging.py                       |  93 ++++
+ PC/layout/support/options.py                       | 122 ++++
+ PC/layout/support/pip.py                           |  79 +++
+ PC/layout/support/props.py                         | 110 ++++
+ {Tools/nuget => PC/layout/support}/python.props    |   0
+ PC/pylauncher.rc                                   |   6 +
+ PC/python_uwp.cpp                                  | 226 ++++++++
+ PC/store_info.txt                                  | 146 +++++
+ PCbuild/_tkinter.vcxproj                           |   6 +
+ PCbuild/find_msbuild.bat                           |  10 +
+ PCbuild/pcbuild.proj                               |   3 +
+ PCbuild/pcbuild.sln                                |  72 +++
+ PCbuild/python.props                               |   3 +-
+ PCbuild/python_uwp.vcxproj                         |  86 +++
+ PCbuild/pythoncore.vcxproj                         |  15 +
+ PCbuild/pythonw_uwp.vcxproj                        |  86 +++
+ PCbuild/venvlauncher.vcxproj                       |  85 +++
+ PCbuild/venvwlauncher.vcxproj                      |  85 +++
+ Tools/msi/buildrelease.bat                         |  13 +-
+ Tools/msi/make_appx.ps1                            |  71 +++
+ Tools/msi/make_cat.ps1                             |  34 ++
+ Tools/msi/make_zip.proj                            |   9 +-
+ Tools/msi/make_zip.py                              | 250 ---------
+ Tools/msi/sdktools.psm1                            |  43 ++
+ Tools/msi/sign_build.ps1                           |  34 ++
+ Tools/nuget/make_pkg.proj                          |  38 +-
+ 52 files changed, 3053 insertions(+), 331 deletions(-)
+---
+
+Note: the commit message is a single line.
+
+
+Now I have questions :-)
+
+
+It seems like the change is "experimental":
+https://bugs.python.org/issue34977#msg331267
+
+"""
+Making the *release experimental* as part of the next 3.7 update was
+approved by Ned (over email), so I merged the build. As soon as we
+snap for the RC I'll kick off an update and make the store page
+public, and hopefully can promote it enough to get eyes on it.
+
+Unfortunately, I discovered as part of a test submission that the
+minimum Windows version matters, and it's a version that hasn't been
+rolled out fully yet *because of some bugs*, so there may not be that
+many people who can use it this first time. But that will *improve
+over time*, and I'm sure I can find enough people to flush out issues
+before the next release (anyone on the Windows Insiders program should
+be fine).
+"""
+
+If it's experimental, why pushing it *right now* to the 3.7 branch?
+Can't we wait until it's stable enough? Even if it's stable, I'm not
+sure sure that it should go into 3.7 which is a stable branch.
+
+I guess that Steve would like to get this feature into 3.7.2. Ned
+Deily (3.7 release changer) approved this change.
+
+The pull request was merged one week after it has been created, I
+don't see any review.
+https://github.com/python/cpython/pull/10245
+
+In general, I'm fine with merging changes without any kind of review,
+when the change is small. I'm doing it *frequently* when I'm confident
+that the change is small and safe enough. But here, the change is
+quite large. Sadly, I know the problem: the lack of available
+developers for review. There are very few developers who know Windows
+and are available to provide a review. Sometimes, Zachary Ware or Eryk
+Sun are around and can help.
+
+I'm fine with iterating in the master branch, since the change seems
+to be separated from CPython core: it mostly add new files. My concern
+is more about changes on "Python itself": the venv and tests changes.
+
+In the middle of the large change, there is small change on the venv module:
+
+diff --git a/Lib/venv/__init__.py b/Lib/venv/__init__.py
+index 043420897e..5438b0d4e5 100644
+--- a/Lib/venv/__init__.py
++++ b/Lib/venv/__init__.py
+@@ -64,10 +64,11 @@ class EnvBuilder:
+         self.system_site_packages = False
+         self.create_configuration(context)
+         self.setup_python(context)
++        if not self.upgrade:
++            self.setup_scripts(context)
+         if self.with_pip:
+             self._setup_pip(context)
+         if not self.upgrade:
+-            self.setup_scripts(context)
+             self.post_setup(context)
+         if true_system_site_packages:
+
+Moreover, the commit also changes tests:
+
+* Lib/test/test_pathlib.py
+* Lib/test/test_venv.py
+
+The commit message is just "bpo-34977: Add Windows App Store package
+(GH-10245)", it doesn't explain these changes.
+
+I would prefer to see these changes extracted into separated commits.
+Sadly, right now on the cpython project on GitHub, we are only allowed
+to squash all commits into a single commit (note: the individual
+commit in the PR doesn't explain these venv/tests changes neither). So
+I suggest to create multiple PRs (at least one for venv+pathlib
+changes and a second for the Windows AppStore).
+
+I guess that these changes are bugfixes or enhancement. Having a
+separated change should also ease to backport these changes up to 3.6
+;-)
+
+--
+
+Jeremy Kloth just created:
+"Correctly detect installed SDK versions"
+https://bugs.python.org/issue35433
+
+I'm not sure if it's related to the AppStore change?
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From steve.dower at python.org  Fri Dec  7 10:16:03 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 7 Dec 2018 07:16:03 -0800
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+In-Reply-To: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+References: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+Message-ID: <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+
+Thanks for fixing up the buildbots, but please be a little more thorough
+before making publicly incorrect statements.
+
+The change is 99% adding new files that are not part of Python, but
+participate in the build for Windows (and are available and incredibly
+useful for everyone). These are essentially zero-impact. In the PR I
+pointed out exactly where to look for interesting changes and it didn't
+help get any traction :)
+
+The other changes are either in Windows-only files or tests. The one
+exception is venv, where they are in "if os.name=='nt'" blocks. I also
+pinged our venv expert a few times with no response.
+
+The PR was put up two *months* ago, not one week. In that time, it's
+been heavily tested by myself and a number of people who I *am* able to
+share the output of this with. I've also been chatting with the release
+manager for 3.7 about it and he's been on board (the words may have been
+"on your own head", but that's close enough to "on board")
+
+It didn't break all Windows buildbots.
+
+That said, it's totally my fault for merging and then not watching. Also
+for not submitting custom builds to all the buildbots (Can we still do
+that? I'm not seeing any UI right now... I did run a number of test
+release builds on the release machine, so I knew that was going to be okay.)
+
+Now, to answer your questions: releasing in a new package with slightly
+different semantics *has* to be somewhat experimental, because nobody
+can test it until it's been released. This isn't about iterating on this
+change in master, it's about getting broad public feedback on a release
+mechanism that currently does not exist.
+
+Historically, when changes to the part you point out have been extracted
+out from their context, they've been rejected on the basis that they
+aren't necessary. But now the original PR is broken (because the tests
+don't pass), and so there will never be a need. This time I decided to
+specifically point out numerous times where the interesting changes were
+and was not able to get reviews from bpo/github (I did get many reviews
+and some testing from others).
+
+As it happens, I split out many changes to do with pathconfig that came
+from this. You rejected them because they weren't necessary :)
+
+Most of the code is a Python script to do "make install" on Windows. A
+very common request is "how do I copy built files into the right place",
+and the answer has always been "it's complicated". Now we can measure
+how complicated it is in terms of lines of Python code, but at least the
+answer is "run this script". Yes, it could go into its own PR, but that
+runs into the context problem again. If I'm going to be forced to bypass
+review on a dependency just to make it possible to merge a real change,
+then they may as well go together.
+
+(The new script is Black formatted, so probably I could get Lukasz to
+approve it on its own? :) )
+
+I hope that explains a bit better. People wait two months and more for
+simpler reviews, but part of me being a core developer is to accelerate
+that for Windows-targeted work. That's all I did here, and I'm happy
+with my reasoning.
+
+I've reposted the PRs at https://github.com/python/cpython/pull/11027
+and https://github.com/python/cpython/pull/11028 with fixes for the one
+issue that Victor couldn't investigate. If someone can get a Windows
+buildbot to run against them that would be great (not you Zach - your
+buildbots were fine :) ).
+
+Cheers,
+Steve
+
+On 07Dec2018 0435, Victor Stinner wrote:
+> Hi,
+> 
+> I had to revert a change since it broke buildbots. Sadly, I don't have
+> the bandwidth to investigate the failures and try to fix the change
+> :-(
+> 
+> 
+> A large change has been pushed into the 3.7 and master branches to
+> "Add Windows App Store package":
+> 
+> "Release Windows Store app containing Python"
+> https://bugs.python.org/issue34977
+> 
+> These changes broke all Windows buildbots:
+> 
+> "Almost all Windows buildbots are failing to compile"
+> https://bugs.python.org/issue35437
+> 
+> So I reverted these two changes.
+> 
+> It's a large change which mostly add new files, but also make changes
+> in different files:
+> ---
+> commit 468a15aaf9206448a744fc5eab3fc21f51966aad
+> Author: Steve Dower <steve.dower at microsoft.com>
+> Date:   Thu Dec 6 21:09:20 2018 -0800
+> 
+>     bpo-34977: Add Windows App Store package (GH-10245)
+> 
+>  .azure-pipelines/windows-appx-test.yml             |  65 +++
+>  .gitattributes                                     |   1 +
+>  Doc/make.bat                                       |   2 +
+>  Lib/test/test_pathlib.py                           |   2 +-
+>  Lib/test/test_venv.py                              |   1 +
+>  Lib/venv/__init__.py                               |  49 +-
+>  .../2018-10-30-13-39-17.bpo-34977.0l7_QV.rst       |   1 +
+>  PC/classicAppCompat.can.xml                        | Bin 0 -> 3978 bytes
+>  PC/classicAppCompat.cat                            | Bin 0 -> 10984 bytes
+>  PC/classicAppCompat.sccd                           | Bin 0 -> 18503 bytes
+>  PC/getpathp.c                                      |   8 +-
+>  PC/icons/pythonwx150.png                           | Bin 0 -> 8187 bytes
+>  PC/icons/pythonwx44.png                            | Bin 0 -> 2232 bytes
+>  PC/icons/pythonx150.png                            | Bin 0 -> 8271 bytes
+>  PC/icons/pythonx44.png                             | Bin 0 -> 2178 bytes
+>  PC/icons/pythonx50.png                             | Bin 0 -> 2190 bytes
+>  PC/launcher.c                                      | 220 +++++++-
+>  PC/layout/__init__.py                              |   0
+>  PC/layout/__main__.py                              |  14 +
+>  PC/layout/main.py                                  | 612 +++++++++++++++++++++
+>  PC/layout/support/__init__.py                      |   0
+>  PC/layout/support/appxmanifest.py                  | 487 ++++++++++++++++
+>  PC/layout/support/catalog.py                       |  44 ++
+>  PC/layout/support/constants.py                     |  28 +
+>  .../support/distutils.command.bdist_wininst.py     |  25 +
+>  PC/layout/support/filesets.py                      | 100 ++++
+>  PC/layout/support/logging.py                       |  93 ++++
+>  PC/layout/support/options.py                       | 122 ++++
+>  PC/layout/support/pip.py                           |  79 +++
+>  PC/layout/support/props.py                         | 110 ++++
+>  {Tools/nuget => PC/layout/support}/python.props    |   0
+>  PC/pylauncher.rc                                   |   6 +
+>  PC/python_uwp.cpp                                  | 226 ++++++++
+>  PC/store_info.txt                                  | 146 +++++
+>  PCbuild/_tkinter.vcxproj                           |   6 +
+>  PCbuild/find_msbuild.bat                           |  10 +
+>  PCbuild/pcbuild.proj                               |   3 +
+>  PCbuild/pcbuild.sln                                |  72 +++
+>  PCbuild/python.props                               |   3 +-
+>  PCbuild/python_uwp.vcxproj                         |  86 +++
+>  PCbuild/pythoncore.vcxproj                         |  15 +
+>  PCbuild/pythonw_uwp.vcxproj                        |  86 +++
+>  PCbuild/venvlauncher.vcxproj                       |  85 +++
+>  PCbuild/venvwlauncher.vcxproj                      |  85 +++
+>  Tools/msi/buildrelease.bat                         |  13 +-
+>  Tools/msi/make_appx.ps1                            |  71 +++
+>  Tools/msi/make_cat.ps1                             |  34 ++
+>  Tools/msi/make_zip.proj                            |   9 +-
+>  Tools/msi/make_zip.py                              | 250 ---------
+>  Tools/msi/sdktools.psm1                            |  43 ++
+>  Tools/msi/sign_build.ps1                           |  34 ++
+>  Tools/nuget/make_pkg.proj                          |  38 +-
+>  52 files changed, 3053 insertions(+), 331 deletions(-)
+> ---
+> 
+> Note: the commit message is a single line.
+> 
+> 
+> Now I have questions :-)
+> 
+> 
+> It seems like the change is "experimental":
+> https://bugs.python.org/issue34977#msg331267
+> 
+> """
+> Making the *release experimental* as part of the next 3.7 update was
+> approved by Ned (over email), so I merged the build. As soon as we
+> snap for the RC I'll kick off an update and make the store page
+> public, and hopefully can promote it enough to get eyes on it.
+> 
+> Unfortunately, I discovered as part of a test submission that the
+> minimum Windows version matters, and it's a version that hasn't been
+> rolled out fully yet *because of some bugs*, so there may not be that
+> many people who can use it this first time. But that will *improve
+> over time*, and I'm sure I can find enough people to flush out issues
+> before the next release (anyone on the Windows Insiders program should
+> be fine).
+> """
+> 
+> If it's experimental, why pushing it *right now* to the 3.7 branch?
+> Can't we wait until it's stable enough? Even if it's stable, I'm not
+> sure sure that it should go into 3.7 which is a stable branch.
+> 
+> I guess that Steve would like to get this feature into 3.7.2. Ned
+> Deily (3.7 release changer) approved this change.
+> 
+> The pull request was merged one week after it has been created, I
+> don't see any review.
+> https://github.com/python/cpython/pull/10245
+> 
+> In general, I'm fine with merging changes without any kind of review,
+> when the change is small. I'm doing it *frequently* when I'm confident
+> that the change is small and safe enough. But here, the change is
+> quite large. Sadly, I know the problem: the lack of available
+> developers for review. There are very few developers who know Windows
+> and are available to provide a review. Sometimes, Zachary Ware or Eryk
+> Sun are around and can help.
+> 
+> I'm fine with iterating in the master branch, since the change seems
+> to be separated from CPython core: it mostly add new files. My concern
+> is more about changes on "Python itself": the venv and tests changes.
+> 
+> In the middle of the large change, there is small change on the venv module:
+> 
+> diff --git a/Lib/venv/__init__.py b/Lib/venv/__init__.py
+> index 043420897e..5438b0d4e5 100644
+> --- a/Lib/venv/__init__.py
+> +++ b/Lib/venv/__init__.py
+> @@ -64,10 +64,11 @@ class EnvBuilder:
+>          self.system_site_packages = False
+>          self.create_configuration(context)
+>          self.setup_python(context)
+> +        if not self.upgrade:
+> +            self.setup_scripts(context)
+>          if self.with_pip:
+>              self._setup_pip(context)
+>          if not self.upgrade:
+> -            self.setup_scripts(context)
+>              self.post_setup(context)
+>          if true_system_site_packages:
+> 
+> Moreover, the commit also changes tests:
+> 
+> * Lib/test/test_pathlib.py
+> * Lib/test/test_venv.py
+> 
+> The commit message is just "bpo-34977: Add Windows App Store package
+> (GH-10245)", it doesn't explain these changes.
+> 
+> I would prefer to see these changes extracted into separated commits.
+> Sadly, right now on the cpython project on GitHub, we are only allowed
+> to squash all commits into a single commit (note: the individual
+> commit in the PR doesn't explain these venv/tests changes neither). So
+> I suggest to create multiple PRs (at least one for venv+pathlib
+> changes and a second for the Windows AppStore).
+> 
+> I guess that these changes are bugfixes or enhancement. Having a
+> separated change should also ease to backport these changes up to 3.6
+> ;-)
+> 
+> --
+> 
+> Jeremy Kloth just created:
+> "Correctly detect installed SDK versions"
+> https://bugs.python.org/issue35433
+> 
+> I'm not sure if it's related to the AppStore change?
+> 
+> Victor
+> 
+
+
+From steve.dower at python.org  Fri Dec  7 10:41:38 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 7 Dec 2018 07:41:38 -0800
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+In-Reply-To: <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+References: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+ <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+Message-ID: <1bff9c35-2284-27ee-11b3-bab6072bf9aa@python.org>
+
+As a slight aside, 8 out of 8 buildbot messages on the PR look like
+false positives, and none of the true positives sent a message. What
+happened there?
+
+On 07Dec2018 0716, Steve Dower wrote:
+> Thanks for fixing up the buildbots, but please be a little more thorough
+> before making publicly incorrect statements.
+> 
+> The change is 99% adding new files that are not part of Python, but
+> participate in the build for Windows (and are available and incredibly
+> useful for everyone). These are essentially zero-impact. In the PR I
+> pointed out exactly where to look for interesting changes and it didn't
+> help get any traction :)
+> 
+> The other changes are either in Windows-only files or tests. The one
+> exception is venv, where they are in "if os.name=='nt'" blocks. I also
+> pinged our venv expert a few times with no response.
+> 
+> The PR was put up two *months* ago, not one week. In that time, it's
+> been heavily tested by myself and a number of people who I *am* able to
+> share the output of this with. I've also been chatting with the release
+> manager for 3.7 about it and he's been on board (the words may have been
+> "on your own head", but that's close enough to "on board")
+> 
+> It didn't break all Windows buildbots.
+> 
+> That said, it's totally my fault for merging and then not watching. Also
+> for not submitting custom builds to all the buildbots (Can we still do
+> that? I'm not seeing any UI right now... I did run a number of test
+> release builds on the release machine, so I knew that was going to be okay.)
+> 
+> Now, to answer your questions: releasing in a new package with slightly
+> different semantics *has* to be somewhat experimental, because nobody
+> can test it until it's been released. This isn't about iterating on this
+> change in master, it's about getting broad public feedback on a release
+> mechanism that currently does not exist.
+> 
+> Historically, when changes to the part you point out have been extracted
+> out from their context, they've been rejected on the basis that they
+> aren't necessary. But now the original PR is broken (because the tests
+> don't pass), and so there will never be a need. This time I decided to
+> specifically point out numerous times where the interesting changes were
+> and was not able to get reviews from bpo/github (I did get many reviews
+> and some testing from others).
+> 
+> As it happens, I split out many changes to do with pathconfig that came
+> from this. You rejected them because they weren't necessary :)
+> 
+> Most of the code is a Python script to do "make install" on Windows. A
+> very common request is "how do I copy built files into the right place",
+> and the answer has always been "it's complicated". Now we can measure
+> how complicated it is in terms of lines of Python code, but at least the
+> answer is "run this script". Yes, it could go into its own PR, but that
+> runs into the context problem again. If I'm going to be forced to bypass
+> review on a dependency just to make it possible to merge a real change,
+> then they may as well go together.
+> 
+> (The new script is Black formatted, so probably I could get Lukasz to
+> approve it on its own? :) )
+> 
+> I hope that explains a bit better. People wait two months and more for
+> simpler reviews, but part of me being a core developer is to accelerate
+> that for Windows-targeted work. That's all I did here, and I'm happy
+> with my reasoning.
+> 
+> I've reposted the PRs at https://github.com/python/cpython/pull/11027
+> and https://github.com/python/cpython/pull/11028 with fixes for the one
+> issue that Victor couldn't investigate. If someone can get a Windows
+> buildbot to run against them that would be great (not you Zach - your
+> buildbots were fine :) ).
+> 
+> Cheers,
+> Steve
+> 
+> On 07Dec2018 0435, Victor Stinner wrote:
+>> Hi,
+>>
+>> I had to revert a change since it broke buildbots. Sadly, I don't have
+>> the bandwidth to investigate the failures and try to fix the change
+>> :-(
+>>
+>>
+>> A large change has been pushed into the 3.7 and master branches to
+>> "Add Windows App Store package":
+>>
+>> "Release Windows Store app containing Python"
+>> https://bugs.python.org/issue34977
+>>
+>> These changes broke all Windows buildbots:
+>>
+>> "Almost all Windows buildbots are failing to compile"
+>> https://bugs.python.org/issue35437
+>>
+>> So I reverted these two changes.
+>>
+>> It's a large change which mostly add new files, but also make changes
+>> in different files:
+>> ---
+>> commit 468a15aaf9206448a744fc5eab3fc21f51966aad
+>> Author: Steve Dower <steve.dower at microsoft.com>
+>> Date:   Thu Dec 6 21:09:20 2018 -0800
+>>
+>>     bpo-34977: Add Windows App Store package (GH-10245)
+>>
+>>  .azure-pipelines/windows-appx-test.yml             |  65 +++
+>>  .gitattributes                                     |   1 +
+>>  Doc/make.bat                                       |   2 +
+>>  Lib/test/test_pathlib.py                           |   2 +-
+>>  Lib/test/test_venv.py                              |   1 +
+>>  Lib/venv/__init__.py                               |  49 +-
+>>  .../2018-10-30-13-39-17.bpo-34977.0l7_QV.rst       |   1 +
+>>  PC/classicAppCompat.can.xml                        | Bin 0 -> 3978 bytes
+>>  PC/classicAppCompat.cat                            | Bin 0 -> 10984 bytes
+>>  PC/classicAppCompat.sccd                           | Bin 0 -> 18503 bytes
+>>  PC/getpathp.c                                      |   8 +-
+>>  PC/icons/pythonwx150.png                           | Bin 0 -> 8187 bytes
+>>  PC/icons/pythonwx44.png                            | Bin 0 -> 2232 bytes
+>>  PC/icons/pythonx150.png                            | Bin 0 -> 8271 bytes
+>>  PC/icons/pythonx44.png                             | Bin 0 -> 2178 bytes
+>>  PC/icons/pythonx50.png                             | Bin 0 -> 2190 bytes
+>>  PC/launcher.c                                      | 220 +++++++-
+>>  PC/layout/__init__.py                              |   0
+>>  PC/layout/__main__.py                              |  14 +
+>>  PC/layout/main.py                                  | 612 +++++++++++++++++++++
+>>  PC/layout/support/__init__.py                      |   0
+>>  PC/layout/support/appxmanifest.py                  | 487 ++++++++++++++++
+>>  PC/layout/support/catalog.py                       |  44 ++
+>>  PC/layout/support/constants.py                     |  28 +
+>>  .../support/distutils.command.bdist_wininst.py     |  25 +
+>>  PC/layout/support/filesets.py                      | 100 ++++
+>>  PC/layout/support/logging.py                       |  93 ++++
+>>  PC/layout/support/options.py                       | 122 ++++
+>>  PC/layout/support/pip.py                           |  79 +++
+>>  PC/layout/support/props.py                         | 110 ++++
+>>  {Tools/nuget => PC/layout/support}/python.props    |   0
+>>  PC/pylauncher.rc                                   |   6 +
+>>  PC/python_uwp.cpp                                  | 226 ++++++++
+>>  PC/store_info.txt                                  | 146 +++++
+>>  PCbuild/_tkinter.vcxproj                           |   6 +
+>>  PCbuild/find_msbuild.bat                           |  10 +
+>>  PCbuild/pcbuild.proj                               |   3 +
+>>  PCbuild/pcbuild.sln                                |  72 +++
+>>  PCbuild/python.props                               |   3 +-
+>>  PCbuild/python_uwp.vcxproj                         |  86 +++
+>>  PCbuild/pythoncore.vcxproj                         |  15 +
+>>  PCbuild/pythonw_uwp.vcxproj                        |  86 +++
+>>  PCbuild/venvlauncher.vcxproj                       |  85 +++
+>>  PCbuild/venvwlauncher.vcxproj                      |  85 +++
+>>  Tools/msi/buildrelease.bat                         |  13 +-
+>>  Tools/msi/make_appx.ps1                            |  71 +++
+>>  Tools/msi/make_cat.ps1                             |  34 ++
+>>  Tools/msi/make_zip.proj                            |   9 +-
+>>  Tools/msi/make_zip.py                              | 250 ---------
+>>  Tools/msi/sdktools.psm1                            |  43 ++
+>>  Tools/msi/sign_build.ps1                           |  34 ++
+>>  Tools/nuget/make_pkg.proj                          |  38 +-
+>>  52 files changed, 3053 insertions(+), 331 deletions(-)
+>> ---
+>>
+>> Note: the commit message is a single line.
+>>
+>>
+>> Now I have questions :-)
+>>
+>>
+>> It seems like the change is "experimental":
+>> https://bugs.python.org/issue34977#msg331267
+>>
+>> """
+>> Making the *release experimental* as part of the next 3.7 update was
+>> approved by Ned (over email), so I merged the build. As soon as we
+>> snap for the RC I'll kick off an update and make the store page
+>> public, and hopefully can promote it enough to get eyes on it.
+>>
+>> Unfortunately, I discovered as part of a test submission that the
+>> minimum Windows version matters, and it's a version that hasn't been
+>> rolled out fully yet *because of some bugs*, so there may not be that
+>> many people who can use it this first time. But that will *improve
+>> over time*, and I'm sure I can find enough people to flush out issues
+>> before the next release (anyone on the Windows Insiders program should
+>> be fine).
+>> """
+>>
+>> If it's experimental, why pushing it *right now* to the 3.7 branch?
+>> Can't we wait until it's stable enough? Even if it's stable, I'm not
+>> sure sure that it should go into 3.7 which is a stable branch.
+>>
+>> I guess that Steve would like to get this feature into 3.7.2. Ned
+>> Deily (3.7 release changer) approved this change.
+>>
+>> The pull request was merged one week after it has been created, I
+>> don't see any review.
+>> https://github.com/python/cpython/pull/10245
+>>
+>> In general, I'm fine with merging changes without any kind of review,
+>> when the change is small. I'm doing it *frequently* when I'm confident
+>> that the change is small and safe enough. But here, the change is
+>> quite large. Sadly, I know the problem: the lack of available
+>> developers for review. There are very few developers who know Windows
+>> and are available to provide a review. Sometimes, Zachary Ware or Eryk
+>> Sun are around and can help.
+>>
+>> I'm fine with iterating in the master branch, since the change seems
+>> to be separated from CPython core: it mostly add new files. My concern
+>> is more about changes on "Python itself": the venv and tests changes.
+>>
+>> In the middle of the large change, there is small change on the venv module:
+>>
+>> diff --git a/Lib/venv/__init__.py b/Lib/venv/__init__.py
+>> index 043420897e..5438b0d4e5 100644
+>> --- a/Lib/venv/__init__.py
+>> +++ b/Lib/venv/__init__.py
+>> @@ -64,10 +64,11 @@ class EnvBuilder:
+>>          self.system_site_packages = False
+>>          self.create_configuration(context)
+>>          self.setup_python(context)
+>> +        if not self.upgrade:
+>> +            self.setup_scripts(context)
+>>          if self.with_pip:
+>>              self._setup_pip(context)
+>>          if not self.upgrade:
+>> -            self.setup_scripts(context)
+>>              self.post_setup(context)
+>>          if true_system_site_packages:
+>>
+>> Moreover, the commit also changes tests:
+>>
+>> * Lib/test/test_pathlib.py
+>> * Lib/test/test_venv.py
+>>
+>> The commit message is just "bpo-34977: Add Windows App Store package
+>> (GH-10245)", it doesn't explain these changes.
+>>
+>> I would prefer to see these changes extracted into separated commits.
+>> Sadly, right now on the cpython project on GitHub, we are only allowed
+>> to squash all commits into a single commit (note: the individual
+>> commit in the PR doesn't explain these venv/tests changes neither). So
+>> I suggest to create multiple PRs (at least one for venv+pathlib
+>> changes and a second for the Windows AppStore).
+>>
+>> I guess that these changes are bugfixes or enhancement. Having a
+>> separated change should also ease to backport these changes up to 3.6
+>> ;-)
+>>
+>> --
+>>
+>> Jeremy Kloth just created:
+>> "Correctly detect installed SDK versions"
+>> https://bugs.python.org/issue35433
+>>
+>> I'm not sure if it's related to the AppStore change?
+>>
+>> Victor
+
+From jeremy.kloth at gmail.com  Fri Dec  7 11:13:35 2018
+From: jeremy.kloth at gmail.com (Jeremy Kloth)
+Date: Fri, 7 Dec 2018 09:13:35 -0700
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+In-Reply-To: <1bff9c35-2284-27ee-11b3-bab6072bf9aa@python.org>
+References: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+ <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+ <1bff9c35-2284-27ee-11b3-bab6072bf9aa@python.org>
+Message-ID: <CAGvrs3JXKedV-Lr5+Cag24jwCK=VspqZPKPiY97fO8kA6ESujA@mail.gmail.com>
+
+> On 07Dec2018 0716, Steve Dower wrote:
+> > It didn't break all Windows buildbots.
+> >
+> > That said, it's totally my fault for merging and then not watching. Also
+> > for not submitting custom builds to all the buildbots (Can we still do
+> > that? I'm not seeing any UI right now... I did run a number of test
+> > release builds on the release machine, so I knew that was going to be okay.)
+
+As to the breakage on my buildbot
+(https://buildbot.python.org/all/#/workers/12), it seems to be caused
+by not having VS2017 (my guess due to missing C++ headers).  Unless
+something has changed recently, the guides still state the building
+with VS2015 is OK and I would like to keep my buildbot testing at the
+*minimum* required components for building (hence the VS9.0 builder)
+to keep us honest with any changes.
+
+I have no problem adding VS2017 for newer Python versions, but I think
+is build scripts always chose the latest version of the build tools
+thus making testing with older toolsets impossible.
+
+-- 
+Jeremy Kloth
+
+From zachary.ware+pydev at gmail.com  Fri Dec  7 11:17:10 2018
+From: zachary.ware+pydev at gmail.com (Zachary Ware)
+Date: Fri, 7 Dec 2018 10:17:10 -0600
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+In-Reply-To: <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+References: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+ <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+Message-ID: <CAKJDb-M0xdmGmqiqbPk=2GDSmP2sye7XKP124xtMq1RihX_XZA@mail.gmail.com>
+
+On Fri, Dec 7, 2018 at 9:17 AM Steve Dower <steve.dower at python.org> wrote:
+> Also for not submitting custom builds to all the buildbots (Can we still do
+> that? I'm not seeing any UI right now... I did run a number of test
+> release builds on the release machine, so I knew that was going to be okay.)
+
+The UX is not great, but you can trigger a custom builder build by
+pushing to the `buildbot-custom` branch of python/cpython.
+
+Eventually, time will materialize to make it possible for core devs to
+trigger builds from branches on their personal fork since we do have
+proper auth now.
+
+-- 
+Zach
+
+From vstinner at redhat.com  Fri Dec  7 11:17:58 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 7 Dec 2018 17:17:58 +0100
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+In-Reply-To: <1bff9c35-2284-27ee-11b3-bab6072bf9aa@python.org>
+References: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+ <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+ <1bff9c35-2284-27ee-11b3-bab6072bf9aa@python.org>
+Message-ID: <CA+3bQGHAQyCpRXXP1Ru6FHXpa6foD6odMDpwGZBoji7L7ouJ7A@mail.gmail.com>
+
+Le ven. 7 d?c. 2018 ? 16:42, Steve Dower <steve.dower at python.org> a ?crit :
+> As a slight aside, 8 out of 8 buildbot messages on the PR look like
+> false positives, and none of the true positives sent a message. What
+> happened there?
+
+I don't know why the PR didn't get notifications about the regression.
+I got something more than 20 emails in my buildbot mail box :-)
+
+Let me have a look:
+https://github.com/python/cpython/pull/10245#issuecomment-445184041
+
+There are multiple messages related to the 'custom' build: Pablo's
+created a custom build ("buildbot-custom" Git branch) which reverted
+your PR in master. It seems like Pablo's buildbot which sends
+notifications to PRs decided that his commit is attached to your PR.
+You can ignore all notifications from the "custom" build. The GitHub
+notifications are still experimental. If someone is interested, see
+how you can enhance these notifications ;-)
+
+s390x Debian 3.7 failed on "git clone". Well, that's a random network
+issue. We are working on trying to make this specific issue quiet:
+https://github.com/python/buildmaster-config/pull/69
+
+Anyone is welcome to help to enhance the Python CIs, there are plenty
+of things to enhance ;-) Buildbots are complex beast, but the
+situation should be better nowadays than 2 years ago. The number of
+random failure is quite low.
+
+Maybe random failures are more visible today because notifications are
+sent on state change (basically when the color changes). Two years
+ago, all buildbots were always red (fail), so we never get any
+notification :-)
+
+I'm still fixing random failures every week: test_eintr, test_socket, etc.
+
+Victor
+
+From vstinner at redhat.com  Fri Dec  7 11:31:47 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 7 Dec 2018 17:31:47 +0100
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+In-Reply-To: <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+References: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+ <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+Message-ID: <CA+3bQGEc17P2Ty5XkN+Qc7FKpqLRGjvePPcBocubv0RvciRVbw@mail.gmail.com>
+
+Le ven. 7 d?c. 2018 ? 16:16, Steve Dower <steve.dower at python.org> a ?crit :
+> The other changes are either in Windows-only files or tests. The one
+> exception is venv, where they are in "if os.name=='nt'" blocks. I also
+> pinged our venv expert a few times with no response.
+
+Yeah, the lack of review is an issue in Python, I'm well aware of that...
+
+But I guess that it would be easier to get a review on a change
+modifying a single file (venv) than one PR modifying 52 files?
+Usually, I'm scared by giant PRs and I just skip them :-)
+
+
+> The PR was put up two *months* ago, not one week.
+
+Oh, wait... I read Oct 30 and I counted 7 days... sorry :-) November
+becomes December, not October. Sorry about that.
+
+
+> That said, it's totally my fault for merging and then not watching.
+
+That's fine. A revert doesn't mean that your change is wrong. The only
+intent is to repair the CI as soon as possible to spot other
+regressions, and give us more time to design the proper fix:
+
+   https://pythondev.readthedocs.io/ci.html#revert-on-fail
+
+
+> (Can we still do that? I'm not seeing any UI right now... I did run a number of test
+> release builds on the release machine, so I knew that was going to be okay.)
+
+The current process is described at:
+https://devguide.python.org/buildbots/#custom-builders
+
+
+> Historically, when changes to the part you point out have been extracted
+> out from their context, they've been rejected on the basis that they
+> aren't necessary.
+
+I don't think that there is a general rule. It's usually decided on a
+case by case basis, and I know that each core dev has a different
+opinion on this question :-) I do prefer multiple small commits.
+
+I would be simpler if it would be possible to have a "patch serie":
+list of pull requests, or a single PR with multiple commits but don't
+squash them.
+
+
+> As it happens, I split out many changes to do with pathconfig that came
+> from this. You rejected them because they weren't necessary :)
+
+I'm sorry, I don't recall, which changes?
+
+
+> I hope that explains a bit better.
+
+It does, thanks :-)
+
+Victor
+
+From status at bugs.python.org  Fri Dec  7 12:10:08 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri,  7 Dec 2018 18:10:08 +0100 (CET)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20181207171008.6E36A116856@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-11-30 - 2018-12-07)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6904 (+24)
+  closed 40284 (+50)
+  total  47188 (+74)
+
+Open issues with patches: 2743 
+
+
+Issues opened (49)
+==================
+
+#35364: Datetime ???fromtimestamp()??? ignores inheritance if timezone
+https://bugs.python.org/issue35364  opened by Delgan
+
+#35366: Monkey Patching class derived from ctypes.Union doesn't work
+https://bugs.python.org/issue35366  opened by rvijayc
+
+#35368: [2.7] Make PyMem_Malloc() thread-safe in debug mode
+https://bugs.python.org/issue35368  opened by vstinner
+
+#35370: Provide API to set the tracing function to be used for running
+https://bugs.python.org/issue35370  opened by fabioz
+
+#35374: Windows doc build does not find autodetected hhc.exe
+https://bugs.python.org/issue35374  opened by chrullrich
+
+#35376: modulefinder skips nested modules with same name as top-level 
+https://bugs.python.org/issue35376  opened by rdb
+
+#35377: urlparse doesn't validate the scheme
+https://bugs.python.org/issue35377  opened by devkral
+
+#35378: multiprocessing.Pool.imaps iterators do not maintain alive the
+https://bugs.python.org/issue35378  opened by pablogsal
+
+#35379: IDLE's close fails when io.filename set to None
+https://bugs.python.org/issue35379  opened by rhettinger
+
+#35381: Heap-allocated posixmodule types
+https://bugs.python.org/issue35381  opened by eelizondo
+
+#35383: lib2to3 raises ParseError on argument called "print"
+https://bugs.python.org/issue35383  opened by n_rosenstein
+
+#35385: time module: why not using tzname from the glibc?
+https://bugs.python.org/issue35385  opened by vstinner
+
+#35387: Dialogs on IDLE are accompanied by a small black window
+https://bugs.python.org/issue35387  opened by wordtech
+
+#35388: _PyRuntime_Initialize() called after Py_Finalize() does nothin
+https://bugs.python.org/issue35388  opened by vstinner
+
+#35391: threading.RLock exception handling while waiting
+https://bugs.python.org/issue35391  opened by Omer Bartal
+
+#35392: Create asyncio/sockutils.py
+https://bugs.python.org/issue35392  opened by asvetlov
+
+#35393: Typo in documentation
+https://bugs.python.org/issue35393  opened by autom
+
+#35394: Add __slots__ = () to asyncio protocols
+https://bugs.python.org/issue35394  opened by asvetlov
+
+#35397: Undeprecate and document urllib.parse.unwrap
+https://bugs.python.org/issue35397  opened by steven.daprano
+
+#35398: SQLite incorrect row count for UPDATE
+https://bugs.python.org/issue35398  opened by Montana Low
+
+#35399: Sysconfig bug
+https://bugs.python.org/issue35399  opened by neyuru
+
+#35400: PGOMGR : warning PG0188:
+https://bugs.python.org/issue35400  opened by neyuru
+
+#35401: Upgrade Windows and macOS installers to use OpenSSL 1.1.0j / 1
+https://bugs.python.org/issue35401  opened by ned.deily
+
+#35402: Upgrade macOS (and Windows?) installer to Tcl/Tk 8.6.9.1
+https://bugs.python.org/issue35402  opened by ned.deily
+
+#35403: support application/wasm in mimetypes and http.server
+https://bugs.python.org/issue35403  opened by pmpp
+
+#35404: Document how to import _structure in email.message
+https://bugs.python.org/issue35404  opened by charlax
+
+#35409: Async generator might re-throw GeneratorExit on aclose()
+https://bugs.python.org/issue35409  opened by vxgmichel
+
+#35410: copy.deepcopy does not respect metaclasses with __deepcopy__ i
+https://bugs.python.org/issue35410  opened by elibixby
+
+#35412: test_future4 ran no test
+https://bugs.python.org/issue35412  opened by vstinner
+
+#35413: test_multiprocessing_fork: test_del_pool() leaks dangling thre
+https://bugs.python.org/issue35413  opened by vstinner
+
+#35414: A reference counting bug in PyState_RemoveModule()
+https://bugs.python.org/issue35414  opened by ZackerySpytz
+
+#35415: fileno argument to socket.socket is not validated
+https://bugs.python.org/issue35415  opened by Dima.Tisnek
+
+#35416: Fix potential resource warnings in distutils
+https://bugs.python.org/issue35416  opened by Tiger-222
+
+#35417: Double parenthesis in print function running 2to3 in already c
+https://bugs.python.org/issue35417  opened by jondaa
+
+#35419: Thread.is_alive while running Process.is_alive causes either p
+https://bugs.python.org/issue35419  opened by Hexorg
+
+#35420: how to migrate a c-extension module to one that supports subin
+https://bugs.python.org/issue35420  opened by mattip
+
+#35422: misleading error message from ssl.get_server_certificate() whe
+https://bugs.python.org/issue35422  opened by cedricvanrompay
+
+#35423: Signal handling machinery still relies on "pending calls".
+https://bugs.python.org/issue35423  opened by eric.snow
+
+#35424: multiprocessing.Pool: emit ResourceWarning
+https://bugs.python.org/issue35424  opened by vstinner
+
+#35425: test_eintr fails randomly on AMD64 FreeBSD 10-STABLE Non-Debug
+https://bugs.python.org/issue35425  opened by vstinner
+
+#35426: test_signal.test_interprocess_signal() race condition
+https://bugs.python.org/issue35426  opened by vstinner
+
+#35427: logging UnicodeDecodeError from undecodable strftime output
+https://bugs.python.org/issue35427  opened by mark.dickinson
+
+#35428: xml.etree.ElementTree.tostring violates W3 standards allowing 
+https://bugs.python.org/issue35428  opened by Zim
+
+#35429: Incorrect use of raise NotImplemented
+https://bugs.python.org/issue35429  opened by rth
+
+#35431: The math module should provide a function for computing binomi
+https://bugs.python.org/issue35431  opened by kellerfuchs
+
+#35432: str.format and string.Formatter bug with French (and other) lo
+https://bugs.python.org/issue35432  opened by canuck7
+
+#35433: Correctly detect installed SDK versions
+https://bugs.python.org/issue35433  opened by jkloth
+
+#35435: Documentation of 3.3 is available
+https://bugs.python.org/issue35435  opened by matrixise
+
+#35436: Add missing PyErr_NoMemory() calls
+https://bugs.python.org/issue35436  opened by ZackerySpytz
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#35425: test_eintr fails randomly on AMD64 FreeBSD 10-STABLE Non-Debug
+https://bugs.python.org/issue35425
+
+#35420: how to migrate a c-extension module to one that supports subin
+https://bugs.python.org/issue35420
+
+#35419: Thread.is_alive while running Process.is_alive causes either p
+https://bugs.python.org/issue35419
+
+#35415: fileno argument to socket.socket is not validated
+https://bugs.python.org/issue35415
+
+#35413: test_multiprocessing_fork: test_del_pool() leaks dangling thre
+https://bugs.python.org/issue35413
+
+#35410: copy.deepcopy does not respect metaclasses with __deepcopy__ i
+https://bugs.python.org/issue35410
+
+#35409: Async generator might re-throw GeneratorExit on aclose()
+https://bugs.python.org/issue35409
+
+#35404: Document how to import _structure in email.message
+https://bugs.python.org/issue35404
+
+#35402: Upgrade macOS (and Windows?) installer to Tcl/Tk 8.6.9.1
+https://bugs.python.org/issue35402
+
+#35401: Upgrade Windows and macOS installers to use OpenSSL 1.1.0j / 1
+https://bugs.python.org/issue35401
+
+#35400: PGOMGR : warning PG0188:
+https://bugs.python.org/issue35400
+
+#35399: Sysconfig bug
+https://bugs.python.org/issue35399
+
+#35397: Undeprecate and document urllib.parse.unwrap
+https://bugs.python.org/issue35397
+
+#35394: Add __slots__ = () to asyncio protocols
+https://bugs.python.org/issue35394
+
+#35392: Create asyncio/sockutils.py
+https://bugs.python.org/issue35392
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#35436: Add missing PyErr_NoMemory() calls
+https://bugs.python.org/issue35436
+
+#35433: Correctly detect installed SDK versions
+https://bugs.python.org/issue35433
+
+#35431: The math module should provide a function for computing binomi
+https://bugs.python.org/issue35431
+
+#35429: Incorrect use of raise NotImplemented
+https://bugs.python.org/issue35429
+
+#35424: multiprocessing.Pool: emit ResourceWarning
+https://bugs.python.org/issue35424
+
+#35423: Signal handling machinery still relies on "pending calls".
+https://bugs.python.org/issue35423
+
+#35416: Fix potential resource warnings in distutils
+https://bugs.python.org/issue35416
+
+#35415: fileno argument to socket.socket is not validated
+https://bugs.python.org/issue35415
+
+#35414: A reference counting bug in PyState_RemoveModule()
+https://bugs.python.org/issue35414
+
+#35409: Async generator might re-throw GeneratorExit on aclose()
+https://bugs.python.org/issue35409
+
+#35404: Document how to import _structure in email.message
+https://bugs.python.org/issue35404
+
+#35398: SQLite incorrect row count for UPDATE
+https://bugs.python.org/issue35398
+
+#35394: Add __slots__ = () to asyncio protocols
+https://bugs.python.org/issue35394
+
+#35381: Heap-allocated posixmodule types
+https://bugs.python.org/issue35381
+
+#35378: multiprocessing.Pool.imaps iterators do not maintain alive the
+https://bugs.python.org/issue35378
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#34172: multiprocessing.Pool and ThreadPool leak resources after being
+https://bugs.python.org/issue34172  25 msgs
+
+#35431: The math module should provide a function for computing binomi
+https://bugs.python.org/issue35431  18 msgs
+
+#10496: Python startup should not require passwd entry
+https://bugs.python.org/issue10496  13 msgs
+
+#34977: Release Windows Store app containing Python
+https://bugs.python.org/issue34977  12 msgs
+
+#35378: multiprocessing.Pool.imaps iterators do not maintain alive the
+https://bugs.python.org/issue35378  11 msgs
+
+#22005: datetime.__setstate__ fails decoding python2 pickle
+https://bugs.python.org/issue22005   9 msgs
+
+#34850: Emit a syntax warning for "is" with a literal
+https://bugs.python.org/issue34850   7 msgs
+
+#35377: urlparse doesn't validate the scheme
+https://bugs.python.org/issue35377   7 msgs
+
+#35433: Correctly detect installed SDK versions
+https://bugs.python.org/issue35433   7 msgs
+
+#35364: Datetime ???fromtimestamp()??? ignores inheritance if timezone
+https://bugs.python.org/issue35364   6 msgs
+
+
+
+Issues closed (50)
+==================
+
+#16865: ctypes arrays >=2GB in length causes exception
+https://bugs.python.org/issue16865  closed by serhiy.storchaka
+
+#20371: datetime.datetime.replace bypasses a subclass's __new__
+https://bugs.python.org/issue20371  closed by belopolsky
+
+#22496: urllib2 fails against IIS (urllib2 can't parse 401 reply www-a
+https://bugs.python.org/issue22496  closed by deronnax
+
+#25862: TextIOWrapper assertion failure after read() and SEEK_CUR
+https://bugs.python.org/issue25862  closed by serhiy.storchaka
+
+#29564: ResourceWarning: suggest to enable tracemalloc in the message
+https://bugs.python.org/issue29564  closed by vstinner
+
+#31177: unittest mock's reset_mock throws an error when an attribute h
+https://bugs.python.org/issue31177  closed by xtreak
+
+#32787: Better error handling in ctypes
+https://bugs.python.org/issue32787  closed by serhiy.storchaka
+
+#33709: test.support.FS_NONASCII returns incorrect result in Windows w
+https://bugs.python.org/issue33709  closed by serhiy.storchaka
+
+#34052: sqlite's create_function() raises exception on unhashable call
+https://bugs.python.org/issue34052  closed by serhiy.storchaka
+
+#34185: Lib/test/test_bdb.py failed when ran as a script
+https://bugs.python.org/issue34185  closed by serhiy.storchaka
+
+#34604: Possible mojibake in pwd.getpwnam and grp.getgrnam
+https://bugs.python.org/issue34604  closed by serhiy.storchaka
+
+#34738: Distutils: ZIP files don't include directory entries
+https://bugs.python.org/issue34738  closed by serhiy.storchaka
+
+#34784: Heap-allocated StructSequences
+https://bugs.python.org/issue34784  closed by petr.viktorin
+
+#34987: A possible null pointer dereference in _pickle.c's save_reduce
+https://bugs.python.org/issue34987  closed by ZackerySpytz
+
+#35226: mock.call equality surprisingly broken
+https://bugs.python.org/issue35226  closed by cjw296
+
+#35250: Minor parameter documentation mismatch for turtle
+https://bugs.python.org/issue35250  closed by serhiy.storchaka
+
+#35305: subprocess.Popen(['/sbin/ldconfig', '-p'], stdin=PIPE) itself 
+https://bugs.python.org/issue35305  closed by vstinner
+
+#35310: select which was interrupted by EINTR isn't re-run if the time
+https://bugs.python.org/issue35310  closed by vstinner
+
+#35316: test_eintr fails randomly on macOS
+https://bugs.python.org/issue35316  closed by vstinner
+
+#35341: Add generic version of OrderedDict to typing module
+https://bugs.python.org/issue35341  closed by levkivskyi
+
+#35344: platform: get macOS version rather than darwin version
+https://bugs.python.org/issue35344  closed by vstinner
+
+#35352: test_asyncio fails on RHEL8, or on Fedora using NEXT security 
+https://bugs.python.org/issue35352  closed by vstinner
+
+#35357: unittest.mock.call can't represent calls to a method called 'p
+https://bugs.python.org/issue35357  closed by cjw296
+
+#35359: [2.7][Windows] Define _CRT_SECURE_NO_WARNINGS to build Modules
+https://bugs.python.org/issue35359  closed by vstinner
+
+#35363: test_eintr: test_open() hangs randomly on x86-64 El Capitan 3.
+https://bugs.python.org/issue35363  closed by vstinner
+
+#35365: Use wchar_t* buffer instead of Unicode object in code page dec
+https://bugs.python.org/issue35365  closed by serhiy.storchaka
+
+#35367: FileExistsError During os.symlink() Displays Arrow in the Wron
+https://bugs.python.org/issue35367  closed by eryksun
+
+#35369: List sorting makes duplicate comparisons
+https://bugs.python.org/issue35369  closed by rhettinger
+
+#35371: Fix undefined behavior in os.utime() on Windows
+https://bugs.python.org/issue35371  closed by serhiy.storchaka
+
+#35372: Code page decoder incorrectly handles input >2GiB
+https://bugs.python.org/issue35372  closed by serhiy.storchaka
+
+#35373: PyInit_timezone() must return a value
+https://bugs.python.org/issue35373  closed by vstinner
+
+#35375: name shadowing while a module tries to import another
+https://bugs.python.org/issue35375  closed by ksriram
+
+#35380: Enable TCP_NODELAY for proactor event loop
+https://bugs.python.org/issue35380  closed by asvetlov
+
+#35382: Something wrong with pymysql
+https://bugs.python.org/issue35382  closed by mark.dickinson
+
+#35384: The repr of ctypes.CArgObject fails for non-ascii character
+https://bugs.python.org/issue35384  closed by serhiy.storchaka
+
+#35386: ftp://www.pythontest.net/ returns error 500
+https://bugs.python.org/issue35386  closed by vstinner
+
+#35389: Use gnu_get_libc_version() in platform.libc_ver()?
+https://bugs.python.org/issue35389  closed by vstinner
+
+#35390: ctypes not possible to pass NULL c_void_p in structure by refe
+https://bugs.python.org/issue35390  closed by dtamayo
+
+#35395: Typo in asyncio eventloop documentation
+https://bugs.python.org/issue35395  closed by asvetlov
+
+#35396: Add support for __fspath__ to fnmatch.fnmatchase and filter
+https://bugs.python.org/issue35396  closed by adelfino
+
+#35405: Wrong traceback for AssertionError while running under pdb
+https://bugs.python.org/issue35405  closed by xtreak
+
+#35406: calendar.nextmonth and calendar.prevmonth functions doesn't ch
+https://bugs.python.org/issue35406  closed by asocia
+
+#35407: Datetime function with selenium
+https://bugs.python.org/issue35407  closed by steven.daprano
+
+#35408: Python3.7 crash in PyCFunction_New due to broken _PyObject_GC_
+https://bugs.python.org/issue35408  closed by vstinner
+
+#35411: FTP tests of test_urllib2net fail on Travis CI: 425 Security: 
+https://bugs.python.org/issue35411  closed by vstinner
+
+#35418: python hung or stuck somtimes randomly on windows server 2008R
+https://bugs.python.org/issue35418  closed by Cao Hongfu
+
+#35421: Expected result is not clear in case of list.append(list)
+https://bugs.python.org/issue35421  closed by eric.smith
+
+#35430: Lib/argparse.py uses `is` for string comparison
+https://bugs.python.org/issue35430  closed by serhiy.storchaka
+
+#35434: Wrong bpo linked in What's New in 3.8
+https://bugs.python.org/issue35434  closed by Mariatta
+
+#35437: Almost all Windows buildbots are failing to compile
+https://bugs.python.org/issue35437  closed by vstinner
+
+From tjreedy at udel.edu  Fri Dec  7 16:40:03 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Fri, 7 Dec 2018 16:40:03 -0500
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+In-Reply-To: <CA+3bQGEc17P2Ty5XkN+Qc7FKpqLRGjvePPcBocubv0RvciRVbw@mail.gmail.com>
+References: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+ <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+ <CA+3bQGEc17P2Ty5XkN+Qc7FKpqLRGjvePPcBocubv0RvciRVbw@mail.gmail.com>
+Message-ID: <puep7i$3g4$1@blaine.gmane.org>
+
+On 12/7/2018 11:31 AM, Victor Stinner wrote:
+
+> I would be simpler if it would be possible to have a "patch serie":
+> list of pull requests,
+
+One can make an 'index issue' with multiple dependencies, each with a 
+PR.  I do this for multiple independent changes to a module or related 
+modules.
+
+> or a single PR with multiple commits but don't squash them.
+
+Already possible on Github.  If one clicks [View Changes], multiple 
+commits in a PR are combined for display purposes into a net PR diff. 
+But the individual commits can be examined and reviewed individually and 
+are not squashed into one by github (and should not be by authors) until 
+the merge into cpython.
+
+Typically, authors effectively 'squash' all initial changes into one 
+commit, make a PR, and only add additional commits in review.  But 
+authors *can* split the initial editing into multiple commits with an 
+eye to easing review -- and record information for future maintainers.
+
+Simple bugfix example:
+<commit 1> Add test to test_mod that fails with TwinkleError.
+Posted to issue by Joe Blow.
+<commit 2> Make new test pass using the 'underhand' strategy.
+
+The split above is not really necessary, but PR 10245 squashed changes 
+to 52 files of 15 file types into one initial commit.
+
+https://github.com/python/cpython/pull/10245/commits/17ba155a7b794926ce705ee0e2af787fbd2996e6
+
+View Files displays them alphabetically.  Jump to ... lists them in the 
+same order, but includes the functions changed, so it is hundreds of lines.
+
+I think this PR would have benefited from having perhaps 10 or more 
+initial commits, each with a comment about the group of files included. 
+In icon commit could have said something about the source and purpose of 
+the added icon files.  One commit could have included the venv and test 
+changes that you want to review.  An added message, as long as needed, 
+could have explained these particular changes.
+
+-- 
+Terry Jan Reedy
+
+
+From steve.dower at python.org  Fri Dec  7 18:06:25 2018
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 7 Dec 2018 15:06:25 -0800
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+In-Reply-To: <puep7i$3g4$1@blaine.gmane.org>
+References: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+ <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+ <CA+3bQGEc17P2Ty5XkN+Qc7FKpqLRGjvePPcBocubv0RvciRVbw@mail.gmail.com>
+ <puep7i$3g4$1@blaine.gmane.org>
+Message-ID: <94dcd7b1-6566-bf8b-0fc0-40b264858290@python.org>
+
+On 07Dec2018 1340, Terry Reedy wrote:
+> Simple bugfix example:
+> <commit 1> Add test to test_mod that fails with TwinkleError.
+> Posted to issue by Joe Blow.
+> <commit 2> Make new test pass using the 'underhand' strategy.
+> 
+> The split above is not really necessary, but PR 10245 squashed changes 
+> to 52 files of 15 file types into one initial commit.
+> 
+> https://github.com/python/cpython/pull/10245/commits/17ba155a7b794926ce705ee0e2af787fbd2996e6 
+> 
+> 
+> View Files displays them alphabetically.? Jump to ... lists them in the 
+> same order, but includes the functions changed, so it is hundreds of lines.
+> 
+> I think this PR would have benefited from having perhaps 10 or more 
+> initial commits, each with a comment about the group of files included. 
+> In icon commit could have said something about the source and purpose of 
+> the added icon files.? One commit could have included the venv and test 
+> changes that you want to review.? An added message, as long as needed, 
+> could have explained these particular changes.
+> 
+
+This is great in theory, but if you look back at the original PR it 
+would have been 100+ commits (I was occasionally squashing and force 
+pushing). What you're really proposing is:
+
+* do all the work using the git workflow (stream-of-consiousness commits)
+* squash all the commits at the end
+* re-expand the single commit into logical groupings of files and 
+re-commit them
+
+So it's easy to sit back and imagine that I had all the perfect changes 
+ready to go and deliberately chose to make it harder to review, but 
+that's not the case at all. Making it sound like this is how development 
+works is really disparaging to people who find themselves not producing 
+perfect commit histories.
+
+And let's be honest, there's no good tooling for turning a series of 
+interdependent commits into a smaller set of sensible ones. Squashing at 
+least gets rid of the changes that were reverted as part of the entire 
+PR, and if you then just want to split by file you're really just asking 
+for extra work. If someone had bothered to say "I'll review the parts of 
+it that are relevant to me if you can split them out" then I would have, 
+but nobody (in public) showed any interest in reviewing the changes at 
+all - I had some private reviews done by colleagues at work, who weren't 
+so demanding about it.
+
+I review as many PRs as I send these days (maybe more? I'm not 
+counting), and I always try to make an effort to have mercy towards 
+people to save them having to work extra hard just to make my life a 
+little bit easier. It grates to have had an incremental change visible 
+in public for over two months, have it be totally ignored the entire 
+time, and then have to defend something that I already did. Luckily I 
+get paid work time for doing this; really can't see why I'd want to 
+suffer through this for free...
+
