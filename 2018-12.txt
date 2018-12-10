@@ -2300,3 +2300,104 @@ time, and then have to defend something that I already did. Luckily I
 get paid work time for doing this; really can't see why I'd want to 
 suffer through this for free...
 
+From ncoghlan at gmail.com  Sat Dec  8 11:32:53 2018
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 9 Dec 2018 02:32:53 +1000
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+In-Reply-To: <94dcd7b1-6566-bf8b-0fc0-40b264858290@python.org>
+References: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+ <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+ <CA+3bQGEc17P2Ty5XkN+Qc7FKpqLRGjvePPcBocubv0RvciRVbw@mail.gmail.com>
+ <puep7i$3g4$1@blaine.gmane.org>
+ <94dcd7b1-6566-bf8b-0fc0-40b264858290@python.org>
+Message-ID: <CADiSq7dSiZJDB2Upqqbd5djNk8bG6z+6RozKx2_Sseb-BndEWQ@mail.gmail.com>
+
+On Sat, 8 Dec 2018 at 09:10, Steve Dower <steve.dower at python.org> wrote:
+> And let's be honest, there's no good tooling for turning a series of
+> interdependent commits into a smaller set of sensible ones. Squashing at
+> least gets rid of the changes that were reverted as part of the entire
+> PR, and if you then just want to split by file you're really just asking
+> for extra work.
+
+Whether the UX counts as "good" or not is open to debate (I consider
+it pretty good for the complexity of the task it handles), but if you
+ever want to revise the history of a complex patch series to make it
+easier for reviewers to follow:
+
+1. Use "git rebase --interactive" to squash all the ad hoc commits
+into a single commit
+2. Use "git reset HEAD^" to unstage that squashed monolithic commit
+3. Use "git add --patch" to compose a new commit series that takes a
+reviewer through a logical set of changes, rather than the messy
+reality of what actually happened
+
+(I have no idea if there are any GUI tools which expose this level of
+commit series editing power, but it exists on the command line, so
+presumably there are graphical equivalents)
+
+Most of the time this isn't worth the hassle, with either reviewing
+the PR as a whole being good enough, or else there being subsets of
+the changes which can be made into separate PRs that can be reviewed
+and accepted independently.
+
+However, on those occassions where you're needing to tell the
+reviewers a story not only about what you changed, but also why you
+changed it, then an hour or two spent up front creating a more
+coherent commit history may save multiple hours of discussion later.
+
+Cheers,
+Nick.
+
+P.S. Gerrit's entire review model is based around this idea of
+dependent patch series, but code review UX turned out to be a
+situation where optimising for the simple, common case (i.e. GitHub's
+approach) proved to be a much better idea than focusing on the less
+common complex cases.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From tjreedy at udel.edu  Sat Dec  8 22:56:12 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sat, 8 Dec 2018 22:56:12 -0500
+Subject: [Python-Dev] I reverted "Add Windows App Store package" change
+In-Reply-To: <CADiSq7dSiZJDB2Upqqbd5djNk8bG6z+6RozKx2_Sseb-BndEWQ@mail.gmail.com>
+References: <CA+3bQGE2Sb1ArqjO=axjUUoqyXy0mPYe7oh_9m33MfoS90zivQ@mail.gmail.com>
+ <4937db92-3a2e-5a6a-6e3b-a4e502277d16@python.org>
+ <CA+3bQGEc17P2Ty5XkN+Qc7FKpqLRGjvePPcBocubv0RvciRVbw@mail.gmail.com>
+ <puep7i$3g4$1@blaine.gmane.org>
+ <94dcd7b1-6566-bf8b-0fc0-40b264858290@python.org>
+ <CADiSq7dSiZJDB2Upqqbd5djNk8bG6z+6RozKx2_Sseb-BndEWQ@mail.gmail.com>
+Message-ID: <pui3kq$d83$1@blaine.gmane.org>
+
+On 12/8/2018 11:32 AM, Nick Coghlan wrote:
+
+> Whether the UX counts as "good" or not is open to debate (I consider
+> it pretty good for the complexity of the task it handles), but if you
+> ever want to revise the history of a complex patch series to make it
+> easier for reviewers to follow:
+> 
+> 1. Use "git rebase --interactive" to squash all the ad hoc commits
+> into a single commit
+> 2. Use "git reset HEAD^" to unstage that squashed monolithic commit
+> 3. Use "git add --patch" to compose a new commit series that takes a
+> reviewer through a logical set of changes, rather than the messy
+> reality of what actually happened
+
+Thank you for the information.  I am sure I will use it.
+
+> (I have no idea if there are any GUI tools which expose this level of
+> commit series editing power, but it exists on the command line, so
+> presumably there are graphical equivalents)
+
+On Windows, I use git gui routinely for making commits.  It lists files 
+with workspace changes in Unstaged and Staged boxes.  ^T (sTage) and ^U 
+(Unstage) moves a hightlighted file to the other one.  A third box shows 
+the diff for a highlighted file.  One can also revise the 'last' commit 
+(never done this yet).  A fourth box is for entering and editing commit 
+messages.
+
+-- 
+Terry Jan Reedy
+
+
