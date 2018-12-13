@@ -2477,3 +2477,865 @@ An update: as of the planned Friday cutoff, we still had a few open issues.  Sin
   nad at python.org -- []
 
 
+From vstinner at redhat.com  Tue Dec 11 09:21:31 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 11 Dec 2018 15:21:31 +0100
+Subject: [Python-Dev] Usage of the multiprocessing API and object lifetime
+Message-ID: <CA+3bQGF1cF0=7ncVYSpC0fb0=O+ot4pX4YWb=-7tdvmANDhZxg@mail.gmail.com>
+
+Hi,
+
+tzickel reported a reference cycle bug in multiprocessing which keeps
+threads and processes alive:
+
+   https://bugs.python.org/issue34172
+
+He wrote a fix which has been merged in 3.6, 3.7 and master branches.
+But Pablo Galindo noticed that the fix breaks the following code (he
+added "I found the weird code in the example in several projects."):
+
+    import multiprocessing
+
+    def the_test():
+        print("Begin")
+        for x in multiprocessing.Pool().imap(int,
+                ["4", "3"]):
+            print(x)
+        print("End")
+
+    the_test()
+
+Pablo proposed to add a strong reference to the Pool from
+multiprocessing iterators:
+https://bugs.python.org/issue35378
+
+I blocked his pull request because I see this change as a risk of new
+reference cycles. Since we are close to 3.6 and 3.7 releases, I
+decided to revert the multiprocessing fix instead.
+
+Pablo's issue35378 evolved to add a weak reference in iterators to try
+to detect when the Pool is destroyed: raise an exception from the
+iterator, if possible.
+
+Then a discussion started on how the multiprocessing API is supposed
+to be used and about the lifetime of multiprocessing objects.
+
+I would prefer to make the multiprocessing API stricter: Python
+shouldn't try to guess how long an object is going to live. The API
+user has to *explicitly* release resources.
+
+tzickel noted that the documentations says:
+
+   "When the pool object is garbage collected terminate() will be
+called immediately."
+
+And that multiprocessing rely on the garbage collector to release
+resources, especially using multiprocessing.util.Finalize tool:
+
+    class Finalize(object):
+        '''
+        Class which supports object finalization using weakrefs
+        '''
+        def __init__(self, obj, callback, ...):
+            ...
+            if obj is not None:
+                self._weakref = weakref.ref(obj, self)
+            else:
+                assert exitpriority is not None
+            ...
+            _finalizer_registry[self._key] = self
+
+I propose to start to emit ResourceWarning in Python 3.8 when objects
+are not released explicitly. I wrote a first change to emit
+ResourceWarning in the Pool object:
+
+   https://bugs.python.org/issue35424
+   https://github.com/python/cpython/pull/10974
+
+By the way, I'm surprised that "with pool:" doesn't release all
+resources. An additional "pool.join()" is needed to ensure that all
+resources are released. It's a little bit surprising to have to emit a
+ResourceWarning if join() has not been called, even if the code uses
+"with pool:".
+
+I don't know well the multiprocessing API, so I'm not sure in which
+directions we should go: best effort to support strange legacy code
+with "implicit object lifetime", or become stricter in Python 3.8?
+
+>From a technical point of view, I would prefer to become stricter.
+Relying on the garbage collector means that the code is going to
+behave badly on PyPy which uses a different garbage collector
+implementation :-(
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From solipsis at pitrou.net  Tue Dec 11 10:10:51 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 11 Dec 2018 16:10:51 +0100
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+References: <CA+3bQGF1cF0=7ncVYSpC0fb0=O+ot4pX4YWb=-7tdvmANDhZxg@mail.gmail.com>
+Message-ID: <20181211161051.457a6afa@fsol>
+
+
+Hi,
+
+On Tue, 11 Dec 2018 15:21:31 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> Pablo's issue35378 evolved to add a weak reference in iterators to try
+> to detect when the Pool is destroyed: raise an exception from the
+> iterator, if possible.
+
+That's an ok fix for me.
+
+> By the way, I'm surprised that "with pool:" doesn't release all
+> resources.
+
+That's not a problem, as long as the destructor _does_ release
+resources.
+
+> From a technical point of view, I would prefer to become stricter.
+
+Using "with pool:" is fine, we shouldn't start raising a warning for it.
+
+What you are proposing here starts to smell like an anti-pattern to
+me.  Python _is_ a garbage-collected language, so by definition, there
+_are_ going to be resources that are automatically collected when an
+object disappears.  If I'm allocating a 2GB bytes object, then PyPy may
+delay the deallocation much longer than CPython.  Do you propose we add
+a release() method to bytes objects to avoid this issue (and emit a
+warning for people who don't call release() on bytes objects)?
+
+You can't change the language's philosophy.  We warn about open files
+because those have user-visible consequences (such as unflushed
+buffers, or not being able to delete the file on Windows).  If there is
+no user-visible consequence to not calling join() on a Pool, then we
+shouldn't warn about it.
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Tue Dec 11 10:33:54 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 11 Dec 2018 16:33:54 +0100
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+In-Reply-To: <20181211161051.457a6afa@fsol>
+References: <CA+3bQGF1cF0=7ncVYSpC0fb0=O+ot4pX4YWb=-7tdvmANDhZxg@mail.gmail.com>
+ <20181211161051.457a6afa@fsol>
+Message-ID: <CA+3bQGH8ZdZLQbWHfdu9KhV=d6uw9CfL8DOpj-Kve8o=JNaTWw@mail.gmail.com>
+
+Le mar. 11 d?c. 2018 ? 16:14, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> What you are proposing here starts to smell like an anti-pattern to
+> me.  Python _is_ a garbage-collected language, so by definition, there
+> _are_ going to be resources that are automatically collected when an
+> object disappears.  If I'm allocating a 2GB bytes object, then PyPy may
+> delay the deallocation much longer than CPython.  Do you propose we add
+> a release() method to bytes objects to avoid this issue (and emit a
+> warning for people who don't call release() on bytes objects)?
+
+We are not talking about simple strings, but processes and threads.
+
+> You can't change the language's philosophy.  We warn about open files
+> because those have user-visible consequences (such as unflushed
+> buffers, or not being able to delete the file on Windows).  If there is
+> no user-visible consequence to not calling join() on a Pool, then we
+> shouldn't warn about it.
+
+"user-visible consequences" are that resources are kept alive longer
+than I would expect. When I use a context manager, I expect that
+Python will magically releases everything for me.
+
+For example, "with subprocess.Popen() as popen: ..." ensures that all
+pipes are closed and the process completes, before we exit the block.
+
+Another example, "with open() as fp: ..." ensures that the file
+descriptor is closed before we exit the block.
+
+I modified subprocess.Popen.__del__() in Python 3.6 to emit a
+ResourceWarning if the subprocess is still running, to suggest the
+developer to explicitly manage the resource (ex: call .wait()).
+
+I prefer to explicitly manager resources like processes and threads
+since they can exit with error: killed by a signal, waitpid() failure
+(exit status already read by a different function), etc. I prefer to
+control where the error occurs. I hate when Python logs strange error
+during shutdown. Logging errors during shutdown is too late: for
+example, the log triggers a new error because a stdlib module has been
+cleared. That's why we need hacks like "_warn=warnings.warn" below:
+
+    class Popen(object):
+        ...
+        def __del__(self, _maxsize=sys.maxsize, _warn=warnings.warn):
+            ...
+            if self.returncode is None:
+                _warn("subprocess %s is still running" % self.pid,
+                      ResourceWarning, source=self)
+            ...
+
+Victor
+
+From p.f.moore at gmail.com  Tue Dec 11 10:36:42 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Tue, 11 Dec 2018 15:36:42 +0000
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+In-Reply-To: <20181211161051.457a6afa@fsol>
+References: <CA+3bQGF1cF0=7ncVYSpC0fb0=O+ot4pX4YWb=-7tdvmANDhZxg@mail.gmail.com>
+ <20181211161051.457a6afa@fsol>
+Message-ID: <CACac1F8eRxt0uehzGKAgrFWwMP9Ku0WdeCEL4B6jMx7_V76euQ@mail.gmail.com>
+
+On Tue, 11 Dec 2018 at 15:13, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> On Tue, 11 Dec 2018 15:21:31 +0100
+> Victor Stinner <vstinner at redhat.com> wrote:
+> >
+> > Pablo's issue35378 evolved to add a weak reference in iterators to try
+> > to detect when the Pool is destroyed: raise an exception from the
+> > iterator, if possible.
+>
+> That's an ok fix for me.
+>
+> > By the way, I'm surprised that "with pool:" doesn't release all
+> > resources.
+>
+> That's not a problem, as long as the destructor _does_ release
+> resources.
+>
+> > From a technical point of view, I would prefer to become stricter.
+>
+> Using "with pool:" is fine, we shouldn't start raising a warning for it.
+>
+> What you are proposing here starts to smell like an anti-pattern to
+> me.  Python _is_ a garbage-collected language, so by definition, there
+> _are_ going to be resources that are automatically collected when an
+> object disappears.  If I'm allocating a 2GB bytes object, then PyPy may
+> delay the deallocation much longer than CPython.  Do you propose we add
+> a release() method to bytes objects to avoid this issue (and emit a
+> warning for people who don't call release() on bytes objects)?
+>
+> You can't change the language's philosophy.  We warn about open files
+> because those have user-visible consequences (such as unflushed
+> buffers, or not being able to delete the file on Windows).  If there is
+> no user-visible consequence to not calling join() on a Pool, then we
+> shouldn't warn about it.
+
+I agree with Antoine here.
+
+On Tue, 11 Dec 2018 15:21:31 +0100 Victor Stinner <vstinner at redhat.com> wrote:
+> The API user has to *explicitly* release resources.
+
+That's definitely not Python's philosophy. In Python, users should not
+have to worry about resource management themselves, that's the job of
+the language runtime. We provide the "with" construct so that when
+users *want* to manage resources explicitly (because there is an
+impact outside of the Python runtime's control, for example) then they
+can do so. But leaving resource management to the runtime is
+completely fine.
+
+> I propose to start to emit ResourceWarning in Python 3.8 when objects are not released explicitly.
+
+Strong -1 on this.
+
+> I don't know well the multiprocessing API
+
+Nor do I, but I'm against making fundamental design changes such as
+you propose *without* a deep understanding of the multiprocessing API.
+If you feel sufficiently strongly that the current design is wrong,
+then you should understand the principles and reasons behind that
+design before trying to change it.
+
+Paul
+
+From solipsis at pitrou.net  Tue Dec 11 10:46:35 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 11 Dec 2018 16:46:35 +0100
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+In-Reply-To: <CA+3bQGH8ZdZLQbWHfdu9KhV=d6uw9CfL8DOpj-Kve8o=JNaTWw@mail.gmail.com>
+References: <CA+3bQGF1cF0=7ncVYSpC0fb0=O+ot4pX4YWb=-7tdvmANDhZxg@mail.gmail.com>
+ <20181211161051.457a6afa@fsol>
+ <CA+3bQGH8ZdZLQbWHfdu9KhV=d6uw9CfL8DOpj-Kve8o=JNaTWw@mail.gmail.com>
+Message-ID: <20181211164635.7cc0609c@fsol>
+
+On Tue, 11 Dec 2018 16:33:54 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> Le mar. 11 d?c. 2018 ? 16:14, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> > What you are proposing here starts to smell like an anti-pattern to
+> > me.  Python _is_ a garbage-collected language, so by definition, there
+> > _are_ going to be resources that are automatically collected when an
+> > object disappears.  If I'm allocating a 2GB bytes object, then PyPy may
+> > delay the deallocation much longer than CPython.  Do you propose we add
+> > a release() method to bytes objects to avoid this issue (and emit a
+> > warning for people who don't call release() on bytes objects)?  
+> 
+> We are not talking about simple strings, but processes and threads.
+
+Right, but do those have an impact on the program's correctness, or
+simply on its performance (or memory consumption)?
+
+> "user-visible consequences" are that resources are kept alive longer
+> than I would expect. When I use a context manager, I expect that
+> Python will magically releases everything for me.
+
+I think there's a balancing act here: between "with pool" releasing
+everything, and not taking too much time to execute the __exit__ method.
+Currently, threads and processes may finish quietly between __exit__
+and __del__, without adding significant latencies to your program's
+execution.
+
+> I prefer to explicitly manager resources like processes and threads
+> since they can exit with error: killed by a signal, waitpid() failure
+> (exit status already read by a different function), etc.
+
+But multiprocessing.Pool manages them implicitly _by design_.  People
+who want to manage processes explicitly can use the Process class
+directly ;-)
+
+Regards
+
+Antoine.
+
+From vstinner at redhat.com  Tue Dec 11 11:22:49 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 11 Dec 2018 17:22:49 +0100
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+In-Reply-To: <20181211164635.7cc0609c@fsol>
+References: <CA+3bQGF1cF0=7ncVYSpC0fb0=O+ot4pX4YWb=-7tdvmANDhZxg@mail.gmail.com>
+ <20181211161051.457a6afa@fsol>
+ <CA+3bQGH8ZdZLQbWHfdu9KhV=d6uw9CfL8DOpj-Kve8o=JNaTWw@mail.gmail.com>
+ <20181211164635.7cc0609c@fsol>
+Message-ID: <CA+3bQGGFyWXpAXH1SpMS-eoKq9iWwpdO+Qs9irwKEe2d=GYcqA@mail.gmail.com>
+
+Le mar. 11 d?c. 2018 ? 17:06, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> > We are not talking about simple strings, but processes and threads.
+>
+> Right, but do those have an impact on the program's correctness, or
+> simply on its performance (or memory consumption)?
+
+Performance.
+
+I made a similar change in the socketserver: server_close() now waits
+until child processes (ForkingMixIn) and threads (ThreadingMixIn)
+complete:
+
+* https://bugs.python.org/issue31233
+* https://bugs.python.org/issue31151
+
+I added an opt-in option "block_on_close" to get Python 3.6 behavior
+on server_close():
+
+https://bugs.python.org/issue33540
+
+I don't know if these changes are similar to my questions about
+multiprocessing API, since socketserver didn't expose the list of
+processes/threads and doesn't provide a method to wait until they
+complete. Well... ForkingMixIn has an *undocumented*
+collect_children() which is non-blocking by default (I added a
+keyword-only 'blocking' parameter).
+
+
+Another example: the close() method of an asyncio event loop doesn't
+wait until threads/processes complete:
+
+"asyncio: BaseEventLoop.close() shutdowns the executor without waiting
+causing leak of dangling threads"
+https://bugs.python.org/issue34037
+
+It's unclear to me how this issue should be fixed.
+
+Victor
+
+From solipsis at pitrou.net  Tue Dec 11 11:37:36 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 11 Dec 2018 17:37:36 +0100
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+In-Reply-To: <CA+3bQGGFyWXpAXH1SpMS-eoKq9iWwpdO+Qs9irwKEe2d=GYcqA@mail.gmail.com>
+References: <CA+3bQGF1cF0=7ncVYSpC0fb0=O+ot4pX4YWb=-7tdvmANDhZxg@mail.gmail.com>
+ <20181211161051.457a6afa@fsol>
+ <CA+3bQGH8ZdZLQbWHfdu9KhV=d6uw9CfL8DOpj-Kve8o=JNaTWw@mail.gmail.com>
+ <20181211164635.7cc0609c@fsol>
+ <CA+3bQGGFyWXpAXH1SpMS-eoKq9iWwpdO+Qs9irwKEe2d=GYcqA@mail.gmail.com>
+Message-ID: <20181211173736.266ff61f@fsol>
+
+On Tue, 11 Dec 2018 17:22:49 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> Le mar. 11 d?c. 2018 ? 17:06, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> > > We are not talking about simple strings, but processes and threads.  
+> >
+> > Right, but do those have an impact on the program's correctness, or
+> > simply on its performance (or memory consumption)?  
+> 
+> Performance.
+
+Well, at least we shouldn't emit ResourceWarning for performance issues.
+So if someone used "with pool:", they shouldn't get a ResourceWarning
+afterwards, even if some threads are still not finished running.
+
+> I don't know if these changes are similar to my questions about
+> multiprocessing API, since socketserver didn't expose the list of
+> processes/threads and doesn't provide a method to wait until they
+> complete. Well... ForkingMixIn has an *undocumented*
+> collect_children() which is non-blocking by default (I added a
+> keyword-only 'blocking' parameter).
+
+socketserver is not the same as a multiprocessing Pool *at all*.  The
+usage will be vastly different between the two.  Just because we did
+this change for socketserver is not enough of a reason to do it for
+multiprocessing too.
+
+> Another example: the close() method of an asyncio event loop doesn't
+> wait until threads/processes complete:
+> 
+> "asyncio: BaseEventLoop.close() shutdowns the executor without waiting
+> causing leak of dangling threads"
+> https://bugs.python.org/issue34037
+
+It's not a leak though, it's a resource that's collected a bit later.
+It may annoy the test machinery (and this could be a reason to add
+private or public APIs to help finish the threads), but it shouldn't be
+an actual issue for user code.
+
+Here as well, I think you should be careful not to introduce annoyances
+(unwanted latencies) in user code.
+
+Regards
+
+Antoine.
+
+From pablogsal at gmail.com  Tue Dec 11 12:47:35 2018
+From: pablogsal at gmail.com (Pablo Galindo Salgado)
+Date: Tue, 11 Dec 2018 17:47:35 +0000
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+Message-ID: <CAFjbc8GaV6Hy+UmVNoc57nniNdEAfNAd0agypTtzFq0LFDqq2w@mail.gmail.com>
+
+> > Pablo's issue35378 evolved to add a weak reference in iterators to try
+> > to detect when the Pool is destroyed: raise an exception from the
+> > iterator, if possible.
+
+> That's an ok fix for me.
+
+I am playing with weakreferences inside the iterator and result objects,
+but this may not be enough/a complete solution. For example, take the
+code of ApplyResult.get:
+
+def get(self, timeout=None):
+    if self._pool() is None:   # self._pool is a weakref
+        raise RuntimeError("The pool is dead. Aborting") <--- new code
+    self.wait(timeout)
+
+It can be that the pool is alive when we check for it (self._pool() is
+None) but while
+the code is waiting with no timeout (timeout=None) the pool dies,
+effectively leaving the
+program deadlocked with no error.
+
+--
+
+I agree that misusage of the pool should not be encouraged but in this
+situation the fact that
+this code hangs:
+
+import multiprocessing
+
+for x in multiprocessing.Pool().imap(int, ["4", "3"]):
+    print(x)
+
+
+is a bit worriying because although is incorrect and an abuse of the
+API, users can do this easily with
+no error message other than a misterious hang. I have found this on
+several places and people were
+very confused because usually the interpreter throws some kind of
+error indication. In my humble opinion,
+we should try to avoid hanging as a consequence of the misusage, whatever we do.
+
+Pablo
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181211/5a6ee3b2/attachment.html>
+
+From p.f.moore at gmail.com  Tue Dec 11 13:36:49 2018
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Tue, 11 Dec 2018 18:36:49 +0000
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+In-Reply-To: <CAFjbc8GaV6Hy+UmVNoc57nniNdEAfNAd0agypTtzFq0LFDqq2w@mail.gmail.com>
+References: <CAFjbc8GaV6Hy+UmVNoc57nniNdEAfNAd0agypTtzFq0LFDqq2w@mail.gmail.com>
+Message-ID: <CACac1F_x5SuLrcxKt9f67vz1ZfDRLoRH0ODwYq5j_+WowBGAwg@mail.gmail.com>
+
+On Tue, 11 Dec 2018 at 17:50, Pablo Galindo Salgado <pablogsal at gmail.com> wrote:
+> I agree that misusage of the pool should not be encouraged but in this situation the fact that
+> this code hangs:
+>
+> import multiprocessing
+>
+> for x in multiprocessing.Pool().imap(int, ["4", "3"]):
+>     print(x)
+>
+>
+> is a bit worriying because although is incorrect and an abuse of the API, users can do this easily with
+> no error message other than a misterious hang.
+
+OK, so the first problem here (to me, at least) is that it's not
+obvious *why* this code is incorrect and an abuse of the API. It takes
+a reasonable amount of thinking about the problem to notice that the
+Pool object isn't retained, but the iterator returned from imap is.
+And when the pool is collected, the worker processes are terminated,
+causing the hang, as the worker never sends a result back to the main
+process. But it's not obvious to me why the pool is collected before
+the imap method has completed.
+
+As I understand it, originally the code worked because the pool
+*didn't* call terminate() when collected. Now it does, and we have a
+problem. I'm not *entirely* sure why, if the pool is terminated, the
+wait in the iterator doesn't terminate immediately with some sort of
+"process being waited on died" error, but let's assume there are good
+reasons for that (as I mentioned before, I'm not an expert in
+multiprocessing, so I'm OK with assuming that the original design,
+done by people who *are* experts, is sound :-))
+
+Your original solution would have added a strong reference back to the
+pool from the iterator. At first glance, that seems like a reasonable
+solution to me. Victor is worried about the "risk of new reference
+cycles". But reference cycles are not a problem - we have the cyclic
+GC precisely to deal with them. So I'd like to see a better
+justification for rejecting that solution than "there might be
+reference cycles". But in response to that, you made the iterator have
+a weak reference back to the pool. That's flawed because it doesn't
+prevent the pool being terminated - as you say, the deadlock is still
+present.
+
+> I have found this on several places and people were
+> very confused because usually the interpreter throws some kind of error indication. In my humble opinion,
+> we should try to avoid hanging as a consequence of the misusage, whatever we do.
+
+I agree with this. But that implies to me that we should be holding a
+strong reference to the pool,
+
+As a (somewhat weak) analogy, consider
+
+    for n in map(int, ["1", "2"]):
+        print(n)
+
+That won't fail if the list gets collected, because map keeps a
+reference to the list. My intuition would be that the Pool().imap
+example would hold a reference to the pool on essentially the same
+basis.
+
+The more I think about this, the more I struggle to see Victor's logic
+for rejecting your original solution. And I *certainly* don't see why
+this issue should justify changing the whole API to require users to
+explicitly manage pool lifetimes.
+
+Paul
+
+From pablogsal at gmail.com  Tue Dec 11 14:18:22 2018
+From: pablogsal at gmail.com (Pablo Galindo Salgado)
+Date: Tue, 11 Dec 2018 19:18:22 +0000
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+In-Reply-To: <CACac1F_x5SuLrcxKt9f67vz1ZfDRLoRH0ODwYq5j_+WowBGAwg@mail.gmail.com>
+References: <CAFjbc8GaV6Hy+UmVNoc57nniNdEAfNAd0agypTtzFq0LFDqq2w@mail.gmail.com>
+ <CACac1F_x5SuLrcxKt9f67vz1ZfDRLoRH0ODwYq5j_+WowBGAwg@mail.gmail.com>
+Message-ID: <CAFjbc8EV1iNq_oJ+y3NorDupUef_kaGBVsWhBmxdZ6tRCH5mAw@mail.gmail.com>
+
+>
+> Your original solution would have added a strong reference back to the
+> pool from the iterator. At first glance, that seems like a reasonable
+> solution to me. Victor is worried about the "risk of new reference
+> cycles". But reference cycles are not a problem - we have the cyclic
+> GC precisely to deal with them. So I'd like to see a better
+> justification for rejecting that solution than "there might be
+> reference cycles". But in response to that, you made the iterator have
+> a weak reference back to the pool. That's flawed because it doesn't
+> prevent the pool being terminated - as you say, the deadlock is still
+> present.
+
+
+Just to be clear: I am in favour of the strong reference, but I also
+understand the "danger" (leaking the pool until the pool's generation
+reaches the threshold and the gc runs) and that is the reason I was
+experimenting with the weakreference.
+
+On Tue, 11 Dec 2018 at 18:37, Paul Moore <p.f.moore at gmail.com> wrote:
+
+> On Tue, 11 Dec 2018 at 17:50, Pablo Galindo Salgado <pablogsal at gmail.com>
+> wrote:
+> > I agree that misusage of the pool should not be encouraged but in this
+> situation the fact that
+> > this code hangs:
+> >
+> > import multiprocessing
+> >
+> > for x in multiprocessing.Pool().imap(int, ["4", "3"]):
+> >     print(x)
+> >
+> >
+> > is a bit worriying because although is incorrect and an abuse of the
+> API, users can do this easily with
+> > no error message other than a misterious hang.
+>
+> OK, so the first problem here (to me, at least) is that it's not
+> obvious *why* this code is incorrect and an abuse of the API. It takes
+> a reasonable amount of thinking about the problem to notice that the
+> Pool object isn't retained, but the iterator returned from imap is.
+> And when the pool is collected, the worker processes are terminated,
+> causing the hang, as the worker never sends a result back to the main
+> process. But it's not obvious to me why the pool is collected before
+> the imap method has completed.
+>
+> As I understand it, originally the code worked because the pool
+> *didn't* call terminate() when collected. Now it does, and we have a
+> problem. I'm not *entirely* sure why, if the pool is terminated, the
+> wait in the iterator doesn't terminate immediately with some sort of
+> "process being waited on died" error, but let's assume there are good
+> reasons for that (as I mentioned before, I'm not an expert in
+> multiprocessing, so I'm OK with assuming that the original design,
+> done by people who *are* experts, is sound :-))
+>
+> Your original solution would have added a strong reference back to the
+> pool from the iterator. At first glance, that seems like a reasonable
+> solution to me. Victor is worried about the "risk of new reference
+> cycles". But reference cycles are not a problem - we have the cyclic
+> GC precisely to deal with them. So I'd like to see a better
+> justification for rejecting that solution than "there might be
+> reference cycles". But in response to that, you made the iterator have
+> a weak reference back to the pool. That's flawed because it doesn't
+> prevent the pool being terminated - as you say, the deadlock is still
+> present.
+>
+> > I have found this on several places and people were
+> > very confused because usually the interpreter throws some kind of error
+> indication. In my humble opinion,
+> > we should try to avoid hanging as a consequence of the misusage,
+> whatever we do.
+>
+> I agree with this. But that implies to me that we should be holding a
+> strong reference to the pool,
+>
+> As a (somewhat weak) analogy, consider
+>
+>     for n in map(int, ["1", "2"]):
+>         print(n)
+>
+> That won't fail if the list gets collected, because map keeps a
+> reference to the list. My intuition would be that the Pool().imap
+> example would hold a reference to the pool on essentially the same
+> basis.
+>
+> The more I think about this, the more I struggle to see Victor's logic
+> for rejecting your original solution. And I *certainly* don't see why
+> this issue should justify changing the whole API to require users to
+> explicitly manage pool lifetimes.
+>
+> Paul
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181211/a6a34f65/attachment.html>
+
+From njs at pobox.com  Tue Dec 11 14:48:24 2018
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 11 Dec 2018 11:48:24 -0800
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+In-Reply-To: <20181211161051.457a6afa@fsol>
+References: <CA+3bQGF1cF0=7ncVYSpC0fb0=O+ot4pX4YWb=-7tdvmANDhZxg@mail.gmail.com>
+ <20181211161051.457a6afa@fsol>
+Message-ID: <CAPJVwBkQjZ_rao2WvTaCuZ_4EJ0FK4t9GPiaxcD5+KU8EKkQZw@mail.gmail.com>
+
+On Tue, Dec 11, 2018, 07:13 Antoine Pitrou <solipsis at pitrou.net wrote:
+
+>
+> What you are proposing here starts to smell like an anti-pattern to
+> me.  Python _is_ a garbage-collected language, so by definition, there
+> _are_ going to be resources that are automatically collected when an
+> object disappears.  If I'm allocating a 2GB bytes object, then PyPy may
+> delay the deallocation much longer than CPython.  Do you propose we add
+> a release() method to bytes objects to avoid this issue (and emit a
+> warning for people who don't call release() on bytes objects)?
+>
+
+I know this question is rhetorical, but it does actually have a principled
+answer. Memory is a special resource, because the GC has a complete picture
+of memory use in the program, and if there's a danger of running out of
+memory then the GC will detect that and quickly run a collection before
+anyone has a chance to notice. But it doesn't know about other resources
+like descriptors, threads, processes, etc., so it can't detect or prevent
+unbounded leaks of these resources.
+
+Therefore, in a classic GC-ed language, bytes() doesn't need to be
+explicitly released, but all other kinds of resources do. And according to
+the language spec, Python is a classic GC-ed language.
+
+But things are complicated, because CPython isn't a classic GC-ed language,
+exactly. In practice it's a sort of hybrid RAII/GC language. People
+regularly write programs that on the refcount quick-release semantics for
+correctness. A quick way to check: the only thing a reference cycle does is
+make CPython start acting like an ordinary GC-ed language, so if you're
+worrying about reference cycles, that's a strong sign that you're writing
+CPython, not Python.
+
+This puts libraries like multiprocessing in a tricky position, because some
+users are writing CPython, and some are writing Python, and the two groups
+have contradictory expectations for how resource management should be
+handled, yet somehow we have to make both groups happy.
+
+I don't know what multiprocessing should do here, but I certainly admire
+the problem :-).
+
+-n
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20181211/23a0b8c8/attachment.html>
+
+From nad at python.org  Tue Dec 11 15:07:48 2018
+From: nad at python.org (Ned Deily)
+Date: Tue, 11 Dec 2018 15:07:48 -0500
+Subject: [Python-Dev] 3.7.2rc1 and 3.6.8rc1 cutoffs ahead,
+ last 3.6.x bugfix release!
+In-Reply-To: <58C8B7D8-80EF-46D3-BCBE-4ACC95382D0A@python.org>
+References: <95B9F244-38A8-4E47-8E9D-6DAD289C84A2@python.org>
+ <58C8B7D8-80EF-46D3-BCBE-4ACC95382D0A@python.org>
+Message-ID: <BF1B33A9-4CC7-40FE-810E-5C52509993A1@python.org>
+
+https://discuss.python.org/t/3-7-2rc1-and-3-6-8rc1-cutoffs-ahead-last-3-6-x-bugfix-release/510/3?u=nad
+
+
+OK, thanks to a lot of hard work by many of you, I think we are ready to
+start the manufacturing of **3.7.2rc1** and **3.6.8rc1**.
+
+For the **3.7 branch**, as usual feel free to continue to merge the
+usual changes appropriate for a `bugfix` branch; unless otherwise marked
+and agreed on as a **release blocker** for 3.7.2 final, any new 3.7
+merges will be released in 3.7.3.
+
+For the **3.6 branch**, as announced 3.6.8 is planned to be **the last
+bugfix release** for the 3.6 series; future 3.6.x releases will be as
+needed and contain **only security fixes** and source only. Of course,
+if any release blocker regressions show up after 3.6.8rc1, we will
+consider merging fixes for them. This means that, **as of now, the 3.6
+branch is no longer open to normal bugfixes**, only security fixes and
+release blocker regressions fixes and only with the approval of the
+release manager. Therefore, as we have done with previous branches
+moving to security-fix mode, merges to the 3.6 branch on the `cpython`
+GitHub repo are now restricted to the release managers. If you feel a
+change to 3.6 is needed either because it is a **release blocker
+regression** in 3.6.8 or because it is a **security issue**, please
+ensure there is a bpo issue describing the problem, mark it as **release
+blocker** priority, and submit the necessary PR. At some point, on or
+after the 3.6.8 release, we will be going through the open 3.6 PRs, open
+PRs with the `needs backport to 3.6` label, and bpo issues marked for
+3.6 and updating or closing them as needed. **Please do not mark new PRs
+with the** `needs backport to 3.6` **label** unless you feel the
+proposed change meets one of the criteria above.
+
+Thanks for your help!
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From solipsis at pitrou.net  Tue Dec 11 17:39:48 2018
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 11 Dec 2018 23:39:48 +0100
+Subject: [Python-Dev] Usage of the multiprocessing API and object
+ lifetime
+In-Reply-To: <CAPJVwBkQjZ_rao2WvTaCuZ_4EJ0FK4t9GPiaxcD5+KU8EKkQZw@mail.gmail.com>
+References: <CA+3bQGF1cF0=7ncVYSpC0fb0=O+ot4pX4YWb=-7tdvmANDhZxg@mail.gmail.com>
+ <20181211161051.457a6afa@fsol>
+ <CAPJVwBkQjZ_rao2WvTaCuZ_4EJ0FK4t9GPiaxcD5+KU8EKkQZw@mail.gmail.com>
+Message-ID: <20181211233948.4da9ed19@fsol>
+
+On Tue, 11 Dec 2018 11:48:24 -0800
+Nathaniel Smith <njs at pobox.com> wrote:
+> 
+> I know this question is rhetorical, but it does actually have a principled
+> answer. Memory is a special resource, because the GC has a complete picture
+> of memory use in the program, and if there's a danger of running out of
+> memory then the GC will detect that and quickly run a collection before
+> anyone has a chance to notice. But it doesn't know about other resources
+> like descriptors, threads, processes, etc., so it can't detect or prevent
+> unbounded leaks of these resources.
+> 
+> Therefore, in a classic GC-ed language, bytes() doesn't need to be
+> explicitly released, but all other kinds of resources do.
+
+I would disagree here.  You may /like/ to release other kinds of
+resources explicitly, but you don't /need/ to.  It is actually obvious
+for things such as mutexes which, while the GC doesn't know about
+them, are small system resources.  And nobody's asking Python to add a
+method to deterministically destroy the mutex that's inside a Lock
+object (*).
+(also, calling Lock.release() already does something else :-))
+
+Arguably, things are more complicated for things like threads and
+processes.  But here we are talking not about threads and processes
+themselves, but about an abstraction (the Pool object) that
+is /designed/ to hide threads and processes in favour of higher level
+semantics organized around the idea of task submission.  One important
+characteristic here is that, when the pool is idle, those threads and
+processes aren't holding important resources (user-allocated resources)
+alive (**).  The idle pool just has a bookkeeping overhead.
+
+Usually, people don't really care how exactly a Pool manages its helper
+threads and worker processes (it has both at the same time), and they
+are fine with the internal bookkeeping overhead.  For the people who
+care (***), the Pool.join() method is there to be called.
+
+(*) actually, it's not a mutex, it's a semaphore
+
+(**) unless the user sets a global variable from an executing
+task, which I think of as an anti-pattern :-)
+
+(***) for example because they used the anti-pattern above :-)
+
+Regards
+
+Antoine.
+
+From nad at python.org  Tue Dec 11 22:14:04 2018
+From: nad at python.org (Ned Deily)
+Date: Tue, 11 Dec 2018 22:14:04 -0500
+Subject: [Python-Dev] [RELEASE] Python 3.7.2rc1 and 3.6.8rc1 now available
+ for testing
+Message-ID: <091E715F-EC84-4796-B193-D96414F4D62E@python.org>
+
+https://blog.python.org/2018/12/python-372rc1-and-368rc1-now-available.html
+
+
+Python 3.7.2rc1 and 3.6.8rc1 are now available. 3.7.2rc1 is the release
+preview of the next maintenance release of Python 3.7, the latest
+feature release of Python. 3.6.8rc1 is the release preview of the next
+and last maintenance release of Python 3.6, the previous feature
+release of Python. Assuming no critical problems are found prior to
+2018-12-20, no code changes are planned between these release
+candidates and the final releases. These release candidates are
+intended to give you the opportunity to test the new security and bug
+fixes in 3.7.2 and 3.6.8. We strongly encourage you to test your
+projects and report issues found to bugs.python.org as soon as
+possible. Please keep in mind that these are preview releases and,
+thus, their use is not recommended for production environments.
+
+You can find these releases and more information here:
+    https://www.python.org/downloads/release/python-372rc1/
+    https://www.python.org/downloads/release/python-368rc1/
+
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
