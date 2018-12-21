@@ -3961,3 +3961,297 @@ Antoine.
 
 
 
+From storchaka at gmail.com  Wed Dec 19 04:14:41 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Wed, 19 Dec 2018 11:14:41 +0200
+Subject: [Python-Dev] 3.7.2rc1 and 3.6.8rc1 cutoffs ahead,
+ last 3.6.x bugfix release!
+In-Reply-To: <95B9F244-38A8-4E47-8E9D-6DAD289C84A2@python.org>
+References: <95B9F244-38A8-4E47-8E9D-6DAD289C84A2@python.org>
+Message-ID: <033423e6-5918-24e1-c5a5-daf829a3e1ef@gmail.com>
+
+04.12.18 10:42, Ned Deily ????:
+> A reminder: as previously announced, 3.6.8 is planned to be the last bugfix release of the 3.6 series.  Python 3.6.0 was released on 2016-12-23, so by the time 3.6.8 is released, 3.6.x will have been in bugfix mode almost exactly 2 years.  When a new feature release is made and enters "bugfix" mode, our policy has long been to continue to maintain the previous bugfix branch for at least one more release and then move that branch to "security fix only" mode.  3.7.0 (and 3.6.6) was released nearly six months ago and, with the release of 3.6.8, there will have been two additional 3.6.x bugfix releases since then.  So, barring any showstopper issues that might arise, the upcoming 3.6.8rc1 is your last chance to make bugfix changes for 3.6.x.  Following the successful release of 3.6.8, only sec
+>   urity fixes will be accepted for the 3.6 branch and future 3.6.x releases will be source-only and scheduled as needed; no further binary installers will be produced for 3.6.  Refer to the Dev Guide
+>   sections and release PEPs linked below for more information.
+
+Can we revise our policy and prolong the bug fixing mode for 3.6? 3.6 is 
+the default Python in Ubuntu 18.04 LTS and RHEL 8. And due to several 
+important syntax features it can be a minimal required version for long 
+time.
+
+I merged several PRs before releasing 3.6.8rc1, but there are still less 
+trivial bugfix PRs which need more time for reviewing, and there are 
+bugs for which no PR is created yet. There is also a number of 
+documentation PRs. I propose to allow backporting bugfixes to 3.6 if 
+they do not need excessive work, but stop to fix 3.6 only bugs. After 
+migrating to GitHab, backporting became less painful, most of backports 
+to 3.6 can be done automatically from master or from 3.7.
+
+
+From cstratak at redhat.com  Wed Dec 19 05:28:01 2018
+From: cstratak at redhat.com (Charalampos Stratakis)
+Date: Wed, 19 Dec 2018 05:28:01 -0500 (EST)
+Subject: [Python-Dev] 3.7.2rc1 and 3.6.8rc1 cutoffs ahead,
+ last 3.6.x bugfix release!
+In-Reply-To: <033423e6-5918-24e1-c5a5-daf829a3e1ef@gmail.com>
+References: <95B9F244-38A8-4E47-8E9D-6DAD289C84A2@python.org>
+ <033423e6-5918-24e1-c5a5-daf829a3e1ef@gmail.com>
+Message-ID: <1109428671.99278808.1545215281839.JavaMail.zimbra@redhat.com>
+
+
+
+----- Original Message -----
+> From: "Serhiy Storchaka" <storchaka at gmail.com>
+> To: python-dev at python.org
+> Cc: python-committers at python.org
+> Sent: Wednesday, December 19, 2018 10:14:41 AM
+> Subject: Re: [Python-Dev] 3.7.2rc1 and 3.6.8rc1 cutoffs ahead, last 3.6.x bugfix release!
+> 
+> 04.12.18 10:42, Ned Deily ????:
+> > A reminder: as previously announced, 3.6.8 is planned to be the last bugfix
+> > release of the 3.6 series.  Python 3.6.0 was released on 2016-12-23, so by
+> > the time 3.6.8 is released, 3.6.x will have been in bugfix mode almost
+> > exactly 2 years.  When a new feature release is made and enters "bugfix"
+> > mode, our policy has long been to continue to maintain the previous bugfix
+> > branch for at least one more release and then move that branch to
+> > "security fix only" mode.  3.7.0 (and 3.6.6) was released nearly six
+> > months ago and, with the release of 3.6.8, there will have been two
+> > additional 3.6.x bugfix releases since then.  So, barring any showstopper
+> > issues that might arise, the upcoming 3.6.8rc1 is your last chance to make
+> > bugfix changes for 3.6.x.  Following the successful release of 3.6.8, only
+> > sec
+> >   urity fixes will be accepted for the 3.6 branch and future 3.6.x releases
+> >   will be source-only and scheduled as needed; no further binary
+> >   installers will be produced for 3.6.  Refer to the Dev Guide
+> >   sections and release PEPs linked below for more information.
+> 
+> Can we revise our policy and prolong the bug fixing mode for 3.6? 3.6 is
+> the default Python in Ubuntu 18.04 LTS and RHEL 8. And due to several
+> important syntax features it can be a minimal required version for long
+> time.
+> 
+
+That would actually be a great move, even if it doesn't happen, thanks for
+considering it.
+
+> I merged several PRs before releasing 3.6.8rc1, but there are still less
+> trivial bugfix PRs which need more time for reviewing, and there are
+> bugs for which no PR is created yet. There is also a number of
+> documentation PRs. I propose to allow backporting bugfixes to 3.6 if
+> they do not need excessive work, but stop to fix 3.6 only bugs. After
+> migrating to GitHab, backporting became less painful, most of backports
+> to 3.6 can be done automatically from master or from 3.7.
+> 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/cstratak%40redhat.com
+> 
+
+-- 
+Regards,
+
+Charalampos Stratakis
+Software Engineer
+Python Maintenance Team, Red Hat
+
+From vstinner at redhat.com  Wed Dec 19 09:01:08 2018
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 19 Dec 2018 15:01:08 +0100
+Subject: [Python-Dev] 3.7.2rc1 and 3.6.8rc1 cutoffs ahead,
+ last 3.6.x bugfix release!
+In-Reply-To: <1109428671.99278808.1545215281839.JavaMail.zimbra@redhat.com>
+References: <95B9F244-38A8-4E47-8E9D-6DAD289C84A2@python.org>
+ <033423e6-5918-24e1-c5a5-daf829a3e1ef@gmail.com>
+ <1109428671.99278808.1545215281839.JavaMail.zimbra@redhat.com>
+Message-ID: <CA+3bQGFRTqttLCRU-5TfKRWpoTpBGXhe3i8oGu4DoVdtPo6aPA@mail.gmail.com>
+
+Hi,
+
+I am working in the Red Hat "Python-maint" team which is maintaining
+Python 3.6 as the main Python interpreter in RHEL 8, which will likely
+be supported for at least 10 years. And we have been supporting Python
+2.7 in RHEL 7. So obviously, being able to benefit of the upstream
+effort and infra to have a Python 3.6 Long Time Support (LTS) would
+help us :-)
+
+The question is more who else would benefit from that and is it worth
+it? I don't want Python upstream to pay the price of the maintenance
+burden of RHEL 8 lifecycle. For example, supporting a version means to
+have a working CI (Travis CI, AppVeyor, VSTS, buildbots). I would
+suggest to only support a very few platforms for the LTS. I propose to
+restrict to Linux. It doesn't mean to break other platforms on
+purpose, just to restrict CI to the bare minimum. If Microsoft is
+interested, we can also support Windows as well.
+
+RHEL 7 is based on Python 2.7.5 which has been released in 2013 (5
+years ago) and there are 150 patches on top of it: it means that
+around 30 patches are added per year. I would suggest to have a very
+strict policy on which changes are backported into 3.6: only the most
+critical bugfixes, but all security fixes obviously.
+
+If we extend Python 3.6 lifetime, do we need a new release manager
+when the initial lifetime (usually 5 years) ends? Benjamin Peterson
+accepted to be the Python 2.7 release manager for 10 years (instead of
+5 years initially). We could ask Ned Deily about Python 3.6 LTS :-) We
+would need a group of people reviewing individual 3.6 pull requests to
+decide to pick them or not. I would volunteer to review these PRs and
+merge them.
+
+The idea isn't new, Nick Coghlan proposed a "ELPython" last year:
+
+   https://github.com/elpython/elpython-meta
+
+The Linux kernel also have multiple LTS kernel which are supported
+longer than usual releases: they are now supported for 6 years. See
+"Longterm" at:
+
+   https://www.kernel.org/category/releases.html
+
+Victor
+--
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From chris.barker at noaa.gov  Wed Dec 19 12:01:15 2018
+From: chris.barker at noaa.gov (Chris Barker - NOAA Federal)
+Date: Wed, 19 Dec 2018 09:01:15 -0800
+Subject: [Python-Dev] 3.7.2rc1 and 3.6.8rc1 cutoffs ahead,
+ last 3.6.x bugfix release!
+In-Reply-To: <033423e6-5918-24e1-c5a5-daf829a3e1ef@gmail.com>
+References: <95B9F244-38A8-4E47-8E9D-6DAD289C84A2@python.org>
+ <033423e6-5918-24e1-c5a5-daf829a3e1ef@gmail.com>
+Message-ID: <CALGmxEJ83C53C0mMQNAH1752cB3AiDdhmxwQktWUDeDVXQV3QQ@mail.gmail.com>
+
+I?m all for extending the life of 3.6, it sure feels recent to me!
+
+> 3.6 is the default Python in Ubuntu 18.04 LTS and RHEL 8. And due to several important syntax features it can be a minimal required version for long time.
+
+Which is a good argument for why we may not need longer term support
+for 3.5, but minimum requirement doesn?t mean we need to support it
+longer term, as the alternative is to upgrade to 3.7 ? and most code
+that works on 3.6 will work on 3.7, yes?
+
+That is ? if you want recent bug fixes, upgrade your Python.
+
+If you have a working 3.6 based system, you only need security fixes, yes?
+
+I fully understand the need to keep a working older system up to date
+with security fixes, but I?ve always been confused by the desire to
+run an older base system, while still requiring newer subsystems,
+whether that?s an older Linux with a newer python, or and older python
+with a newer package.
+
+-CHB
+
+
+
+
+
+
+>
+> I merged several PRs before releasing 3.6.8rc1, but there are still less trivial bugfix PRs which need more time for reviewing, and there are bugs for which no PR is created yet. There is also a number of documentation PRs. I propose to allow backporting bugfixes to 3.6 if they do not need excessive work, but stop to fix 3.6 only bugs. After migrating to GitHab, backporting became less painful, most of backports to 3.6 can be done automatically from master or from 3.7.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/chris.barker%40noaa.gov
+
+From storchaka at gmail.com  Wed Dec 19 12:42:29 2018
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Wed, 19 Dec 2018 19:42:29 +0200
+Subject: [Python-Dev] 3.7.2rc1 and 3.6.8rc1 cutoffs ahead,
+ last 3.6.x bugfix release!
+In-Reply-To: <CALGmxEJ83C53C0mMQNAH1752cB3AiDdhmxwQktWUDeDVXQV3QQ@mail.gmail.com>
+References: <95B9F244-38A8-4E47-8E9D-6DAD289C84A2@python.org>
+ <033423e6-5918-24e1-c5a5-daf829a3e1ef@gmail.com>
+ <CALGmxEJ83C53C0mMQNAH1752cB3AiDdhmxwQktWUDeDVXQV3QQ@mail.gmail.com>
+Message-ID: <pvdvq3$asi$1@blaine.gmane.org>
+
+19.12.18 19:01, Chris Barker - NOAA Federal via Python-Dev ????:
+>> 3.6 is the default Python in Ubuntu 18.04 LTS and RHEL 8. And due to several important syntax features it can be a minimal required version for long time.
+> 
+> Which is a good argument for why we may not need longer term support
+> for 3.5, but minimum requirement doesn?t mean we need to support it
+> longer term, as the alternative is to upgrade to 3.7 ? and most code
+> that works on 3.6 will work on 3.7, yes?
+
+No. There were several minor potentially breaking changes. The most 
+famous one is making "async" a keyword. Different libraries were broken 
+for different causes, and the end user code can be broken too. AFAIK the 
+popular package tensorflow is not 3.7 compatible for today.
+
+
+From nad at python.org  Wed Dec 19 15:10:02 2018
+From: nad at python.org (Ned Deily)
+Date: Wed, 19 Dec 2018 15:10:02 -0500
+Subject: [Python-Dev] 3.7.2rc1 and 3.6.8rc1 cutoffs ahead,
+ last 3.6.x bugfix release!
+In-Reply-To: <pvdvq3$asi$1@blaine.gmane.org>
+References: <95B9F244-38A8-4E47-8E9D-6DAD289C84A2@python.org>
+ <033423e6-5918-24e1-c5a5-daf829a3e1ef@gmail.com>
+ <CALGmxEJ83C53C0mMQNAH1752cB3AiDdhmxwQktWUDeDVXQV3QQ@mail.gmail.com>
+ <pvdvq3$asi$1@blaine.gmane.org>
+Message-ID: <A088E791-2348-46B5-AA31-9B16644D96A5@python.org>
+
+On Dec 19, 2018, at 12:42, Serhiy Storchaka <storchaka at gmail.com> wrote:
+> 19.12.18 19:01, Chris Barker - NOAA Federal via Python-Dev ????:
+>>> [ extending 3.6 bugfix release phase? ]
+>> [...]
+> [...]
+
+FYI, the discussion of this topic has proceeded to a conclusion on the python-committers mailing list.  TL;DR we are not going to change our plans now.
+
+Thanks for all the thoughtful comments!
+
+
+https://mail.python.org/pipermail/python-committers/2018-December/006487.html
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From tjreedy at udel.edu  Wed Dec 19 17:30:06 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 19 Dec 2018 17:30:06 -0500
+Subject: [Python-Dev] 3.7.2rc1 and 3.6.8rc1 cutoffs ahead,
+ last 3.6.x bugfix release!
+In-Reply-To: <033423e6-5918-24e1-c5a5-daf829a3e1ef@gmail.com>
+References: <95B9F244-38A8-4E47-8E9D-6DAD289C84A2@python.org>
+ <033423e6-5918-24e1-c5a5-daf829a3e1ef@gmail.com>
+Message-ID: <pveglc$c29$1@blaine.gmane.org>
+
+On 12/19/2018 4:14 AM, Serhiy Storchaka wrote:
+I propose to allow backporting bugfixes to 3.6 if
+> they do not need excessive work, but stop to fix 3.6 only bugs.
+
+I think this would need a PEP.
+
+> After migrating to GitHab, backporting became less painful,
+
+Before GitHub, we forward ported.  For me, for idlelib, that was faster, 
+though the current automation makes it about equal effort.  The main 
+pain point for non-IDLE patches was NEWS conflicts, which have been 
+eliminated.
+
+> most of backports to 3.6 can be done automatically from master or from 3.7.
+
+That is true in part because all bugfixes are backported, so that most 
+of the code in most modules is the same in 3.7 and 3.6.  As soon as some 
+bugfixes are not backported, nearby bug fixes start getting conflicts 
+they would not have gotten otherwise.
+
+For idlelib, I know that if some PRs are not backported (which currently 
+*is* trivial), then it will cease being trivial for every patch.  As it 
+is, 2 PRs that touch the same module can conflict, so that one requires 
+editing when the other is merged.  I often delay writing a followup PR 
+until the first is merged.
+
+-- 
+Terry Jan Reedy
+
+
