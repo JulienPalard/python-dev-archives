@@ -4255,3 +4255,480 @@ until the first is merged.
 Terry Jan Reedy
 
 
+From J.Demeyer at UGent.be  Fri Dec 21 06:26:22 2018
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 21 Dec 2018 12:26:22 +0100
+Subject: [Python-Dev] Windows porting: request to review PR #880
+Message-ID: <5C1CCDDE.3030309@UGent.be>
+
+Can somebody please review https://github.com/python/cpython/pull/880
+
+That addresses a severe problem on Windows making it impossible to build 
+any C++ extension module with some compilers.
+
+From tjreedy at udel.edu  Fri Dec 21 11:29:30 2018
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Fri, 21 Dec 2018 11:29:30 -0500
+Subject: [Python-Dev] Windows porting: request to review PR #880
+In-Reply-To: <5C1CCDDE.3030309@UGent.be>
+References: <5C1CCDDE.3030309@UGent.be>
+Message-ID: <pvj498$89i$1@blaine.gmane.org>
+
+On 12/21/2018 6:26 AM, Jeroen Demeyer wrote:
+> Can somebody please review https://github.com/python/cpython/pull/880
+> 
+> That addresses a severe problem on Windows making it impossible to build 
+> any C++ extension module with some compilers.
+Issue is https://bugs.python.org/issue11566.  Someone needs to check 
+whether it applies to 3.7 and/or 3.8.
+
+-- 
+Terry Jan Reedy
+
+
+From status at bugs.python.org  Fri Dec 21 12:11:05 2018
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 21 Dec 2018 18:11:05 +0100 (CET)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20181221171105.976F21532F6@psf.upfronthosting.co.za>
+
+
+ACTIVITY SUMMARY (2018-12-14 - 2018-12-21)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6896 (-13)
+  closed 40407 (+67)
+  total  47303 (+54)
+
+Open issues with patches: 2737 
+
+
+Issues opened (31)
+==================
+
+#35500: Align expected and actual calls on mock.assert_called_with err
+https://bugs.python.org/issue35500  opened by xtreak
+
+#35501: "make coverage" should not leak coverage compiler flags to thi
+https://bugs.python.org/issue35501  opened by vstinner
+
+#35502: Memory leak in xml.etree.ElementTree.iterparse
+https://bugs.python.org/issue35502  opened by jess.j
+
+#35503: os.path.islink() works with cygwin installation but not python
+https://bugs.python.org/issue35503  opened by bward
+
+#35505: Test test_imaplib fail in test_imap4_host_default_value
+https://bugs.python.org/issue35505  opened by Petr Stupka
+
+#35507: multiprocessing: seg fault when creating RawArray from numpy c
+https://bugs.python.org/issue35507  opened by sh37211
+
+#35512: patch.dict resolves in_dict eagerly (should be late resolved)
+https://bugs.python.org/issue35512  opened by jason.coombs
+
+#35514: Docs on reference count detail. enhancement.
+https://bugs.python.org/issue35514  opened by bombs-kim
+
+#35517: selector.EpollSelector: add new parameter to support EPOLLEXCL
+https://bugs.python.org/issue35517  opened by Manjusaka
+
+#35518: test_timeout uses blackhole.snakebite.net domain which doesn't
+https://bugs.python.org/issue35518  opened by vstinner
+
+#35520: Python won't build with dtrace enabled on some systems.
+https://bugs.python.org/issue35520  opened by kulikjak
+
+#35524: using/windows launcher image might be deprecated
+https://bugs.python.org/issue35524  opened by seluj78
+
+#35525: Incorrect keyword name in NNTP.starttls() documentation
+https://bugs.python.org/issue35525  opened by cmcp22
+
+#35527: Make fields selectively immutable in dataclasses
+https://bugs.python.org/issue35527  opened by rhettinger
+
+#35528: [DOC] [LaTeX] Sphinx 2.0 uses GNU FreeFont as default for xela
+https://bugs.python.org/issue35528  opened by jfbu
+
+#35530: Counter-intuitive logging API
+https://bugs.python.org/issue35530  opened by porton
+
+#35533: argparse standard error usage for exit / error
+https://bugs.python.org/issue35533  opened by philiprowlands
+
+#35534: SIGSEGV in stackdepth_walk
+https://bugs.python.org/issue35534  opened by gozdal
+
+#35535: time.strptime() unexpectedly gives the same result for %U and 
+https://bugs.python.org/issue35535  opened by Paul Keating
+
+#35536: Calling built-in locals() and globals() in C++ leads to System
+https://bugs.python.org/issue35536  opened by ???????????? ??????????????????
+
+#35537: use os.posix_spawn in subprocess
+https://bugs.python.org/issue35537  opened by nanjekyejoannah
+
+#35539: Cannot properly close terminated process
+https://bugs.python.org/issue35539  opened by hniksic
+
+#35540: dataclasses.asdict breaks with defaultdict fields
+https://bugs.python.org/issue35540  opened by wrmsr
+
+#35545: asyncio.base_events.create_connection doesn't handle scoped IP
+https://bugs.python.org/issue35545  opened by maxifree
+
+#35546: String formatting produces incorrect result with left-aligned 
+https://bugs.python.org/issue35546  opened by serhiy.storchaka
+
+#35547: email.parser / email.policy does not correctly handle multiple
+https://bugs.python.org/issue35547  opened by mjpieters
+
+#35548: memoryview needlessly (?) requires represented object to be ha
+https://bugs.python.org/issue35548  opened by Kentzo
+
+#35549: Add partial_match: bool = False argument to unicodedata.lookup
+https://bugs.python.org/issue35549  opened by rominf
+
+#35550: Some define guards for Solaris are wrong
+https://bugs.python.org/issue35550  opened by kulikjak
+
+#35551: Encoding and alias issues
+https://bugs.python.org/issue35551  opened by blkserene
+
+#35552: Do not read memory past the specified limit in PyUnicode_FromF
+https://bugs.python.org/issue35552  opened by serhiy.storchaka
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#35552: Do not read memory past the specified limit in PyUnicode_FromF
+https://bugs.python.org/issue35552
+
+#35551: Encoding and alias issues
+https://bugs.python.org/issue35551
+
+#35550: Some define guards for Solaris are wrong
+https://bugs.python.org/issue35550
+
+#35549: Add partial_match: bool = False argument to unicodedata.lookup
+https://bugs.python.org/issue35549
+
+#35548: memoryview needlessly (?) requires represented object to be ha
+https://bugs.python.org/issue35548
+
+#35540: dataclasses.asdict breaks with defaultdict fields
+https://bugs.python.org/issue35540
+
+#35539: Cannot properly close terminated process
+https://bugs.python.org/issue35539
+
+#35533: argparse standard error usage for exit / error
+https://bugs.python.org/issue35533
+
+#35528: [DOC] [LaTeX] Sphinx 2.0 uses GNU FreeFont as default for xela
+https://bugs.python.org/issue35528
+
+#35525: Incorrect keyword name in NNTP.starttls() documentation
+https://bugs.python.org/issue35525
+
+#35520: Python won't build with dtrace enabled on some systems.
+https://bugs.python.org/issue35520
+
+#35514: Docs on reference count detail. enhancement.
+https://bugs.python.org/issue35514
+
+#35512: patch.dict resolves in_dict eagerly (should be late resolved)
+https://bugs.python.org/issue35512
+
+#35505: Test test_imaplib fail in test_imap4_host_default_value
+https://bugs.python.org/issue35505
+
+#35501: "make coverage" should not leak coverage compiler flags to thi
+https://bugs.python.org/issue35501
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#35552: Do not read memory past the specified limit in PyUnicode_FromF
+https://bugs.python.org/issue35552
+
+#35550: Some define guards for Solaris are wrong
+https://bugs.python.org/issue35550
+
+#35545: asyncio.base_events.create_connection doesn't handle scoped IP
+https://bugs.python.org/issue35545
+
+#35520: Python won't build with dtrace enabled on some systems.
+https://bugs.python.org/issue35520
+
+#35517: selector.EpollSelector: add new parameter to support EPOLLEXCL
+https://bugs.python.org/issue35517
+
+#35502: Memory leak in xml.etree.ElementTree.iterparse
+https://bugs.python.org/issue35502
+
+#35498: Parents objects in pathlib.Path don't support slices as __geti
+https://bugs.python.org/issue35498
+
+#35494: Inaccurate error message for f-string
+https://bugs.python.org/issue35494
+
+#35488: pathlib Path.match does not behave as described
+https://bugs.python.org/issue35488
+
+#35479: multiprocessing.Pool.join() always takes at least 100 ms
+https://bugs.python.org/issue35479
+
+#35478: multiprocessing: ApplyResult.get() hangs if the pool is termin
+https://bugs.python.org/issue35478
+
+#35470: A deadly decref in _PyImport_FindExtensionObjectEx()
+https://bugs.python.org/issue35470
+
+#35466: Use a linked list for the ceval pending calls.
+https://bugs.python.org/issue35466
+
+#35459: Use PyDict_GetItemWithError() instead of PyDict_GetItem()
+https://bugs.python.org/issue35459
+
+#35455: Solaris thread_time doesn't work with current implementation
+https://bugs.python.org/issue35455
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#35517: selector.EpollSelector: add new parameter to support EPOLLEXCL
+https://bugs.python.org/issue35517  18 msgs
+
+#35537: use os.posix_spawn in subprocess
+https://bugs.python.org/issue35537  17 msgs
+
+#35530: Counter-intuitive logging API
+https://bugs.python.org/issue35530   9 msgs
+
+#35502: Memory leak in xml.etree.ElementTree.iterparse
+https://bugs.python.org/issue35502   7 msgs
+
+#35485: Mac: tkinter windows turn black while resized
+https://bugs.python.org/issue35485   5 msgs
+
+#35524: using/windows launcher image might be deprecated
+https://bugs.python.org/issue35524   5 msgs
+
+#29707: os.path.ismount() always returns false for mount --bind on sam
+https://bugs.python.org/issue29707   4 msgs
+
+#35518: test_timeout uses blackhole.snakebite.net domain which doesn't
+https://bugs.python.org/issue35518   4 msgs
+
+#35547: email.parser / email.policy does not correctly handle multiple
+https://bugs.python.org/issue35547   4 msgs
+
+#19974: tarfile doesn't overwrite symlink by directory
+https://bugs.python.org/issue19974   3 msgs
+
+
+
+Issues closed (63)
+==================
+
+#10320: printf %qd is nonstandard
+https://bugs.python.org/issue10320  closed by serhiy.storchaka
+
+#10496: Python startup should not require passwd entry
+https://bugs.python.org/issue10496  closed by vstinner
+
+#16516: argparse types (and actions) must be hashable
+https://bugs.python.org/issue16516  closed by gvanrossum
+
+#18085: Verifying refcounts.dat
+https://bugs.python.org/issue18085  closed by serhiy.storchaka
+
+#18799: Resurrect and fix test_404 in Lib/test/test_xmlrpc.py
+https://bugs.python.org/issue18799  closed by serhiy.storchaka
+
+#20164: Undocumented KeyError from os.path.expanduser
+https://bugs.python.org/issue20164  closed by serhiy.storchaka
+
+#23057: [Windows] asyncio: support signal handlers on Windows (feature
+https://bugs.python.org/issue23057  closed by asvetlov
+
+#32077: Documentation: Some Unicode object functions don't indicate wh
+https://bugs.python.org/issue32077  closed by serhiy.storchaka
+
+#32706: test_check_hostname() of test_ftplib started to fail randomly
+https://bugs.python.org/issue32706  closed by vstinner
+
+#33306: Improving SyntaxError for unmatched parentheses
+https://bugs.python.org/issue33306  closed by serhiy.storchaka
+
+#34238: When BROWSER is set on Mac webbrowser.register_standard_browse
+https://bugs.python.org/issue34238  closed by serhiy.storchaka
+
+#34589: Py_Initialize() and Py_Main() should not enable C locale coerc
+https://bugs.python.org/issue34589  closed by ncoghlan
+
+#34686: Add `-r`, as opposed to `-R` to Python core interpreter
+https://bugs.python.org/issue34686  closed by lepaperwan
+
+#34833: [CI] Azure Pipeline: Initialize Agent failed
+https://bugs.python.org/issue34833  closed by vstinner
+
+#35012: [3.7] test_multiprocessing_spawn hangs randomly on AppVeyor
+https://bugs.python.org/issue35012  closed by vstinner
+
+#35238: Alleviate memory reservation of fork_exec in subprocess.Popen 
+https://bugs.python.org/issue35238  closed by oesteban
+
+#35257: Avoid leaking linker flags into distutils: add PY_LDFLAGS_NODI
+https://bugs.python.org/issue35257  closed by ned.deily
+
+#35259: Py_FinalizeEx unconditionally exists in Py_LIMITED_API
+https://bugs.python.org/issue35259  closed by serhiy.storchaka
+
+#35266: Add _PyPreConfig and rework _PyCoreConfig and _PyMainInterpret
+https://bugs.python.org/issue35266  closed by vstinner
+
+#35268: Windows 10 asyncio reading continously stdin and stdout Stockf
+https://bugs.python.org/issue35268  closed by cheryl.sabella
+
+#35337: Check index in PyTuple_GET_ITEM/PyTuple_SET_ITEM in debug mode
+https://bugs.python.org/issue35337  closed by vstinner
+
+#35348: Problems with handling the file command output in platform.arc
+https://bugs.python.org/issue35348  closed by vstinner
+
+#35368: [2.7] Make PyMem_Malloc() thread-safe in debug mode
+https://bugs.python.org/issue35368  closed by vstinner
+
+#35394: Add __slots__ = () to asyncio protocols
+https://bugs.python.org/issue35394  closed by asvetlov
+
+#35412: test_future4 ran no test
+https://bugs.python.org/issue35412  closed by vstinner
+
+#35415: fileno argument to socket.socket is not validated
+https://bugs.python.org/issue35415  closed by asvetlov
+
+#35424: multiprocessing.Pool: emit ResourceWarning
+https://bugs.python.org/issue35424  closed by vstinner
+
+#35441: Dead (and buggy) code due to mishandling of PyList_SetItem() e
+https://bugs.python.org/issue35441  closed by serhiy.storchaka
+
+#35450: venv module doesn't create a copy of python binary by default
+https://bugs.python.org/issue35450  closed by cheryl.sabella
+
+#35461: Document C API functions which swallow exceptions
+https://bugs.python.org/issue35461  closed by serhiy.storchaka
+
+#35465: [asyncio] Document loop.add_signal_handler
+https://bugs.python.org/issue35465  closed by yselivanov
+
+#35469: [2.7] time.asctime() regression
+https://bugs.python.org/issue35469  closed by vstinner
+
+#35472: python 3.7.2 rc1 bumped sphinx requirements a bit too much
+https://bugs.python.org/issue35472  closed by mdk
+
+#35475: Docs do not show PyImport_AddModuleObject() returns a borrowed
+https://bugs.python.org/issue35475  closed by serhiy.storchaka
+
+#35480: argparse: add a full fledged parser as a subparser
+https://bugs.python.org/issue35480  closed by terry.reedy
+
+#35482: can't open python368rc1.chm and python372rc1.chm
+https://bugs.python.org/issue35482  closed by steve.dower
+
+#35490: Remove the DecodeFSDefault return converter in Argument Clinic
+https://bugs.python.org/issue35490  closed by serhiy.storchaka
+
+#35492: Missing colon on func statement in library/sys doc
+https://bugs.python.org/issue35492  closed by terry.reedy
+
+#35496: left-to-right violation in match order
+https://bugs.python.org/issue35496  closed by steve.newcomb
+
+#35497: Libary select docs enhance
+https://bugs.python.org/issue35497  closed by xiang.zhang
+
+#35499: "make profile-opt" overrides CFLAGS_NODIST
+https://bugs.python.org/issue35499  closed by vstinner
+
+#35504: `del OSError().characters_written` raises `SystemError`
+https://bugs.python.org/issue35504  closed by serhiy.storchaka
+
+#35506: Doc: fix keyword `as` link from `import` and `try`
+https://bugs.python.org/issue35506  closed by serhiy.storchaka
+
+#35508: array.index should take optional start and stop indices like f
+https://bugs.python.org/issue35508  closed by kyuupichan
+
+#35509: Unable to inherit from logging.Formatter
+https://bugs.python.org/issue35509  closed by yan12125
+
+#35510: pickling derived dataclasses
+https://bugs.python.org/issue35510  closed by satra
+
+#35511: Some methods of profile.Profile are not supported but the docs
+https://bugs.python.org/issue35511  closed by asvetlov
+
+#35513: Lib/test/lock_tests.py should not use time.time(), but time.mo
+https://bugs.python.org/issue35513  closed by vstinner
+
+#35515: Matrix operator star creates a false matrix
+https://bugs.python.org/issue35515  closed by christian.heimes
+
+#35516: platform.system_alias(): add macOS support
+https://bugs.python.org/issue35516  closed by vstinner
+
+#35519: Can not run test without test module for tests which import ra
+https://bugs.python.org/issue35519  closed by vstinner
+
+#35521: IDLE: Add doc section for Code Context and ref links.
+https://bugs.python.org/issue35521  closed by terry.reedy
+
+#35522: os.stat().st_ctime and time.time() mismatch
+https://bugs.python.org/issue35522  closed by rbiswas143
+
+#35523: Remove old ctypes callback workaround: creating the first inst
+https://bugs.python.org/issue35523  closed by vstinner
+
+#35526: __future__.barry_as_FLUFL documented as mandatory for Python 3
+https://bugs.python.org/issue35526  closed by barry
+
+#35529: A reference counting bug in ctypes
+https://bugs.python.org/issue35529  closed by serhiy.storchaka
+
+#35531: xml.etree.ElementTree Elment.find bug, fails to find tag
+https://bugs.python.org/issue35531  closed by spacether
+
+#35532: numpy-stl library problem, class stl.base.BaseMesh lacks funct
+https://bugs.python.org/issue35532  closed by serhiy.storchaka
+
+#35538: splitext does not seems to handle filepath ending  in .
+https://bugs.python.org/issue35538  closed by mrabarnett
+
+#35541: CLI error when .python_history contains unicode characters
+https://bugs.python.org/issue35541  closed by eryksun
+
+#35542: stack exhaustion in 3.6.7
+https://bugs.python.org/issue35542  closed by shuoz
+
+#35543: re.sub is only replacing max. of 2 string found by regexp.
+https://bugs.python.org/issue35543  closed by serhiy.storchaka
+
+#35544: unicode.encode docstring says return value can be unicode
+https://bugs.python.org/issue35544  closed by serhiy.storchaka
+
