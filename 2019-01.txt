@@ -1,0 +1,159 @@
+From mertz at gnosis.cx  Wed Jan  2 12:34:55 2019
+From: mertz at gnosis.cx (David Mertz)
+Date: Wed, 2 Jan 2019 12:34:55 -0500
+Subject: [Python-Dev] Interested in serving on Steering Council
+Message-ID: <CAEbHw4bhjt3k-Q57BnSWw150B2Pint1465ick+775i-eaYeVBA@mail.gmail.com>
+
+Hi Core Developers,
+
+First thing: I am *not* a CPython committer.  I think most of you who are
+will be somewhat familiar with me though.
+
+Second: I was a Director of the PSF for a long while, and continue to chair
+some Working Groups.  I've been mentioned in some PEPs.  I have written a
+lot of articles and have given a lot of talks about Python, including about
+recent or pending PEPs and similar matters.  I continue to work and train
+around Python and open source (now with a focus on "data science", whatever
+that is).
+
+Third: I follow python-ideas and python-dev rather closely, and fairly
+often contribute ideas to those lists.
+
+Fourth: As I read PEP 8016, I cannot nominate myself to the Steering
+Committee.  That seems good and proper to me.  But I believe I would be a
+relevant and helpful member of the future Steering Committee if someone
+wishes to nominate me and if the voters wish to elect me.
+
+Thanks, David Mertz...
+
+-- 
+Keeping medicines from the bloodstreams of the sick; food
+from the bellies of the hungry; books from the hands of the
+uneducated; technology from the underdeveloped; and putting
+advocates of freedom in prisons.  Intellectual property is
+to the 21st century what the slave trade was to the 16th.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190102/bd4b3ea4/attachment.html>
+
+From solipsis at pitrou.net  Wed Jan  2 13:15:17 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 2 Jan 2019 19:15:17 +0100
+Subject: [Python-Dev] Interested in serving on Steering Council
+References: <CAEbHw4bhjt3k-Q57BnSWw150B2Pint1465ick+775i-eaYeVBA@mail.gmail.com>
+Message-ID: <20190102191517.7fc2094c@fsol>
+
+On Wed, 2 Jan 2019 12:34:55 -0500
+David Mertz <mertz at gnosis.cx> wrote:
+> Hi Core Developers,
+> 
+> First thing: I am *not* a CPython committer.  I think most of you who are
+> will be somewhat familiar with me though.
+> 
+> Second: I was a Director of the PSF for a long while, and continue to chair
+> some Working Groups.  I've been mentioned in some PEPs.  I have written a
+> lot of articles and have given a lot of talks about Python, including about
+> recent or pending PEPs and similar matters.  I continue to work and train
+> around Python and open source (now with a focus on "data science", whatever
+> that is).
+> 
+> Third: I follow python-ideas and python-dev rather closely, and fairly
+> often contribute ideas to those lists.
+> 
+> Fourth: As I read PEP 8016, I cannot nominate myself to the Steering
+> Committee.  That seems good and proper to me.  But I believe I would be a
+> relevant and helpful member of the future Steering Committee if someone
+> wishes to nominate me and if the voters wish to elect me.
+
+The primary question I would ask an external candidate is: how is it
+that you never became a core developer (which implies some amount of
+effort and dedication) but nevertheless would be willing to spend the
+effort and dedication needed for serving on a Steering Council (*)?
+
+(*) (or Committee, I don't remember :-))
+
+Regards
+
+Antoine.
+
+
+
+From paul at ganssle.io  Wed Jan  2 14:15:43 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Wed, 2 Jan 2019 14:15:43 -0500
+Subject: [Python-Dev] Return type of datetime subclasses added to timedelta
+Message-ID: <1059740e-cc65-205d-5986-a9397463a315@ganssle.io>
+
+Happy New Year everyone!
+
+I would like to start a thread here for wider feedback on my proposal to
+change the return type of the addition operation between a datetime
+subclass and a timedelta. Currently, adding a timedelta to a subclass of
+datetime /always/ returns a datetime rather than an instance of the
+datetime subclass.
+
+I have an open PR implementing this, PR #10902
+<https://github.com/python/cpython/pull/10902>, but I know it's a major
+change so I did not want to move forward without more discussion. I
+first brought this up on datetime-SIG
+<https://mail.python.org/archives/list/datetime-sig at python.org/thread/TGB3VZS5EKM4R2VFUA44323FZFRN2DSJ/>
+[1], and we decided to move the discussion over here because the people
+most likely to object to the change would be on this list and not on
+datetime-SIG.
+
+In addition to the datetime-SIG thread, you may find a detailed
+rationale for the change in bpo-35364
+<https://bugs.python.org/issue35364#msg331065> [2],? and a rationale for
+why we would want to (and arguably already /do/) support subclassing
+datetime in bpo-32417 <https://bugs.python.org/issue32417#msg331353> [3].
+
+A short version of the strongest rationale for changing how this works
+is that it is causing inconsistencies in how subclassing is handled in
+alternate constructors of datetime. For a given subclass of datetime
+(which I will call DateTimeSub), nearly all alternate constructors
+already support subclasses correctly - DateTimeSub.fromtimestamp(x) will
+return a DateTimeSub, for example. However, because DateTimeSub +
+timedelta returns datetime, any alternate constructor implemented in
+terms of timedelta additions will leak that implementation detail by
+returning a datetime object instead of the subclass. The biggest problem
+is that datetime.fromutc is defined in terms of timedelta addition, so
+DateTimeSub.now() returns a DateTimeSub object, but
+DateTimeSub.now(timezone.utc) returns a datetime object! This is one of
+the most annoying things to work around when building a datetime
+subclass, and I don't know of any situation where someone /wants/ their
+subclass to be lost on addition with a timedelta.
+
+From my understanding, this has been discussed before and the original
+objection was that this implementation assumes that the datetime
+subclass has a constructor with the same (or a sufficiently similar)
+signature as datetime. This may be a legitimate gripe, but unfortunately
+that ship has sailed long ago. All of datetime's alternate constructors
+make this assumption. Any subclass that does not meet this requirement
+must have worked around it long ago (or they don't care about alternate
+constructors).
+
+Thanks for your attention, I look forward to your replies.
+
+Best,
+
+Paul
+
+[1]
+https://mail.python.org/archives/list/datetime-sig at python.org/thread/TGB3VZS5EKM4R2VFUA44323FZFRN2DSJ/
+
+[2] https://bugs.python.org/issue35364#msg331065
+
+[3] https://bugs.python.org/issue32417#msg331353
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190102/87450a51/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190102/87450a51/attachment.sig>
+
