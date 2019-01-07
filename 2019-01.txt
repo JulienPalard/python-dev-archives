@@ -834,3 +834,43 @@ Regards
 
 Antoine.
 
+From alexander.belopolsky at gmail.com  Sat Jan  5 03:55:44 2019
+From: alexander.belopolsky at gmail.com (Alexander Belopolsky)
+Date: Sat, 5 Jan 2019 11:55:44 +0300
+Subject: [Python-Dev] Return type of datetime subclasses added to
+ timedelta
+In-Reply-To: <1059740e-cc65-205d-5986-a9397463a315@ganssle.io>
+References: <1059740e-cc65-205d-5986-a9397463a315@ganssle.io>
+Message-ID: <CAP7h-xa-Dp8TXrm7Oa=jDwf0wyBfVy-6zK08w219q0jVaYACiQ@mail.gmail.com>
+
+On Wed, Jan 2, 2019 at 10:18 PM Paul Ganssle <paul at ganssle.io> wrote:
+
+> .. the original objection was that this implementation assumes that the
+> datetime subclass has a constructor with the same (or a sufficiently
+> similar) signature as datetime.
+>
+While this was used as a possible rationale for the way standard types
+behave, the main objection to changing datetime classes is that it will
+make them behave differently from builtins.  For example:
+
+>>> class F(float):
+...     pass
+...
+>>> type(F.fromhex('AA'))
+<class '__main__.F'>
+>>> type(F(1) + F(2))
+<class 'float'>
+
+This may be a legitimate gripe, but unfortunately that ship has sailed long
+> ago. All of datetime's alternate constructors make this assumption. Any
+> subclass that does not meet this requirement must have worked around it
+> long ago (or they don't care about alternate constructors).
+>
+
+This is right, but the same argument is equally applicable to int, float,
+etc. subclasses.  If you want to limit your change to datetime types you
+should explain what makes these types special.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190105/2b3720ca/attachment.html>
+
