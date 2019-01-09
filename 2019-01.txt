@@ -3327,3 +3327,104 @@ On Sun, Jan 6, 2019 at 11:02 AM Paul Ganssle <paul at ganssle.io> wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190106/fa3ba704/attachment.html>
 
+From ltian6 at eng.ua.edu  Mon Jan  7 19:11:23 2019
+From: ltian6 at eng.ua.edu (Tian, Liang)
+Date: Tue, 8 Jan 2019 00:11:23 +0000
+Subject: [Python-Dev] python subprocess module to submit a list of slurm
+ sbatch jobs,
+ each job use multiprocessing.Pool to run simulation on single compute node
+ in cluster
+Message-ID: <ede904dacb9e40a880f8a8c52c58e463@eng.ua.edu>
+
+Dear Developers,
+I have been working on a piece of code development that need your sincere help (three code file attached here).
+
+I use run_slurm.py to use python subprocess module to submit multiple jobs to slurm cluster by invoking a sbatch file with a for loop to reach the following target:
+
+1) create some environmental variables for job_slurm.py to run simulations (values of these environmental variables will change for each job with the for loop)
+
+2) invoke submit_slurm.sh to submit a sbatch job that will run job_slurm.py
+
+3) each job_slurm.py will use python multiprocess.Pool to run parallized simulations on each ./mod_bart.sh exeutable file (will run for a few hours) on a single compute node in cluster using all cores of this compute node
+
+I get the following error all the time, could you provide some insights on how our implementation is wrong to achieve the desired goal:
+
+
+Exception in thread Thread-3:
+Traceback (most recent call last):
+  File "/share/apps/python/2.7/lib/python2.7/threading.py", line 552, in __bootstrap_inner
+    self.run()
+  File "/share/apps/python/2.7/lib/python2.7/threading.py", line 505, in run
+    self.__target(*self.__args, **self.__kwargs)
+  File "/share/apps/python/2.7/lib/python2.7/multiprocessing/pool.py", line 347, in _handle_results
+    task = get()
+TypeError: ('__init__() takes at least 3 arguments (1 given)', <class 'subprocess.CalledProcessError'>, ())
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190108/7117a0e8/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: run_slurm.py
+Type: text/x-python-script
+Size: 2268 bytes
+Desc: run_slurm.py
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190108/7117a0e8/attachment.bin>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: submit_slurm.sh
+Type: text/x-sh
+Size: 133 bytes
+Desc: submit_slurm.sh
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190108/7117a0e8/attachment.sh>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: job_slurm.py
+Type: text/x-python-script
+Size: 1055 bytes
+Desc: job_slurm.py
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190108/7117a0e8/attachment-0001.bin>
+
+From steve at pearwood.info  Mon Jan  7 20:06:03 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Tue, 8 Jan 2019 12:06:03 +1100
+Subject: [Python-Dev] python subprocess module to submit a list of slurm
+ sbatch jobs,
+ each job use multiprocessing.Pool to run simulation on single compute node
+ in cluster
+In-Reply-To: <ede904dacb9e40a880f8a8c52c58e463@eng.ua.edu>
+References: <ede904dacb9e40a880f8a8c52c58e463@eng.ua.edu>
+Message-ID: <20190108010603.GN13616@ando.pearwood.info>
+
+This mailing list is for the development of the Python interpreter, not 
+for asking questions about your own code.
+
+Did you sign up using the Python-Dev mailing list website? At the top of 
+the page, it says
+
+    Do not post general Python questions to this list. For help with 
+    Python please see the Python help page.
+
+in bold and highlighted in red. Is this message not clear enough? How 
+can we make it clearer?
+
+For help debugging your code, you can try the resources here:
+
+https://www.python.org/about/help/
+
+or this mailing list: 
+
+https://mail.python.org/mailman/listinfo/python-list
+
+or here:
+
+https://www.reddit.com/r/learnpython/
+
+
+Thank you.
+
+
+-- 
+Steve
+
