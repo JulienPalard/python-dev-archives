@@ -3428,3 +3428,102 @@ Thank you.
 -- 
 Steve
 
+From aman30894 at gmail.com  Tue Jan  8 03:05:29 2019
+From: aman30894 at gmail.com (Aman Agrawal)
+Date: Tue, 8 Jan 2019 13:35:29 +0530
+Subject: [Python-Dev] How can i insert more than 32K data to a column type
+ clob in db2 using python programming
+Message-ID: <CAB_3DMrLd++-LeWCdXYSK9m=vUu1XLmJQdaDFGfch7h8GCm_pg@mail.gmail.com>
+
+ Hi Team,
+
+I have tried to insert in clob data type more than 32k byte data but
+getting error:-
+
+Statement Execute Failed: [IBM][CLI Driver][DB2/LINUXX8664] SQL0102N  The
+string constant beginning with "\'<p>Hi good day team:<br /> We had been
+requested to Add Anniel to all" is too long.  SQLSTATE=54002 SQLCODE=-102
+
+could any one please help me is there any way i can achieve it?
+
+Please find my DDL statement:-
+
+CREATE TABLE "DB2IDEV "."CHANGE"  (
+          "TICKET_ID" INTEGER NOT NULL ,
+          "SHORTDESC" VARCHAR(5000 OCTETS) NOT NULL ,
+          "LONGDESC" CLOB(2147483647 OCTETS) LOGGED NOT COMPACT ,
+          "RELEASENUM" VARCHAR(12 OCTETS) WITH DEFAULT NULL ,
+          "ISSOFTDELETED" INTEGER NOT NULL WITH DEFAULT 0 ,
+          "CREATETIMESTAMP" TIMESTAMP NOT NULL WITH DEFAULT CURRENT
+TIMESTAMP ,
+          "LASTUPDATETIMESTAMP" TIMESTAMP WITH DEFAULT NULL )
+         IN "TABLESPACE"
+         ORGANIZE BY ROW  ;
+
+ conn =
+db.connect("DATABASE=%s;HOSTNAME=%s;PORT=60001;PROTOCOL=TCPIP;UID=%s;PWD=%s;"%(DB2_DATABASE,DB2_HOSTNAME,DB2_UID,DB2_PWD),
+"", "")
+cursor = conn.cursor()
+
+sql="INSERT INTO Change
+(Ticket_ID,shortDesc,longDesc,releaseNum,isSoftDeleted,createTimeStamp,lastUpdateTimeStamp)
+VALUES ('296129','High Cisco Adaptive Security Appliance Remote Code
+Execution and Denial of Service Vulnerabilit','<Some long data around
+50KB>',NULL,'0','2018-02-07 02:11:50',NULL)"
+
+cursor.execute(sql)
+conn.commit()
+
+Thanks & Regards
+
+*Aman Agrawal*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190108/122fd3fe/attachment.html>
+
+From steve at pearwood.info  Tue Jan  8 11:09:22 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 9 Jan 2019 03:09:22 +1100
+Subject: [Python-Dev] How can i insert more than 32K data to a column
+ type clob in db2 using python programming
+In-Reply-To: <CAB_3DMrLd++-LeWCdXYSK9m=vUu1XLmJQdaDFGfch7h8GCm_pg@mail.gmail.com>
+References: <CAB_3DMrLd++-LeWCdXYSK9m=vUu1XLmJQdaDFGfch7h8GCm_pg@mail.gmail.com>
+Message-ID: <20190108160919.GR13616@ando.pearwood.info>
+
+On Tue, Jan 08, 2019 at 01:35:29PM +0530, Aman Agrawal wrote:
+>  Hi Team,
+> 
+> I have tried to insert in clob data type more than 32k byte data but
+> getting error:-
+
+This mailing list is for the development of the Python interpreter, not
+for asking questions about your own code.
+
+Did you sign up using the Python-Dev mailing list website? At the top of
+the page, it says
+
+    Do not post general Python questions to this list. For help with
+    Python please see the Python help page.
+
+in bold and highlighted in red. Is this message not clear enough? How
+can we make it clearer?
+
+For help debugging your code, you can try the resources here:
+
+https://www.python.org/about/help/
+
+or this mailing list:
+
+https://mail.python.org/mailman/listinfo/python-list
+
+or here:
+
+https://www.reddit.com/r/learnpython/
+
+
+Thank you.
+
+
+--
+Steve
+
