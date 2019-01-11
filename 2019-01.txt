@@ -3527,3 +3527,630 @@ Thank you.
 --
 Steve
 
+From brian.kuhl at windriver.com  Wed Jan  9 11:06:56 2019
+From: brian.kuhl at windriver.com (Kuhl, Brian)
+Date: Wed, 9 Jan 2019 16:06:56 +0000
+Subject: [Python-Dev] VxWorks and cpython?
+Message-ID: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+
+Hi Python Developers,
+I'm Brian Kuhl, I've spent about  28 years working with embedded software. Since 2000 I've worked for Wind River. I'm currently a manager of documentation and customer training in our Ottawa, Canada office. Throughout my career I've had an interest in the use of open source software in embedded systems, have ported many libraries to Wind River's flagship product the VxWorks RTOS.
+
+The safe and secure embedded market where VxWorks is the leader is evolving, and devices that use to be made up of multiple processors running multiple operating systems are now being consolidated. Device security and IoT trends mean a device must be more configurable and updateable, and a better host for portable code. In this evolving space our  customers have asked us to add Python support to VxWorks.
+
+Wind River would like cpython to officially support VxWorks.  I've been ask by my colleagues to volunteer as a maintainer for cpython in order to support this effort.  Wind River will also provide the needed buildbot clients required to verify continuing VxWorks support.
+
+Myself and an intern were able to get the majority of Python tests suite passing with a POC last year.
+An engineering group in Beijing  have taken that POC and are improving and cleaning up that effort now with the hopes of up-steaming their efforts.
+
+My Chinese colleagues have suggested that the first step to gaining your support would be to summit a PEP detailing the changes?
+If you agree, I will proceed with authoring a PEP.
+
+Many thanks in advance for your responses,
+
+Brian
+
+
+P.S. I can be found on  github (and many other places) as kuhlenough.
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190109/4a79cab3/attachment.html>
+
+From guido at python.org  Wed Jan  9 11:52:19 2019
+From: guido at python.org (Guido van Rossum)
+Date: Wed, 9 Jan 2019 08:52:19 -0800
+Subject: [Python-Dev] VxWorks and cpython?
+In-Reply-To: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+References: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+Message-ID: <CAP7+vJLH2rBaqoMwYAJtC_gizPDqjWz=1ZUrEUyFYAVQ3NHrsQ@mail.gmail.com>
+
+Hi Brian,
+
+I am glad that this is happening!
+
+I don't think you need a PEP to motivate your request -- however you need
+to submit the upstream patches, work with the CPython buildbot managers
+(Victor?) to connect your buildbots, and work with reviewers (Serhiy?) to
+get your patches integrated in CPython. Hopefully the patches are small and
+focused -- we generally don't take patches that refactor large swaths of
+code. It's also better not to submit everything in a single giant patch
+(reviewers hate mega-patches). And the patch submitters need to be
+responsive when the code review comments are coming.
+
+This is not a one-time effort -- your team will need to be "on call" to
+handle VxWorks issues for the foreseeable future (a minimum commitment of 5
+years?), and your team members needs to be able to do this in their
+capacity as Wind River engineers, not as open source volunteers.
+
+I believe there is a PEP with a list of supported operating systems that
+needs to be updated, but I don't recall which one it is -- hopefully you
+can track it down with a little Googling. (Or was it the devguide?)
+
+Good luck,
+
+--Guido
+
+On Wed, Jan 9, 2019 at 8:42 AM Kuhl, Brian <brian.kuhl at windriver.com> wrote:
+
+> Hi Python Developers,
+>
+> I?m Brian Kuhl, I?ve spent about  28 years working with embedded software.
+> Since 2000 I?ve worked for Wind River. I?m currently a manager of
+> documentation and customer training in our Ottawa, Canada office.
+> Throughout my career I?ve had an interest in the use of open source
+> software in embedded systems, have ported many libraries to Wind River?s
+> flagship product the VxWorks RTOS.
+>
+>
+>
+> The safe and secure embedded market where VxWorks is the leader is
+> evolving, and devices that use to be made up of multiple processors running
+> multiple operating systems are now being consolidated. Device security and
+> IoT trends mean a device must be more configurable and updateable, and a
+> better host for portable code. In this evolving space our  customers have
+> asked us to add Python support to VxWorks.
+>
+>
+>
+> Wind River would like cpython to officially support VxWorks.  I?ve been
+> ask by my colleagues to volunteer as a maintainer for cpython in order to
+> support this effort.  Wind River will also provide the needed buildbot
+> clients required to verify continuing VxWorks support.
+>
+>
+>
+> Myself and an intern were able to get the majority of Python tests suite
+> passing with a POC last year.
+>
+> An engineering group in Beijing  have taken that POC and are improving and
+> cleaning up that effort now with the hopes of up-steaming their efforts.
+>
+>
+>
+> My Chinese colleagues have suggested that the first step to gaining your
+> support would be to summit a PEP detailing the changes?
+>
+> If you agree, I will proceed with authoring a PEP.
+>
+>
+>
+> Many thanks in advance for your responses,
+>
+>
+>
+> Brian
+>
+>
+>
+>
+>
+> P.S. I can be found on  github (and many other places) as kuhlenough.
+>
+>
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190109/0a95f150/attachment.html>
+
+From vstinner at redhat.com  Wed Jan  9 12:09:47 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 9 Jan 2019 18:09:47 +0100
+Subject: [Python-Dev] AMD64 Windows8.1 Refleaks 3.x buildbot is back to
+ green!
+Message-ID: <CA+3bQGG3kqX3z_GCeEQNAOa=WVh1Nc9iopZyT305cFztZCAM1w@mail.gmail.com>
+
+Hi,
+
+The "AMD64 Windows 8.1 Refleaks 3.x" buildbot (which hunts reference
+leaks and memory leaks) was failing on test_asyncio for 1 year:
+
+   https://bugs.python.org/issue32710
+
+It was a leak of a single reference:
+
+   test_aiosend leaked [1, 1, 1] references, sum=3
+
+I tried multiple times since last year (January 2018) to understand
+the leak: it didn't make any sense (well, as any bug at the beginning,
+no?). I checked several times the complex asyncio code: all transports
+are cleanly closed, the event loop is properly closed, etc. The code
+looks correct.
+
+After a long sleepness night... I still failed to reproduce the bug
+:-( But I succeeded to get a way shorter reproducer script. Thanks to
+this script, I was able to loop to get 100 reference leaks instead of
+leaking a single reference. Using tracemalloc, I found the faulty
+line... but it still didn't make sense to me. After additional several
+hours of debug, I found that an overlapped object wasn't released
+properly: an asynchronous WSASend().
+
+The problem was when an overlapped WSASend() failed immediately, the
+internal buffer was not released, whereas it holds a reference to the
+input byte string. **It means that an asyncio send() failure using the
+ProactorEventLoop can cause a memory leak**... I'm very surprised that
+nobody noticed such **huge** memory leak previously!
+
+The _overlapped bugfix:
+
+https://github.com/python/cpython/commit/a234e148394c2c7419372ab65b773d53a57f3625
+
+Eventually, the "AMD64 Windows 8.1 Refleaks 3.x" buildbot is back to green!
+
+   https://buildbot.python.org/all/#/builders/80
+
+It means that it will be easier and faster to spot reference or memory
+leak regressions (specific to Windows, the Gentoo Refleaks buildbot
+was already green for several months!).
+
+Since ProactorEventLoop became the default event loop in Python 3.8
+(on Windows, it's specific to Windows), I hope that we fixed all most
+obvious bugs!
+
+This story also means that any very tiny buildbot failure (a single
+test method failure on a single very specific buildbot) can hide a
+giant bug ;-) Sadly, we have to fix *all* buildbots failures to find
+them... Hopefully, almost all buildbots are green currently.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From christian at python.org  Wed Jan  9 12:13:32 2019
+From: christian at python.org (Christian Heimes)
+Date: Wed, 9 Jan 2019 18:13:32 +0100
+Subject: [Python-Dev] VxWorks and cpython?
+In-Reply-To: <CAP7+vJLH2rBaqoMwYAJtC_gizPDqjWz=1ZUrEUyFYAVQ3NHrsQ@mail.gmail.com>
+References: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+ <CAP7+vJLH2rBaqoMwYAJtC_gizPDqjWz=1ZUrEUyFYAVQ3NHrsQ@mail.gmail.com>
+Message-ID: <c33aa093-81cb-1c97-bb18-f86d78752d49@python.org>
+
+On 09/01/2019 17.52, Guido van Rossum wrote:
+> Hi Brian,
+> 
+> I am glad that this is happening!
+> 
+> I don't think you need a PEP to motivate your request -- however you
+> need to submit the upstream patches, work with the CPython buildbot
+> managers (Victor?) to connect your buildbots, and work with reviewers
+> (Serhiy?) to get your patches integrated in CPython. Hopefully the
+> patches are small and focused -- we generally don't take patches that
+> refactor large swaths of code. It's also better not to submit everything
+> in a single giant patch (reviewers hate mega-patches). And the patch
+> submitters need to be responsive when the code review comments are coming.
+> 
+> This is not a one-time effort -- your team will need to be "on call" to
+> handle VxWorks issues for the foreseeable future (a minimum commitment
+> of 5 years?), and your team members needs to be able to do this in their
+> capacity as Wind River engineers, not as open source volunteers.
+> 
+> I believe there is a PEP with a list of supported operating systems that
+> needs to be updated, but I don't recall which one it is -- hopefully you
+> can track it down with a little Googling. (Or was it the devguide?)
+
+Hi,
+
+It's a PEP. The process and expectations for platform are explained in
+PEP 11, https://www.python.org/dev/peps/pep-0011/
+
+If possible it would also be helpful to get SSH access to some VxWorks
+machines for core devs. I know that Victor likes to dig into rare corner
+cases and help to debug exotic platforms.
+
+Christian
+
+From brett at python.org  Wed Jan  9 12:51:04 2019
+From: brett at python.org (Brett Cannon)
+Date: Wed, 9 Jan 2019 09:51:04 -0800
+Subject: [Python-Dev] AMD64 Windows8.1 Refleaks 3.x buildbot is back to
+ green!
+In-Reply-To: <CA+3bQGG3kqX3z_GCeEQNAOa=WVh1Nc9iopZyT305cFztZCAM1w@mail.gmail.com>
+References: <CA+3bQGG3kqX3z_GCeEQNAOa=WVh1Nc9iopZyT305cFztZCAM1w@mail.gmail.com>
+Message-ID: <CAP1=2W7tCBB=wySih9FJ20UDkxp5R+YgSkU3ZcvCk_6DDz6TwA@mail.gmail.com>
+
+Thanks for tracking that down! Been bugging me as well and the one time I
+tried to figure it out I got no where, so kudos for sticking with it!
+
+On Wed, 9 Jan 2019 at 09:13, Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hi,
+>
+> The "AMD64 Windows 8.1 Refleaks 3.x" buildbot (which hunts reference
+> leaks and memory leaks) was failing on test_asyncio for 1 year:
+>
+>    https://bugs.python.org/issue32710
+>
+> It was a leak of a single reference:
+>
+>    test_aiosend leaked [1, 1, 1] references, sum=3
+>
+> I tried multiple times since last year (January 2018) to understand
+> the leak: it didn't make any sense (well, as any bug at the beginning,
+> no?). I checked several times the complex asyncio code: all transports
+> are cleanly closed, the event loop is properly closed, etc. The code
+> looks correct.
+>
+> After a long sleepness night... I still failed to reproduce the bug
+> :-( But I succeeded to get a way shorter reproducer script. Thanks to
+> this script, I was able to loop to get 100 reference leaks instead of
+> leaking a single reference. Using tracemalloc, I found the faulty
+> line... but it still didn't make sense to me. After additional several
+> hours of debug, I found that an overlapped object wasn't released
+> properly: an asynchronous WSASend().
+>
+> The problem was when an overlapped WSASend() failed immediately, the
+> internal buffer was not released, whereas it holds a reference to the
+> input byte string. **It means that an asyncio send() failure using the
+> ProactorEventLoop can cause a memory leak**... I'm very surprised that
+> nobody noticed such **huge** memory leak previously!
+>
+> The _overlapped bugfix:
+>
+>
+> https://github.com/python/cpython/commit/a234e148394c2c7419372ab65b773d53a57f3625
+>
+> Eventually, the "AMD64 Windows 8.1 Refleaks 3.x" buildbot is back to green!
+>
+>    https://buildbot.python.org/all/#/builders/80
+>
+> It means that it will be easier and faster to spot reference or memory
+> leak regressions (specific to Windows, the Gentoo Refleaks buildbot
+> was already green for several months!).
+>
+> Since ProactorEventLoop became the default event loop in Python 3.8
+> (on Windows, it's specific to Windows), I hope that we fixed all most
+> obvious bugs!
+>
+> This story also means that any very tiny buildbot failure (a single
+> test method failure on a single very specific buildbot) can hide a
+> giant bug ;-) Sadly, we have to fix *all* buildbots failures to find
+> them... Hopefully, almost all buildbots are green currently.
+>
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190109/9d259a9b/attachment.html>
+
+From andrew.svetlov at gmail.com  Wed Jan  9 13:05:12 2019
+From: andrew.svetlov at gmail.com (Andrew Svetlov)
+Date: Wed, 9 Jan 2019 20:05:12 +0200
+Subject: [Python-Dev] AMD64 Windows8.1 Refleaks 3.x buildbot is back to
+ green!
+In-Reply-To: <CAP1=2W7tCBB=wySih9FJ20UDkxp5R+YgSkU3ZcvCk_6DDz6TwA@mail.gmail.com>
+References: <CA+3bQGG3kqX3z_GCeEQNAOa=WVh1Nc9iopZyT305cFztZCAM1w@mail.gmail.com>
+ <CAP1=2W7tCBB=wySih9FJ20UDkxp5R+YgSkU3ZcvCk_6DDz6TwA@mail.gmail.com>
+Message-ID: <CAL3CFcUGaxZNAOJEOnoLXwD=ttArt8Kb0-HT0Hh2n+K3LQ+LAA@mail.gmail.com>
+
+That's great!
+
+I would add that many Windows Proactor bugs were found after implementing
+sendfile support.
+If sendfile is not available for some reason asyncio uses a fallback to
+send a file content chunk-by-chunk reading it in memory.
+The fallback code was easy and straightforward, it worked just fine on
+Linux but the same code failed on proactor.
+
+Thank you very much, Victor, for finally pinning the problem down.
+
+On Wed, Jan 9, 2019 at 7:51 PM Brett Cannon <brett at python.org> wrote:
+
+> Thanks for tracking that down! Been bugging me as well and the one time I
+> tried to figure it out I got no where, so kudos for sticking with it!
+>
+> On Wed, 9 Jan 2019 at 09:13, Victor Stinner <vstinner at redhat.com> wrote:
+>
+>> Hi,
+>>
+>> The "AMD64 Windows 8.1 Refleaks 3.x" buildbot (which hunts reference
+>> leaks and memory leaks) was failing on test_asyncio for 1 year:
+>>
+>>    https://bugs.python.org/issue32710
+>>
+>> It was a leak of a single reference:
+>>
+>>    test_aiosend leaked [1, 1, 1] references, sum=3
+>>
+>> I tried multiple times since last year (January 2018) to understand
+>> the leak: it didn't make any sense (well, as any bug at the beginning,
+>> no?). I checked several times the complex asyncio code: all transports
+>> are cleanly closed, the event loop is properly closed, etc. The code
+>> looks correct.
+>>
+>> After a long sleepness night... I still failed to reproduce the bug
+>> :-( But I succeeded to get a way shorter reproducer script. Thanks to
+>> this script, I was able to loop to get 100 reference leaks instead of
+>> leaking a single reference. Using tracemalloc, I found the faulty
+>> line... but it still didn't make sense to me. After additional several
+>> hours of debug, I found that an overlapped object wasn't released
+>> properly: an asynchronous WSASend().
+>>
+>> The problem was when an overlapped WSASend() failed immediately, the
+>> internal buffer was not released, whereas it holds a reference to the
+>> input byte string. **It means that an asyncio send() failure using the
+>> ProactorEventLoop can cause a memory leak**... I'm very surprised that
+>> nobody noticed such **huge** memory leak previously!
+>>
+>> The _overlapped bugfix:
+>>
+>>
+>> https://github.com/python/cpython/commit/a234e148394c2c7419372ab65b773d53a57f3625
+>>
+>> Eventually, the "AMD64 Windows 8.1 Refleaks 3.x" buildbot is back to
+>> green!
+>>
+>>    https://buildbot.python.org/all/#/builders/80
+>>
+>> It means that it will be easier and faster to spot reference or memory
+>> leak regressions (specific to Windows, the Gentoo Refleaks buildbot
+>> was already green for several months!).
+>>
+>> Since ProactorEventLoop became the default event loop in Python 3.8
+>> (on Windows, it's specific to Windows), I hope that we fixed all most
+>> obvious bugs!
+>>
+>> This story also means that any very tiny buildbot failure (a single
+>> test method failure on a single very specific buildbot) can hide a
+>> giant bug ;-) Sadly, we have to fix *all* buildbots failures to find
+>> them... Hopefully, almost all buildbots are green currently.
+>>
+>> Victor
+>> --
+>> Night gathers, and now my watch begins. It shall not end until my death.
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/andrew.svetlov%40gmail.com
+>
+
+
+-- 
+Thanks,
+Andrew Svetlov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190109/e9a0de65/attachment.html>
+
+From brian.kuhl at windriver.com  Wed Jan  9 12:03:45 2019
+From: brian.kuhl at windriver.com (Kuhl, Brian)
+Date: Wed, 9 Jan 2019 17:03:45 +0000
+Subject: [Python-Dev] FW:  VxWorks and cpython?
+In-Reply-To: <CAP7+vJLH2rBaqoMwYAJtC_gizPDqjWz=1ZUrEUyFYAVQ3NHrsQ@mail.gmail.com>
+References: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+ <CAP7+vJLH2rBaqoMwYAJtC_gizPDqjWz=1ZUrEUyFYAVQ3NHrsQ@mail.gmail.com>
+Message-ID: <6C486AB80682E24095E3E77A408D68F201499C9C3A@ALA-MBD.corp.ad.wrs.com>
+
+From: Guido van Rossum [mailto:guido at python.org]
+Sent: Wednesday, January 09, 2019 11:52 AM
+To: Kuhl, Brian
+Cc: python-dev at python.org
+Subject: Re: [Python-Dev] VxWorks and cpython?
+
+Hi Brian,
+
+I am glad that this is happening!
+
+I don't think you need a PEP to motivate your request -- however you need to submit the upstream patches, work with the CPython buildbot managers (Victor?) to connect your buildbots, and work with reviewers (Serhiy?) to get your patches integrated in CPython. Hopefully the patches are small and focused -- we generally don't take patches that refactor large swaths of code. It's also better not to submit everything in a single giant patch (reviewers hate mega-patches). And the patch submitters need to be responsive when the code review comments are coming.
+
+This is not a one-time effort -- your team will need to be "on call" to handle VxWorks issues for the foreseeable future (a minimum commitment of 5 years?), and your team members needs to be able to do this in their capacity as Wind River engineers, not as open source volunteers.
+
+I believe there is a PEP with a list of supported operating systems that needs to be updated, but I don't recall which one it is -- hopefully you can track it down with a little Googling. (Or was it the devguide?)
+
+Good luck,
+
+--Guido
+
+On Wed, Jan 9, 2019 at 8:42 AM Kuhl, Brian <brian.kuhl at windriver.com<mailto:brian.kuhl at windriver.com>> wrote:
+Hi Python Developers,
+I?m Brian Kuhl, I?ve spent about  28 years working with embedded software. Since 2000 I?ve worked for Wind River. I?m currently a manager of documentation and customer training in our Ottawa, Canada office. Throughout my career I?ve had an interest in the use of open source software in embedded systems, have ported many libraries to Wind River?s flagship product the VxWorks RTOS.
+
+The safe and secure embedded market where VxWorks is the leader is evolving, and devices that use to be made up of multiple processors running multiple operating systems are now being consolidated. Device security and IoT trends mean a device must be more configurable and updateable, and a better host for portable code. In this evolving space our  customers have asked us to add Python support to VxWorks.
+
+Wind River would like cpython to officially support VxWorks.  I?ve been ask by my colleagues to volunteer as a maintainer for cpython in order to support this effort.  Wind River will also provide the needed buildbot clients required to verify continuing VxWorks support.
+
+Myself and an intern were able to get the majority of Python tests suite passing with a POC last year.
+An engineering group in Beijing  have taken that POC and are improving and cleaning up that effort now with the hopes of up-steaming their efforts.
+
+My Chinese colleagues have suggested that the first step to gaining your support would be to summit a PEP detailing the changes?
+If you agree, I will proceed with authoring a PEP.
+
+Many thanks in advance for your responses,
+
+Brian
+
+
+P.S. I can be found on  github (and many other places) as kuhlenough.
+
+
+_______________________________________________
+Python-Dev mailing list
+Python-Dev at python.org<mailto:Python-Dev at python.org>
+https://mail.python.org/mailman/listinfo/python-dev
+Unsubscribe: https://mail.python.org/mailman/options/python-dev/guido%40python.org
+
+
+--
+--Guido van Rossum (python.org/~guido<http://python.org/~guido>)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190109/f3d40c1d/attachment-0001.html>
+
+From vstinner at redhat.com  Wed Jan  9 18:43:20 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 10 Jan 2019 00:43:20 +0100
+Subject: [Python-Dev] VxWorks and cpython?
+In-Reply-To: <c33aa093-81cb-1c97-bb18-f86d78752d49@python.org>
+References: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+ <CAP7+vJLH2rBaqoMwYAJtC_gizPDqjWz=1ZUrEUyFYAVQ3NHrsQ@mail.gmail.com>
+ <c33aa093-81cb-1c97-bb18-f86d78752d49@python.org>
+Message-ID: <CA+3bQGHAAYOOu88JErN8eTrOvkvW1GSr8E2QvHL2nu2Nkn3d8g@mail.gmail.com>
+
+Le mer. 9 janv. 2019 ? 18:16, Christian Heimes <christian at python.org> a ?crit :
+> It's a PEP. The process and expectations for platform are explained in
+> PEP 11, https://www.python.org/dev/peps/pep-0011/
+
+I also wrote some information in my website:
+https://pythondev.readthedocs.io/platforms.html
+
+> If possible it would also be helpful to get SSH access to some VxWorks
+> machines for core devs. I know that Victor likes to dig into rare corner
+> cases and help to debug exotic platforms.
+
+The best case to get a full support is to have one core developer
+responsible of handling all bugs specific to the platform.
+
+As a core developer, I'm never comfortable to merge a change specific
+to a platform if I'm not able to validate it manually myself. I trust
+no one, not even myself (I know well that I do frequently mistakes!),
+so I prefer to always double check changes before merging them ;-)
+
+In the meanwhile, I would say that we can only offer "best effort"
+support. Fix reports bugs and do our best in our limited time.
+
+Someone has to take the work done to port Python on VxWorks and write
+small pull requests. These PRs should be reviewed one by one to make
+sure that it's the correct way to fix an issue. Be prepared that it
+can take several months even if all these changes look obvious to
+*you*. Core developers have limited time and many prefer to focus on
+the platforms that they are using, not worry about a platform they
+never heard about... I can have a look at such PRs.
+
+It would also help to have a documentation somewhere about "Python on
+VxWorks". Pointers to VxWorks (general info, developers info),
+pointers to your port, current status of the port, etc.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From chris.jerdonek at gmail.com  Wed Jan  9 20:32:44 2019
+From: chris.jerdonek at gmail.com (Chris Jerdonek)
+Date: Wed, 9 Jan 2019 17:32:44 -0800
+Subject: [Python-Dev] Interested in serving on Steering Council
+In-Reply-To: <20190104213605.57fba25b@fsol>
+References: <CAEbHw4bhjt3k-Q57BnSWw150B2Pint1465ick+775i-eaYeVBA@mail.gmail.com>
+ <20190102191517.7fc2094c@fsol>
+ <cb08756a-cf4b-f6ad-5147-7ef3e41f4c95@python.org>
+ <CAEbHw4b-dWKeYWaYoGBS1HMxJjuN0gquM99mKfuNvvU3wmwzGQ@mail.gmail.com>
+ <20190104213605.57fba25b@fsol>
+Message-ID: <CAOTb1wcQB-ZQG63Pri06bT06zFtbHdqMpd7iS14QPiFznd-Wkg@mail.gmail.com>
+
+Just to close (or continue) the loop on this thread, I just nominated
+David for the steering council:
+https://discuss.python.org/t/steering-council-nomination-david-mertz/647
+
+Thanks for stepping forward with your interest and willingness to serve, David!
+
+--Chris
+
+On Fri, Jan 4, 2019 at 12:37 PM Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+>
+> Hi David,
+>
+> On Fri, 4 Jan 2019 15:24:20 -0500
+> David Mertz <mertz at gnosis.cx> wrote:
+> >
+> > I've been part of the Python community since 1998, but really active in it
+> > since about 2001.  During the early 2000s, I wrote a large number of widely
+> > read articles promoting Python, often delving into explaining semi-obscure
+> > features and language design issues.  Most of these were with in my column
+> > _Charming Python_.  I believe that several changes in Python itself?such as
+> > making coroutines easier to use and the design of metaclasses and class
+> > decorators?were significantly influenced by things I wrote on the topics.
+> > [snip]
+>
+> Those are useful things to know, thank you.
+>
+> > If the core developers feel that the overwhelming qualification for the
+> > Steering Committee is familiarity with the C code base of CPython, then
+> > indeed I am not the best candidate for that.
+>
+> Obviously not the overwhelming qualification (though at least _some_ of
+> the committee members would have to be familiar with the C code base, I
+> think).
+>
+> > If language design issues are
+> > more important?and especially if thinking about Python's place among users
+> > and industry are important, then I think I'm a very good candidate for the
+> > role.
+>
+> That, but I think also familiarity with the development and
+> contribution process, will definitely play a role.  In other words, if
+> some external candidate gets elected I would hope they take the time to
+> become familiar with how things work in that regard, and try to
+> contribute themselves (not necessarily to make important contributions
+> to the codebase but to understand the daily routine).
+>
+> Regards
+>
+> Antoine.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/chris.jerdonek%40gmail.com
+
+From hodgestar+pythondev at gmail.com  Thu Jan 10 03:03:18 2019
+From: hodgestar+pythondev at gmail.com (Simon Cross)
+Date: Thu, 10 Jan 2019 10:03:18 +0200
+Subject: [Python-Dev] VxWorks and cpython?
+In-Reply-To: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+References: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+Message-ID: <CAD5NRCEiw8yxNp3RsewXYbn1A_+vzYH2ZVG+64A-EMX2GtUC0w@mail.gmail.com>
+
+It feels like it would be a good idea for Brian or someone else from
+Wind River to work towards becoming a core developer? If Brian, et al
+are interested, is there a core developer who would be willing to
+mentor them?
+
