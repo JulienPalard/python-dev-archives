@@ -4154,3 +4154,198 @@ Wind River to work towards becoming a core developer? If Brian, et al
 are interested, is there a core developer who would be willing to
 mentor them?
 
+From brian.kuhl at windriver.com  Thu Jan 10 11:54:46 2019
+From: brian.kuhl at windriver.com (Kuhl, Brian)
+Date: Thu, 10 Jan 2019 16:54:46 +0000
+Subject: [Python-Dev] VxWorks and cpython?
+In-Reply-To: <CA+3bQGHAAYOOu88JErN8eTrOvkvW1GSr8E2QvHL2nu2Nkn3d8g@mail.gmail.com>
+References: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+ <CAP7+vJLH2rBaqoMwYAJtC_gizPDqjWz=1ZUrEUyFYAVQ3NHrsQ@mail.gmail.com>
+ <c33aa093-81cb-1c97-bb18-f86d78752d49@python.org>
+ <CA+3bQGHAAYOOu88JErN8eTrOvkvW1GSr8E2QvHL2nu2Nkn3d8g@mail.gmail.com>
+Message-ID: <6C486AB80682E24095E3E77A408D68F201499CAF79@ALA-MBD.corp.ad.wrs.com>
+
+Hi Victor,
+I think we can come up with some sort of strategy that will work for everyone. 
+I'll ask about the SSH access; and if that runs up against a corporate roadblock, I will explore some other alternative. 
+
+Is there a good place to document "Python on VxWorks" ?
+The changes to Python are not large, I've kept the pull request from last year's POC active. The changed files provide a good summary of the scope.
+https://github.com/python/cpython/pull/4184/files
+However, based on the POC we've gone back and improved VxWorks, so the some of the uglier bits, in libraries like submodule, won't be needed.
+These will be in the next release of VxWorks. 
+
+However we let automake and setup.py do much of the work for us, so where VxWorks  does not have support for something, it's not obvious.
+A public document would go a long way to filling in those details, something much more detailed than  my glib "VxWorks is almost POSIX" in the pull request.  
+
+Other challenges; 
+* VxWorks is cross-compiled on both Linux and Windows. ( currently with clang and gcc)
+* Supported on ARM,  PowerPC and Intel processors
+* 32bit and 64bit builds 
+* A constantly evolving set of reference boards (or BSPs)   
+https://marketplace.windriver.com/index.php?bsp&on=list&type=platform&value=VxWorks:%207%20-%20Wind%20River%20Workbench%204.0
+
+I don't think we need a buildbot for every board.  I'm thinking a 1/2 dozen to cover ARM, PPC and IA with both a 32bit and 64 bit build?
+We have a bit of chicken and egg problem right now, a buildbot will always fail until there's some basic VxWorks support added. 
+
+Do we set them up, and just let them fail, till enough PRs are accepted to make it build?
+
+Brian
+
+> -----Original Message-----
+> From: Victor Stinner [mailto:vstinner at redhat.com]
+> Sent: Wednesday, January 09, 2019 6:43 PM
+> To: Christian Heimes
+> Cc: Guido van Rossum; Kuhl, Brian; python-dev at python.org
+> Subject: Re: [Python-Dev] VxWorks and cpython?
+> 
+> Le mer. 9 janv. 2019 ? 18:16, Christian Heimes <christian at python.org> a ?crit :
+> > It's a PEP. The process and expectations for platform are explained in
+> > PEP 11, https://www.python.org/dev/peps/pep-0011/
+> 
+> I also wrote some information in my website:
+> https://pythondev.readthedocs.io/platforms.html
+> 
+> > If possible it would also be helpful to get SSH access to some VxWorks
+> > machines for core devs. I know that Victor likes to dig into rare
+> > corner cases and help to debug exotic platforms.
+> 
+> The best case to get a full support is to have one core developer responsible of
+> handling all bugs specific to the platform.
+> 
+> As a core developer, I'm never comfortable to merge a change specific to a
+> platform if I'm not able to validate it manually myself. I trust no one, not even
+> myself (I know well that I do frequently mistakes!), so I prefer to always double
+> check changes before merging them ;-)
+> 
+> In the meanwhile, I would say that we can only offer "best effort"
+> support. Fix reports bugs and do our best in our limited time.
+> 
+> Someone has to take the work done to port Python on VxWorks and write small
+> pull requests. These PRs should be reviewed one by one to make sure that it's
+> the correct way to fix an issue. Be prepared that it can take several months even
+> if all these changes look obvious to *you*. Core developers have limited time
+> and many prefer to focus on the platforms that they are using, not worry about
+> a platform they never heard about... I can have a look at such PRs.
+> 
+> It would also help to have a documentation somewhere about "Python on
+> VxWorks". Pointers to VxWorks (general info, developers info), pointers to your
+> port, current status of the port, etc.
+> 
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Thu Jan 10 12:19:52 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 10 Jan 2019 18:19:52 +0100
+Subject: [Python-Dev] VxWorks and cpython?
+In-Reply-To: <6C486AB80682E24095E3E77A408D68F201499CAF79@ALA-MBD.corp.ad.wrs.com>
+References: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+ <CAP7+vJLH2rBaqoMwYAJtC_gizPDqjWz=1ZUrEUyFYAVQ3NHrsQ@mail.gmail.com>
+ <c33aa093-81cb-1c97-bb18-f86d78752d49@python.org>
+ <CA+3bQGHAAYOOu88JErN8eTrOvkvW1GSr8E2QvHL2nu2Nkn3d8g@mail.gmail.com>
+ <6C486AB80682E24095E3E77A408D68F201499CAF79@ALA-MBD.corp.ad.wrs.com>
+Message-ID: <CA+3bQGEbOz4X7RbccRrXZn9fgJ3_ZagjV7hD-Aq-J605_rcJ7Q@mail.gmail.com>
+
+Le jeu. 10 janv. 2019 ? 17:54, Kuhl, Brian <brian.kuhl at windriver.com> a ?crit :
+> Is there a good place to document "Python on VxWorks" ?
+
+Anywhere. If you don't know, you might use
+https://wiki.python.org/moin/ ... But I'm not sure that the wiki is
+still widely used. Many pages may be outdated.
+
+> The changes to Python are not large, I've kept the pull request from last year's POC active. The changed files provide a good summary of the scope.
+> https://github.com/python/cpython/pull/4184/files
+
+That's a giant PR. Sorry, I'm unable to review that. Usually, I simply
+ignore such PR.
+
+> However we let automake and setup.py do much of the work for us, so where VxWorks  does not have support for something, it's not obvious.
+> A public document would go a long way to filling in those details, something much more detailed than  my glib "VxWorks is almost POSIX" in the pull request.
+
+Cross-compilation is complex. So yeah, any documentation is more than
+welcome. Many people are still fighting to try to get a working Python
+on Android... My notes:
+https://pythondev.readthedocs.io/android.html
+(is there still someone working on that?)
+
+> Other challenges;
+> * VxWorks is cross-compiled on both Linux and Windows. ( currently with clang and gcc)
+> * Supported on ARM,  PowerPC and Intel processors
+
+I don't think that it should be an issue for Python. Very few parts of
+CPython are architecture specific. I'm aware of ctypes which is more
+or less optional. ctypes rely on libffi which supports a wide range of
+architectures.
+
+> * 32bit and 64bit builds
+
+We have a wide range of 32 and 64 bits buildbot workers. I don't
+expect any issue here.
+
+Which C compiler do you use?
+
+> * A constantly evolving set of reference boards (or BSPs)
+> https://marketplace.windriver.com/index.php?bsp&on=list&type=platform&value=VxWorks:%207%20-%20Wind%20River%20Workbench%204.0
+
+I'm not sure how it's supposed to impact Python?
+
+> I don't think we need a buildbot for every board.  I'm thinking a 1/2 dozen to cover ARM, PPC and IA with both a 32bit and 64 bit build?
+> We have a bit of chicken and egg problem right now, a buildbot will always fail until there's some basic VxWorks support added.
+
+No please. A *single* buildbot worker in total is enough. When you
+will have a very good support and a full test suite coverage, we can
+discuss about adding more flavors.
+
+> Do we set them up, and just let them fail, till enough PRs are accepted to make it build?
+
+Multiple buildbot workers are failing since many years. *I* would
+prefer to see the full test suite passing (even if some tests are
+skipped on your platform) before adding a buildbot, but it seems like
+some people have a different opinion on that. For example, there is an
+AIX buildbot and some tests are still failing (it was always red,
+failing, no?).
+
+You're right that it's a chicken-and-egg issue, except that we don't
+have a very strong policy for buildbots.
+
+Note: I cannot promise that I will review your PR. I can only promise
+that I will have a look :-) VxWorks is not really a priority for me.
+(I prefer to not give false promise here.)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From storchaka at gmail.com  Thu Jan 10 12:38:37 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Thu, 10 Jan 2019 19:38:37 +0200
+Subject: [Python-Dev] VxWorks and cpython?
+In-Reply-To: <6C486AB80682E24095E3E77A408D68F201499CAF79@ALA-MBD.corp.ad.wrs.com>
+References: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+ <CAP7+vJLH2rBaqoMwYAJtC_gizPDqjWz=1ZUrEUyFYAVQ3NHrsQ@mail.gmail.com>
+ <c33aa093-81cb-1c97-bb18-f86d78752d49@python.org>
+ <CA+3bQGHAAYOOu88JErN8eTrOvkvW1GSr8E2QvHL2nu2Nkn3d8g@mail.gmail.com>
+ <6C486AB80682E24095E3E77A408D68F201499CAF79@ALA-MBD.corp.ad.wrs.com>
+Message-ID: <q17vqq$39g$1@blaine.gmane.org>
+
+10.01.19 18:54, Kuhl, Brian ????:
+> The changes to Python are not large, I've kept the pull request from last year's POC active. The changed files provide a good summary of the scope.
+> https://github.com/python/cpython/pull/4184/files
+
+To prepare this PR for review the following changes are required:
+
+* Update it to the current master. Currently there are many conflicts.
+* Remove unrelated changes, like: adding/removing empty lines, 
+adding/removing spaces in unrelated lines.
+* Remove unrelated changes in 'configure'. It depends on the used 
+version of autoconf.
+* Ensure that you do not use tabs, unless they are necessary (in Makefile).
+* Make the code conforming PEP 7 and PEP 8. In particular, spaces should 
+be added between 'if' and '(', between ')' and '{', opening '{' should 
+be on the same line for statements, but on a new line if it is defines a 
+function body, parenthesis around conditions of 'if' and 'while' are not 
+needed in Python, long lines should be wrapped, etc, etc.
+
+
