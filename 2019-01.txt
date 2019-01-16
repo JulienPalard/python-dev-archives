@@ -4801,3 +4801,78 @@ https://bugs.python.org/issue35709  closed by vstinner
 #35716: CLOCK_MONOTONIC_RAW available on macOS
 https://bugs.python.org/issue35716  closed by vstinner
 
+From ncoghlan at gmail.com  Mon Jan 14 07:39:46 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 14 Jan 2019 22:39:46 +1000
+Subject: [Python-Dev] Interested in serving on Steering Council
+In-Reply-To: <CAEbHw4b-dWKeYWaYoGBS1HMxJjuN0gquM99mKfuNvvU3wmwzGQ@mail.gmail.com>
+References: <CAEbHw4bhjt3k-Q57BnSWw150B2Pint1465ick+775i-eaYeVBA@mail.gmail.com>
+ <20190102191517.7fc2094c@fsol>
+ <cb08756a-cf4b-f6ad-5147-7ef3e41f4c95@python.org>
+ <CAEbHw4b-dWKeYWaYoGBS1HMxJjuN0gquM99mKfuNvvU3wmwzGQ@mail.gmail.com>
+Message-ID: <CADiSq7eH5vkzhkiQN2pQWhKKq7GETqY9sf9JDY6b+iZ7kGDr3A@mail.gmail.com>
+
+On Sat, 5 Jan 2019 at 06:28, David Mertz <mertz at gnosis.cx> wrote:
+> It is interesting to me that whereas when I started volunteering for the PSF, there was significant overlap between the PSF board and the core-committers, I think there is little or no overlap today.  For better or worse, PSF is much more community than technical today.
+
+(tangent) For those that are curious, I went and looked this up [1],
+and the current PSF board has 2 of 11 members being core devs, whereas
+the early days of the board look like they had a ratio that was more
+often on the order of 4-6 core devs out of 7 members.
+
+I take that as a sign of healthy community growth :)
+
+Cheers,
+Nick.
+
+[1]  https://www.python.org/psf/records/board/history/
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Mon Jan 14 07:52:06 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 14 Jan 2019 22:52:06 +1000
+Subject: [Python-Dev] VxWorks and cpython?
+In-Reply-To: <CA+3bQGEbOz4X7RbccRrXZn9fgJ3_ZagjV7hD-Aq-J605_rcJ7Q@mail.gmail.com>
+References: <6C486AB80682E24095E3E77A408D68F201499C9AF5@ALA-MBD.corp.ad.wrs.com>
+ <CAP7+vJLH2rBaqoMwYAJtC_gizPDqjWz=1ZUrEUyFYAVQ3NHrsQ@mail.gmail.com>
+ <c33aa093-81cb-1c97-bb18-f86d78752d49@python.org>
+ <CA+3bQGHAAYOOu88JErN8eTrOvkvW1GSr8E2QvHL2nu2Nkn3d8g@mail.gmail.com>
+ <6C486AB80682E24095E3E77A408D68F201499CAF79@ALA-MBD.corp.ad.wrs.com>
+ <CA+3bQGEbOz4X7RbccRrXZn9fgJ3_ZagjV7hD-Aq-J605_rcJ7Q@mail.gmail.com>
+Message-ID: <CADiSq7dKbaj3MaLOCEomK_G_pjr=-A5LdHSoiTorhiOOrm1HMA@mail.gmail.com>
+
+On Fri, 11 Jan 2019 at 03:23, Victor Stinner <vstinner at redhat.com> wrote:
+> Le jeu. 10 janv. 2019 ? 17:54, Kuhl, Brian <brian.kuhl at windriver.com> a ?crit :
+> > Do we set them up, and just let them fail, till enough PRs are accepted to make it build?
+>
+> Multiple buildbot workers are failing since many years. *I* would
+> prefer to see the full test suite passing (even if some tests are
+> skipped on your platform) before adding a buildbot, but it seems like
+> some people have a different opinion on that. For example, there is an
+> AIX buildbot and some tests are still failing (it was always red,
+> failing, no?).
+
+Michael Felt has been working towards getting that AIX bot green, and
+I merged several PRs over the end of year break to help make progress
+towards that goal.
+
+He hit a similar challenge to the one Brian will be facing: putting
+all the changes in one PR can make it overwhelming to review (so the
+PR stalls), but splitting them up into individual PRs can result in
+changes that don't appear sufficiently well motivated on their own (so
+those PRs also stall).
+
+The AIX case is currently an example where some of the buildbot
+"fixes" are actually test skips, as the goal is to get to a point
+where "things that currently work on AIX keep working, while folks
+interested in AIX can work towards getting the not-working things
+indicated by skipped tests also working".
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
