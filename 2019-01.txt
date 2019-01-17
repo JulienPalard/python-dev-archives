@@ -4876,3 +4876,46 @@ Nick.
 -- 
 Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
 
+From aixtools at felt.demon.nl  Tue Jan 15 04:06:42 2019
+From: aixtools at felt.demon.nl (Michael)
+Date: Tue, 15 Jan 2019 10:06:42 +0100
+Subject: [Python-Dev] Thanks - come a long way with getting tests resolved!
+Message-ID: <7d5a4f47-0c56-020e-1857-184bf78bc858@felt.demon.nl>
+
+Many thanks to all who assisted with feedback. Back at the start of
+August my make tests had a nasty block like this:
+
+29 tests failed:
+??? test__xxsubinterpreters test_array test_asyncio test_cmath
+??? test_compile test_complex test_ctypes test_distutils test_embed
+??? test_float test_fractions test_getargs2 test_httplib
+??? test_httpservers test_imaplib test_importlib test_math test_poplib
+??? test_shutil test_signal test_socket test_ssl test_statistics
+??? test_strtod test_struct test_subprocess test_time test_timeout
+??? test_utf8_mode
+
+And now that is down to:
+
+
+4 tests failed:
+test_eintr test_importlib test_multiprocessing_forkserver
+test_multiprocessing_spawn
+While I am still trying to figure out where the "multiprocessing" errors
+come from - there is
+only one "test" left from the original list - and that one, plus
+test_eintr have PR's waiting for your approval.
+I could not have gotten this far without help!
+Sincerely,
+Michael aka aixtools
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190115/34187608/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 488 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190115/34187608/attachment.sig>
+
