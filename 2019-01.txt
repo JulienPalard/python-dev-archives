@@ -4919,3 +4919,259 @@ Size: 488 bytes
 Desc: OpenPGP digital signature
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190115/34187608/attachment.sig>
 
+From solipsis at pitrou.net  Wed Jan 16 05:11:06 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 16 Jan 2019 11:11:06 +0100
+Subject: [Python-Dev] pickle5 backport updated
+Message-ID: <20190116111106.193088f4@fsol>
+
+
+Hello,
+
+For the record, the pickle5 backport (PEP 574) was updated to include
+the latest pickle changes from CPython git master.
+
+pickle5 is available for Python 3.6 and 3.7.
+https://pypi.org/project/pickle5/
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Wed Jan 16 05:25:04 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 16 Jan 2019 11:25:04 +0100
+Subject: [Python-Dev] pickle5 backport updated
+In-Reply-To: <20190116111106.193088f4@fsol>
+References: <20190116111106.193088f4@fsol>
+Message-ID: <CA+3bQGF1f8N7wMdz64RDh6kh2Vh-TUQ9rHn-T-g+BV_uYrKGRQ@mail.gmail.com>
+
+I see that the PEP is still a draft. What's the status?
+
+Do you need someone to review your PEP? Do you have anyone in mind who
+can review it? I don't feel able to review such PEP, sorry :-(
+
+Victor
+
+Le mer. 16 janv. 2019 ? 11:14, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+>
+>
+> Hello,
+>
+> For the record, the pickle5 backport (PEP 574) was updated to include
+> the latest pickle changes from CPython git master.
+>
+> pickle5 is available for Python 3.6 and 3.7.
+> https://pypi.org/project/pickle5/
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From wes.turner at gmail.com  Wed Jan 16 05:26:13 2019
+From: wes.turner at gmail.com (Wes Turner)
+Date: Wed, 16 Jan 2019 05:26:13 -0500
+Subject: [Python-Dev] pickle5 backport updated
+In-Reply-To: <20190116111106.193088f4@fsol>
+References: <20190116111106.193088f4@fsol>
+Message-ID: <CACfEFw8KH3p-BvYnONDX1zyX6gaFMPmnJqVaA+QXQNJjo8gyTw@mail.gmail.com>
+
+Thanks! Apache Arrow may also be worth a look:
+
+> Apache Arrow is a cross-language development platform for in-memory data.
+It specifies a standardized language-independent columnar memory format for
+flat and hierarchical data, organized for efficient analytic operations on
+modern hardware. It also provides computational libraries and zero-copy
+streaming messaging and interprocess communication.
+
+> The Arrow Python bindings have first-class integration with NumPy,
+pandas, and built-in Python objects
+
+https://arrow.apache.org/docs/python/
+
+Pickle supports arbitrary Python objects without any schema definition
+(other than that what's defined in the object's __reduce__()
+and __reduce_ex__())
+
+On Wednesday, January 16, 2019, Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+>
+> Hello,
+>
+> For the record, the pickle5 backport (PEP 574) was updated to include
+> the latest pickle changes from CPython git master.
+>
+> pickle5 is available for Python 3.6 and 3.7.
+> https://pypi.org/project/pickle5/
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/
+> wes.turner%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190116/431e45b3/attachment.html>
+
+From wes.turner at gmail.com  Wed Jan 16 05:27:39 2019
+From: wes.turner at gmail.com (Wes Turner)
+Date: Wed, 16 Jan 2019 05:27:39 -0500
+Subject: [Python-Dev] pickle5 backport updated
+In-Reply-To: <CACfEFw8KH3p-BvYnONDX1zyX6gaFMPmnJqVaA+QXQNJjo8gyTw@mail.gmail.com>
+References: <20190116111106.193088f4@fsol>
+ <CACfEFw8KH3p-BvYnONDX1zyX6gaFMPmnJqVaA+QXQNJjo8gyTw@mail.gmail.com>
+Message-ID: <CACfEFw86RjqQPPT9cjwQzuqPvkj02_zzhEG6k=qdrtnXaAM-kA@mail.gmail.com>
+
+Maybe a bit OT: is there a way to *not pickle any callables*?
+
+On Wednesday, January 16, 2019, Wes Turner <wes.turner at gmail.com> wrote:
+
+> Thanks! Apache Arrow may also be worth a look:
+>
+> > Apache Arrow is a cross-language development platform for in-memory
+> data. It specifies a standardized language-independent columnar memory
+> format for flat and hierarchical data, organized for efficient analytic
+> operations on modern hardware. It also provides computational libraries and
+> zero-copy streaming messaging and interprocess communication.
+>
+> > The Arrow Python bindings have first-class integration with NumPy,
+> pandas, and built-in Python objects
+>
+> https://arrow.apache.org/docs/python/
+>
+> Pickle supports arbitrary Python objects without any schema definition
+> (other than that what's defined in the object's __reduce__()
+> and __reduce_ex__())
+>
+> On Wednesday, January 16, 2019, Antoine Pitrou <solipsis at pitrou.net>
+> wrote:
+>
+>>
+>> Hello,
+>>
+>> For the record, the pickle5 backport (PEP 574) was updated to include
+>> the latest pickle changes from CPython git master.
+>>
+>> pickle5 is available for Python 3.6 and 3.7.
+>> https://pypi.org/project/pickle5/
+>>
+>> Regards
+>>
+>> Antoine.
+>>
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/wes.
+>> turner%40gmail.com
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190116/7ed0108e/attachment.html>
+
+From solipsis at pitrou.net  Wed Jan 16 05:30:42 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 16 Jan 2019 11:30:42 +0100
+Subject: [Python-Dev] pickle5 backport updated
+In-Reply-To: <CACfEFw8KH3p-BvYnONDX1zyX6gaFMPmnJqVaA+QXQNJjo8gyTw@mail.gmail.com>
+References: <20190116111106.193088f4@fsol>
+ <CACfEFw8KH3p-BvYnONDX1zyX6gaFMPmnJqVaA+QXQNJjo8gyTw@mail.gmail.com>
+Message-ID: <20190116113042.511b9631@fsol>
+
+On Wed, 16 Jan 2019 05:26:13 -0500
+Wes Turner <wes.turner at gmail.com> wrote:
+> Thanks! Apache Arrow may also be worth a look:
+
+From PEP 574, "implementation section":
+
+? Support for pickle protocol 5 and out-of-band buffers was added to the
+Apache Arrow Python bindings [10]. ?
+
+So Arrow is very much in the scope for PEP 574.
+
+Regards
+
+Antoine.
+
+
+PS: I work on Arrow.
+
+From solipsis at pitrou.net  Wed Jan 16 05:29:21 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 16 Jan 2019 11:29:21 +0100
+Subject: [Python-Dev] pickle5 backport updated
+In-Reply-To: <CA+3bQGF1f8N7wMdz64RDh6kh2Vh-TUQ9rHn-T-g+BV_uYrKGRQ@mail.gmail.com>
+References: <20190116111106.193088f4@fsol>
+ <CA+3bQGF1f8N7wMdz64RDh6kh2Vh-TUQ9rHn-T-g+BV_uYrKGRQ@mail.gmail.com>
+Message-ID: <20190116112921.40ba838c@fsol>
+
+On Wed, 16 Jan 2019 11:25:04 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> I see that the PEP is still a draft. What's the status?
+
+PEP 574 is ready for pronouncement.  It's waiting for an authority to
+approve it (or decide on a PEP delegate, who IMHO should probably
+be Nick Coghlan).
+
+Regards
+
+Antoine.
+
+
+
+> 
+> Do you need someone to review your PEP? Do you have anyone in mind who
+> can review it? I don't feel able to review such PEP, sorry :-(
+> 
+> Victor
+> 
+> Le mer. 16 janv. 2019 ? 11:14, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> >
+> >
+> > Hello,
+> >
+> > For the record, the pickle5 backport (PEP 574) was updated to include
+> > the latest pickle changes from CPython git master.
+> >
+> > pickle5 is available for Python 3.6 and 3.7.
+> > https://pypi.org/project/pickle5/
+> >
+> > Regards
+> >
+> > Antoine.
+> >
+> >
+> > _______________________________________________
+> > Python-Dev mailing list
+> > Python-Dev at python.org
+> > https://mail.python.org/mailman/listinfo/python-dev
+> > Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com  
+> 
+> 
+> 
+
+
