@@ -5175,3 +5175,518 @@ Antoine.
 > 
 
 
+From steve at pearwood.info  Thu Jan 17 05:26:06 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 17 Jan 2019 21:26:06 +1100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only way to
+ get the address of an object?
+Message-ID: <20190117102605.GG13616@ando.pearwood.info>
+
+Disclaimer: I'm not a ctypes expert, so I might have this completely 
+wrong. If so, I apologise for the noise.
+
+The id() function is documented as returning an abstract ID number. In 
+CPython, that happens to have been implemented as the address of the 
+object.
+
+I understand that the only way to pass the address of an object to 
+ctypes is to use that id. Is that intentional?
+
+As I see it, there is a conflict between two facts:
+
+- that id() returns a memory address is an implementation detail; as 
+such users should not rely on it, as the implementation could (in 
+principle) change without notice;
+
+- but users using ctypes have no choice but to rely on id() returning 
+the object memory address, as of it were an offical part of the API.
+
+Implementations like PyPy which emulate ctypes, while objects don't have 
+fixed memory locations, will surely have a problem here. I don't know 
+how PyPy solves this.
+
+Have I misunderstood something here?
+
+
+
+-- 
+Steve
+
+From solipsis at pitrou.net  Thu Jan 17 05:37:13 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 17 Jan 2019 11:37:13 +0100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+References: <20190117102605.GG13616@ando.pearwood.info>
+Message-ID: <20190117113713.02a99b4d@fsol>
+
+On Thu, 17 Jan 2019 21:26:06 +1100
+Steven D'Aprano <steve at pearwood.info> wrote:
+> Disclaimer: I'm not a ctypes expert, so I might have this completely 
+> wrong. If so, I apologise for the noise.
+> 
+> The id() function is documented as returning an abstract ID number. In 
+> CPython, that happens to have been implemented as the address of the 
+> object.
+> 
+> I understand that the only way to pass the address of an object to 
+> ctypes is to use that id. Is that intentional?
+
+Can you explain in detail what you're doing?
+If you're calling a C API taking a PyObject*, it seems like you should
+be using ctypes.py_object as argument type specifier.  Various examples
+can be found with Google.
+
+Regards
+
+Antoine.
+
+
+
+From ncoghlan at gmail.com  Thu Jan 17 06:08:29 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 17 Jan 2019 21:08:29 +1000
+Subject: [Python-Dev] pickle5 backport updated
+In-Reply-To: <20190116112921.40ba838c@fsol>
+References: <20190116111106.193088f4@fsol>
+ <CA+3bQGF1f8N7wMdz64RDh6kh2Vh-TUQ9rHn-T-g+BV_uYrKGRQ@mail.gmail.com>
+ <20190116112921.40ba838c@fsol>
+Message-ID: <CADiSq7c2=dK2nTGemLnn9sCTrD_beL3ze_wDqbMkGvhO=tCx7A@mail.gmail.com>
+
+On Wed, 16 Jan 2019 at 20:38, Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+> On Wed, 16 Jan 2019 11:25:04 +0100
+> Victor Stinner <vstinner at redhat.com> wrote:
+> > I see that the PEP is still a draft. What's the status?
+>
+> PEP 574 is ready for pronouncement.  It's waiting for an authority to
+> approve it (or decide on a PEP delegate, who IMHO should probably
+> be Nick Coghlan).
+
+Aye, and I had already taken on that role unofficially - IIRC, the
+only major change I requested was the one to allow buffer handling
+callbacks to ask the pickler to include the buffer in-line after all
+[1].
+
+It was just that the BDFL-Delegate appointment process was put on hold
+after Guido stepped down.
+
+Cheers,
+Nick.
+
+[1] https://github.com/python/peps/commit/1ed3043948527893f277d6451a315a05bde123ec#diff-4576f13d94059bcccb9205ad5005f96c
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From eryksun at gmail.com  Thu Jan 17 08:50:51 2019
+From: eryksun at gmail.com (eryk sun)
+Date: Thu, 17 Jan 2019 07:50:51 -0600
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <20190117102605.GG13616@ando.pearwood.info>
+References: <20190117102605.GG13616@ando.pearwood.info>
+Message-ID: <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+
+On 1/17/19, Steven D'Aprano <steve at pearwood.info> wrote:
+>
+> I understand that the only way to pass the address of an object to
+> ctypes is to use that id. Is that intentional?
+
+It's kind of dangerous to pass an object to C without an increment of
+its reference count. The proper way is to use a simple pointer of type
+"O" (object), which is already created for you as the "py_object"
+type.
+
+    >>> ctypes.py_object._type_
+    'O'
+    >>> ctypes.py_object.__bases__
+    (<class '_ctypes._SimpleCData'>,)
+
+It keeps a reference in the readonly _objects attribute. For example:
+
+    >>> b = bytearray(b'spam')
+    >>> sys.getrefcount(b)
+    2
+    >>> cb = ctypes.py_object(b)
+    >>> sys.getrefcount(b)
+    3
+    >>> cb._objects
+    bytearray(b'spam')
+    >>> del cb
+    >>> sys.getrefcount(b)
+    2
+
+If you need the address without relying on id(), cast to a void pointer:
+
+    >>> ctypes.POINTER(ctypes.c_void_p)(cb)[0] == id(b)
+    True
+
+Or instantiate a c_void_p from the py_object as a buffer:
+
+    >>> ctypes.c_void_p.from_buffer(cb).value == id(b)
+    True
+
+Note that ctypes.cast() doesn't work in this case. It's implemented as
+an FFI function that takes the object address as a void pointer. The
+from_param method of c_void_p doesn't support py_object:
+
+    >>> ctypes.c_void_p.from_param(cb)
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: wrong type
+
+From greg at krypto.org  Thu Jan 17 19:48:38 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Thu, 17 Jan 2019 16:48:38 -0800
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <20190117102605.GG13616@ando.pearwood.info>
+References: <20190117102605.GG13616@ando.pearwood.info>
+Message-ID: <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+
+I've heard that libraries using ctypes, cffi, or cython code of various
+sorts in the real world wild today does abuse the unfortunate side effect
+of CPython's implementation of id(). I don't have specific instances of
+this in mind but trust what I've heard: that it is happening.
+
+id() should never be considered to be the PyObject*.  In as much as code
+shouldn't assume it is running on top of a specific CPython implementation.
+If there is a _need_ to get a pointer to a C struct handle referencing a
+CPython C API PyObject, we should make an explicit API for that rather than
+the id() hack.  That way code can be explicit about its need, and code that
+is just doing a funky form of identity tracking without using is and is not
+can continue using id() without triggering regressive behavior on VMs that
+don't have a CPython compatible PyObject under the hood by default.
+
+[who uses id() anyways?]
+
+-gps
+
+
+On Thu, Jan 17, 2019 at 2:26 AM Steven D'Aprano <steve at pearwood.info> wrote:
+
+> Disclaimer: I'm not a ctypes expert, so I might have this completely
+> wrong. If so, I apologise for the noise.
+>
+> The id() function is documented as returning an abstract ID number. In
+> CPython, that happens to have been implemented as the address of the
+> object.
+>
+> I understand that the only way to pass the address of an object to
+> ctypes is to use that id. Is that intentional?
+>
+> As I see it, there is a conflict between two facts:
+>
+> - that id() returns a memory address is an implementation detail; as
+> such users should not rely on it, as the implementation could (in
+> principle) change without notice;
+>
+> - but users using ctypes have no choice but to rely on id() returning
+> the object memory address, as of it were an offical part of the API.
+>
+> Implementations like PyPy which emulate ctypes, while objects don't have
+> fixed memory locations, will surely have a problem here. I don't know
+> how PyPy solves this.
+>
+> Have I misunderstood something here?
+>
+>
+>
+> --
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190117/388ca470/attachment.html>
+
+From rosuav at gmail.com  Thu Jan 17 19:57:23 2019
+From: rosuav at gmail.com (Chris Angelico)
+Date: Fri, 18 Jan 2019 11:57:23 +1100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+Message-ID: <CAPTjJmo5GM=HDxwyZDg7nK5wc82ROR425Wqgedow1eipwR5DQA@mail.gmail.com>
+
+On Fri, Jan 18, 2019 at 11:50 AM Gregory P. Smith <greg at krypto.org> wrote:
+>
+> I've heard that libraries using ctypes, cffi, or cython code of various sorts in the real world wild today does abuse the unfortunate side effect of CPython's implementation of id(). I don't have specific instances of this in mind but trust what I've heard: that it is happening.
+>
+> id() should never be considered to be the PyObject*.  In as much as code shouldn't assume it is running on top of a specific CPython implementation.
+> If there is a _need_ to get a pointer to a C struct handle referencing a CPython C API PyObject, we should make an explicit API for that rather than the id() hack.  That way code can be explicit about its need, and code that is just doing a funky form of identity tracking without using is and is not can continue using id() without triggering regressive behavior on VMs that don't have a CPython compatible PyObject under the hood by default.
+>
+
+I would be strongly in favour of ctypes gaining a "get address of
+object" function, which happens (in current CPythons) to return the
+same value as id() does, but is specifically tied to ctypes.
+
+ChrisA
+
+From python at mrabarnett.plus.com  Thu Jan 17 22:00:54 2019
+From: python at mrabarnett.plus.com (MRAB)
+Date: Fri, 18 Jan 2019 03:00:54 +0000
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+Message-ID: <6f9aaf8a-5b4b-954b-ffd2-10ae9a6c55c9@mrabarnett.plus.com>
+
+On 2019-01-18 00:48, Gregory P. Smith wrote:
+> I've heard that libraries using ctypes, cffi, or cython code of various 
+> sorts in the real world wild today does abuse the unfortunate side 
+> effect of CPython's implementation of id(). I don't have specific 
+> instances of this in mind but trust what I've heard: that it is happening.
+> 
+> id() should never be considered to be the PyObject*.? In as much as code 
+> shouldn't assume it is running on top of a specific CPython implementation.
+> If there is a _need_ to get a pointer to a C struct handle referencing a 
+> CPython C API PyObject, we should make an explicit API for that rather 
+> than the id() hack.? That way code can be explicit about its need, and 
+> code that is just doing a funky form of identity tracking without using 
+> is and is not can continue using id() without triggering regressive 
+> behavior on VMs that don't have a CPython compatible PyObject under the 
+> hood by default.
+> 
+> [who uses id() anyways?]
+> 
+I use it in some of my code.
+
+If I want to cache some objects, I put them in a dict, using the id as 
+the key. If I wanted to locate an object in a cache and didn't have 
+id(), I'd have to do a linear search for it.
+
+From njs at pobox.com  Thu Jan 17 22:18:37 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 17 Jan 2019 19:18:37 -0800
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+Message-ID: <CAPJVwBkA3OBVHgi=VyS0fd+1+V2u=6OmBxwzZ7OpfyQB4fAdTg@mail.gmail.com>
+
+n Thu, Jan 17, 2019 at 4:51 PM Gregory P. Smith <greg at krypto.org> wrote:
+>
+> I've heard that libraries using ctypes, cffi, or cython code of various sorts in the real world wild today does abuse the unfortunate side effect of CPython's implementation of id(). I don't have specific instances of this in mind but trust what I've heard: that it is happening.
+
+IME it's reasonably common with ctypes, for cases where you need to do
+some gross hack and there's no other option. Here's an example in
+jinja2:
+
+  https://github.com/pallets/jinja/blob/9fe9520f2daa1df6079b188adba758d6e03d6af2/jinja2/debug.py#L350
+
+I haven't seen it with cffi or cython. (cffi explicitly doesn't
+provide any way to access the CPython C API, and in cython you can
+just cast an object to a pointer.)
+
+> id() should never be considered to be the PyObject*.  In as much as code shouldn't assume it is running on top of a specific CPython implementation.
+> If there is a _need_ to get a pointer to a C struct handle referencing a CPython C API PyObject, we should make an explicit API for that rather than the id() hack.  That way code can be explicit about its need, and code that is just doing a funky form of identity tracking without using is and is not can continue using id() without triggering regressive behavior on VMs that don't have a CPython compatible PyObject under the hood by default.
+
+Using id() like this is certainly offensive to our sensibilities, but
+in practice I don't see how it causes much harm. If you are doing
+*anything* with PyObject*, then you're tying yourself to
+implementation details of CPython (and usually a specific version of
+CPython). That's not great, but at that point relying on CPython's
+implementation of id() is the least of your worries, and it tends to
+be a self-correcting problem.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From steve.dower at python.org  Fri Jan 18 01:09:36 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 17 Jan 2019 22:09:36 -0800
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+Message-ID: <c070073d-cc15-3583-2458-14e25e95c5ca@python.org>
+
+For everyone who managed to reply *hours* after Eryk Sun posted the
+correct answer and still get it wrong, here it is again in full.
+
+As a bonus, here's a link to the place where this answer appears in the
+documentation:
+https://docs.python.org/3/library/ctypes.html#ctypes.py_object
+
+Cheers,
+Steve
+
+On 17Jan.2019 0550, eryk sun wrote:
+> On 1/17/19, Steven D'Aprano <steve at pearwood.info> wrote:
+>>
+>> I understand that the only way to pass the address of an object to
+>> ctypes is to use that id. Is that intentional?
+> 
+> It's kind of dangerous to pass an object to C without an increment of
+> its reference count. The proper way is to use a simple pointer of type
+> "O" (object), which is already created for you as the "py_object"
+> type.
+> 
+>     >>> ctypes.py_object._type_
+>     'O'
+>     >>> ctypes.py_object.__bases__
+>     (<class '_ctypes._SimpleCData'>,)
+> 
+> It keeps a reference in the readonly _objects attribute. For example:
+> 
+>     >>> b = bytearray(b'spam')
+>     >>> sys.getrefcount(b)
+>     2
+>     >>> cb = ctypes.py_object(b)
+>     >>> sys.getrefcount(b)
+>     3
+>     >>> cb._objects
+>     bytearray(b'spam')
+>     >>> del cb
+>     >>> sys.getrefcount(b)
+>     2
+> 
+> If you need the address without relying on id(), cast to a void pointer:
+> 
+>     >>> ctypes.POINTER(ctypes.c_void_p)(cb)[0] == id(b)
+>     True
+> 
+> Or instantiate a c_void_p from the py_object as a buffer:
+> 
+>     >>> ctypes.c_void_p.from_buffer(cb).value == id(b)
+>     True
+> 
+> Note that ctypes.cast() doesn't work in this case. It's implemented as
+> an FFI function that takes the object address as a void pointer. The
+> from_param method of c_void_p doesn't support py_object:
+> 
+>     >>> ctypes.c_void_p.from_param(cb)
+>     Traceback (most recent call last):
+>       File "<stdin>", line 1, in <module>
+>     TypeError: wrong type
+
+From steve.dower at python.org  Fri Jan 18 01:18:13 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 17 Jan 2019 22:18:13 -0800
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <c070073d-cc15-3583-2458-14e25e95c5ca@python.org>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+ <c070073d-cc15-3583-2458-14e25e95c5ca@python.org>
+Message-ID: <38dc18e0-b7e7-c0a4-c4a5-31b0797befb9@python.org>
+
+I feel like I should clarify - not everyone who posted got it wrong, and
+I understand there's a side discussion among those who are also
+interested/participants in
+https://discuss.python.org/t/demoting-the-is-operator-to-avoid-an-identity-crisis/86/
+- but there was no of acknowledgement of Eryk Sun's correct and useful
+answer which I find very disappointing and a great way to discourage
+contributions.
+
+We can, and should, do better, at least by thanking the person for their
+response before running down a barely related side track.
+
+On 17Jan.2019 2209, Steve Dower wrote:
+> For everyone who managed to reply *hours* after Eryk Sun posted the
+> correct answer and still get it wrong, here it is again in full.
+> 
+> As a bonus, here's a link to the place where this answer appears in the
+> documentation:
+> https://docs.python.org/3/library/ctypes.html#ctypes.py_object
+> 
+> Cheers,
+> Steve
+> 
+> On 17Jan.2019 0550, eryk sun wrote:
+>> On 1/17/19, Steven D'Aprano <steve at pearwood.info> wrote:
+>>>
+>>> I understand that the only way to pass the address of an object to
+>>> ctypes is to use that id. Is that intentional?
+>>
+>> It's kind of dangerous to pass an object to C without an increment of
+>> its reference count. The proper way is to use a simple pointer of type
+>> "O" (object), which is already created for you as the "py_object"
+>> type.
+>>
+>>     >>> ctypes.py_object._type_
+>>     'O'
+>>     >>> ctypes.py_object.__bases__
+>>     (<class '_ctypes._SimpleCData'>,)
+>>
+>> It keeps a reference in the readonly _objects attribute. For example:
+>>
+>>     >>> b = bytearray(b'spam')
+>>     >>> sys.getrefcount(b)
+>>     2
+>>     >>> cb = ctypes.py_object(b)
+>>     >>> sys.getrefcount(b)
+>>     3
+>>     >>> cb._objects
+>>     bytearray(b'spam')
+>>     >>> del cb
+>>     >>> sys.getrefcount(b)
+>>     2
+>>
+>> If you need the address without relying on id(), cast to a void pointer:
+>>
+>>     >>> ctypes.POINTER(ctypes.c_void_p)(cb)[0] == id(b)
+>>     True
+>>
+>> Or instantiate a c_void_p from the py_object as a buffer:
+>>
+>>     >>> ctypes.c_void_p.from_buffer(cb).value == id(b)
+>>     True
+>>
+>> Note that ctypes.cast() doesn't work in this case. It's implemented as
+>> an FFI function that takes the object address as a void pointer. The
+>> from_param method of c_void_p doesn't support py_object:
+>>
+>>     >>> ctypes.c_void_p.from_param(cb)
+>>     Traceback (most recent call last):
+>>       File "<stdin>", line 1, in <module>
+>>     TypeError: wrong type
+
+
+From njs at pobox.com  Fri Jan 18 03:18:17 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 18 Jan 2019 00:18:17 -0800
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <c070073d-cc15-3583-2458-14e25e95c5ca@python.org>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+ <c070073d-cc15-3583-2458-14e25e95c5ca@python.org>
+Message-ID: <CAPJVwBnqY=ea8v5BimBYfgcXpkmwQEFZnBvvJ3D8qTD5oh1bNw@mail.gmail.com>
+
+On Thu, Jan 17, 2019, 22:11 Steve Dower <steve.dower at python.org wrote:
+
+> For everyone who managed to reply *hours* after Eryk Sun posted the
+> correct answer and still get it wrong, here it is again in full.
+>
+> As a bonus, here's a link to the place where this answer appears in the
+> documentation:
+> https://docs.python.org/3/library/ctypes.html#ctypes.py_object
+
+
+Eryk's answer is actually much more useful than the documentation. I've
+read that documentation many times, but always decided not to use py_object
+because I couldn't figure out what it would actually do...
+
+(I still probably won't use it because IME by the time I'm using ctypes and
+PyObject* together I usually need manual control over refcounts, but it's
+nice to know what it actually does.)
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190118/c1756945/attachment.html>
+
