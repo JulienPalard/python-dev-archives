@@ -5690,3 +5690,1319 @@ nice to know what it actually does.)
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190118/c1756945/attachment.html>
 
+From steve at pearwood.info  Fri Jan 18 04:49:26 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 18 Jan 2019 20:49:26 +1100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <20190117113713.02a99b4d@fsol>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <20190117113713.02a99b4d@fsol>
+Message-ID: <20190118094926.GL13616@ando.pearwood.info>
+
+On Thu, Jan 17, 2019 at 11:37:13AM +0100, Antoine Pitrou wrote:
+
+I said:
+
+> > The id() function is documented as returning an abstract ID number. In 
+> > CPython, that happens to have been implemented as the address of the 
+> > object.
+> > 
+> > I understand that the only way to pass the address of an object to 
+> > ctypes is to use that id. Is that intentional?
+
+
+Antoine:
+ 
+> Can you explain in detail what you're doing?
+
+Code-wise, I'm not doing anything with ctypes.
+
+Language-wise, I'm trying to get a definitive answer of whether or not 
+id() returning the address of the object should be a guaranteed feature 
+or not.
+
+Across the entire Python ecosystem, no it isn't, as Jython and 
+IronPython return consecutive integers. But should we consider it an 
+intentional part of the CPython API?
+
+There are developers who insist that when it comes to CPython, id() 
+returning the object address is an intentional feature that they can and 
+do rely on, because (so I was told by one of them) that using id() is 
+the only way to get the address of an object from pure-Python.
+
+According to this claim, using id() to get the address for use in ctypes 
+is the correct and only way to do it, and this is a deliberate design 
+choice by the core devs rather than an accident of the implementation. 
+So long as you know you are using CPython, this is (so I was told) 
+completely safe.
+
+In the grand scheme of things this may be a pretty minor issue. But I 
+suspect that it could be a pain point for implementations like PyPy that 
+support both objects that move and a ctypes emulation.
+
+
+
+-- 
+Steve
+
+From p.f.moore at gmail.com  Fri Jan 18 05:15:49 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Fri, 18 Jan 2019 10:15:49 +0000
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <20190118094926.GL13616@ando.pearwood.info>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <20190117113713.02a99b4d@fsol>
+ <20190118094926.GL13616@ando.pearwood.info>
+Message-ID: <CACac1F_Horz9rTXhV2271YN-hhrHEjsRukoC0GsuLjsLQp6vmA@mail.gmail.com>
+
+On Fri, 18 Jan 2019 at 09:52, Steven D'Aprano <steve at pearwood.info> wrote:
+> Code-wise, I'm not doing anything with ctypes.
+>
+> Language-wise, I'm trying to get a definitive answer of whether or not
+> id() returning the address of the object should be a guaranteed feature
+> or not.
+>
+> Across the entire Python ecosystem, no it isn't, as Jython and
+> IronPython return consecutive integers. But should we consider it an
+> intentional part of the CPython API?
+>
+> There are developers who insist that when it comes to CPython, id()
+> returning the object address is an intentional feature that they can and
+> do rely on, because (so I was told by one of them) that using id() is
+> the only way to get the address of an object from pure-Python.
+>
+> According to this claim, using id() to get the address for use in ctypes
+> is the correct and only way to do it, and this is a deliberate design
+> choice by the core devs rather than an accident of the implementation.
+> So long as you know you are using CPython, this is (so I was told)
+> completely safe.
+>
+> In the grand scheme of things this may be a pretty minor issue. But I
+> suspect that it could be a pain point for implementations like PyPy that
+> support both objects that move and a ctypes emulation.
+
+As per Eryk Sun's reply, the "correct" way to get an object address is
+by using ctypes.py_object.
+
+Supporting py_object may be a pain point for other implementations
+that emulate ctypes, but then again, so is supporting the whole
+CPython C API (which is where the py_object type is needed, so it's
+basically the same problem).
+
+So to answer your question, I'd say that no, id() returning the object
+address is not, and should not be, a guaranteed aspect of CPython, and
+the motivating issue of ctypes is solved within ctypes itself by using
+py_object.
+
+Paul
+
+From steve at pearwood.info  Fri Jan 18 05:17:56 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 18 Jan 2019 21:17:56 +1100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+Message-ID: <20190118101756.GM13616@ando.pearwood.info>
+
+On Thu, Jan 17, 2019 at 04:48:38PM -0800, Gregory P. Smith wrote:
+
+> I've heard that libraries using ctypes, cffi, or cython code of various
+> sorts in the real world wild today does abuse the unfortunate side effect
+> of CPython's implementation of id(). I don't have specific instances of
+> this in mind but trust what I've heard: that it is happening.
+
+Indeed -- I've been told by one developer in no uncertain terms that 
+using id() in this fashion is the only way to get the address of an 
+object for use in ctypes. I don't know enough about ctypes to judge 
+whether that is correct or not.
+
+The sample code I've been shown is this:
+
+    pointer_to_obj = id(obj)
+    from_deref = ctypes.cast(pointer_to_obj, ctypes.py_object).value
+    from_deref is obj  # True
+
+
+> id() should never be considered to be the PyObject*.  In as much as code
+> shouldn't assume it is running on top of a specific CPython implementation.
+> If there is a _need_ to get a pointer to a C struct handle referencing a
+> CPython C API PyObject, we should make an explicit API for that rather than
+> the id() hack.  That way code can be explicit about its need, and code that
+> is just doing a funky form of identity tracking without using is and is not
+> can continue using id() without triggering regressive behavior on VMs that
+> don't have a CPython compatible PyObject under the hood by default.
+
++1 to all of this.
+
+
+
+-- 
+Steve
+
+From njs at pobox.com  Fri Jan 18 05:31:00 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 18 Jan 2019 02:31:00 -0800
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <20190118094926.GL13616@ando.pearwood.info>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <20190117113713.02a99b4d@fsol>
+ <20190118094926.GL13616@ando.pearwood.info>
+Message-ID: <CAPJVwB=3w1Aid59kwRxNy3AwYePeKOYGtYnD-HrOxC__HMM5Dw@mail.gmail.com>
+
+On Fri, Jan 18, 2019 at 1:51 AM Steven D'Aprano <steve at pearwood.info> wrote:
+> Across the entire Python ecosystem, no it isn't, as Jython and
+> IronPython return consecutive integers. But should we consider it an
+> intentional part of the CPython API?
+
+It's always worked, there's substantial code in the wild that depends
+on it, and AFAICT it doesn't cause any real harm, so to me it seems
+like the only possible conclusion is that CPython will continue to
+guarantee this.
+
+For this argument I don't think it matters whether it was originally
+intentional, or whether there's some other alternative that people
+could use in theory.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From steve at pearwood.info  Fri Jan 18 05:51:09 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 18 Jan 2019 21:51:09 +1100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+Message-ID: <20190118105108.GN13616@ando.pearwood.info>
+
+Thanks for the detailed answer. A further question below.
+
+
+On Thu, Jan 17, 2019 at 07:50:51AM -0600, eryk sun wrote:
+> On 1/17/19, Steven D'Aprano <steve at pearwood.info> wrote:
+> >
+> > I understand that the only way to pass the address of an object to
+> > ctypes is to use that id. Is that intentional?
+> 
+> It's kind of dangerous to pass an object to C without an increment of
+> its reference count.
+
+"Kind of dangerous?" How dangerous?
+
+If I am reading this correctly, I think you are saying that using id() 
+in this way is never(?) correct.
+
+
+
+-- 
+Steve
+
+From solipsis at pitrou.net  Fri Jan 18 05:52:31 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 18 Jan 2019 11:52:31 +0100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <20190117113713.02a99b4d@fsol>
+ <20190118094926.GL13616@ando.pearwood.info>
+Message-ID: <20190118115231.597defab@fsol>
+
+On Fri, 18 Jan 2019 20:49:26 +1100
+Steven D'Aprano <steve at pearwood.info> wrote:
+> 
+> Language-wise, I'm trying to get a definitive answer of whether or not 
+> id() returning the address of the object should be a guaranteed feature 
+> or not.
+
+For me, the definitive answer is "yes, it's a CPython feature".
+
+However, it's obviously not a PyPy feature, and I'm not sure about other
+implementations.  Anything with an object model that can eliminate
+in-memory objects in favour of in-register values (for example using
+tagged pointers or type specialization + lifetime analysis) is obviously
+not able to hold the promise that id() returns the /address/ of the
+"object".
+
+That doesn't mean the CPython feature has to live forever.  We may want
+to deprecate it at some point (though it's not obvious how to warn the
+user: just because you're using id() doesn't mean you're interested in
+the actual /address/, rather than some arbitrary unique id).
+
+> According to this claim, using id() to get the address for use in ctypes 
+> is the correct and only way to do it
+
+I don't know why you keep repeating that.  You were already explained
+that it's /not/ the correct and only way to get the address for use in
+ctypes.
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Fri Jan 18 05:55:35 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 18 Jan 2019 11:55:35 +0100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+ <c070073d-cc15-3583-2458-14e25e95c5ca@python.org>
+ <CAPJVwBnqY=ea8v5BimBYfgcXpkmwQEFZnBvvJ3D8qTD5oh1bNw@mail.gmail.com>
+Message-ID: <20190118115535.21434e43@fsol>
+
+On Fri, 18 Jan 2019 00:18:17 -0800
+Nathaniel Smith <njs at pobox.com> wrote:
+> On Thu, Jan 17, 2019, 22:11 Steve Dower <steve.dower at python.org wrote:
+> 
+> > For everyone who managed to reply *hours* after Eryk Sun posted the
+> > correct answer and still get it wrong, here it is again in full.
+> >
+> > As a bonus, here's a link to the place where this answer appears in the
+> > documentation:
+> > https://docs.python.org/3/library/ctypes.html#ctypes.py_object  
+> 
+> 
+> Eryk's answer is actually much more useful than the documentation. I've
+> read that documentation many times, but always decided not to use py_object
+> because I couldn't figure out what it would actually do...
+
++1
+
+Needless to say, this is an opportunity to improve the documentation ;-)
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Fri Jan 18 05:57:08 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 18 Jan 2019 11:57:08 +0100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <6f9aaf8a-5b4b-954b-ffd2-10ae9a6c55c9@mrabarnett.plus.com>
+Message-ID: <20190118115708.0607e34d@fsol>
+
+On Fri, 18 Jan 2019 03:00:54 +0000
+MRAB <python at mrabarnett.plus.com> wrote:
+> On 2019-01-18 00:48, Gregory P. Smith wrote:
+> > I've heard that libraries using ctypes, cffi, or cython code of various 
+> > sorts in the real world wild today does abuse the unfortunate side 
+> > effect of CPython's implementation of id(). I don't have specific 
+> > instances of this in mind but trust what I've heard: that it is happening.
+> > 
+> > id() should never be considered to be the PyObject*.? In as much as code 
+> > shouldn't assume it is running on top of a specific CPython implementation.
+> > If there is a _need_ to get a pointer to a C struct handle referencing a 
+> > CPython C API PyObject, we should make an explicit API for that rather 
+> > than the id() hack.? That way code can be explicit about its need, and 
+> > code that is just doing a funky form of identity tracking without using 
+> > is and is not can continue using id() without triggering regressive 
+> > behavior on VMs that don't have a CPython compatible PyObject under the 
+> > hood by default.
+> > 
+> > [who uses id() anyways?]
+> >   
+> I use it in some of my code.
+> 
+> If I want to cache some objects, I put them in a dict, using the id as 
+> the key. If I wanted to locate an object in a cache and didn't have 
+> id(), I'd have to do a linear search for it.
+
+Indeed.  I've used it for the same purpose in the past (identity-dict).
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Fri Jan 18 05:54:21 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 18 Jan 2019 11:54:21 +0100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+ <c070073d-cc15-3583-2458-14e25e95c5ca@python.org>
+ <38dc18e0-b7e7-c0a4-c4a5-31b0797befb9@python.org>
+Message-ID: <20190118115421.07a38997@fsol>
+
+On Thu, 17 Jan 2019 22:18:13 -0800
+Steve Dower <steve.dower at python.org> wrote:
+> I feel like I should clarify - not everyone who posted got it wrong, and
+> I understand there's a side discussion among those who are also
+> interested/participants in
+> https://discuss.python.org/t/demoting-the-is-operator-to-avoid-an-identity-crisis/86/
+> - but there was no of acknowledgement of Eryk Sun's correct and useful
+> answer which I find very disappointing and a great way to discourage
+> contributions.
+> 
+> We can, and should, do better, at least by thanking the person for their
+> response before running down a barely related side track.
+
+I can certainly thank Eryk for posting a much better answer than mine.
+
+Regards
+
+Antoine.
+
+
+
+From steve at pearwood.info  Fri Jan 18 06:11:36 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 18 Jan 2019 22:11:36 +1100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <c070073d-cc15-3583-2458-14e25e95c5ca@python.org>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+ <c070073d-cc15-3583-2458-14e25e95c5ca@python.org>
+Message-ID: <20190118111136.GO13616@ando.pearwood.info>
+
+On Thu, Jan 17, 2019 at 10:09:36PM -0800, Steve Dower wrote:
+> For everyone who managed to reply *hours* after Eryk Sun posted the
+> correct answer and still get it wrong, here it is again in full.
+
+Sorry, I'm confused by your response here. As far as I can see, nobody 
+except Eryk Sun gave any technical details about how to correctly pass 
+objects to ctypes, so I'm not sure what sense of "get it wrong" you 
+mean.
+
+A couple of people offered the opinion that we ought to offer an 
+explicit ctypes API for getting the address of an object, decoupling 
+that functionality from id(). Do you mean "wrong" in the sense that such 
+an API would be unnecessary, given the existing solution Eryk Sun 
+quoted?
+
+
+
+> As a bonus, here's a link to the place where this answer appears in the
+> documentation:
+> https://docs.python.org/3/library/ctypes.html#ctypes.py_object
+
+Thanks for the link, that's useful.
+
+
+
+-- 
+Steve
+
+From walter at livinglogic.de  Fri Jan 18 06:46:45 2019
+From: walter at livinglogic.de (Walter =?utf-8?q?D=C3=B6rwald?=)
+Date: Fri, 18 Jan 2019 12:46:45 +0100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <20190118115708.0607e34d@fsol>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <6f9aaf8a-5b4b-954b-ffd2-10ae9a6c55c9@mrabarnett.plus.com>
+ <20190118115708.0607e34d@fsol>
+Message-ID: <019B121A-5292-4E85-BDA3-814F029EA397@livinglogic.de>
+
+On 18 Jan 2019, at 11:57, Antoine Pitrou wrote:
+
+> On Fri, 18 Jan 2019 03:00:54 +0000
+> MRAB <python at mrabarnett.plus.com> wrote:
+>> On 2019-01-18 00:48, Gregory P. Smith wrote:
+>>> I've heard that libraries using ctypes, cffi, or cython code of 
+>>> various
+>>> sorts in the real world wild today does abuse the unfortunate side
+>>> effect of CPython's implementation of id(). I don't have specific
+>>> instances of this in mind but trust what I've heard: that it is 
+>>> happening.
+>>>
+>>> id() should never be considered to be the PyObject*.? In as much as 
+>>> code
+>>> shouldn't assume it is running on top of a specific CPython 
+>>> implementation.
+>>> If there is a _need_ to get a pointer to a C struct handle 
+>>> referencing a
+>>> CPython C API PyObject, we should make an explicit API for that 
+>>> rather
+>>> than the id() hack.? That way code can be explicit about its need, 
+>>> and
+>>> code that is just doing a funky form of identity tracking without 
+>>> using
+>>> is and is not can continue using id() without triggering regressive
+>>> behavior on VMs that don't have a CPython compatible PyObject under 
+>>> the
+>>> hood by default.
+>>>
+>>> [who uses id() anyways?]
+>>>
+>> I use it in some of my code.
+>>
+>> If I want to cache some objects, I put them in a dict, using the id 
+>> as
+>> the key. If I wanted to locate an object in a cache and didn't have
+>> id(), I'd have to do a linear search for it.
+>
+> Indeed.  I've used it for the same purpose in the past 
+> (identity-dict).
+
+Its useful in all situations where you do topology preserving 
+transformations, for example pickling (i.e. object serialization) or a 
+deep copy of some object structures.
+
+In these cases you need a way to record and quickly detect whether 
+you've handled a specific object before. In Python we can do that with a 
+dictionary that has object ids as keys. Java provides IdentityHashMap 
+for that. Javascript provides neither, so deep-copying objects in 
+Javascript seems to be impossible.
+
+> Regards
+>
+> Antoine.
+
+Servus,
+    Walter
+
+From mertz at gnosis.cx  Fri Jan 18 10:29:44 2019
+From: mertz at gnosis.cx (David Mertz)
+Date: Fri, 18 Jan 2019 10:29:44 -0500
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <20190118115231.597defab@fsol>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <20190117113713.02a99b4d@fsol>
+ <20190118094926.GL13616@ando.pearwood.info> <20190118115231.597defab@fsol>
+Message-ID: <CAEbHw4Zb6xXfOeyBtn6y4FwMBFC9FEJxQg=gutWWBNJ0jJ2vCg@mail.gmail.com>
+
+On Fri, Jan 18, 2019, 5:55 AM Antoine Pitrou <solipsis at pitrou.net wrote:
+
+>
+> > id() returning the address of the object should be a guaranteed feature
+>
+> For me, the definitive answer is "yes, it's a CPython feature".
+> That doesn't mean the CPython feature has to live forever.  We may want
+> to deprecate it at some point
+
+
+Whenever I've taught Python (quite a bit between writing, in person, and
+webinars), I have been very explicit in stating that id(obj) returns some
+unique number for each object, and mentioned that for MANY Python objects
+CPython users an implementation convenience of using the memory address.
+
+Every time I've explained it I've said not to rely on that implementation
+detail. It's not true for small integers, for example, even in CPython.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190118/12b2cdf8/attachment.html>
+
+From mertz at gnosis.cx  Fri Jan 18 10:47:38 2019
+From: mertz at gnosis.cx (David Mertz)
+Date: Fri, 18 Jan 2019 10:47:38 -0500
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <CAEbHw4Zb6xXfOeyBtn6y4FwMBFC9FEJxQg=gutWWBNJ0jJ2vCg@mail.gmail.com>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <20190117113713.02a99b4d@fsol>
+ <20190118094926.GL13616@ando.pearwood.info> <20190118115231.597defab@fsol>
+ <CAEbHw4Zb6xXfOeyBtn6y4FwMBFC9FEJxQg=gutWWBNJ0jJ2vCg@mail.gmail.com>
+Message-ID: <CAEbHw4Z-mufSpRCwS2MHo0Dd2_xbrzh2m9jNEHf+Dt2ihUsv8Q@mail.gmail.com>
+
+Oh, bracket my brain glitch on small integers.  Yes, they still give id()
+of memory address, they just get reused, which is different.  Nonetheless,
+I never teach id(obj)
+== ctypes.c_void_p.from_buffer(ctypes.py_object(b)).value ... and not only
+because I only learned the latter spelling from eryk sun.
+
+On Fri, Jan 18, 2019 at 10:29 AM David Mertz <mertz at gnosis.cx> wrote:
+
+> On Fri, Jan 18, 2019, 5:55 AM Antoine Pitrou <solipsis at pitrou.net wrote:
+>
+>>
+>> > id() returning the address of the object should be a guaranteed feature
+>>
+>> For me, the definitive answer is "yes, it's a CPython feature".
+>> That doesn't mean the CPython feature has to live forever.  We may want
+>> to deprecate it at some point
+>
+>
+> Whenever I've taught Python (quite a bit between writing, in person, and
+> webinars), I have been very explicit in stating that id(obj) returns some
+> unique number for each object, and mentioned that for MANY Python objects
+> CPython users an implementation convenience of using the memory address.
+>
+> Every time I've explained it I've said not to rely on that implementation
+> detail. It's not true for small integers, for example, even in CPython.
+>
+
+
+-- 
+Keeping medicines from the bloodstreams of the sick; food
+from the bellies of the hungry; books from the hands of the
+uneducated; technology from the underdeveloped; and putting
+advocates of freedom in prisons.  Intellectual property is
+to the 21st century what the slave trade was to the 16th.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190118/ca1d0146/attachment.html>
+
+From status at bugs.python.org  Fri Jan 18 13:08:12 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 18 Jan 2019 18:08:12 +0000
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190118180812.1.30E23CBDE928F183@roundup.psfhosted.org>
+
+
+ACTIVITY SUMMARY (2019-01-11 - 2019-01-18)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6932 ( +0)
+  closed 40595 (+58)
+  total  47527 (+58)
+
+Open issues with patches: 2766 
+
+
+Issues opened (43)
+==================
+
+#35701: [uuid] 3.8 breaks weak references for UUIDs
+https://bugs.python.org/issue35701  reopened by serhiy.storchaka
+
+#35720: Memory leak in Modules/main.c:pymain_parse_cmdline_impl when u
+https://bugs.python.org/issue35720  opened by Lucas Cimon
+
+#35721: _UnixSubprocessTransport leaks socket pair if Popen fails
+https://bugs.python.org/issue35721  opened by niklasf
+
+#35722: disable_existing_loggers does not apply to the root logger
+https://bugs.python.org/issue35722  opened by maggyero
+
+#35723: Add "time zone index" cache to datetime objects
+https://bugs.python.org/issue35723  opened by p-ganssle
+
+#35724: Check for main interpreter when checking for "main" thread (fo
+https://bugs.python.org/issue35724  opened by eric.snow
+
+#35726: QueueHandler formating affects other handlers
+https://bugs.python.org/issue35726  opened by David Ruggles
+
+#35727: sys.exit() in a multiprocessing.Process does not align with Py
+https://bugs.python.org/issue35727  opened by chrahunt
+
+#35728: Tkinter font nametofont requires default root
+https://bugs.python.org/issue35728  opened by terry.reedy
+
+#35731: Modify to support multiple urls in webbrowser.open
+https://bugs.python.org/issue35731  opened by arlenyu
+
+#35733: isinstance(ast.Constant(value=True), ast.Num) should be False
+https://bugs.python.org/issue35733  opened by Anthony Sottile
+
+#35736: [xml.minidom] Missing component in table after getElementsByTa
+https://bugs.python.org/issue35736  opened by MiKr41
+
+#35737: crypt AuthenticationError introduced with new Linux kernel
+https://bugs.python.org/issue35737  opened by icycle
+
+#35739: Enable verbose of tests during PGO build on amd64 platforms
+https://bugs.python.org/issue35739  opened by neyuru
+
+#35740: openssl version 1.1.1 need to be there in cpython-source-deps 
+https://bugs.python.org/issue35740  opened by ossdev07
+
+#35741: unittest.skipUnless(time._STRUCT_TM_ITEMS == 11, "needs tm_zon
+https://bugs.python.org/issue35741  opened by jianxu3
+
+#35745: Add import statement in dataclass code snippet
+https://bugs.python.org/issue35745  opened by Windson Yang
+
+#35746: [ssl][CVE-2019-5010] TALOS-2018-0758 Denial of Service
+https://bugs.python.org/issue35746  opened by Talos
+
+#35748: urlparse library detecting wrong hostname leads to open redire
+https://bugs.python.org/issue35748  opened by nsonaniya2010
+
+#35749: Rewrite asyncio signal handler
+https://bugs.python.org/issue35749  opened by asvetlov
+
+#35751: traceback.clear_frames manages to deadlock a background task
+https://bugs.python.org/issue35751  opened by tvoinarovskyi
+
+#35752: test_buffer fails on ppc64le: memoryview pack_single() is misc
+https://bugs.python.org/issue35752  opened by vstinner
+
+#35754: When writing/closing a closed Popen.stdin, I get OSError vs. B
+https://bugs.python.org/issue35754  opened by jimbo1qaz_
+
+#35755: Remove current directory from posixpath.defpath to enhance sec
+https://bugs.python.org/issue35755  opened by vstinner
+
+#35756: Using `return value` in a generator function skips the returne
+https://bugs.python.org/issue35756  opened by Bryan Koch
+
+#35758: Disable x87 control word for MSVC ARM compiler
+https://bugs.python.org/issue35758  opened by Minmin.Gong
+
+#35759: inspect module does not implement introspection API for asynch
+https://bugs.python.org/issue35759  opened by tkren
+
+#35760: test_asyncio: test_async_gen_asyncio_gc_aclose_09() race condi
+https://bugs.python.org/issue35760  opened by vstinner
+
+#35761: Allow dataclasses to be updated in place
+https://bugs.python.org/issue35761  opened by theophile
+
+#35762: subprocess.Popen with universal_newlines and nonblocking strea
+https://bugs.python.org/issue35762  opened by sambayer
+
+#35763: IDLE calltips: make positional note less obtrusive
+https://bugs.python.org/issue35763  opened by terry.reedy
+
+#35764: IDLE: revise calltip doc
+https://bugs.python.org/issue35764  opened by terry.reedy
+
+#35765: Document references object x but doesn't show it in the exampl
+https://bugs.python.org/issue35765  opened by Patrick Rice
+
+#35766: Merge typed_ast back into CPython
+https://bugs.python.org/issue35766  opened by gvanrossum
+
+#35767: unittest loader doesn't work with partial test functions
+https://bugs.python.org/issue35767  opened by fried
+
+#35768: IDLE: Auto measure font fixed pitch characteristics
+https://bugs.python.org/issue35768  opened by terry.reedy
+
+#35769: IDLE: change new file name from  ''Untitled" to "untitled"
+https://bugs.python.org/issue35769  opened by terry.reedy
+
+#35770: IDLE: python -m idlelib fails on master on Mac OS 10.10.4
+https://bugs.python.org/issue35770  opened by xtreak
+
+#35771: IDLE: Fix tooltip Hovertiptest failure
+https://bugs.python.org/issue35771  opened by terry.reedy
+
+#35772: test_tarfile fails on ppc64le when using tmpfs filesystem
+https://bugs.python.org/issue35772  opened by vstinner
+
+#35773: test_bdb fails on AIX bot (regression)
+https://bugs.python.org/issue35773  opened by Michael.Felt
+
+#35774: ASAN, memory leak
+https://bugs.python.org/issue35774  opened by Dhiraj_Mishra
+
+#35775: Add a general selection function to statistics
+https://bugs.python.org/issue35775  opened by remi.lapeyre
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#35775: Add a general selection function to statistics
+https://bugs.python.org/issue35775
+
+#35774: ASAN, memory leak
+https://bugs.python.org/issue35774
+
+#35773: test_bdb fails on AIX bot (regression)
+https://bugs.python.org/issue35773
+
+#35771: IDLE: Fix tooltip Hovertiptest failure
+https://bugs.python.org/issue35771
+
+#35768: IDLE: Auto measure font fixed pitch characteristics
+https://bugs.python.org/issue35768
+
+#35766: Merge typed_ast back into CPython
+https://bugs.python.org/issue35766
+
+#35764: IDLE: revise calltip doc
+https://bugs.python.org/issue35764
+
+#35762: subprocess.Popen with universal_newlines and nonblocking strea
+https://bugs.python.org/issue35762
+
+#35760: test_asyncio: test_async_gen_asyncio_gc_aclose_09() race condi
+https://bugs.python.org/issue35760
+
+#35758: Disable x87 control word for MSVC ARM compiler
+https://bugs.python.org/issue35758
+
+#35741: unittest.skipUnless(time._STRUCT_TM_ITEMS == 11, "needs tm_zon
+https://bugs.python.org/issue35741
+
+#35737: crypt AuthenticationError introduced with new Linux kernel
+https://bugs.python.org/issue35737
+
+#35728: Tkinter font nametofont requires default root
+https://bugs.python.org/issue35728
+
+#35724: Check for main interpreter when checking for "main" thread (fo
+https://bugs.python.org/issue35724
+
+#35722: disable_existing_loggers does not apply to the root logger
+https://bugs.python.org/issue35722
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#35775: Add a general selection function to statistics
+https://bugs.python.org/issue35775
+
+#35772: test_tarfile fails on ppc64le when using tmpfs filesystem
+https://bugs.python.org/issue35772
+
+#35769: IDLE: change new file name from  ''Untitled" to "untitled"
+https://bugs.python.org/issue35769
+
+#35767: unittest loader doesn't work with partial test functions
+https://bugs.python.org/issue35767
+
+#35759: inspect module does not implement introspection API for asynch
+https://bugs.python.org/issue35759
+
+#35755: Remove current directory from posixpath.defpath to enhance sec
+https://bugs.python.org/issue35755
+
+#35752: test_buffer fails on ppc64le: memoryview pack_single() is misc
+https://bugs.python.org/issue35752
+
+#35749: Rewrite asyncio signal handler
+https://bugs.python.org/issue35749
+
+#35746: [ssl][CVE-2019-5010] TALOS-2018-0758 Denial of Service
+https://bugs.python.org/issue35746
+
+#35739: Enable verbose of tests during PGO build on amd64 platforms
+https://bugs.python.org/issue35739
+
+#35733: isinstance(ast.Constant(value=True), ast.Num) should be False
+https://bugs.python.org/issue35733
+
+#35727: sys.exit() in a multiprocessing.Process does not align with Py
+https://bugs.python.org/issue35727
+
+#35726: QueueHandler formating affects other handlers
+https://bugs.python.org/issue35726
+
+#35724: Check for main interpreter when checking for "main" thread (fo
+https://bugs.python.org/issue35724
+
+#35723: Add "time zone index" cache to datetime objects
+https://bugs.python.org/issue35723
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#35537: use os.posix_spawn in subprocess
+https://bugs.python.org/issue35537  24 msgs
+
+#33944: Deprecate and remove pth files
+https://bugs.python.org/issue33944  21 msgs
+
+#35752: test_buffer fails on ppc64le: memoryview pack_single() is misc
+https://bugs.python.org/issue35752  18 msgs
+
+#35701: [uuid] 3.8 breaks weak references for UUIDs
+https://bugs.python.org/issue35701  15 msgs
+
+#35746: [ssl][CVE-2019-5010] TALOS-2018-0758 Denial of Service
+https://bugs.python.org/issue35746  13 msgs
+
+#35755: Remove current directory from posixpath.defpath to enhance sec
+https://bugs.python.org/issue35755  10 msgs
+
+#35707: time.sleep() should support objects with __float__
+https://bugs.python.org/issue35707   8 msgs
+
+#35770: IDLE: python -m idlelib fails on master on Mac OS 10.10.4
+https://bugs.python.org/issue35770   8 msgs
+
+#34782: Pdb crashes when code is executed in a mapping that does not d
+https://bugs.python.org/issue34782   7 msgs
+
+#23428: Use the monotonic clock for thread conditions on POSIX platfor
+https://bugs.python.org/issue23428   5 msgs
+
+
+
+Issues closed (57)
+==================
+
+#8765: Tests unwillingly writing unicocde to raw streams
+https://bugs.python.org/issue8765  closed by serhiy.storchaka
+
+#22616: Allow connecting AST nodes with corresponding source ranges
+https://bugs.python.org/issue22616  closed by levkivskyi
+
+#23156: Remove tix install information in tkinter tix chapter of doc
+https://bugs.python.org/issue23156  closed by terry.reedy
+
+#23846: asyncio : ProactorEventLoop raised BlockingIOError when Thread
+https://bugs.python.org/issue23846  closed by vstinner
+
+#26226: Test failures with non-ascii character in hostname on Windows
+https://bugs.python.org/issue26226  closed by vstinner
+
+#26410: "incompatible pointer type" while compiling Python3.5.1
+https://bugs.python.org/issue26410  closed by cheryl.sabella
+
+#26414: os.defpath too permissive
+https://bugs.python.org/issue26414  closed by eryksun
+
+#27423: Failed assertions when running test.test_os on Windows
+https://bugs.python.org/issue27423  closed by vstinner
+
+#27426: Encoding mismatch causes some tests to fail on Windows
+https://bugs.python.org/issue27426  closed by vstinner
+
+#27500: ProactorEventLoop cannot open connection to ::1
+https://bugs.python.org/issue27500  closed by vstinner
+
+#31048: ResourceWarning in test_asyncio.test_events.ProactorEventLoopT
+https://bugs.python.org/issue31048  closed by vstinner
+
+#31267: threading.Timer object is affected by changes to system time: 
+https://bugs.python.org/issue31267  closed by vstinner
+
+#31777: IDLE: Let users add to font selection
+https://bugs.python.org/issue31777  closed by terry.reedy
+
+#32661: ProactorEventLoop locks up on close call
+https://bugs.python.org/issue32661  closed by vstinner
+
+#32866: zipimport loader.get_data() requires absolute zip file path
+https://bugs.python.org/issue32866  closed by barry
+
+#33301: Add __contains__ to pathlib
+https://bugs.python.org/issue33301  closed by serhiy.storchaka
+
+#33687: uu.py calls os.path.chmod which doesn't exist
+https://bugs.python.org/issue33687  closed by berker.peksag
+
+#33817: PyString_FromFormatV() fails to build empty strings
+https://bugs.python.org/issue33817  closed by serhiy.storchaka
+
+#33837: Closing asyncio.Server on asyncio.ProactorEventLoop causes all
+https://bugs.python.org/issue33837  closed by vstinner
+
+#33995: test_min_max_version in test_ssl.py fails when Python is built
+https://bugs.python.org/issue33995  closed by vstinner
+
+#34323: False timeout log message on proactor close
+https://bugs.python.org/issue34323  closed by vstinner
+
+#34512: Document platform-specific strftime() behavior for non-ASCII f
+https://bugs.python.org/issue34512  closed by taleinat
+
+#34569: test__xxsubinterpreters.ShareableTypeTests._assert_values fail
+https://bugs.python.org/issue34569  closed by eric.snow
+
+#34756: Few changes in sys.breakpointhook()
+https://bugs.python.org/issue34756  closed by serhiy.storchaka
+
+#34838: Improve arg clinic code generation for cases with type checkin
+https://bugs.python.org/issue34838  closed by serhiy.storchaka
+
+#34850: Emit a syntax warning for "is" with a literal
+https://bugs.python.org/issue34850  closed by serhiy.storchaka
+
+#35045: test_min_max_version (test.test_ssl.ContextTests) fails on Fed
+https://bugs.python.org/issue35045  closed by vstinner
+
+#35283: "threading._DummyThread" redefines "is_alive" but forgets "isA
+https://bugs.python.org/issue35283  closed by asvetlov
+
+#35423: Signal handling machinery still relies on "pending calls".
+https://bugs.python.org/issue35423  closed by eric.snow
+
+#35428: xml.etree.ElementTree.tostring violates W3 standards allowing 
+https://bugs.python.org/issue35428  closed by serhiy.storchaka
+
+#35494: Inaccurate error message for f-string
+https://bugs.python.org/issue35494  closed by serhiy.storchaka
+
+#35552: Do not read memory past the specified limit in PyUnicode_FromF
+https://bugs.python.org/issue35552  closed by serhiy.storchaka
+
+#35582: Argument Clinic: inline parsing code for functions with only p
+https://bugs.python.org/issue35582  closed by serhiy.storchaka
+
+#35599: asyncio windows_events.py IocpProactor bug
+https://bugs.python.org/issue35599  closed by vstinner
+
+#35619: Support custom data descriptors in pydoc
+https://bugs.python.org/issue35619  closed by serhiy.storchaka
+
+#35634: kwargs regression when there are multiple entries with the sam
+https://bugs.python.org/issue35634  closed by serhiy.storchaka
+
+#35662: Windows #define _PY_EMULATED_WIN_CV 0 bug
+https://bugs.python.org/issue35662  closed by steve.dower
+
+#35674: Expose os.posix_spawnp()
+https://bugs.python.org/issue35674  closed by vstinner
+
+#35698: [statistics] Division by 2 in statistics.median
+https://bugs.python.org/issue35698  closed by steven.daprano
+
+#35711: Print information about an unexpectedly pending error before c
+https://bugs.python.org/issue35711  closed by vstinner
+
+#35713: Fatal Python error: _PySys_BeginInit: can't initialize sys mod
+https://bugs.python.org/issue35713  closed by Tasy
+
+#35719: Optimize multi-argument math functions
+https://bugs.python.org/issue35719  closed by serhiy.storchaka
+
+#35725: Using for...in.. generator-iterator
+https://bugs.python.org/issue35725  closed by steven.daprano
+
+#35729: iterparse does not return the full subtree on "start" events
+https://bugs.python.org/issue35729  closed by ned.deily
+
+#35730: IDLE: Fix squeezer test_reload.
+https://bugs.python.org/issue35730  closed by terry.reedy
+
+#35732: Typo in library/warnings documentation
+https://bugs.python.org/issue35732  closed by cheryl.sabella
+
+#35734: Remove unused _BaseV4._is_valid_netmask in ipaddress
+https://bugs.python.org/issue35734  closed by lin.lin
+
+#35735: Current "make test" status for AIX
+https://bugs.python.org/issue35735  closed by Michael.Felt
+
+#35738: Update timeit documentation to reflect default repeat of five
+https://bugs.python.org/issue35738  closed by vstinner
+
+#35742: test_builtin fails after merging the fix for bpo-34756
+https://bugs.python.org/issue35742  closed by serhiy.storchaka
+
+#35743: Broken "Exception ignored in:" message on OSError's
+https://bugs.python.org/issue35743  closed by salty-horse
+
+#35744: Problem in the documentation of numpy.random.randint in python
+https://bugs.python.org/issue35744  closed by vstinner
+
+#35747: Python threading event wait influenced by date change
+https://bugs.python.org/issue35747  closed by vstinner
+
+#35750: process finished with exit code -1073740940 (0xc0000374)
+https://bugs.python.org/issue35750  closed by eryksun
+
+#35753: Importing call from unittest.mock directly causes ValueError
+https://bugs.python.org/issue35753  closed by pablogsal
+
+#35757: slow subprocess.Popen(..., close_fds=True)
+https://bugs.python.org/issue35757  closed by benjamin.peterson
+
+#35776: Virtualenv 16.2.0 Error Finding Pip
+https://bugs.python.org/issue35776  closed by zach.ware
+
+From greg.ewing at canterbury.ac.nz  Fri Jan 18 17:57:23 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Sat, 19 Jan 2019 11:57:23 +1300
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <CAPTjJmo5GM=HDxwyZDg7nK5wc82ROR425Wqgedow1eipwR5DQA@mail.gmail.com>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <CAPTjJmo5GM=HDxwyZDg7nK5wc82ROR425Wqgedow1eipwR5DQA@mail.gmail.com>
+Message-ID: <5C4259D3.2030509@canterbury.ac.nz>
+
+Chris Angelico wrote:
+> I would be strongly in favour of ctypes gaining a "get address of
+> object" function, which happens (in current CPythons) to return the
+> same value as id() does, but is specifically tied to ctypes.
+
+Isn't this what the ctypes.py_object type is for?
+
+Also, any code that does anything with the address of an object
+other than just pass it around is going to depend heavily on
+the Python implementation being used, so the idea of an
+implementation-independent way to deal with object addresses
+seems problematic.
+
+-- 
+Greg
+
+From rosuav at gmail.com  Fri Jan 18 18:02:21 2019
+From: rosuav at gmail.com (Chris Angelico)
+Date: Sat, 19 Jan 2019 10:02:21 +1100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <5C4259D3.2030509@canterbury.ac.nz>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <CAPTjJmo5GM=HDxwyZDg7nK5wc82ROR425Wqgedow1eipwR5DQA@mail.gmail.com>
+ <5C4259D3.2030509@canterbury.ac.nz>
+Message-ID: <CAPTjJmo=Nz1c0Ejx0YtjeohkvO0q1W7udxZOHCD0Aad0pqnOvA@mail.gmail.com>
+
+On Sat, Jan 19, 2019 at 9:58 AM Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+>
+> Chris Angelico wrote:
+> > I would be strongly in favour of ctypes gaining a "get address of
+> > object" function, which happens (in current CPythons) to return the
+> > same value as id() does, but is specifically tied to ctypes.
+>
+> Isn't this what the ctypes.py_object type is for?
+
+I didn't know about it when I posted that (as, I suspect, others also
+didn't), and as others have pointed out, this is a prime target for a
+docs update. Scanning the docs as of today does not suggest a better
+way to do things.
+
+ChrisA
+
+From greg.ewing at canterbury.ac.nz  Fri Jan 18 18:02:53 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Sat, 19 Jan 2019 12:02:53 +1300
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <6f9aaf8a-5b4b-954b-ffd2-10ae9a6c55c9@mrabarnett.plus.com>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <6f9aaf8a-5b4b-954b-ffd2-10ae9a6c55c9@mrabarnett.plus.com>
+Message-ID: <5C425B1D.10703@canterbury.ac.nz>
+
+MRAB wrote:
+  If I want to cache some objects, I put them in a dict, using the id as
+> the key. If I wanted to locate an object in a cache and didn't have 
+> id(), I'd have to do a linear search for it.
+
+That sounds dangerous. An id() is only valid as long as the object
+it came from still exists, after which it can get re-used for a different
+object. So when an object is flushed from your cache, you would have
+to chase down all the places its id is being stored and eliminate them.
+
+Are you sure you couldn't achieve the same thing more safely using
+weak references?
+
+-- 
+Greg
+
+From tim.peters at gmail.com  Fri Jan 18 18:25:48 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Fri, 18 Jan 2019 17:25:48 -0600
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <5C425B1D.10703@canterbury.ac.nz>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <6f9aaf8a-5b4b-954b-ffd2-10ae9a6c55c9@mrabarnett.plus.com>
+ <5C425B1D.10703@canterbury.ac.nz>
+Message-ID: <CAExdVNm8TUqQjVmAHNTyjB-fUmZK9QY3poArRSspGPeCJztBQw@mail.gmail.com>
+
+[MRAB]
+>>  If I want to cache some objects, I put them in a dict, using the id as
+>> the key. If I wanted to locate an object in a cache and didn't have
+>> id(), I'd have to do a linear search for it.
+
+[Greg Ewing <greg.ewing at canterbury.ac.nz>]
+> That sounds dangerous. An id() is only valid as long as the object
+> it came from still exists, after which it can get re-used for a different
+> object.
+
+The objects are the values in such a dict.
+
+    thedict[id(obj)] is obj
+
+Therefore the objects can't become garbage before id(obj) is deleted
+from the dict.
+
+> So when an object is flushed from your cache, you would have
+> to chase down all the places its id is being stored and eliminate them.
+
+The dict itself keeps the objects alive.
+
+> Are you sure you couldn't achieve the same thing more safely using
+> weak references?
+
+I can't say exactly what MRAB is doing.  I've done things "like that"
+for decades, though, and have happily almost never used weakrefs.  I
+wouldn't call my uses "caches", though - more like using dicts to
+associate info with arbitrary objects (via using the object id as the
+dict key), where the object implementations are out of my control and
+don't properly support being used as dict keys.
+
+This sometimes includes builtin mutable objects, like lists, or even
+other dicts.
+
+No such uses care about object addresses, though - just that id(obj)
+returns a value usable as a dict key, unique among all reachable
+objects at the time `id()` is called.
+
+From python at mrabarnett.plus.com  Fri Jan 18 18:39:54 2019
+From: python at mrabarnett.plus.com (MRAB)
+Date: Fri, 18 Jan 2019 23:39:54 +0000
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <5C425B1D.10703@canterbury.ac.nz>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <6f9aaf8a-5b4b-954b-ffd2-10ae9a6c55c9@mrabarnett.plus.com>
+ <5C425B1D.10703@canterbury.ac.nz>
+Message-ID: <b3d5c94c-7ca9-b82e-8df2-5136883a8e22@mrabarnett.plus.com>
+
+On 2019-01-18 23:02, Greg Ewing wrote:
+> MRAB wrote:
+>    If I want to cache some objects, I put them in a dict, using the id as
+>> the key. If I wanted to locate an object in a cache and didn't have 
+>> id(), I'd have to do a linear search for it.
+> 
+> That sounds dangerous. An id() is only valid as long as the object
+> it came from still exists, after which it can get re-used for a different
+> object. So when an object is flushed from your cache, you would have
+> to chase down all the places its id is being stored and eliminate them.
+> 
+> Are you sure you couldn't achieve the same thing more safely using
+> weak references?
+> 
+I'm not storing the id anywhere else.
+
+I could've used a list for the cache, but then when I wanted to remove 
+an object I'd have to search for it, O(n). Using a dict makes it O(1).
+
+From greg.ewing at canterbury.ac.nz  Fri Jan 18 19:28:06 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Sat, 19 Jan 2019 13:28:06 +1300
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <CAExdVNm8TUqQjVmAHNTyjB-fUmZK9QY3poArRSspGPeCJztBQw@mail.gmail.com>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <6f9aaf8a-5b4b-954b-ffd2-10ae9a6c55c9@mrabarnett.plus.com>
+ <5C425B1D.10703@canterbury.ac.nz>
+ <CAExdVNm8TUqQjVmAHNTyjB-fUmZK9QY3poArRSspGPeCJztBQw@mail.gmail.com>
+Message-ID: <5C426F16.6050409@canterbury.ac.nz>
+
+Tim Peters wrote:
+
+> The dict itself keeps the objects alive.
+
+Yes, but the idea of a cache is that you're free to flush
+things out of it to make room for something else without
+breaking anything.
+
+It sounds like MRAB is using ids as weak references,
+without the assurance actual weak references give you
+that they become invalidated when the refefenced object
+goes away,
+
+> No such uses care about object addresses, though - just that id(obj)
+> returns a value usable as a dict key, unique among all reachable
+> objects at the time `id()` is called.
+
+Yep. In hindsight it was probably a mistake for the docs
+to talk about addresses in relation to id() -- it seems to
+have given some people unrealistic expectations.
+
+-- 
+Greg
+
+From greg.ewing at canterbury.ac.nz  Fri Jan 18 19:35:14 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Sat, 19 Jan 2019 13:35:14 +1300
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <20190118101756.GM13616@ando.pearwood.info>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <20190118101756.GM13616@ando.pearwood.info>
+Message-ID: <5C4270C2.4080106@canterbury.ac.nz>
+
+Steven D'Aprano wrote:
+
+> The sample code I've been shown is this:
+> 
+>     pointer_to_obj = id(obj)
+>     from_deref = ctypes.cast(pointer_to_obj, ctypes.py_object).value
+>     from_deref is obj  # True
+
+There's no need to use id() or casting to create a ctypes.py_object
+instance, you can just call it:
+
+ >>> obj = (1,2,3)
+ >>> obj
+(1, 2, 3)
+ >>> p = ctypes.py_object(obj)
+ >>> p
+py_object((1, 2, 3))
+ >>> p.value
+(1, 2, 3)
+ >>> p.value is obj
+True
+
+-- 
+Greg
+
+From python at mrabarnett.plus.com  Fri Jan 18 20:59:20 2019
+From: python at mrabarnett.plus.com (MRAB)
+Date: Sat, 19 Jan 2019 01:59:20 +0000
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <5C426F16.6050409@canterbury.ac.nz>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <6f9aaf8a-5b4b-954b-ffd2-10ae9a6c55c9@mrabarnett.plus.com>
+ <5C425B1D.10703@canterbury.ac.nz>
+ <CAExdVNm8TUqQjVmAHNTyjB-fUmZK9QY3poArRSspGPeCJztBQw@mail.gmail.com>
+ <5C426F16.6050409@canterbury.ac.nz>
+Message-ID: <f3801a83-83ca-bbe5-0501-52285c926bbe@mrabarnett.plus.com>
+
+On 2019-01-19 00:28, Greg Ewing wrote:
+> Tim Peters wrote:
+> 
+>> The dict itself keeps the objects alive.
+> 
+> Yes, but the idea of a cache is that you're free to flush
+> things out of it to make room for something else without
+> breaking anything.
+> 
+> It sounds like MRAB is using ids as weak references,
+> without the assurance actual weak references give you
+> that they become invalidated when the refefenced object
+> goes away,
+> 
+"Cache" was the wrong word for what it does. I'm not using the id as a 
+weak reference.
+
+Sometimes I might want to store a collection of objects and their order 
+isn't important. I can add an object to the collection, or remove an 
+object from it.
+
+If I used a list, adding would be quick, but removing would require 
+searching the list.
+
+By putting them in a dict, keyed by the id, I can remove an object in O(1).
+
+Trust me, I'm not doing anything that's unreliable! (And I _have_ done 
+programming in C with the Python API, so I know all about refcounts...) :-)
+
+>> No such uses care about object addresses, though - just that id(obj)
+>> returns a value usable as a dict key, unique among all reachable
+>> objects at the time `id()` is called.
+> 
+> Yep. In hindsight it was probably a mistake for the docs
+> to talk about addresses in relation to id() -- it seems to
+> have given some people unrealistic expectations.
+> 
+
