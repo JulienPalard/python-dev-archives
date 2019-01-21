@@ -7006,3 +7006,379 @@ programming in C with the Python API, so I know all about refcounts...) :-)
 > have given some people unrealistic expectations.
 > 
 
+From storchaka at gmail.com  Sat Jan 19 05:12:44 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Sat, 19 Jan 2019 12:12:44 +0200
+Subject: [Python-Dev] Lost sight
+Message-ID: <q1ut2o$pds$1@blaine.gmane.org>
+
+I have virtually completely lost the sight of my right eye (and the loss 
+is quickly progresses) and the sight of my left eye is weak. That is why 
+my activity as a core developer was decreased significantly at recent 
+time. My apologies to those who are waiting for my review. I will do it 
+slowly.
+
+
+From eryksun at gmail.com  Sat Jan 19 06:06:36 2019
+From: eryksun at gmail.com (eryk sun)
+Date: Sat, 19 Jan 2019 05:06:36 -0600
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+In-Reply-To: <20190118105108.GN13616@ando.pearwood.info>
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CACL+1av8m34gnS+7f9xd+8Wnp47yMydiqaxxOvOLbHhA3SPKdg@mail.gmail.com>
+ <20190118105108.GN13616@ando.pearwood.info>
+Message-ID: <CACL+1as5VWvHe7iM625ZOafvuk-HbCbuypV9+cxZBAaP6yeHwg@mail.gmail.com>
+
+On 1/18/19, Steven D'Aprano <steve at pearwood.info> wrote:
+> On Thu, Jan 17, 2019 at 07:50:51AM -0600, eryk sun wrote:
+>>
+>> It's kind of dangerous to pass an object to C without an increment of
+>> its reference count.
+>
+> "Kind of dangerous?" How dangerous?
+
+I take that back. Dangerous is too strong of a word. It can be managed
+if we're careful to avoid expressions like c_function(id(f())). Using
+py_object simply avoids that problem.
+
+Bear with me while I make a few more comments about py_object, even
+though it's straying off topic.
+
+For a type "O" argument (i.e. py_object is in the function's
+`argtypes`), we might be able to borrow the reference from the
+argument tuple. As implemented, however, the argument actually keeps
+its own reference. For example, we can observe this by calling the
+from_param method:
+
+    >>> b = bytearray(b'spam')
+    >>> arg = ctypes.py_object.from_param(b)
+    >>> print(arg)
+    <cparam 'O' at 0x7f32a49699b0>
+    >>> print(arg._obj)
+    bytearray(b'spam')
+
+This is due to the type "O" setfunc, which needs to keep a reference
+to the object when setting the value of a py_object instance. The
+reference is stored as the _objects attribute. (For non-simple pointer
+and aggregate types, _objects is instead a dict keyed by the index as
+a hexadecimal string.)
+
+(The getfunc and setfunc of a simple ctypes object are called to get
+and set the value, which also includes cases in which we don't have an
+actual py_object instance, such as function call arguments; pointer
+and array indexes; and struct and union fields. These functions are
+defined in Modules/_ctypes/cfield.c.)
+
+IMO, a downside of py_object is that it's a simple type, so the
+getfunc gets called automatically when getting fields or indexes. This
+is annoying for py_object since a NULL value raises ValueError.
+Returning None in this case isn't possible, in contrast to other
+simple pointer types. We can work around this by subclassing
+py_object. For example:
+
+    >>> a1 = (ctypes.py_object * 1)()
+    >>> a1[0]
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    ValueError: PyObject is NULL
+
+    py_object = type('py_object', (ctypes.py_object,), {})
+
+    >>> a2 = (py_object * 1)()
+    >>> a2[0]
+    <py_object object at 0x7f10dc7d9158>
+
+Then, like all ctypes pointers, a false boolean value means it's NULL:
+
+    >>> bool(a2[0])
+    False
+    >>> a2[0] = b'spam'
+    >>> bool(a2[0])
+    True
+
+py_object doesn't help if a library holds onto the pointer and tries
+to use it later on. For example, with Python's C API there are
+functions that 'steal' a reference (with the assumption that it's a
+newly created object, in which case it's more like 'claiming'), such
+as PyTuple_SetItem. In this case, we need to increment the reference
+count via Py_IncRef.
+
+py_object can be returned from a callback without leaking a reference,
+assuming the library manages the new reference. In contrast, other
+types that need memory support have to leak a reference (e.g.
+c_wchar_p, i.e. type "Z", needs a capsule object for the wchar_t
+buffer). In case of a leak, we get warned with RuntimeWarning('memory
+leak in callback function.').
+
+> If I am reading this correctly, I think you are saying that using id()
+> in this way is never(?) correct.
+
+Yes, it's incorrect, but I've been guilty of using id() like this,
+too, because it's convenient. Perhaps we could provide a function
+that's explicitly specified to return the address, if implemented.
+Maybe call it sys.getaddress()?
+
+In my first reply, I provided two alternatives that use ctypes to
+return the address instead of id(). So there's that as well. The fine
+print is that ctypes is optional in the standard library. Platforms
+and implementations don't have to support it.
+
+From christian at python.org  Sat Jan 19 06:22:29 2019
+From: christian at python.org (Christian Heimes)
+Date: Sat, 19 Jan 2019 12:22:29 +0100
+Subject: [Python-Dev] Lost sight
+In-Reply-To: <q1ut2o$pds$1@blaine.gmane.org>
+References: <q1ut2o$pds$1@blaine.gmane.org>
+Message-ID: <ea127340-91d8-6fdd-125f-9e10f3d5d349@python.org>
+
+On 19/01/2019 11.12, Serhiy Storchaka wrote:
+> I have virtually completely lost the sight of my right eye (and the loss
+> is quickly progresses) and the sight of my left eye is weak. That is why
+> my activity as a core developer was decreased significantly at recent
+> time. My apologies to those who are waiting for my review. I will do it
+> slowly.
+
+Oh, I'm sorry to hear that and hope that you'll get better soon. Please
+take care of yourself!
+
+Christian
+
+From solipsis at pitrou.net  Sat Jan 19 06:30:28 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sat, 19 Jan 2019 12:30:28 +0100
+Subject: [Python-Dev] ctypes: is it intentional that id() is the only
+ way to get the address of an object?
+References: <20190117102605.GG13616@ando.pearwood.info>
+ <CAGE7PNL3oL4D=jvr=rK+gYgFkr89hhwrC6Tm6a8vOjD0o1+Phw@mail.gmail.com>
+ <6f9aaf8a-5b4b-954b-ffd2-10ae9a6c55c9@mrabarnett.plus.com>
+ <5C425B1D.10703@canterbury.ac.nz>
+ <CAExdVNm8TUqQjVmAHNTyjB-fUmZK9QY3poArRSspGPeCJztBQw@mail.gmail.com>
+ <5C426F16.6050409@canterbury.ac.nz>
+Message-ID: <20190119123028.27627a9c@fsol>
+
+On Sat, 19 Jan 2019 13:28:06 +1300
+Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+> Tim Peters wrote:
+> 
+> > The dict itself keeps the objects alive.  
+> 
+> Yes, but the idea of a cache is that you're free to flush
+> things out of it to make room for something else without
+> breaking anything.
+> 
+> It sounds like MRAB is using ids as weak references,
+> without the assurance actual weak references give you
+> that they become invalidated when the refefenced object
+> goes away,
+
+Hmm...  That sounds nonsensical to me. By construction, if you're able
+to get a reference to an object in pure Python, then the object is
+alive.
+
+(by pure Python I'm excluding ctypes hacks or the exploitation of bugs
+in the CPython object implementation)
+
+By the way, you can also have a WeakValueDictionary where keys are ids
+and values are the corresponding objects, if you need both identity
+lookup and weak references.
+
+Regards
+
+Antoine.
+
+
+
+From andrew.svetlov at gmail.com  Sat Jan 19 06:31:42 2019
+From: andrew.svetlov at gmail.com (Andrew Svetlov)
+Date: Sat, 19 Jan 2019 13:31:42 +0200
+Subject: [Python-Dev] Lost sight
+In-Reply-To: <ea127340-91d8-6fdd-125f-9e10f3d5d349@python.org>
+References: <q1ut2o$pds$1@blaine.gmane.org>
+ <ea127340-91d8-6fdd-125f-9e10f3d5d349@python.org>
+Message-ID: <CAL3CFcUUvOQUeryTFvR+Uqj2wnB0Yuw84QjE_MpOfSVC5NA05Q@mail.gmail.com>
+
+That's sad to hear.
+Get well soon!
+
+On Sat, Jan 19, 2019 at 1:22 PM Christian Heimes <christian at python.org>
+wrote:
+
+> On 19/01/2019 11.12, Serhiy Storchaka wrote:
+> > I have virtually completely lost the sight of my right eye (and the loss
+> > is quickly progresses) and the sight of my left eye is weak. That is why
+> > my activity as a core developer was decreased significantly at recent
+> > time. My apologies to those who are waiting for my review. I will do it
+> > slowly.
+>
+> Oh, I'm sorry to hear that and hope that you'll get better soon. Please
+> take care of yourself!
+>
+> Christian
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/andrew.svetlov%40gmail.com
+>
+
+
+-- 
+Thanks,
+Andrew Svetlov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190119/9235b0ce/attachment.html>
+
+From p.f.moore at gmail.com  Sat Jan 19 06:35:59 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Sat, 19 Jan 2019 11:35:59 +0000
+Subject: [Python-Dev] Lost sight
+In-Reply-To: <q1ut2o$pds$1@blaine.gmane.org>
+References: <q1ut2o$pds$1@blaine.gmane.org>
+Message-ID: <CACac1F-u-rSD8t2t0Stg45G0vsxmedYX+z-FJOpYsSyB-A6X0g@mail.gmail.com>
+
+On Sat, 19 Jan 2019 at 10:15, Serhiy Storchaka <storchaka at gmail.com> wrote:
+>
+> I have virtually completely lost the sight of my right eye (and the loss
+> is quickly progresses) and the sight of my left eye is weak. That is why
+> my activity as a core developer was decreased significantly at recent
+> time. My apologies to those who are waiting for my review. I will do it
+> slowly.
+
+Sorry to hear about that! Take care of yourself, your health is the
+most important thing.
+
+Best wishes,
+Paul
+
+From yselivanov.ml at gmail.com  Sat Jan 19 14:13:48 2019
+From: yselivanov.ml at gmail.com (Yury Selivanov)
+Date: Sat, 19 Jan 2019 14:13:48 -0500
+Subject: [Python-Dev] Lost sight
+In-Reply-To: <q1ut2o$pds$1@blaine.gmane.org>
+References: <q1ut2o$pds$1@blaine.gmane.org>
+Message-ID: <CA+St6D2XrCtjBmbmJrb33yOz+8eFmJ=XbEPnvEYKH36dckCS=w@mail.gmail.com>
+
+Sorry to hear this, Serhiy.  Hope you'll get better soon.
+
+Yury
+
+On Sat, Jan 19, 2019 at 5:15 AM Serhiy Storchaka <storchaka at gmail.com> wrote:
+>
+> I have virtually completely lost the sight of my right eye (and the loss
+> is quickly progresses) and the sight of my left eye is weak. That is why
+> my activity as a core developer was decreased significantly at recent
+> time. My apologies to those who are waiting for my review. I will do it
+> slowly.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/yselivanov.ml%40gmail.com
+
+
+
+-- 
+         Yury
+
+From mariatta at python.org  Sat Jan 19 17:25:03 2019
+From: mariatta at python.org (Mariatta Wijaya)
+Date: Sat, 19 Jan 2019 16:25:03 -0600
+Subject: [Python-Dev] Lost sight
+In-Reply-To: <q1ut2o$pds$1@blaine.gmane.org>
+References: <q1ut2o$pds$1@blaine.gmane.org>
+Message-ID: <CAGbohnbbqgzdz6w+hk38GQqbxJyH9iXfsi1OEr1oRanVmeJ=Vg@mail.gmail.com>
+
+Sorry to hear that. Please take care.
+
+On Sat, Jan 19, 2019, 4:15 AM Serhiy Storchaka <storchaka at gmail.com wrote:
+
+> I have virtually completely lost the sight of my right eye (and the loss
+> is quickly progresses) and the sight of my left eye is weak. That is why
+> my activity as a core developer was decreased significantly at recent
+> time. My apologies to those who are waiting for my review. I will do it
+> slowly.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mariatta%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190119/b67d65c3/attachment.html>
+
+From chris.jerdonek at gmail.com  Sat Jan 19 18:16:16 2019
+From: chris.jerdonek at gmail.com (Chris Jerdonek)
+Date: Sat, 19 Jan 2019 15:16:16 -0800
+Subject: [Python-Dev] Lost sight
+In-Reply-To: <q1ut2o$pds$1@blaine.gmane.org>
+References: <q1ut2o$pds$1@blaine.gmane.org>
+Message-ID: <CAOTb1wcRq0A_T+oQECG-NLNwsb4KwmstqqtGaSDO+6P4FV5SqA@mail.gmail.com>
+
+Hi Serhiy,
+
+That's terrible and sounds frightening. Were you able to get medical
+care to get a diagnosis and treatment if needed?
+
+We all hope your condition improves.
+
+--Chris
+
+On Sat, Jan 19, 2019 at 2:14 AM Serhiy Storchaka <storchaka at gmail.com> wrote:
+>
+> I have virtually completely lost the sight of my right eye (and the loss
+> is quickly progresses) and the sight of my left eye is weak. That is why
+> my activity as a core developer was decreased significantly at recent
+> time. My apologies to those who are waiting for my review. I will do it
+> slowly.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/chris.jerdonek%40gmail.com
+
+From stephane at wirtel.be  Sat Jan 19 23:54:21 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Sun, 20 Jan 2019 05:54:21 +0100
+Subject: [Python-Dev] Lost sight
+In-Reply-To: <CAGbohnbbqgzdz6w+hk38GQqbxJyH9iXfsi1OEr1oRanVmeJ=Vg@mail.gmail.com>
+References: <q1ut2o$pds$1@blaine.gmane.org>
+ <CAGbohnbbqgzdz6w+hk38GQqbxJyH9iXfsi1OEr1oRanVmeJ=Vg@mail.gmail.com>
+Message-ID: <7591B4B8-64B4-4AF8-B6CF-9020CBEE1918@wirtel.be>
+
+Really sorry Serhiy, hope the best for you, take care. Firstly the most important thing, is your health. 
+
+St?phane 
+
+> Le 19 janv. 2019 ? 23:25, Mariatta Wijaya <mariatta at python.org> a ?crit :
+> 
+> Sorry to hear that. Please take care.
+> 
+>> On Sat, Jan 19, 2019, 4:15 AM Serhiy Storchaka <storchaka at gmail.com wrote:
+>> I have virtually completely lost the sight of my right eye (and the loss 
+>> is quickly progresses) and the sight of my left eye is weak. That is why 
+>> my activity as a core developer was decreased significantly at recent 
+>> time. My apologies to those who are waiting for my review. I will do it 
+>> slowly.
+>> 
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/mariatta%40python.org
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/stephane%40wirtel.be
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190120/5e63cd65/attachment.html>
+
