@@ -7454,3 +7454,454 @@ privately. I am very touched. It at least helped me feel a little better
 psychologically.
 
 
+From ncoghlan at gmail.com  Tue Jan 22 06:09:55 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Tue, 22 Jan 2019 21:09:55 +1000
+Subject: [Python-Dev] Lost sight
+In-Reply-To: <20190121093940.65d3e258@fsol>
+References: <q1ut2o$pds$1@blaine.gmane.org> <20190121093940.65d3e258@fsol>
+Message-ID: <CADiSq7dSaqJXXGOxPgiM5OYg6TbySHU-Bn66uyYCwPBLwhagtQ@mail.gmail.com>
+
+On Mon, 21 Jan 2019 at 18:43, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> On Sat, 19 Jan 2019 12:12:44 +0200
+> Serhiy Storchaka <storchaka at gmail.com> wrote:
+> > I have virtually completely lost the sight of my right eye (and the loss
+> > is quickly progresses) and the sight of my left eye is weak. That is why
+> > my activity as a core developer was decreased significantly at recent
+> > time. My apologies to those who are waiting for my review. I will do it
+> > slowly.
+>
+> I really hope you're going to get better.  If there is something the
+> community can do for you, please say so ;-)
+
+Hear, hear - if we can help in any way, please let us know.
+
+Regards,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From stephan.reiter at gmail.com  Tue Jan 22 09:32:22 2019
+From: stephan.reiter at gmail.com (Stephan Reiter)
+Date: Tue, 22 Jan 2019 15:32:22 +0100
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+Message-ID: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+
+Hi all!
+
+I am new to the list and arriving with a concrete problem that I'd
+like to fix myself.
+
+I am embedding Python (3.6) into my C++ application and I would like
+to run Python scripts isolated from each other using sub-interpreters.
+I am not using threads; everything is supposed to run in the
+application's main thread.
+
+I noticed that if I create an interpreter, switch to it and execute
+code that imports numpy (1.13), my application will hang.
+
+  ntdll.dll!NtWaitForSingleObject() Unknown
+  KernelBase.dll!WaitForSingleObjectEx() Unknown
+> python36.dll!_PyCOND_WAIT_MS(_PyCOND_T * cv=0x00000000748a67a0, _RTL_CRITICAL_SECTION * cs=0x00000000748a6778, unsigned long ms=5) Line 245 C
+  [Inline Frame] python36.dll!PyCOND_TIMEDWAIT(_PyCOND_T *) Line 275 C
+  python36.dll!take_gil(_ts * tstate=0x0000023251cbc260) Line 224 C
+  python36.dll!PyEval_RestoreThread(_ts * tstate=0x0000023251cbc260) Line 370 C
+  python36.dll!PyGILState_Ensure() Line 855 C
+  umath.cp36-win_amd64.pyd!00007ff8c6306ab2() Unknown
+  umath.cp36-win_amd64.pyd!00007ff8c630723c() Unknown
+  umath.cp36-win_amd64.pyd!00007ff8c6303a1d() Unknown
+  umath.cp36-win_amd64.pyd!00007ff8c63077c0() Unknown
+  umath.cp36-win_amd64.pyd!00007ff8c62ff926() Unknown
+  [Inline Frame] python36.dll!_PyObject_FastCallDict(_object *) Line 2316 C
+  [Inline Frame] python36.dll!_PyObject_FastCallKeywords(_object *) Line 2480 C
+  python36.dll!call_function(_object * * *
+pp_stack=0x00000048be5f5e40, __int64 oparg, _object * kwnames) Line
+4822 C
+
+Numpy's extension umath calls PyGILState_Ensure(), which in turn calls
+PyEval_RestoreThread on the (auto) threadstate of the main
+interpreter. And that's wrong.
+We are already holding the GIL with the threadstate of our current
+sub-interpreter, so there's no need to switch.
+
+I know that the GIL API is not fully compatible with sub-interpreters,
+as issues #10915 and #15751 illustrate.
+
+But since I need to support calls to PyGILState_Ensure - numpy is the
+best example -, I am trying to improve the situation here:
+https://github.com/stephanreiter/cpython/commit/d9d3451b038af2820f500843b6a88f57270e1597
+
+That change may be naive, but it does the trick for my use case. If
+totally wrong, I don't mind pursuing another alley.
+
+Essentially, I'd like to ask for some guidance in how to tackle this
+problem while keeping the current GIL API unchanged (to avoid breaking
+modules).
+
+I am also wondering how I can test any changes I am proposing. Is
+there a test suite for interpreters, for example?
+
+Thank you very much,
+Stephan
+
+From solipsis at pitrou.net  Tue Jan 22 12:03:47 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 22 Jan 2019 18:03:47 +0100
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+Message-ID: <20190122180347.4f8f2b6e@fsol>
+
+On Tue, 22 Jan 2019 15:32:22 +0100
+Stephan Reiter <stephan.reiter at gmail.com> wrote:
+> 
+> Numpy's extension umath calls PyGILState_Ensure(), which in turn calls
+> PyEval_RestoreThread on the (auto) threadstate of the main
+> interpreter. And that's wrong.
+> We are already holding the GIL with the threadstate of our current
+> sub-interpreter, so there's no need to switch.
+> 
+> I know that the GIL API is not fully compatible with sub-interpreters,
+> as issues #10915 and #15751 illustrate.
+
+That's a pity.
+
+Note that there is a patch on https://bugs.python.org/issue10915 that
+could probably solve the issue if it had been applied some years ago ;-)
+
+(yes, it needs C extension authors to use the new API, but Numpy is a
+well-maintained library and would probably have accepted a patch for
+that; so would Cython probably)
+
+> Essentially, I'd like to ask for some guidance in how to tackle this
+> problem while keeping the current GIL API unchanged (to avoid breaking
+> modules).
+
+I'm not aware of any solution which does not require designing a new
+API, unfortunately.
+
+> I am also wondering how I can test any changes I am proposing. Is
+> there a test suite for interpreters, for example?
+
+You'll find a couple of them in test_embed.py, test_capi.py and
+test_threading.py.
+
+Regards
+
+Antoine.
+
+
+
+From njs at pobox.com  Tue Jan 22 16:39:21 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 22 Jan 2019 13:39:21 -0800
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+Message-ID: <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+
+There are currently numerous incompatibilities between numpy and
+subinterpreters, and no concrete plan for fixing them. The numpy team does
+not consider subinterpreters to be a supported configuration, and can't
+help you with any issues you run into. I know the concept of
+subinterpreters is really appealing, but unfortunately the CPython
+implementation is not really mature or widely supported... are you
+absolutely certain you need to use subinterpreters for your application?
+
+On Tue, Jan 22, 2019, 08:27 Stephan Reiter <stephan.reiter at gmail.com wrote:
+
+> Hi all!
+>
+> I am new to the list and arriving with a concrete problem that I'd
+> like to fix myself.
+>
+> I am embedding Python (3.6) into my C++ application and I would like
+> to run Python scripts isolated from each other using sub-interpreters.
+> I am not using threads; everything is supposed to run in the
+> application's main thread.
+>
+> I noticed that if I create an interpreter, switch to it and execute
+> code that imports numpy (1.13), my application will hang.
+>
+>   ntdll.dll!NtWaitForSingleObject() Unknown
+>   KernelBase.dll!WaitForSingleObjectEx() Unknown
+> > python36.dll!_PyCOND_WAIT_MS(_PyCOND_T * cv=0x00000000748a67a0,
+> _RTL_CRITICAL_SECTION * cs=0x00000000748a6778, unsigned long ms=5) Line 245
+> C
+>   [Inline Frame] python36.dll!PyCOND_TIMEDWAIT(_PyCOND_T *) Line 275 C
+>   python36.dll!take_gil(_ts * tstate=0x0000023251cbc260) Line 224 C
+>   python36.dll!PyEval_RestoreThread(_ts * tstate=0x0000023251cbc260) Line
+> 370 C
+>   python36.dll!PyGILState_Ensure() Line 855 C
+>   umath.cp36-win_amd64.pyd!00007ff8c6306ab2() Unknown
+>   umath.cp36-win_amd64.pyd!00007ff8c630723c() Unknown
+>   umath.cp36-win_amd64.pyd!00007ff8c6303a1d() Unknown
+>   umath.cp36-win_amd64.pyd!00007ff8c63077c0() Unknown
+>   umath.cp36-win_amd64.pyd!00007ff8c62ff926() Unknown
+>   [Inline Frame] python36.dll!_PyObject_FastCallDict(_object *) Line 2316 C
+>   [Inline Frame] python36.dll!_PyObject_FastCallKeywords(_object *) Line
+> 2480 C
+>   python36.dll!call_function(_object * * *
+> pp_stack=0x00000048be5f5e40, __int64 oparg, _object * kwnames) Line
+> 4822 C
+>
+> Numpy's extension umath calls PyGILState_Ensure(), which in turn calls
+> PyEval_RestoreThread on the (auto) threadstate of the main
+> interpreter. And that's wrong.
+> We are already holding the GIL with the threadstate of our current
+> sub-interpreter, so there's no need to switch.
+>
+> I know that the GIL API is not fully compatible with sub-interpreters,
+> as issues #10915 and #15751 illustrate.
+>
+> But since I need to support calls to PyGILState_Ensure - numpy is the
+> best example -, I am trying to improve the situation here:
+>
+> https://github.com/stephanreiter/cpython/commit/d9d3451b038af2820f500843b6a88f57270e1597
+>
+> That change may be naive, but it does the trick for my use case. If
+> totally wrong, I don't mind pursuing another alley.
+>
+> Essentially, I'd like to ask for some guidance in how to tackle this
+> problem while keeping the current GIL API unchanged (to avoid breaking
+> modules).
+>
+> I am also wondering how I can test any changes I am proposing. Is
+> there a test suite for interpreters, for example?
+>
+> Thank you very much,
+> Stephan
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190122/b3460709/attachment.html>
+
+From levkivskyi at gmail.com  Tue Jan 22 17:45:49 2019
+From: levkivskyi at gmail.com (Ivan Levkivskyi)
+Date: Tue, 22 Jan 2019 22:45:49 +0000
+Subject: [Python-Dev] Source of truth for C-API
+Message-ID: <CAOMjWkmVTdNyhkotcoBn08z_hS7d-tk393xEvaOrMKPFFreLKw@mail.gmail.com>
+
+Hi,
+
+I recently modified signatures of two functions PyNode_AddChild() and
+PyParser_AddToken().
+These two functions are not listed in C-API docs on docs.python.org, and
+are not included in Python.h. However, their names look like they may be
+part of C-API. So there appeared a question, what is the source of truth
+for C-API, is there an official list? Or is it just the content of Python.h?
+
+--
+Ivan
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190122/081a07da/attachment.html>
+
+From vstinner at redhat.com  Tue Jan 22 18:17:48 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 23 Jan 2019 00:17:48 +0100
+Subject: [Python-Dev] Source of truth for C-API
+In-Reply-To: <CAOMjWkmVTdNyhkotcoBn08z_hS7d-tk393xEvaOrMKPFFreLKw@mail.gmail.com>
+References: <CAOMjWkmVTdNyhkotcoBn08z_hS7d-tk393xEvaOrMKPFFreLKw@mail.gmail.com>
+Message-ID: <CA+3bQGEWC5m5X_-DD6vJh=YZBZqL+uwzezc=Q2WVSU6Mz9yJcw@mail.gmail.com>
+
+I consider that frameobject.h is also part of the C API, even if it's
+not included by Python.h. For example, PyFrame_GetLineNumber() is part
+of the C API, it's just that you have to explicitly #include
+"frameobject.h".
+
+I'm not aware of any tool to automatically list the content of the C API.
+
+Counter example: PyFrame_New() is not documented. But I still consider
+it to be part of the C API.
+
+... Yeah, the definition of the "C API" is unclear to most peole :-)
+
+See https://pythoncapi.readthedocs.io/ : "Design a new better C API for Python".
+
+Victor
+
+Le mar. 22 janv. 2019 ? 23:49, Ivan Levkivskyi <levkivskyi at gmail.com> a ?crit :
+>
+> Hi,
+>
+> I recently modified signatures of two functions PyNode_AddChild() and PyParser_AddToken().
+> These two functions are not listed in C-API docs on docs.python.org, and are not included in Python.h. However, their names look like they may be part of C-API. So there appeared a question, what is the source of truth for C-API, is there an official list? Or is it just the content of Python.h?
+>
+> --
+> Ivan
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From stephan.reiter at gmail.com  Tue Jan 22 21:33:16 2019
+From: stephan.reiter at gmail.com (Stephan Reiter)
+Date: Wed, 23 Jan 2019 03:33:16 +0100
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+Message-ID: <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+
+Thanks for the answers so far. I appreciate them!
+
+Nathaniel, I'd like to allow Python plugins in my application. A
+plugin should be allowed to bring its own modules along (i.e.
+plugin-specific subdir is in sys.path when the plugin is active) and
+hence some isolation of them will be needed, so that they can use
+different versions of a given module. That's my main motivation for
+using subinterpreters.
+I thought about running plugins out-of-processes - a separate process
+for every plugin - and allow them to communicate with my application
+via RPC. But that makes it more complex to implement the API my
+application will offer and will slow down things due to the need to
+copy data.
+Maybe you have another idea for me? :)
+
+Henry, Antoine, thanks for your input; I'll check out the tests and
+see what I can learn from issue 10915.
+
+Stephan
+
+Am Di., 22. Jan. 2019 um 22:39 Uhr schrieb Nathaniel Smith <njs at pobox.com>:
+>
+> There are currently numerous incompatibilities between numpy and subinterpreters, and no concrete plan for fixing them. The numpy team does not consider subinterpreters to be a supported configuration, and can't help you with any issues you run into. I know the concept of subinterpreters is really appealing, but unfortunately the CPython implementation is not really mature or widely supported... are you absolutely certain you need to use subinterpreters for your application?
+>
+> On Tue, Jan 22, 2019, 08:27 Stephan Reiter <stephan.reiter at gmail.com wrote:
+>>
+>> Hi all!
+>>
+>> I am new to the list and arriving with a concrete problem that I'd
+>> like to fix myself.
+>>
+>> I am embedding Python (3.6) into my C++ application and I would like
+>> to run Python scripts isolated from each other using sub-interpreters.
+>> I am not using threads; everything is supposed to run in the
+>> application's main thread.
+>>
+>> I noticed that if I create an interpreter, switch to it and execute
+>> code that imports numpy (1.13), my application will hang.
+>>
+>>   ntdll.dll!NtWaitForSingleObject() Unknown
+>>   KernelBase.dll!WaitForSingleObjectEx() Unknown
+>> > python36.dll!_PyCOND_WAIT_MS(_PyCOND_T * cv=0x00000000748a67a0, _RTL_CRITICAL_SECTION * cs=0x00000000748a6778, unsigned long ms=5) Line 245 C
+>>   [Inline Frame] python36.dll!PyCOND_TIMEDWAIT(_PyCOND_T *) Line 275 C
+>>   python36.dll!take_gil(_ts * tstate=0x0000023251cbc260) Line 224 C
+>>   python36.dll!PyEval_RestoreThread(_ts * tstate=0x0000023251cbc260) Line 370 C
+>>   python36.dll!PyGILState_Ensure() Line 855 C
+>>   umath.cp36-win_amd64.pyd!00007ff8c6306ab2() Unknown
+>>   umath.cp36-win_amd64.pyd!00007ff8c630723c() Unknown
+>>   umath.cp36-win_amd64.pyd!00007ff8c6303a1d() Unknown
+>>   umath.cp36-win_amd64.pyd!00007ff8c63077c0() Unknown
+>>   umath.cp36-win_amd64.pyd!00007ff8c62ff926() Unknown
+>>   [Inline Frame] python36.dll!_PyObject_FastCallDict(_object *) Line 2316 C
+>>   [Inline Frame] python36.dll!_PyObject_FastCallKeywords(_object *) Line 2480 C
+>>   python36.dll!call_function(_object * * *
+>> pp_stack=0x00000048be5f5e40, __int64 oparg, _object * kwnames) Line
+>> 4822 C
+>>
+>> Numpy's extension umath calls PyGILState_Ensure(), which in turn calls
+>> PyEval_RestoreThread on the (auto) threadstate of the main
+>> interpreter. And that's wrong.
+>> We are already holding the GIL with the threadstate of our current
+>> sub-interpreter, so there's no need to switch.
+>>
+>> I know that the GIL API is not fully compatible with sub-interpreters,
+>> as issues #10915 and #15751 illustrate.
+>>
+>> But since I need to support calls to PyGILState_Ensure - numpy is the
+>> best example -, I am trying to improve the situation here:
+>> https://github.com/stephanreiter/cpython/commit/d9d3451b038af2820f500843b6a88f57270e1597
+>>
+>> That change may be naive, but it does the trick for my use case. If
+>> totally wrong, I don't mind pursuing another alley.
+>>
+>> Essentially, I'd like to ask for some guidance in how to tackle this
+>> problem while keeping the current GIL API unchanged (to avoid breaking
+>> modules).
+>>
+>> I am also wondering how I can test any changes I am proposing. Is
+>> there a test suite for interpreters, for example?
+>>
+>> Thank you very much,
+>> Stephan
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+
+From njs at pobox.com  Tue Jan 22 22:51:24 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 22 Jan 2019 19:51:24 -0800
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+Message-ID: <CAPJVwBkTRetP6NPiju7MFed8M3az7z3Nnu0A2BS96eNagBjhyg@mail.gmail.com>
+
+On Tue, Jan 22, 2019 at 6:33 PM Stephan Reiter <stephan.reiter at gmail.com> wrote:
+>
+> Thanks for the answers so far. I appreciate them!
+>
+> Nathaniel, I'd like to allow Python plugins in my application. A
+> plugin should be allowed to bring its own modules along (i.e.
+> plugin-specific subdir is in sys.path when the plugin is active) and
+> hence some isolation of them will be needed, so that they can use
+> different versions of a given module. That's my main motivation for
+> using subinterpreters.
+> I thought about running plugins out-of-processes - a separate process
+> for every plugin - and allow them to communicate with my application
+> via RPC. But that makes it more complex to implement the API my
+> application will offer and will slow down things due to the need to
+> copy data.
+> Maybe you have another idea for me? :)
+
+Not really, sorry! I believe that most applications that support
+Python plugins (like blender, gimp, libreoffice, etc.), do it by using
+a single shared environment for all plugins. This is also how every
+application written in Python works, so at the ecosystem level there's
+a lot of pressure on module authors to make it possible to assemble
+them into a single coherent environment.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From steve.dower at python.org  Wed Jan 23 01:58:46 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 22 Jan 2019 22:58:46 -0800
+Subject: [Python-Dev] Source of truth for C-API
+In-Reply-To: <CA+3bQGEWC5m5X_-DD6vJh=YZBZqL+uwzezc=Q2WVSU6Mz9yJcw@mail.gmail.com>
+References: <CAOMjWkmVTdNyhkotcoBn08z_hS7d-tk393xEvaOrMKPFFreLKw@mail.gmail.com>
+ <CA+3bQGEWC5m5X_-DD6vJh=YZBZqL+uwzezc=Q2WVSU6Mz9yJcw@mail.gmail.com>
+Message-ID: <3ba8a094-dcb3-13f3-cdb4-2162f4c5e9ac@python.org>
+
+On 22Jan.2019 1517, Victor Stinner wrote:
+> I'm not aware of any tool to automatically list the content of the C API.
+
+The shell script attached to https://bugs.python.org/issue23903 should
+be able to do it with different preprocessor values (we originally
+intended to detect inconsistencies in the stable API, but when we found
+lots of existing inconsistencies we couldn't agree on how to deal with
+them).
+
+Cheers,
+Steve
+
