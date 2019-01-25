@@ -7905,3 +7905,851 @@ them).
 Cheers,
 Steve
 
+From encukou at gmail.com  Wed Jan 23 05:30:11 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Wed, 23 Jan 2019 11:30:11 +0100
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+Message-ID: <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+
+On 1/23/19 3:33 AM, Stephan Reiter wrote:
+> Thanks for the answers so far. I appreciate them!
+> 
+> Nathaniel, I'd like to allow Python plugins in my application. A
+> plugin should be allowed to bring its own modules along (i.e.
+> plugin-specific subdir is in sys.path when the plugin is active) and
+> hence some isolation of them will be needed, so that they can use
+> different versions of a given module. That's my main motivation for
+> using subinterpreters.
+> I thought about running plugins out-of-processes - a separate process
+> for every plugin - and allow them to communicate with my application
+> via RPC. But that makes it more complex to implement the API my
+> application will offer and will slow down things due to the need to
+> copy data.
+> Maybe you have another idea for me? :)
+
+Try to make the plugins work together. Look into using pip/PyPI for your 
+plugins. Try to make it so each package ("plugin") would have only one 
+module/package, and dependencies would be other packages that can be 
+installed individually and shared. And keep in mind you can set up your 
+own package index, or distribute/install individual package files.
+
+If that's not possible, and you want things to work now, go with subprocess.
+
+If you want to help make subinterpreters work better, there are several 
+people scratching at the problem from different angles. Most/all would 
+welcome help, but don't expect any short-term benefits.
+(FWIW, my own effort is currently blocked on PEP 580, and I hope to move 
+forward after a Council is elected.)
+
+
+> Henry, Antoine, thanks for your input; I'll check out the tests and
+> see what I can learn from issue 10915.
+> 
+> Stephan
+> 
+> Am Di., 22. Jan. 2019 um 22:39 Uhr schrieb Nathaniel Smith <njs at pobox.com>:
+>>
+>> There are currently numerous incompatibilities between numpy and subinterpreters, and no concrete plan for fixing them. The numpy team does not consider subinterpreters to be a supported configuration, and can't help you with any issues you run into. I know the concept of subinterpreters is really appealing, but unfortunately the CPython implementation is not really mature or widely supported... are you absolutely certain you need to use subinterpreters for your application?
+>>
+>> On Tue, Jan 22, 2019, 08:27 Stephan Reiter <stephan.reiter at gmail.com wrote:
+>>>
+>>> Hi all!
+>>>
+>>> I am new to the list and arriving with a concrete problem that I'd
+>>> like to fix myself.
+>>>
+>>> I am embedding Python (3.6) into my C++ application and I would like
+>>> to run Python scripts isolated from each other using sub-interpreters.
+>>> I am not using threads; everything is supposed to run in the
+>>> application's main thread.
+>>>
+>>> I noticed that if I create an interpreter, switch to it and execute
+>>> code that imports numpy (1.13), my application will hang.
+>>>
+>>>    ntdll.dll!NtWaitForSingleObject() Unknown
+>>>    KernelBase.dll!WaitForSingleObjectEx() Unknown
+>>>> python36.dll!_PyCOND_WAIT_MS(_PyCOND_T * cv=0x00000000748a67a0, _RTL_CRITICAL_SECTION * cs=0x00000000748a6778, unsigned long ms=5) Line 245 C
+>>>    [Inline Frame] python36.dll!PyCOND_TIMEDWAIT(_PyCOND_T *) Line 275 C
+>>>    python36.dll!take_gil(_ts * tstate=0x0000023251cbc260) Line 224 C
+>>>    python36.dll!PyEval_RestoreThread(_ts * tstate=0x0000023251cbc260) Line 370 C
+>>>    python36.dll!PyGILState_Ensure() Line 855 C
+>>>    umath.cp36-win_amd64.pyd!00007ff8c6306ab2() Unknown
+>>>    umath.cp36-win_amd64.pyd!00007ff8c630723c() Unknown
+>>>    umath.cp36-win_amd64.pyd!00007ff8c6303a1d() Unknown
+>>>    umath.cp36-win_amd64.pyd!00007ff8c63077c0() Unknown
+>>>    umath.cp36-win_amd64.pyd!00007ff8c62ff926() Unknown
+>>>    [Inline Frame] python36.dll!_PyObject_FastCallDict(_object *) Line 2316 C
+>>>    [Inline Frame] python36.dll!_PyObject_FastCallKeywords(_object *) Line 2480 C
+>>>    python36.dll!call_function(_object * * *
+>>> pp_stack=0x00000048be5f5e40, __int64 oparg, _object * kwnames) Line
+>>> 4822 C
+>>>
+>>> Numpy's extension umath calls PyGILState_Ensure(), which in turn calls
+>>> PyEval_RestoreThread on the (auto) threadstate of the main
+>>> interpreter. And that's wrong.
+>>> We are already holding the GIL with the threadstate of our current
+>>> sub-interpreter, so there's no need to switch.
+>>>
+>>> I know that the GIL API is not fully compatible with sub-interpreters,
+>>> as issues #10915 and #15751 illustrate.
+>>>
+>>> But since I need to support calls to PyGILState_Ensure - numpy is the
+>>> best example -, I am trying to improve the situation here:
+>>> https://github.com/stephanreiter/cpython/commit/d9d3451b038af2820f500843b6a88f57270e1597
+>>>
+>>> That change may be naive, but it does the trick for my use case. If
+>>> totally wrong, I don't mind pursuing another alley.
+>>>
+>>> Essentially, I'd like to ask for some guidance in how to tackle this
+>>> problem while keeping the current GIL API unchanged (to avoid breaking
+>>> modules).
+>>>
+>>> I am also wondering how I can test any changes I am proposing. Is
+>>> there a test suite for interpreters, for example?
+>>>
+>>> Thank you very much,
+>>> Stephan
+>>> _______________________________________________
+>>> Python-Dev mailing list
+>>> Python-Dev at python.org
+>>> https://mail.python.org/mailman/listinfo/python-dev
+>>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/encukou%40gmail.com
+> 
+
+From levkivskyi at gmail.com  Wed Jan 23 10:24:16 2019
+From: levkivskyi at gmail.com (Ivan Levkivskyi)
+Date: Wed, 23 Jan 2019 15:24:16 +0000
+Subject: [Python-Dev] Source of truth for C-API
+In-Reply-To: <3ba8a094-dcb3-13f3-cdb4-2162f4c5e9ac@python.org>
+References: <CAOMjWkmVTdNyhkotcoBn08z_hS7d-tk393xEvaOrMKPFFreLKw@mail.gmail.com>
+ <CA+3bQGEWC5m5X_-DD6vJh=YZBZqL+uwzezc=Q2WVSU6Mz9yJcw@mail.gmail.com>
+ <3ba8a094-dcb3-13f3-cdb4-2162f4c5e9ac@python.org>
+Message-ID: <CAOMjWkniKXCeWqrx5oE5+0WVrqgtPkpRdvoWyKpS+xBpCY1tgQ@mail.gmail.com>
+
+Thanks for advice Victor and Steve!
+
+I looked at the list, and the two functions I mentioned are not in the
+list. So I assume the best strategy for now is to wait until first
+alpha-beta releases are out, and see if anyone complains.
+
+--
+Ivan
+
+
+
+On Wed, 23 Jan 2019 at 06:58, Steve Dower <steve.dower at python.org> wrote:
+
+> On 22Jan.2019 1517, Victor Stinner wrote:
+> > I'm not aware of any tool to automatically list the content of the C API.
+>
+> The shell script attached to https://bugs.python.org/issue23903 should
+> be able to do it with different preprocessor values (we originally
+> intended to detect inconsistencies in the stable API, but when we found
+> lots of existing inconsistencies we couldn't agree on how to deal with
+> them).
+>
+> Cheers,
+> Steve
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190123/9662d75d/attachment.html>
+
+From stephan.reiter at gmail.com  Wed Jan 23 05:50:11 2019
+From: stephan.reiter at gmail.com (Stephan Reiter)
+Date: Wed, 23 Jan 2019 11:50:11 +0100
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+Message-ID: <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+
+Hi!
+
+Well, the plugins would be created by third-parties and I'd like them
+to enable bunding of modules with their plugins.
+I am afraid of modules with the same name, but being different, or
+different versions of modules being used by different plugins. If
+plugins share an interpreter, the module with a given name that is
+imported first sticks around forever and for all plugins.
+
+I am thinking about this design:
+- Plugins don't maintain state in their Python world. They expose
+functions, my application calls them.
+- Everytime I call into them, they are presented with a clean global
+namespace. After the call, the namespace (dict) is thrown away. That
+releases any objects the plugin code has created.
+- So, then I could also actively unload modules they loaded. But I do
+know that this is problematic in particular for modules that use
+native code.
+
+I am interested in both a short-term and a long-term solution.
+Actually, making subinterpreters work better is pretty sexy ...
+because it's hard. :-)
+
+Stephan
+
+Am Mi., 23. Jan. 2019 um 11:30 Uhr schrieb Petr Viktorin <encukou at gmail.com>:
+>
+> On 1/23/19 3:33 AM, Stephan Reiter wrote:
+> > Thanks for the answers so far. I appreciate them!
+> >
+> > Nathaniel, I'd like to allow Python plugins in my application. A
+> > plugin should be allowed to bring its own modules along (i.e.
+> > plugin-specific subdir is in sys.path when the plugin is active) and
+> > hence some isolation of them will be needed, so that they can use
+> > different versions of a given module. That's my main motivation for
+> > using subinterpreters.
+> > I thought about running plugins out-of-processes - a separate process
+> > for every plugin - and allow them to communicate with my application
+> > via RPC. But that makes it more complex to implement the API my
+> > application will offer and will slow down things due to the need to
+> > copy data.
+> > Maybe you have another idea for me? :)
+>
+> Try to make the plugins work together. Look into using pip/PyPI for your
+> plugins. Try to make it so each package ("plugin") would have only one
+> module/package, and dependencies would be other packages that can be
+> installed individually and shared. And keep in mind you can set up your
+> own package index, or distribute/install individual package files.
+>
+> If that's not possible, and you want things to work now, go with subprocess.
+>
+> If you want to help make subinterpreters work better, there are several
+> people scratching at the problem from different angles. Most/all would
+> welcome help, but don't expect any short-term benefits.
+> (FWIW, my own effort is currently blocked on PEP 580, and I hope to move
+> forward after a Council is elected.)
+>
+>
+> > Henry, Antoine, thanks for your input; I'll check out the tests and
+> > see what I can learn from issue 10915.
+> >
+> > Stephan
+> >
+> > Am Di., 22. Jan. 2019 um 22:39 Uhr schrieb Nathaniel Smith <njs at pobox.com>:
+> >>
+> >> There are currently numerous incompatibilities between numpy and subinterpreters, and no concrete plan for fixing them. The numpy team does not consider subinterpreters to be a supported configuration, and can't help you with any issues you run into. I know the concept of subinterpreters is really appealing, but unfortunately the CPython implementation is not really mature or widely supported... are you absolutely certain you need to use subinterpreters for your application?
+> >>
+> >> On Tue, Jan 22, 2019, 08:27 Stephan Reiter <stephan.reiter at gmail.com wrote:
+> >>>
+> >>> Hi all!
+> >>>
+> >>> I am new to the list and arriving with a concrete problem that I'd
+> >>> like to fix myself.
+> >>>
+> >>> I am embedding Python (3.6) into my C++ application and I would like
+> >>> to run Python scripts isolated from each other using sub-interpreters.
+> >>> I am not using threads; everything is supposed to run in the
+> >>> application's main thread.
+> >>>
+> >>> I noticed that if I create an interpreter, switch to it and execute
+> >>> code that imports numpy (1.13), my application will hang.
+> >>>
+> >>>    ntdll.dll!NtWaitForSingleObject() Unknown
+> >>>    KernelBase.dll!WaitForSingleObjectEx() Unknown
+> >>>> python36.dll!_PyCOND_WAIT_MS(_PyCOND_T * cv=0x00000000748a67a0, _RTL_CRITICAL_SECTION * cs=0x00000000748a6778, unsigned long ms=5) Line 245 C
+> >>>    [Inline Frame] python36.dll!PyCOND_TIMEDWAIT(_PyCOND_T *) Line 275 C
+> >>>    python36.dll!take_gil(_ts * tstate=0x0000023251cbc260) Line 224 C
+> >>>    python36.dll!PyEval_RestoreThread(_ts * tstate=0x0000023251cbc260) Line 370 C
+> >>>    python36.dll!PyGILState_Ensure() Line 855 C
+> >>>    umath.cp36-win_amd64.pyd!00007ff8c6306ab2() Unknown
+> >>>    umath.cp36-win_amd64.pyd!00007ff8c630723c() Unknown
+> >>>    umath.cp36-win_amd64.pyd!00007ff8c6303a1d() Unknown
+> >>>    umath.cp36-win_amd64.pyd!00007ff8c63077c0() Unknown
+> >>>    umath.cp36-win_amd64.pyd!00007ff8c62ff926() Unknown
+> >>>    [Inline Frame] python36.dll!_PyObject_FastCallDict(_object *) Line 2316 C
+> >>>    [Inline Frame] python36.dll!_PyObject_FastCallKeywords(_object *) Line 2480 C
+> >>>    python36.dll!call_function(_object * * *
+> >>> pp_stack=0x00000048be5f5e40, __int64 oparg, _object * kwnames) Line
+> >>> 4822 C
+> >>>
+> >>> Numpy's extension umath calls PyGILState_Ensure(), which in turn calls
+> >>> PyEval_RestoreThread on the (auto) threadstate of the main
+> >>> interpreter. And that's wrong.
+> >>> We are already holding the GIL with the threadstate of our current
+> >>> sub-interpreter, so there's no need to switch.
+> >>>
+> >>> I know that the GIL API is not fully compatible with sub-interpreters,
+> >>> as issues #10915 and #15751 illustrate.
+> >>>
+> >>> But since I need to support calls to PyGILState_Ensure - numpy is the
+> >>> best example -, I am trying to improve the situation here:
+> >>> https://github.com/stephanreiter/cpython/commit/d9d3451b038af2820f500843b6a88f57270e1597
+> >>>
+> >>> That change may be naive, but it does the trick for my use case. If
+> >>> totally wrong, I don't mind pursuing another alley.
+> >>>
+> >>> Essentially, I'd like to ask for some guidance in how to tackle this
+> >>> problem while keeping the current GIL API unchanged (to avoid breaking
+> >>> modules).
+> >>>
+> >>> I am also wondering how I can test any changes I am proposing. Is
+> >>> there a test suite for interpreters, for example?
+> >>>
+> >>> Thank you very much,
+> >>> Stephan
+> >>> _______________________________________________
+> >>> Python-Dev mailing list
+> >>> Python-Dev at python.org
+> >>> https://mail.python.org/mailman/listinfo/python-dev
+> >>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+> > _______________________________________________
+> > Python-Dev mailing list
+> > Python-Dev at python.org
+> > https://mail.python.org/mailman/listinfo/python-dev
+> > Unsubscribe: https://mail.python.org/mailman/options/python-dev/encukou%40gmail.com
+> >
+
+From vstinner at redhat.com  Wed Jan 23 11:41:29 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 23 Jan 2019 17:41:29 +0100
+Subject: [Python-Dev] Source of truth for C-API
+In-Reply-To: <CAOMjWkniKXCeWqrx5oE5+0WVrqgtPkpRdvoWyKpS+xBpCY1tgQ@mail.gmail.com>
+References: <CAOMjWkmVTdNyhkotcoBn08z_hS7d-tk393xEvaOrMKPFFreLKw@mail.gmail.com>
+ <CA+3bQGEWC5m5X_-DD6vJh=YZBZqL+uwzezc=Q2WVSU6Mz9yJcw@mail.gmail.com>
+ <3ba8a094-dcb3-13f3-cdb4-2162f4c5e9ac@python.org>
+ <CAOMjWkniKXCeWqrx5oE5+0WVrqgtPkpRdvoWyKpS+xBpCY1tgQ@mail.gmail.com>
+Message-ID: <CA+3bQGGhpLxz-QcOvm-HH5dbq8M2VurHpENyD_-G=P6VnOQVkA@mail.gmail.com>
+
+What is your change? Did you remove these functions? Change their parameters?
+
+Victor
+
+Le mer. 23 janv. 2019 ? 16:24, Ivan Levkivskyi <levkivskyi at gmail.com> a ?crit :
+>
+> Thanks for advice Victor and Steve!
+>
+> I looked at the list, and the two functions I mentioned are not in the list. So I assume the best strategy for now is to wait until first alpha-beta releases are out, and see if anyone complains.
+>
+> --
+> Ivan
+>
+>
+>
+> On Wed, 23 Jan 2019 at 06:58, Steve Dower <steve.dower at python.org> wrote:
+>>
+>> On 22Jan.2019 1517, Victor Stinner wrote:
+>> > I'm not aware of any tool to automatically list the content of the C API.
+>>
+>> The shell script attached to https://bugs.python.org/issue23903 should
+>> be able to do it with different preprocessor values (we originally
+>> intended to detect inconsistencies in the stable API, but when we found
+>> lots of existing inconsistencies we couldn't agree on how to deal with
+>> them).
+>>
+>> Cheers,
+>> Steve
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From levkivskyi at gmail.com  Wed Jan 23 11:43:41 2019
+From: levkivskyi at gmail.com (Ivan Levkivskyi)
+Date: Wed, 23 Jan 2019 16:43:41 +0000
+Subject: [Python-Dev] Source of truth for C-API
+In-Reply-To: <CA+3bQGGhpLxz-QcOvm-HH5dbq8M2VurHpENyD_-G=P6VnOQVkA@mail.gmail.com>
+References: <CAOMjWkmVTdNyhkotcoBn08z_hS7d-tk393xEvaOrMKPFFreLKw@mail.gmail.com>
+ <CA+3bQGEWC5m5X_-DD6vJh=YZBZqL+uwzezc=Q2WVSU6Mz9yJcw@mail.gmail.com>
+ <3ba8a094-dcb3-13f3-cdb4-2162f4c5e9ac@python.org>
+ <CAOMjWkniKXCeWqrx5oE5+0WVrqgtPkpRdvoWyKpS+xBpCY1tgQ@mail.gmail.com>
+ <CA+3bQGGhpLxz-QcOvm-HH5dbq8M2VurHpENyD_-G=P6VnOQVkA@mail.gmail.com>
+Message-ID: <CAOMjWk==qJJuaxBmj8GaNgCY-z_S-Qq3WDitoajUxhgBcg0GhA@mail.gmail.com>
+
+I added to extra parameters to each, see
+https://github.com/python/cpython/pull/11605/files#diff-d350c56a842065575842defb8aaa9f27
+
+--
+Ivan
+
+On Wed, 23 Jan 2019 at 16:41, Victor Stinner <vstinner at redhat.com> wrote:
+
+> What is your change? Did you remove these functions? Change their
+> parameters?
+>
+> Victor
+>
+> Le mer. 23 janv. 2019 ? 16:24, Ivan Levkivskyi <levkivskyi at gmail.com> a
+> ?crit :
+> >
+> > Thanks for advice Victor and Steve!
+> >
+> > I looked at the list, and the two functions I mentioned are not in the
+> list. So I assume the best strategy for now is to wait until first
+> alpha-beta releases are out, and see if anyone complains.
+> >
+> > --
+> > Ivan
+> >
+> >
+> >
+> > On Wed, 23 Jan 2019 at 06:58, Steve Dower <steve.dower at python.org>
+> wrote:
+> >>
+> >> On 22Jan.2019 1517, Victor Stinner wrote:
+> >> > I'm not aware of any tool to automatically list the content of the C
+> API.
+> >>
+> >> The shell script attached to https://bugs.python.org/issue23903 should
+> >> be able to do it with different preprocessor values (we originally
+> >> intended to detect inconsistencies in the stable API, but when we found
+> >> lots of existing inconsistencies we couldn't agree on how to deal with
+> >> them).
+> >>
+> >> Cheers,
+> >> Steve
+>
+>
+>
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190123/86090a88/attachment.html>
+
+From vstinner at redhat.com  Wed Jan 23 11:52:15 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 23 Jan 2019 17:52:15 +0100
+Subject: [Python-Dev] Source of truth for C-API
+In-Reply-To: <CAOMjWk==qJJuaxBmj8GaNgCY-z_S-Qq3WDitoajUxhgBcg0GhA@mail.gmail.com>
+References: <CAOMjWkmVTdNyhkotcoBn08z_hS7d-tk393xEvaOrMKPFFreLKw@mail.gmail.com>
+ <CA+3bQGEWC5m5X_-DD6vJh=YZBZqL+uwzezc=Q2WVSU6Mz9yJcw@mail.gmail.com>
+ <3ba8a094-dcb3-13f3-cdb4-2162f4c5e9ac@python.org>
+ <CAOMjWkniKXCeWqrx5oE5+0WVrqgtPkpRdvoWyKpS+xBpCY1tgQ@mail.gmail.com>
+ <CA+3bQGGhpLxz-QcOvm-HH5dbq8M2VurHpENyD_-G=P6VnOQVkA@mail.gmail.com>
+ <CAOMjWk==qJJuaxBmj8GaNgCY-z_S-Qq3WDitoajUxhgBcg0GhA@mail.gmail.com>
+Message-ID: <CA+3bQGH-bUA3+9M305NvfqfPDDydkX0TE6KZWZUcUwTqmFP-Jw@mail.gmail.com>
+
+I suggest you to add a new function and leaves the existing function
+unchanged. "Just in case".
+
+You may deprecate the old functions at the same time using Py_DEPRECATED().
+
+Victor
+
+Le mer. 23 janv. 2019 ? 17:44, Ivan Levkivskyi <levkivskyi at gmail.com> a ?crit :
+>
+> I added to extra parameters to each, see https://github.com/python/cpython/pull/11605/files#diff-d350c56a842065575842defb8aaa9f27
+>
+> --
+> Ivan
+>
+> On Wed, 23 Jan 2019 at 16:41, Victor Stinner <vstinner at redhat.com> wrote:
+>>
+>> What is your change? Did you remove these functions? Change their parameters?
+>>
+>> Victor
+>>
+>> Le mer. 23 janv. 2019 ? 16:24, Ivan Levkivskyi <levkivskyi at gmail.com> a ?crit :
+>> >
+>> > Thanks for advice Victor and Steve!
+>> >
+>> > I looked at the list, and the two functions I mentioned are not in the list. So I assume the best strategy for now is to wait until first alpha-beta releases are out, and see if anyone complains.
+>> >
+>> > --
+>> > Ivan
+>> >
+>> >
+>> >
+>> > On Wed, 23 Jan 2019 at 06:58, Steve Dower <steve.dower at python.org> wrote:
+>> >>
+>> >> On 22Jan.2019 1517, Victor Stinner wrote:
+>> >> > I'm not aware of any tool to automatically list the content of the C API.
+>> >>
+>> >> The shell script attached to https://bugs.python.org/issue23903 should
+>> >> be able to do it with different preprocessor values (we originally
+>> >> intended to detect inconsistencies in the stable API, but when we found
+>> >> lots of existing inconsistencies we couldn't agree on how to deal with
+>> >> them).
+>> >>
+>> >> Cheers,
+>> >> Steve
+>>
+>>
+>>
+>> --
+>> Night gathers, and now my watch begins. It shall not end until my death.
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From ericsnowcurrently at gmail.com  Wed Jan 23 12:11:45 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Wed, 23 Jan 2019 10:11:45 -0700
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+ <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+Message-ID: <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+
+Hi Stephan,
+
+On Tue, Jan 22, 2019 at 9:25 AM Stephan Reiter <stephan.reiter at gmail.com> wrote:
+> I am new to the list and arriving with a concrete problem that I'd
+> like to fix myself.
+
+That is great!  Statements like that are a good way to get folks
+interested in your success. :)
+
+> I am embedding Python (3.6) into my C++ application and I would like
+> to run Python scripts isolated from each other using sub-interpreters.
+> I am not using threads; everything is supposed to run in the
+> application's main thread.
+
+FYI, running multiple interpreters in the same (e.g. main) thread
+isn't as well thought out as running them in separate threads.  There
+may be assumptions in the runtime that would cause crashes or
+inconsistency in the runtime, so be vigilant.  Is there a reason not
+to run the subinterpreters in separate threads?
+
+Regarding isolation, keep in mind that there are some limitations.  At
+an intrinsic level subinterpreters are never truly isolated since they
+run in the same process.  This matters if you have concerns about
+security (which you should always consider) and stability (if a
+subinterpreter crashes then your whole process crashes).  You can find
+that complete isolation via subprocess & multiprocessing.
+
+On top of intrinsic isolation, currently subinterpreters have gaps in
+isolation that need fixing.  For instance, they share a lot of
+module-global state, as well as builtin types and singletons.  So data
+can leak between subinterpreters unexpectedly.
+
+Finally, at the Python level subinterpreters don't have a good way to
+pass data around.  (I'm working on that. [1])  Naturally at the C
+level you can keep pointers to objects and share data that way.  Just
+keep in mind that doing so relies on the GIL (in an
+interpreter-per-thread scenario, which you're avoiding).  In a world
+where subinterpreters don't share the GIL [2] (and you're running one
+interpreter per thread) you'll end up with refcounting races, leading
+to crashes.  Just keep that mind if you decide to switch to
+one-subinterpreter-per-thread.
+
+On Tue, Jan 22, 2019 at 8:09 PM Stephan Reiter <stephan.reiter at gmail.com> wrote:
+> Nathaniel, I'd like to allow Python plugins in my application. A
+> plugin should be allowed to bring its own modules along (i.e.
+> plugin-specific subdir is in sys.path when the plugin is active) and
+> hence some isolation of them will be needed, so that they can use
+> different versions of a given module. That's my main motivation for
+> using subinterpreters.
+
+That's an interesting approach.  Using subinterpreters would indeed
+give you isolation between the sets of imported modules.
+
+As you noticed, you'll run into some problems when extension modules
+are involved.  There aren't any great workarounds yet .
+Subinterpreters are tied pretty tightly to the core runtime so it's
+hard to attack the problem from the outside.  Furthermore,
+subinterpreters aren't widely used yet so folks haven't been very
+motivated to fix the runtime.  (FWIW, that is changing.)
+
+> I thought about running plugins out-of-processes - a separate process
+> for every plugin - and allow them to communicate with my application
+> via RPC. But that makes it more complex to implement the API my
+> application will offer and will slow down things due to the need to
+> copy data.
+
+Yep.  It might be worth it though.  Note that running
+plugins/extensions in separate processes is a fairly common approach
+for a variety of solid technical reasons (e.g. security, stability).
+FWIW, there are some tools available (or soon to be) for sharing data
+more efficiently (e.g. shared memory in multiprocessing, PEP 574)
+
+> Maybe you have another idea for me? :)
+
+* single proc -- keep using subinterpreters
+  + dlmopen or the Windows equivalent (I hesitate to suggest this
+hack, but it might help somewhat with extension modules)
+  + help fix the problems with subinterpreters :)
+* single proc -- no subinterpreters
+  + import hook to put plugins in their own namespace (tricky with
+extension modules)
+  + extend importlib to do the same
+  + swap sys.modules in and out around plugin use
+* multi-proc -- one process per plugin
+  + subprocess
+  + multiprocessing
+
+On Wed, Jan 23, 2019 at 8:48 AM Stephan Reiter <stephan.reiter at gmail.com> wrote:
+> Well, the plugins would be created by third-parties and I'd like them
+> to enable bunding of modules with their plugins.
+> I am afraid of modules with the same name, but being different, or
+> different versions of modules being used by different plugins. If
+> plugins share an interpreter, the module with a given name that is
+> imported first sticks around forever and for all plugins.
+>
+> I am thinking about this design:
+> - Plugins don't maintain state in their Python world. They expose
+> functions, my application calls them.
+> - Everytime I call into them, they are presented with a clean global
+> namespace. After the call, the namespace (dict) is thrown away. That
+> releases any objects the plugin code has created.
+> - So, then I could also actively unload modules they loaded. But I do
+> know that this is problematic in particular for modules that use
+> native code.
+>
+> I am interested in both a short-term and a long-term solution.
+> Actually, making subinterpreters work better is pretty sexy ...
+> because it's hard. :-)
+
+Petr noted that a number of people are working on getting
+subinterpreters to a good place.  That includes me. [1][2] :)  We'd
+welcome any help!
+
+-eric
+
+
+[1] https://www.python.org/dev/peps/pep-0554/
+[2] https://github.com/ericsnowcurrently/multi-core-python
+
+From stephan.reiter at gmail.com  Wed Jan 23 14:41:24 2019
+From: stephan.reiter at gmail.com (Stephan Reiter)
+Date: Wed, 23 Jan 2019 20:41:24 +0100
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+ <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+ <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+Message-ID: <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+
+You all do make me feel very welcome in this community! Thank you very much! :-)
+
+And thank you for all the thought and time you put into your message,
+Eric. I do appreciate in particular all the alternatives you
+presented; you provide a good picture of my options.
+Not ruling out any of them, I'll stick with (single process + multiple
+subinterpreters + plugins can't keep state in Python + all my Python
+calls are performed on the main thread) for the time being. That's
+quite a limited environment, which I hope I can make work in the long
+run. And I think the concept of subinterpreters is nice and I'd like
+to spend some time on the challenge of improving the situation.
+
+So, I updated my changes and have the following on top of 3.6.1 at the moment:
+https://github.com/stephanreiter/cpython/commit/c1afa0c8cdfab862f409f1c7ff02b189f5191cbe
+
+I did what Henry suggested and ran the Python test suite. On Windows,
+with my changes I get as output:
+
+357 tests OK.
+
+2 tests failed:
+    test_re test_subprocess
+
+46 tests skipped:
+    test_bz2 test_crypt test_curses test_dbm_gnu test_dbm_ndbm
+    test_devpoll test_epoll test_fcntl test_fork1 test_gdb test_grp
+    test_idle test_ioctl test_kqueue test_lzma test_nis test_openpty
+    test_ossaudiodev test_pipes test_poll test_posix test_pty test_pwd
+    test_readline test_resource test_smtpnet test_socketserver
+    test_spwd test_sqlite test_ssl test_syslog test_tcl
+    test_threadsignals test_timeout test_tix test_tk test_ttk_guionly
+    test_ttk_textonly test_turtle test_urllib2net test_urllibnet
+    test_wait3 test_wait4 test_winsound test_xmlrpc_net test_zipfile64
+
+Total duration: 6 min 20 sec
+Tests result: FAILURE
+
+I dropped my changes and ran the test suite again using vanilla Python
+and got the same result.
+So, it seems that the change doesn't break anything that is tested,
+but that probably doesn't mean a lot.
+
+Tomorrow, I'll investigate the following situation if I find time:
+
+If we create a fresh OS thread and make it call PyGILState_Ensure, it
+won't have a PyThreadState saved under autoTLSkey. That means it will
+create one using the main interpreter. I, as the developer embedding
+Python into my application and using multiple interpreters, have no
+control here. Maybe I know that under current conditions a certain
+other interpreter should be used.
+
+I'll try to provoke this situation and then introduce a callback from
+Python into my application that will allow me to specify which
+interpreter should be used, e.g. code as follows:
+
+PyInterpreter *pickAnInterpreter() {
+  return activePlugin ? activePlugin->interpreter : nullptr; //
+nullptr maps to main interpreter
+}
+
+PyGILState_SetNewThreadInterpreterSelectionCallback(&pickAnInterpreter);
+
+Maybe rubbish. But I think a valuable experiment that will give me a
+better understanding.
+
+Stephan
+
+Am Mi., 23. Jan. 2019 um 18:11 Uhr schrieb Eric Snow
+<ericsnowcurrently at gmail.com>:
+>
+> Hi Stephan,
+>
+> On Tue, Jan 22, 2019 at 9:25 AM Stephan Reiter <stephan.reiter at gmail.com> wrote:
+> > I am new to the list and arriving with a concrete problem that I'd
+> > like to fix myself.
+>
+> That is great!  Statements like that are a good way to get folks
+> interested in your success. :)
+>
+> > I am embedding Python (3.6) into my C++ application and I would like
+> > to run Python scripts isolated from each other using sub-interpreters.
+> > I am not using threads; everything is supposed to run in the
+> > application's main thread.
+>
+> FYI, running multiple interpreters in the same (e.g. main) thread
+> isn't as well thought out as running them in separate threads.  There
+> may be assumptions in the runtime that would cause crashes or
+> inconsistency in the runtime, so be vigilant.  Is there a reason not
+> to run the subinterpreters in separate threads?
+>
+> Regarding isolation, keep in mind that there are some limitations.  At
+> an intrinsic level subinterpreters are never truly isolated since they
+> run in the same process.  This matters if you have concerns about
+> security (which you should always consider) and stability (if a
+> subinterpreter crashes then your whole process crashes).  You can find
+> that complete isolation via subprocess & multiprocessing.
+>
+> On top of intrinsic isolation, currently subinterpreters have gaps in
+> isolation that need fixing.  For instance, they share a lot of
+> module-global state, as well as builtin types and singletons.  So data
+> can leak between subinterpreters unexpectedly.
+>
+> Finally, at the Python level subinterpreters don't have a good way to
+> pass data around.  (I'm working on that. [1])  Naturally at the C
+> level you can keep pointers to objects and share data that way.  Just
+> keep in mind that doing so relies on the GIL (in an
+> interpreter-per-thread scenario, which you're avoiding).  In a world
+> where subinterpreters don't share the GIL [2] (and you're running one
+> interpreter per thread) you'll end up with refcounting races, leading
+> to crashes.  Just keep that mind if you decide to switch to
+> one-subinterpreter-per-thread.
+>
+> On Tue, Jan 22, 2019 at 8:09 PM Stephan Reiter <stephan.reiter at gmail.com> wrote:
+> > Nathaniel, I'd like to allow Python plugins in my application. A
+> > plugin should be allowed to bring its own modules along (i.e.
+> > plugin-specific subdir is in sys.path when the plugin is active) and
+> > hence some isolation of them will be needed, so that they can use
+> > different versions of a given module. That's my main motivation for
+> > using subinterpreters.
+>
+> That's an interesting approach.  Using subinterpreters would indeed
+> give you isolation between the sets of imported modules.
+>
+> As you noticed, you'll run into some problems when extension modules
+> are involved.  There aren't any great workarounds yet .
+> Subinterpreters are tied pretty tightly to the core runtime so it's
+> hard to attack the problem from the outside.  Furthermore,
+> subinterpreters aren't widely used yet so folks haven't been very
+> motivated to fix the runtime.  (FWIW, that is changing.)
+>
+> > I thought about running plugins out-of-processes - a separate process
+> > for every plugin - and allow them to communicate with my application
+> > via RPC. But that makes it more complex to implement the API my
+> > application will offer and will slow down things due to the need to
+> > copy data.
+>
+> Yep.  It might be worth it though.  Note that running
+> plugins/extensions in separate processes is a fairly common approach
+> for a variety of solid technical reasons (e.g. security, stability).
+> FWIW, there are some tools available (or soon to be) for sharing data
+> more efficiently (e.g. shared memory in multiprocessing, PEP 574)
+>
+> > Maybe you have another idea for me? :)
+>
+> * single proc -- keep using subinterpreters
+>   + dlmopen or the Windows equivalent (I hesitate to suggest this
+> hack, but it might help somewhat with extension modules)
+>   + help fix the problems with subinterpreters :)
+> * single proc -- no subinterpreters
+>   + import hook to put plugins in their own namespace (tricky with
+> extension modules)
+>   + extend importlib to do the same
+>   + swap sys.modules in and out around plugin use
+> * multi-proc -- one process per plugin
+>   + subprocess
+>   + multiprocessing
+>
+> On Wed, Jan 23, 2019 at 8:48 AM Stephan Reiter <stephan.reiter at gmail.com> wrote:
+> > Well, the plugins would be created by third-parties and I'd like them
+> > to enable bunding of modules with their plugins.
+> > I am afraid of modules with the same name, but being different, or
+> > different versions of modules being used by different plugins. If
+> > plugins share an interpreter, the module with a given name that is
+> > imported first sticks around forever and for all plugins.
+> >
+> > I am thinking about this design:
+> > - Plugins don't maintain state in their Python world. They expose
+> > functions, my application calls them.
+> > - Everytime I call into them, they are presented with a clean global
+> > namespace. After the call, the namespace (dict) is thrown away. That
+> > releases any objects the plugin code has created.
+> > - So, then I could also actively unload modules they loaded. But I do
+> > know that this is problematic in particular for modules that use
+> > native code.
+> >
+> > I am interested in both a short-term and a long-term solution.
+> > Actually, making subinterpreters work better is pretty sexy ...
+> > because it's hard. :-)
+>
+> Petr noted that a number of people are working on getting
+> subinterpreters to a good place.  That includes me. [1][2] :)  We'd
+> welcome any help!
+>
+> -eric
+>
+>
+> [1] https://www.python.org/dev/peps/pep-0554/
+> [2] https://github.com/ericsnowcurrently/multi-core-python
+
+From larry at hastings.org  Wed Jan 23 20:15:53 2019
+From: larry at hastings.org (Larry Hastings)
+Date: Wed, 23 Jan 2019 17:15:53 -0800
+Subject: [Python-Dev] Lost sight
+In-Reply-To: <q24upf$h0v$1@ciao.gmane.org>
+References: <q1ut2o$pds$1@blaine.gmane.org> <q24upf$h0v$1@ciao.gmane.org>
+Message-ID: <df7c860b-f30e-f4e5-e1a1-58d54e701787@hastings.org>
+
+
+You have been a marvel, and an enormous boon to the Python community.? 
+You should not feel bad about anything.? Best wishes to you for your 
+future endeavors!
+
+
+//arry/
+
+On 1/21/19 7:26 AM, Serhiy Storchaka wrote:
+> Thank you very match, all who have expressed compassion here and 
+> privately. I am very touched. It at least helped me feel a little 
+> better psychologically.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: 
+> https://mail.python.org/mailman/options/python-dev/larry%40hastings.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190123/34f72302/attachment.html>
+
