@@ -8753,3 +8753,865 @@ On 1/21/19 7:26 AM, Serhiy Storchaka wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190123/34f72302/attachment.html>
 
+From steve at holdenweb.com  Thu Jan 24 04:36:35 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Thu, 24 Jan 2019 09:36:35 +0000
+Subject: [Python-Dev] Lost sight
+In-Reply-To: <q1ut2o$pds$1@blaine.gmane.org>
+References: <q1ut2o$pds$1@blaine.gmane.org>
+Message-ID: <CAMofdRB2iNm-ONckR9zH06vRxeppo3BdjH0X4O0eq5P5AdwhBA@mail.gmail.com>
+
+Like everyone else, I am sorry to hear this news, and extend my sympathies.
+It's marvellous that you are still able to work on Python at all, still.
+Since you have to be careful not to do too much, you will just have to
+choose your battles carefully. Thank you for your many contributions to
+Python to date.
+
+Kind regards
+ Steve
+
+
+On Sat, Jan 19, 2019 at 10:14 AM Serhiy Storchaka <storchaka at gmail.com>
+wrote:
+
+> I have virtually completely lost the sight of my right eye (and the loss
+> is quickly progresses) and the sight of my left eye is weak. That is why
+> my activity as a core developer was decreased significantly at recent
+> time. My apologies to those who are waiting for my review. I will do it
+> slowly.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190124/d6b61f17/attachment.html>
+
+From tjreedy at udel.edu  Thu Jan 24 15:18:05 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Thu, 24 Jan 2019 15:18:05 -0500
+Subject: [Python-Dev] Add more SyntaxWarnings?
+Message-ID: <q2d6i0$63gm$1@blaine.gmane.org>
+
+https://bugs.python.org/issue15248 is about situations like the following:
+
+ >>> [(1,2,3)
+      (4,5,6)]
+Traceback (most recent call last):
+   File "<pyshell#4>", line 2, in <module>
+     (4,5,6)]
+TypeError: 'tuple' object is not callable
+
+The original poster requested that the error message be augmented with 
+something like "(missing preceding comma?)"
+
+Ezio Melotti suggested a FAQ entry like
+https://docs.python.org/3/faq/programming.html#why-am-i-getting-an-unboundlocalerror-when-the-variable-has-a-value
+
+(I think such entries below in a separate doc and will try to post on 
+python-ideas when I have a prototype.)
+
+Serhiy Storchaka suggested a compiler SyntaxWarning and uploaded a 
+proof-of-concept diff that handled the above and many similar cases. The 
+diff is based on the idea that while we can only positively identify 
+'callables' at runtime, we *can* negatively identify many non-callables 
+when compiling.  Ditto for subscriptables and indexables.
+
+Serhiy concluded with
+"This patch was inspired by usability improvements in GCC 8.
+https://developers.redhat.com/blog/2018/03/15/gcc-8-usability-improvements/
+I haven't created a pull request because I have doubts about that this 
+should be in the compiler rather of a third-party linter. But if several 
+other core developers will support this idea I'll continue working in 
+this direction."
+
+I was impressed with how clear and readable the patch is and consider it 
+a plausible enhancement.  I would like other core developers to comment.
+
+-- 
+Terry Jan Reedy
+
+
+From chris.barker at noaa.gov  Thu Jan 24 16:25:38 2019
+From: chris.barker at noaa.gov (Chris Barker - NOAA Federal)
+Date: Thu, 24 Jan 2019 21:25:38 +0000
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+ <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+ <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+ <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+Message-ID: <CALGmxEJEhsUjhszSL+fk0Vrz4HfJ9QDjGZUgdi_aAXYCO+LYiw@mail.gmail.com>
+
+If your primary concern is module clashes between plugins, maybe you
+can hack around that:
+
+1) if the plugins are providing copies of any other modules, then you
+can simply require them to put them in their own namespace ? that is,
+a plug-in is a single package, with however many sub modules as it may
+need.
+
+2) if plugins might require third party packages that need to be
+isolated, then maybe you could use an import hook that
+re-names/isolates the modules each plugin loads, so they are kept
+separate.
+
+I haven?t thought through how to do any of this, but in principle, you
+can have the same module loaded twice if it has a different name.
+
+
+Not that sub interpreters aren?t cool and useful, but you can probably
+handle module clashes in a simpler way.
+
+-CHB
+
+
+
+Sent from my iPhone
+
+> On Jan 23, 2019, at 11:41 AM, Stephan Reiter <stephan.reiter at gmail.com> wrote:
+>
+> You all do make me feel very welcome in this community! Thank you very much! :-)
+>
+> And thank you for all the thought and time you put into your message,
+> Eric. I do appreciate in particular all the alternatives you
+> presented; you provide a good picture of my options.
+> Not ruling out any of them, I'll stick with (single process + multiple
+> subinterpreters + plugins can't keep state in Python + all my Python
+> calls are performed on the main thread) for the time being. That's
+> quite a limited environment, which I hope I can make work in the long
+> run. And I think the concept of subinterpreters is nice and I'd like
+> to spend some time on the challenge of improving the situation.
+>
+> So, I updated my changes and have the following on top of 3.6.1 at the moment:
+> https://github.com/stephanreiter/cpython/commit/c1afa0c8cdfab862f409f1c7ff02b189f5191cbe
+>
+> I did what Henry suggested and ran the Python test suite. On Windows,
+> with my changes I get as output:
+>
+> 357 tests OK.
+>
+> 2 tests failed:
+>   test_re test_subprocess
+>
+> 46 tests skipped:
+>   test_bz2 test_crypt test_curses test_dbm_gnu test_dbm_ndbm
+>   test_devpoll test_epoll test_fcntl test_fork1 test_gdb test_grp
+>   test_idle test_ioctl test_kqueue test_lzma test_nis test_openpty
+>   test_ossaudiodev test_pipes test_poll test_posix test_pty test_pwd
+>   test_readline test_resource test_smtpnet test_socketserver
+>   test_spwd test_sqlite test_ssl test_syslog test_tcl
+>   test_threadsignals test_timeout test_tix test_tk test_ttk_guionly
+>   test_ttk_textonly test_turtle test_urllib2net test_urllibnet
+>   test_wait3 test_wait4 test_winsound test_xmlrpc_net test_zipfile64
+>
+> Total duration: 6 min 20 sec
+> Tests result: FAILURE
+>
+> I dropped my changes and ran the test suite again using vanilla Python
+> and got the same result.
+> So, it seems that the change doesn't break anything that is tested,
+> but that probably doesn't mean a lot.
+>
+> Tomorrow, I'll investigate the following situation if I find time:
+>
+> If we create a fresh OS thread and make it call PyGILState_Ensure, it
+> won't have a PyThreadState saved under autoTLSkey. That means it will
+> create one using the main interpreter. I, as the developer embedding
+> Python into my application and using multiple interpreters, have no
+> control here. Maybe I know that under current conditions a certain
+> other interpreter should be used.
+>
+> I'll try to provoke this situation and then introduce a callback from
+> Python into my application that will allow me to specify which
+> interpreter should be used, e.g. code as follows:
+>
+> PyInterpreter *pickAnInterpreter() {
+> return activePlugin ? activePlugin->interpreter : nullptr; //
+> nullptr maps to main interpreter
+> }
+>
+> PyGILState_SetNewThreadInterpreterSelectionCallback(&pickAnInterpreter);
+>
+> Maybe rubbish. But I think a valuable experiment that will give me a
+> better understanding.
+>
+> Stephan
+>
+> Am Mi., 23. Jan. 2019 um 18:11 Uhr schrieb Eric Snow
+> <ericsnowcurrently at gmail.com>:
+>>
+>> Hi Stephan,
+>>
+>>> On Tue, Jan 22, 2019 at 9:25 AM Stephan Reiter <stephan.reiter at gmail.com> wrote:
+>>> I am new to the list and arriving with a concrete problem that I'd
+>>> like to fix myself.
+>>
+>> That is great!  Statements like that are a good way to get folks
+>> interested in your success. :)
+>>
+>>> I am embedding Python (3.6) into my C++ application and I would like
+>>> to run Python scripts isolated from each other using sub-interpreters.
+>>> I am not using threads; everything is supposed to run in the
+>>> application's main thread.
+>>
+>> FYI, running multiple interpreters in the same (e.g. main) thread
+>> isn't as well thought out as running them in separate threads.  There
+>> may be assumptions in the runtime that would cause crashes or
+>> inconsistency in the runtime, so be vigilant.  Is there a reason not
+>> to run the subinterpreters in separate threads?
+>>
+>> Regarding isolation, keep in mind that there are some limitations.  At
+>> an intrinsic level subinterpreters are never truly isolated since they
+>> run in the same process.  This matters if you have concerns about
+>> security (which you should always consider) and stability (if a
+>> subinterpreter crashes then your whole process crashes).  You can find
+>> that complete isolation via subprocess & multiprocessing.
+>>
+>> On top of intrinsic isolation, currently subinterpreters have gaps in
+>> isolation that need fixing.  For instance, they share a lot of
+>> module-global state, as well as builtin types and singletons.  So data
+>> can leak between subinterpreters unexpectedly.
+>>
+>> Finally, at the Python level subinterpreters don't have a good way to
+>> pass data around.  (I'm working on that. [1])  Naturally at the C
+>> level you can keep pointers to objects and share data that way.  Just
+>> keep in mind that doing so relies on the GIL (in an
+>> interpreter-per-thread scenario, which you're avoiding).  In a world
+>> where subinterpreters don't share the GIL [2] (and you're running one
+>> interpreter per thread) you'll end up with refcounting races, leading
+>> to crashes.  Just keep that mind if you decide to switch to
+>> one-subinterpreter-per-thread.
+>>
+>>> On Tue, Jan 22, 2019 at 8:09 PM Stephan Reiter <stephan.reiter at gmail.com> wrote:
+>>> Nathaniel, I'd like to allow Python plugins in my application. A
+>>> plugin should be allowed to bring its own modules along (i.e.
+>>> plugin-specific subdir is in sys.path when the plugin is active) and
+>>> hence some isolation of them will be needed, so that they can use
+>>> different versions of a given module. That's my main motivation for
+>>> using subinterpreters.
+>>
+>> That's an interesting approach.  Using subinterpreters would indeed
+>> give you isolation between the sets of imported modules.
+>>
+>> As you noticed, you'll run into some problems when extension modules
+>> are involved.  There aren't any great workarounds yet .
+>> Subinterpreters are tied pretty tightly to the core runtime so it's
+>> hard to attack the problem from the outside.  Furthermore,
+>> subinterpreters aren't widely used yet so folks haven't been very
+>> motivated to fix the runtime.  (FWIW, that is changing.)
+>>
+>>> I thought about running plugins out-of-processes - a separate process
+>>> for every plugin - and allow them to communicate with my application
+>>> via RPC. But that makes it more complex to implement the API my
+>>> application will offer and will slow down things due to the need to
+>>> copy data.
+>>
+>> Yep.  It might be worth it though.  Note that running
+>> plugins/extensions in separate processes is a fairly common approach
+>> for a variety of solid technical reasons (e.g. security, stability).
+>> FWIW, there are some tools available (or soon to be) for sharing data
+>> more efficiently (e.g. shared memory in multiprocessing, PEP 574)
+>>
+>>> Maybe you have another idea for me? :)
+>>
+>> * single proc -- keep using subinterpreters
+>> + dlmopen or the Windows equivalent (I hesitate to suggest this
+>> hack, but it might help somewhat with extension modules)
+>> + help fix the problems with subinterpreters :)
+>> * single proc -- no subinterpreters
+>> + import hook to put plugins in their own namespace (tricky with
+>> extension modules)
+>> + extend importlib to do the same
+>> + swap sys.modules in and out around plugin use
+>> * multi-proc -- one process per plugin
+>> + subprocess
+>> + multiprocessing
+>>
+>>> On Wed, Jan 23, 2019 at 8:48 AM Stephan Reiter <stephan.reiter at gmail.com> wrote:
+>>> Well, the plugins would be created by third-parties and I'd like them
+>>> to enable bunding of modules with their plugins.
+>>> I am afraid of modules with the same name, but being different, or
+>>> different versions of modules being used by different plugins. If
+>>> plugins share an interpreter, the module with a given name that is
+>>> imported first sticks around forever and for all plugins.
+>>>
+>>> I am thinking about this design:
+>>> - Plugins don't maintain state in their Python world. They expose
+>>> functions, my application calls them.
+>>> - Everytime I call into them, they are presented with a clean global
+>>> namespace. After the call, the namespace (dict) is thrown away. That
+>>> releases any objects the plugin code has created.
+>>> - So, then I could also actively unload modules they loaded. But I do
+>>> know that this is problematic in particular for modules that use
+>>> native code.
+>>>
+>>> I am interested in both a short-term and a long-term solution.
+>>> Actually, making subinterpreters work better is pretty sexy ...
+>>> because it's hard. :-)
+>>
+>> Petr noted that a number of people are working on getting
+>> subinterpreters to a good place.  That includes me. [1][2] :)  We'd
+>> welcome any help!
+>>
+>> -eric
+>>
+>>
+>> [1] https://www.python.org/dev/peps/pep-0554/
+>> [2] https://github.com/ericsnowcurrently/multi-core-python
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/chris.barker%40noaa.gov
+
+From nas-python at arctrix.com  Thu Jan 24 17:01:26 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Thu, 24 Jan 2019 16:01:26 -0600
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <q2d6i0$63gm$1@blaine.gmane.org>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+Message-ID: <20190124220126.luvclamlqxl2paxh@python.ca>
+
+On 2019-01-24, Terry Reedy wrote:
+> Serhiy Storchaka suggested a compiler SyntaxWarning and uploaded a
+> proof-of-concept diff that handled the above and many similar cases.
+
+I believe that in general we should give better errors or warnings
+if we can do it without huge difficulty.  Serhiy's patch is quite
+simple.  The same check *could* be done by a linting tool.  Putting
+it in CPython will make it more widely available.  These checks
+could be helpful to beginners who probably won't have linting tools
+setup.
+
+I think we should not make it an error, otherwise we have changed
+Python "the language".  We don't want to force other Python
+implementations to do the same check.  It might be hard for them to
+implement.  So, SyntaxWarning seems like a reasonable compromise.
+
+Regards,
+
+  Neil
+
+From guido at python.org  Thu Jan 24 17:25:32 2019
+From: guido at python.org (Guido van Rossum)
+Date: Thu, 24 Jan 2019 14:25:32 -0800
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <20190124220126.luvclamlqxl2paxh@python.ca>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+Message-ID: <CAP7+vJKLOXP-2cHDv+af2M0jt_Rfjue+FSkRxX64nDifO_rxvw@mail.gmail.com>
+
+In this case I agree that a SyntaxWarning is a good idea, per Serhiy's
+patch. I would be even more conservative, and only warn if the first object
+is a tuple -- the case of the missing comma in the original example appears
+likely enough, but I don't expect people to write e.g. `[[1, 2], (3, 4)]`
+very often, so leaving the comma out there would be very unlikely.
+
+Regarding the issue of when it's appropriate to issue a SyntaxWarning vs.
+when to leave it up to linters, again I would recommend great caution and
+only warn about code that is *definitely* going to fail when executed. (Or
+at least is *definitely* not going to please the programmer -- one of the
+first cases where we added a SyntaxWarning was actually `assert(condition,
+message)`, which "fails" by never failing. :-) But this is one of those
+cases.
+
+On Thu, Jan 24, 2019 at 2:10 PM Neil Schemenauer <nas-python at arctrix.com>
+wrote:
+
+> On 2019-01-24, Terry Reedy wrote:
+> > Serhiy Storchaka suggested a compiler SyntaxWarning and uploaded a
+> > proof-of-concept diff that handled the above and many similar cases.
+>
+> I believe that in general we should give better errors or warnings
+> if we can do it without huge difficulty.  Serhiy's patch is quite
+> simple.  The same check *could* be done by a linting tool.  Putting
+> it in CPython will make it more widely available.  These checks
+> could be helpful to beginners who probably won't have linting tools
+> setup.
+>
+> I think we should not make it an error, otherwise we have changed
+> Python "the language".  We don't want to force other Python
+> implementations to do the same check.  It might be hard for them to
+> implement.  So, SyntaxWarning seems like a reasonable compromise.
+>
+> Regards,
+>
+>   Neil
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190124/5e8598a5/attachment.html>
+
+From steve at pearwood.info  Thu Jan 24 17:40:35 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 25 Jan 2019 09:40:35 +1100
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <20190124220126.luvclamlqxl2paxh@python.ca>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+Message-ID: <20190124224035.GB26605@ando.pearwood.info>
+
+On Thu, Jan 24, 2019 at 04:01:26PM -0600, Neil Schemenauer wrote:
+> On 2019-01-24, Terry Reedy wrote:
+> > Serhiy Storchaka suggested a compiler SyntaxWarning and uploaded a
+> > proof-of-concept diff that handled the above and many similar cases.
+> 
+> I believe that in general we should give better errors or warnings
+> if we can do it without huge difficulty.  Serhiy's patch is quite
+> simple.  The same check *could* be done by a linting tool.  Putting
+> it in CPython will make it more widely available.  These checks
+> could be helpful to beginners who probably won't have linting tools
+> setup.
+
++1 to what Neil says here.
+
+> I think we should not make it an error, otherwise we have changed
+> Python "the language".
+
+We're allowed to, we're the ones who say what the language is :-)
+
+
+The remainder of my comments are more speculative.
+
+> We don't want to force other Python
+> implementations to do the same check.  It might be hard for them to
+> implement.  So, SyntaxWarning seems like a reasonable compromise.
+
+We could say that implementations are allowed to raise errors at compile 
+time instead of run time, but aren't required to. Then it becomes a 
+matter of "quality of implementation".
+
+For literal ints, strings, None, etc we can tell at compile time that an 
+error will occur. All of these cannot fail to raise (short of changing 
+the interpreter, in which case you're not using Python anymore):
+
+    1 + "1"  # raises TypeError
+    None[x]  # TypeError
+    1.234(x)  # TypeError
+    "spam".idnex("a")  # AttributeError
+
+In these specific cases, there is nothing wrong with the *syntax*, but a 
+compiler should be permitted to immediately raise the same exception 
+that would otherwise occur at run time. This is a form of peephole 
+optimization, I guess.
+
+If people truly wanted to delay the exception, they could either turn 
+off the peephole optimizer, or work around it:
+
+    a = 1; a + "1"
+
+Thoughts?
+
+
+-- 
+Steve
+
+From rosuav at gmail.com  Thu Jan 24 17:52:53 2019
+From: rosuav at gmail.com (Chris Angelico)
+Date: Fri, 25 Jan 2019 09:52:53 +1100
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <20190124224035.GB26605@ando.pearwood.info>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+Message-ID: <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+
+On Fri, Jan 25, 2019 at 9:42 AM Steven D'Aprano <steve at pearwood.info> wrote:
+> We could say that implementations are allowed to raise errors at compile
+> time instead of run time, but aren't required to. Then it becomes a
+> matter of "quality of implementation".
+>
+> For literal ints, strings, None, etc we can tell at compile time that an
+> error will occur. All of these cannot fail to raise (short of changing
+> the interpreter, in which case you're not using Python anymore):
+>
+>     1 + "1"  # raises TypeError
+>     None[x]  # TypeError
+>     1.234(x)  # TypeError
+>     "spam".idnex("a")  # AttributeError
+>
+> In these specific cases, there is nothing wrong with the *syntax*, but a
+> compiler should be permitted to immediately raise the same exception
+> that would otherwise occur at run time. This is a form of peephole
+> optimization, I guess.
+
++1. If it's something that the peephole optimizer is already allowed
+to change (eg "1"+"1" is constant-folded) and there is absolutely no
+way that it can ever be changed at run time, then raising at compile
+time can't hurt [1]. It'd be as implementation-dependent and
+version-dependent as the peephole optimizer itself.
+
+Does there need to be a new subclass of SyntaxError for "Technically
+Valid But Not Meaningful" problems? Is there value in distinguishing
+"InevitableTypeError" from "InevitableAttributeError"?
+
+ChrisA
+
+[1] Yes, I know about XKCD 1172, but if someone's saying "if
+shouldnt_happen: None[None]" then that's their problem.
+
+From guido at python.org  Thu Jan 24 18:24:41 2019
+From: guido at python.org (Guido van Rossum)
+Date: Thu, 24 Jan 2019 15:24:41 -0800
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+Message-ID: <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+
+On Thu, Jan 24, 2019 at 2:55 PM Chris Angelico <rosuav at gmail.com> wrote:
+
+> On Fri, Jan 25, 2019 at 9:42 AM Steven D'Aprano <steve at pearwood.info>
+> wrote:
+> > We could say that implementations are allowed to raise errors at compile
+> > time instead of run time, but aren't required to. Then it becomes a
+> > matter of "quality of implementation".
+> >
+> > For literal ints, strings, None, etc we can tell at compile time that an
+> > error will occur. All of these cannot fail to raise (short of changing
+> > the interpreter, in which case you're not using Python anymore):
+> >
+> >     1 + "1"  # raises TypeError
+> >     None[x]  # TypeError
+> >     1.234(x)  # TypeError
+> >     "spam".idnex("a")  # AttributeError
+> >
+> > In these specific cases, there is nothing wrong with the *syntax*, but a
+> > compiler should be permitted to immediately raise the same exception
+> > that would otherwise occur at run time. This is a form of peephole
+> > optimization, I guess.
+>
+> +1. If it's something that the peephole optimizer is already allowed
+> to change (eg "1"+"1" is constant-folded) and there is absolutely no
+> way that it can ever be changed at run time, then raising at compile
+> time can't hurt [1]. It'd be as implementation-dependent and
+> version-dependent as the peephole optimizer itself.
+>
+
+I'm -1 on all of these cases. There's nothing mysterious about e.g.
+`TypeError: unsupported operand type(s) for +: 'int' and 'str'`, unlike the
+case of the two concatenated tuples. (Surely people get errors about
+int+str all the time, and they've never complained -- unlike the tuple
+tuple case.)
+
+
+> Does there need to be a new subclass of SyntaxError for "Technically
+> Valid But Not Meaningful" problems? Is there value in distinguishing
+> "InevitableTypeError" from "InevitableAttributeError"?
+>
+
+I don't think there's a *general* problem to be solved here.
+
+
+> ChrisA
+>
+> [1] Yes, I know about XKCD 1172, but if someone's saying "if
+> shouldnt_happen: None[None]" then that's their problem.
+>
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190124/818c1fcd/attachment.html>
+
+From chris.barker at noaa.gov  Thu Jan 24 18:45:49 2019
+From: chris.barker at noaa.gov (Chris Barker - NOAA Federal)
+Date: Thu, 24 Jan 2019 23:45:49 +0000
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+Message-ID: <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+
+>. There's nothing mysterious about e.g. `TypeError: unsupported operand
+type(s) for +: 'int' and 'str'`, unlike the case of the two concatenated
+tuples. (Surely people get errors about int+str all the time, and they've
+never complained -- unlike the tuple tuple case.)
+
+Well, yes, that particular example is pretty clear. But as a rule, there
+are a LOT of errors that can be pretty mysterious to newbies.
+
+I would love to see Python become generally more informative with errors.
+
+In this case, you?d probably get a similar error, but it?s still nice to
+get it sooner, and if the hooks are in place, We could have others that are
+really helpful.
+
+-CHB
+
+
+Is there value in distinguishing
+> "InevitableTypeError" from "InevitableAttributeError"?
+>
+
+I don?t think so ? what we need are helpful error messages. If it will be
+raised at compile time, then it won?t generally be catchable in s
+try-except? so the actual exception type isn?t very important.
+
+-CHB
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190124/f7b9f0b7/attachment-0001.html>
+
+From guido at python.org  Thu Jan 24 18:58:50 2019
+From: guido at python.org (Guido van Rossum)
+Date: Thu, 24 Jan 2019 15:58:50 -0800
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+Message-ID: <CAP7+vJLwu4d-iOPJ0+X7fcbrVDYZ2+gV+6sxnDneZO73UK2=dQ@mail.gmail.com>
+
+On Thu, Jan 24, 2019 at 3:45 PM Chris Barker - NOAA Federal <
+chris.barker at noaa.gov> wrote:
+
+> >. There's nothing mysterious about e.g. `TypeError: unsupported operand
+> type(s) for +: 'int' and 'str'`, unlike the case of the two concatenated
+> tuples. (Surely people get errors about int+str all the time, and they've
+> never complained -- unlike the tuple tuple case.)
+>
+> Well, yes, that particular example is pretty clear. But as a rule, there
+> are a LOT of errors that can be pretty mysterious to newbies.
+>
+> I would love to see Python become generally more informative with errors.
+>
+> In this case, you?d probably get a similar error, but it?s still nice to
+> get it sooner, and if the hooks are in place, We could have others that are
+> really helpful.
+>
+
+I doubt people are writing `42 + "abc"` by accident. They'll write `x + y`
+and by accident the types won't match. So better error messages at runtime
+would help. But I doubt we'll see much mileage out of the syntax checks.
+And making things work different based on whether it's a literal or a
+variable isn't very Pythonic.
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190124/5145fa93/attachment.html>
+
+From eric at trueblade.com  Thu Jan 24 18:32:08 2019
+From: eric at trueblade.com (Eric V. Smith)
+Date: Thu, 24 Jan 2019 18:32:08 -0500
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <b450a99a-d4b7-4c49-4e79-3df3707967dc@trueblade.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <b450a99a-d4b7-4c49-4e79-3df3707967dc@trueblade.com>
+Message-ID: <d905f8f0-d9a4-0423-5762-206cabbb6f2b@trueblade.com>
+
+On 1/24/2019 6:16 PM, Eric V. Smith wrote:
+> On 1/24/2019 5:52 PM, Chris Angelico wrote:
+>> +1. If it's something that the peephole optimizer is already allowed
+>> to change (eg "1"+"1" is constant-folded) and there is absolutely no
+>> way that it can ever be changed at run time, then raising at compile
+>> time can't hurt [1]. It'd be as implementation-dependent and
+>> version-dependent as the peephole optimizer itself.
+>
+> It would be a change if the code is never called. I'm not sure we care 
+> about code that's never called, but it is a change.
+>
+Which Chris already pointed out, in some text that I inadvertently 
+deleted. I didn't catch his meaning, which is my fault.
+
+Eric
+
+
+From eric at trueblade.com  Thu Jan 24 18:16:32 2019
+From: eric at trueblade.com (Eric V. Smith)
+Date: Thu, 24 Jan 2019 18:16:32 -0500
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+Message-ID: <b450a99a-d4b7-4c49-4e79-3df3707967dc@trueblade.com>
+
+On 1/24/2019 5:52 PM, Chris Angelico wrote:
+> On Fri, Jan 25, 2019 at 9:42 AM Steven D'Aprano <steve at pearwood.info> wrote:
+>> We could say that implementations are allowed to raise errors at compile
+>> time instead of run time, but aren't required to. Then it becomes a
+>> matter of "quality of implementation".
+>>
+>> For literal ints, strings, None, etc we can tell at compile time that an
+>> error will occur. All of these cannot fail to raise (short of changing
+>> the interpreter, in which case you're not using Python anymore):
+>>
+>>      1 + "1"  # raises TypeError
+>>      None[x]  # TypeError
+>>      1.234(x)  # TypeError
+>>      "spam".idnex("a")  # AttributeError
+>>
+>> In these specific cases, there is nothing wrong with the *syntax*, but a
+>> compiler should be permitted to immediately raise the same exception
+>> that would otherwise occur at run time. This is a form of peephole
+>> optimization, I guess.
+> 
+> +1. If it's something that the peephole optimizer is already allowed
+> to change (eg "1"+"1" is constant-folded) and there is absolutely no
+> way that it can ever be changed at run time, then raising at compile
+> time can't hurt [1]. It'd be as implementation-dependent and
+> version-dependent as the peephole optimizer itself.
+
+It would be a change if the code is never called. I'm not sure we care 
+about code that's never called, but it is a change.
+
+Eric
+
+
+From steve at pearwood.info  Thu Jan 24 21:05:10 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 25 Jan 2019 13:05:10 +1100
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+Message-ID: <20190125020510.GC26605@ando.pearwood.info>
+
+At the cost of breaking threading a bit, I'm going to reply to a few 
+different people in one post.
+
+On Fri, Jan 25, 2019 at 09:52:53AM +1100, Chris Angelico wrote:
+> On Fri, Jan 25, 2019 at 9:42 AM Steven D'Aprano <steve at pearwood.info> wrote:
+> > We could say that implementations are allowed to raise errors at compile
+> > time instead of run time, but aren't required to. Then it becomes a
+> > matter of "quality of implementation".
+[...]
+
+> Does there need to be a new subclass of SyntaxError for "Technically
+> Valid But Not Meaningful" problems? Is there value in distinguishing
+> "InevitableTypeError" from "InevitableAttributeError"?
+
+If we did this (which is looking less and less likely...) I would argue 
+for plain old TypeError and AttributeError. There should be no 
+difference in the exception raised, only in the timing (compile time 
+versus run time).
+
+
+
+On Thu, Jan 24, 2019 at 11:45:49PM +0000, Chris Barker wrote:
+> I would love to see Python become generally more informative with 
+> errors.
+>
+> In this case, you?d probably get a similar error, but it?s still nice 
+> to get it sooner
+
+That is precisely my thinking.
+
+
+
+On Thu, Jan 24, 2019 at 03:24:41PM -0800, Guido van Rossum wrote:
+> I'm -1 on all of these cases. There's nothing mysterious about e.g.
+> `TypeError: unsupported operand type(s) for +: 'int' and 'str'`
+
+Its not about the error being mysterious, its about raising the 
+exception as early as possible. It shouldn't take 20 years to discover 
+that this snippet buried deep in a large code base:
+
+    if datetime.date.today().year == 2029:
+        spam = 1 + '1'
+
+will fail :-)
+
+
+
+On Thu, Jan 24, 2019 at 03:58:50PM -0800, Guido van Rossum wrote:
+> But I doubt we'll see much mileage out of the syntax checks.
+
+Frankly, I agree, so I'm not going to argue hard for this. It was more 
+speculation than a solid proposal.
+
+A project manager I used to work with would have dismissed this as "turd 
+polishing", but I prefer to think of it as "craftsmanship" -- a bit like 
+a carpenter ensuring that his screws don't protrude above the surface of 
+the wood. Sure, its not going to hold the wood together any better, but 
+its just a nicer end-user experience :-)
+
+I expect that the cost of implementing these checks would probably 
+exceed the benefit of detecting the errors early, but I could be wrong. 
+Maybe it would be easy to implement.
+
+But if there is strong opposition to it, I'm not going to champion the 
+idea any further.
+
+
+
+-- 
+Steve
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Thu Jan 24 23:06:26 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Fri, 25 Jan 2019 13:06:26 +0900
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+Message-ID: <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+
+Chris Barker - NOAA Federal via Python-Dev writes:
+
+ > Well, yes, that particular example is pretty clear. But as a rule,
+ > there are a LOT of errors that can be pretty mysterious to newbies.
+
+Isn't that the very definition of "newbie"?  That's half a joke, but I
+really don't think that programmers new to Python should be the
+standard.  The problematic cases are those where even a relatively
+experienced Python programmer needs to be told why an error is raised,
+because it's too hard to figure out from background knowledge of the
+language, you need to know about implementation internals.
+
+ > I would love to see Python become generally more informative with
+ > errors.
+
+I would love to see all automated systems become more informative with
+errors!  One thing I like about Python the development community is
+that people are doing something about it.  Slowly but surely ....
+
+ > I don?t think so ? what we need are helpful error messages. If it
+ > will be raised at compile time, then it won?t generally be
+ > catchable in s try-except? so the actual exception type isn?t very
+ > important.
+
++1
+
+In general depending much on exception type is a hit-or-miss affair.
+
