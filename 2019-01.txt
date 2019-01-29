@@ -9995,3 +9995,395 @@ https://bugs.python.org/issue35817  closed by terry.reedy
 #35819: Fatal Python error
 https://bugs.python.org/issue35819  closed by zach.ware
 
+From ncoghlan at gmail.com  Sun Jan 27 09:01:36 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 28 Jan 2019 00:01:36 +1000
+Subject: [Python-Dev] Anyone else seeing a lack of caching in local docs
+ builds?
+Message-ID: <CADiSq7fMghm44aPg7W4XW=xhVgdWO=FwLWynEcS77fLeh7d7XA@mail.gmail.com>
+
+Hi folks,
+
+I'm currently seeing a behaviour where every time I run "make html",
+all 474 source files get rebuilt.
+
+For now, I'm assuming I've messed something up with my local docs
+build setup, but figured I'd ask if anyone else was seeing this, in
+case it was actually broken at the build level (CI wouldn't pick this
+up, since it always builds from scratch anyway).
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sun Jan 27 09:04:47 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 28 Jan 2019 00:04:47 +1000
+Subject: [Python-Dev] Source of truth for C-API
+In-Reply-To: <CA+3bQGH-bUA3+9M305NvfqfPDDydkX0TE6KZWZUcUwTqmFP-Jw@mail.gmail.com>
+References: <CAOMjWkmVTdNyhkotcoBn08z_hS7d-tk393xEvaOrMKPFFreLKw@mail.gmail.com>
+ <CA+3bQGEWC5m5X_-DD6vJh=YZBZqL+uwzezc=Q2WVSU6Mz9yJcw@mail.gmail.com>
+ <3ba8a094-dcb3-13f3-cdb4-2162f4c5e9ac@python.org>
+ <CAOMjWkniKXCeWqrx5oE5+0WVrqgtPkpRdvoWyKpS+xBpCY1tgQ@mail.gmail.com>
+ <CA+3bQGGhpLxz-QcOvm-HH5dbq8M2VurHpENyD_-G=P6VnOQVkA@mail.gmail.com>
+ <CAOMjWk==qJJuaxBmj8GaNgCY-z_S-Qq3WDitoajUxhgBcg0GhA@mail.gmail.com>
+ <CA+3bQGH-bUA3+9M305NvfqfPDDydkX0TE6KZWZUcUwTqmFP-Jw@mail.gmail.com>
+Message-ID: <CADiSq7eosNG+72VCeNc45s88MOjjy94c0VUWx+MMQt7wiVSGBg@mail.gmail.com>
+
+On Thu, 24 Jan 2019 at 02:56, Victor Stinner <vstinner at redhat.com> wrote:
+>
+> I suggest you to add a new function and leaves the existing function
+> unchanged. "Just in case".
+>
+> You may deprecate the old functions at the same time using Py_DEPRECATED().
+
+And potentially put an underscore in front of the new ones (or even
+hide them behind Py_BUILD_CORE).
+
+Some of these older APIs are only public because the modern
+conventions we use for hiding implementation details weren't
+established yet.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sun Jan 27 09:16:57 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 28 Jan 2019 00:16:57 +1000
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+ <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+ <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+ <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+Message-ID: <CADiSq7fcfg-M7mePOJFSfhb3kBZbS=4rFDXA5OLxA76dW8fFEQ@mail.gmail.com>
+
+On Thu, 24 Jan 2019 at 05:45, Stephan Reiter <stephan.reiter at gmail.com> wrote:
+> If we create a fresh OS thread and make it call PyGILState_Ensure, it
+> won't have a PyThreadState saved under autoTLSkey. That means it will
+> create one using the main interpreter. I, as the developer embedding
+> Python into my application and using multiple interpreters, have no
+> control here. Maybe I know that under current conditions a certain
+> other interpreter should be used.
+>
+> I'll try to provoke this situation and then introduce a callback from
+> Python into my application that will allow me to specify which
+> interpreter should be used, e.g. code as follows:
+>
+> PyInterpreter *pickAnInterpreter() {
+>   return activePlugin ? activePlugin->interpreter : nullptr; //
+> nullptr maps to main interpreter
+> }
+>
+> PyGILState_SetNewThreadInterpreterSelectionCallback(&pickAnInterpreter);
+>
+> Maybe rubbish. But I think a valuable experiment that will give me a
+> better understanding.
+
+That actually sounds like a pretty plausible approach to me, at least
+for cases where the embedding application maintains some other state
+that lets it know which interpreter a new thread should be associated
+with. The best aspect of it is that it would let the embedding
+application decide how to handle registration of previously unknown
+threads with the Python runtime *without* requiring that all existing
+extension modules switch to a new thread registration API first.
+
+I'll pass the concept along to Graham Dumpleton (author of the
+mod_wsgi module for Apache httpd) to see if an interface like this
+might be enough to resolve some of the major compatibility issues
+mod_wsgi currently encounters with subinterpreters.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sun Jan 27 09:28:25 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 28 Jan 2019 00:28:25 +1000
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <b450a99a-d4b7-4c49-4e79-3df3707967dc@trueblade.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <b450a99a-d4b7-4c49-4e79-3df3707967dc@trueblade.com>
+Message-ID: <CADiSq7d9ad-mvrOmuT2AiaGBRr3VRdnFPaEKvTdZepq6qpeq2A@mail.gmail.com>
+
+On Fri, 25 Jan 2019 at 10:15, Eric V. Smith <eric at trueblade.com> wrote:
+> It would be a change if the code is never called. I'm not sure we care
+> about code that's never called, but it is a change.
+
+The biggest problem with converting runtime errors to compile time
+errors is that it means affected dead code goes from being a
+readability & maintainability problem to "Python X.Y breaks my
+project".
+
+SyntaxWarning splits the difference nicely, since the compiler
+complains about the same dead code that would confuse a human reader,
+but also ignores it and moves on.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From stephan.reiter at gmail.com  Sun Jan 27 09:32:04 2019
+From: stephan.reiter at gmail.com (Stephan Reiter)
+Date: Sun, 27 Jan 2019 15:32:04 +0100
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CADiSq7fcfg-M7mePOJFSfhb3kBZbS=4rFDXA5OLxA76dW8fFEQ@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+ <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+ <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+ <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+ <CADiSq7fcfg-M7mePOJFSfhb3kBZbS=4rFDXA5OLxA76dW8fFEQ@mail.gmail.com>
+Message-ID: <CAFctyt+K1TavZqL4pBrBpaspDnUd2G0udeGzBzQ4SkNc9sG2Dw@mail.gmail.com>
+
+Cool. Thanks, Nick!
+
+I did experiments based on this idea (
+https://github.com/stephanreiter/cpython/commit/3bca91c26ac81e517b4aa22302be1741b3315622)
+and haven't rejected it yet. :-)
+
+Together with the other fix (
+https://github.com/stephanreiter/cpython/commit/c1afa0c8cdfab862f409f1c7ff02b189f5191cbe),
+numpy at least is happy in my Python-hosting app.
+
+I will pursue the idea of swapping sys.modules in a single Interpreter now
+because that wouldn't require patching Python and I might get the mileage
+out of this approach I need.
+
+Still interested in improving sub-interpreters, though. I just need to
+balance short and long term solution. :-)
+
+Stephan
+
+
+Den s?n. 27. jan. 2019, 15.17 skrev Nick Coghlan <ncoghlan at gmail.com:
+
+> On Thu, 24 Jan 2019 at 05:45, Stephan Reiter <stephan.reiter at gmail.com>
+> wrote:
+> > If we create a fresh OS thread and make it call PyGILState_Ensure, it
+> > won't have a PyThreadState saved under autoTLSkey. That means it will
+> > create one using the main interpreter. I, as the developer embedding
+> > Python into my application and using multiple interpreters, have no
+> > control here. Maybe I know that under current conditions a certain
+> > other interpreter should be used.
+> >
+> > I'll try to provoke this situation and then introduce a callback from
+> > Python into my application that will allow me to specify which
+> > interpreter should be used, e.g. code as follows:
+> >
+> > PyInterpreter *pickAnInterpreter() {
+> >   return activePlugin ? activePlugin->interpreter : nullptr; //
+> > nullptr maps to main interpreter
+> > }
+> >
+> > PyGILState_SetNewThreadInterpreterSelectionCallback(&pickAnInterpreter);
+> >
+> > Maybe rubbish. But I think a valuable experiment that will give me a
+> > better understanding.
+>
+> That actually sounds like a pretty plausible approach to me, at least
+> for cases where the embedding application maintains some other state
+> that lets it know which interpreter a new thread should be associated
+> with. The best aspect of it is that it would let the embedding
+> application decide how to handle registration of previously unknown
+> threads with the Python runtime *without* requiring that all existing
+> extension modules switch to a new thread registration API first.
+>
+> I'll pass the concept along to Graham Dumpleton (author of the
+> mod_wsgi module for Apache httpd) to see if an interface like this
+> might be enough to resolve some of the major compatibility issues
+> mod_wsgi currently encounters with subinterpreters.
+>
+> Cheers,
+> Nick.
+>
+> --
+> Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190127/e4e0bb59/attachment.html>
+
+From tjreedy at udel.edu  Sun Jan 27 14:40:58 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sun, 27 Jan 2019 14:40:58 -0500
+Subject: [Python-Dev] Anyone else seeing a lack of caching in local docs
+ builds?
+In-Reply-To: <CADiSq7fMghm44aPg7W4XW=xhVgdWO=FwLWynEcS77fLeh7d7XA@mail.gmail.com>
+References: <CADiSq7fMghm44aPg7W4XW=xhVgdWO=FwLWynEcS77fLeh7d7XA@mail.gmail.com>
+Message-ID: <q2l1gb$46ga$1@blaine.gmane.org>
+
+On 1/27/2019 9:01 AM, Nick Coghlan wrote:
+> Hi folks,
+> 
+> I'm currently seeing a behaviour where every time I run "make html",
+> all 474 source files get rebuilt.
+
+I just rebuilt, ditto, all 474.  Caching only works when I rebuild 
+'soon' (at least within same day) after a complete rebuild.  I just 
+updated and only function.rst was changed and only function.html and the 
+indexes were rebuilt.
+
+> For now, I'm assuming I've messed something up with my local docs
+> build setup, but figured I'd ask if anyone else was seeing this, in
+> case it was actually broken at the build level (CI wouldn't pick this
+> up, since it always builds from scratch anyway).
+
+I think something is broken.  Caching used to work better.
+
+
+-- 
+Terry Jan Reedy
+
+
+From njs at pobox.com  Sun Jan 27 15:06:23 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Sun, 27 Jan 2019 12:06:23 -0800
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CAFctyt+K1TavZqL4pBrBpaspDnUd2G0udeGzBzQ4SkNc9sG2Dw@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+ <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+ <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+ <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+ <CADiSq7fcfg-M7mePOJFSfhb3kBZbS=4rFDXA5OLxA76dW8fFEQ@mail.gmail.com>
+ <CAFctyt+K1TavZqL4pBrBpaspDnUd2G0udeGzBzQ4SkNc9sG2Dw@mail.gmail.com>
+Message-ID: <CAPJVwBmYysxBXWt_d=GZx6popztqYhzPFU5Okm5H9PJzkf8Q7Q@mail.gmail.com>
+
+On Sun, Jan 27, 2019, 06:34 Stephan Reiter <stephan.reiter at gmail.com wrote:
+
+> Cool. Thanks, Nick!
+>
+> I did experiments based on this idea (
+> https://github.com/stephanreiter/cpython/commit/3bca91c26ac81e517b4aa22302be1741b3315622)
+> and haven't rejected it yet. :-)
+>
+> Together with the other fix (
+> https://github.com/stephanreiter/cpython/commit/c1afa0c8cdfab862f409f1c7ff02b189f5191cbe),
+> numpy at least is happy in my Python-hosting app.
+>
+
+So again, just to make sure you're aware, even if it looks like it's
+working right now, there are definitely many subtle ways that numpy will
+break when used in a subinterpreter and this configuration is not supported
+by the numpy devs. If you discover later that there's some strange crash,
+or even that you've been getting incorrect results for months without
+noticing, then the numpy devs will be sympathetic but will probably close
+your bugs without further investigation.
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190127/01487ced/attachment.html>
+
+From greg at krypto.org  Sun Jan 27 15:27:28 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Sun, 27 Jan 2019 12:27:28 -0800
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CALGmxEJEhsUjhszSL+fk0Vrz4HfJ9QDjGZUgdi_aAXYCO+LYiw@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+ <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+ <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+ <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+ <CALGmxEJEhsUjhszSL+fk0Vrz4HfJ9QDjGZUgdi_aAXYCO+LYiw@mail.gmail.com>
+Message-ID: <CAGE7PNLRHpv_ur21LBZgeXFEAi7+FLCdXA0OpayH-uydAUjAsg@mail.gmail.com>
+
+On Thu, Jan 24, 2019 at 1:25 PM Chris Barker - NOAA Federal via Python-Dev <
+python-dev at python.org> wrote:
+
+> If your primary concern is module clashes between plugins, maybe you
+> can hack around that:
+>
+> 1) if the plugins are providing copies of any other modules, then you
+> can simply require them to put them in their own namespace ? that is,
+> a plug-in is a single package, with however many sub modules as it may
+> need.
+>
+> 2) if plugins might require third party packages that need to be
+> isolated, then maybe you could use an import hook that
+> re-names/isolates the modules each plugin loads, so they are kept
+> separate.
+>
+> I haven?t thought through how to do any of this, but in principle, you
+> can have the same module loaded twice if it has a different name.
+>
+
+This is dangerous for extension modules.  C is a single global space
+unrelated to Python module names that cannot be isolated without
+intentionally building and linking each desired extension module statically
+and configured not to export its own symbols (no-export-dynamic).  Non
+trivial.
+
+Suggesting importing the same extension module multiple times under
+different Python sys.modules names is a recipe for disaster.  Most
+extension module code is not written with that in mind.  So while *some*
+things happen to "work", many others blow up in unexpected hard to debug
+ways.
+
+Not that sub interpreters aren?t cool and useful, but you can probably
+> handle module clashes in a simpler way.
+>
+
+They're a cool and useful theory... but I really do not recommend their use
+for code importing other libraries expecting to be isolated.  CPython
+doesn't offer multiple isolated runtimes in a process today.
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190127/f60b3335/attachment.html>
+
+From ncoghlan at gmail.com  Mon Jan 28 03:02:16 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 28 Jan 2019 18:02:16 +1000
+Subject: [Python-Dev] Anyone else seeing a lack of caching in local docs
+ builds?
+In-Reply-To: <q2l1gb$46ga$1@blaine.gmane.org>
+References: <CADiSq7fMghm44aPg7W4XW=xhVgdWO=FwLWynEcS77fLeh7d7XA@mail.gmail.com>
+ <q2l1gb$46ga$1@blaine.gmane.org>
+Message-ID: <CADiSq7d5iH+mb12YC2stkuYap9zWdMz1SQLA3fGx9sk=76twUg@mail.gmail.com>
+
+On Mon, 28 Jan 2019 at 05:44, Terry Reedy <tjreedy at udel.edu> wrote:
+> On 1/27/2019 9:01 AM, Nick Coghlan wrote:
+> > For now, I'm assuming I've messed something up with my local docs
+> > build setup, but figured I'd ask if anyone else was seeing this, in
+> > case it was actually broken at the build level (CI wouldn't pick this
+> > up, since it always builds from scratch anyway).
+>
+> I think something is broken.  Caching used to work better.
+
+In my case, I had an older version of blurb installed, which was
+keeping NEWS from rendering properly, and I suspect that was
+preventing Sphinx from marking the cache as valid.
+
+I'm not sure about that theory though, as I would have expected an
+invalid NEWS file to only keep the NEWS file from being cached.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
