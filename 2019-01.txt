@@ -10387,3 +10387,336 @@ Nick.
 -- 
 Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
 
+From ncoghlan at gmail.com  Mon Jan 28 03:27:45 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 28 Jan 2019 18:27:45 +1000
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CAFctyt+K1TavZqL4pBrBpaspDnUd2G0udeGzBzQ4SkNc9sG2Dw@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+ <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+ <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+ <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+ <CADiSq7fcfg-M7mePOJFSfhb3kBZbS=4rFDXA5OLxA76dW8fFEQ@mail.gmail.com>
+ <CAFctyt+K1TavZqL4pBrBpaspDnUd2G0udeGzBzQ4SkNc9sG2Dw@mail.gmail.com>
+Message-ID: <CADiSq7dUKgWWO0XjimjYZ+f+vDNnGueCmp0T=D+Eh4HheLC_eg@mail.gmail.com>
+
+On Mon, 28 Jan 2019 at 00:32, Stephan Reiter <stephan.reiter at gmail.com> wrote:
+>
+> Cool. Thanks, Nick!
+>
+> I did experiments based on this idea (https://github.com/stephanreiter/cpython/commit/3bca91c26ac81e517b4aa22302be1741b3315622) and haven't rejected it yet. :-)
+
+After talking to Graham about this, I unfortunately realised that the
+reason the callback approach is appearing to work for you is because
+your application is single-threaded, so you can readily map any
+invocation of the callback to the desired interpreter. Multi-threaded
+applications won't have that luxury - they need to be able to set the
+callback target on a per-thread basis.
+
+Graham actually described a plausible approach for doing that several
+years back: https://bugs.python.org/issue10915#msg126387
+
+We have much better subinterpreter testing support now, so if this is
+any area that you're interested in, one potential place to start would
+be to get Antoine's patch back to a point where it applies and
+compiles again.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From stephan.reiter at gmail.com  Mon Jan 28 04:36:36 2019
+From: stephan.reiter at gmail.com (Stephan Reiter)
+Date: Mon, 28 Jan 2019 10:36:36 +0100
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CADiSq7dUKgWWO0XjimjYZ+f+vDNnGueCmp0T=D+Eh4HheLC_eg@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+ <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+ <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+ <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+ <CADiSq7fcfg-M7mePOJFSfhb3kBZbS=4rFDXA5OLxA76dW8fFEQ@mail.gmail.com>
+ <CAFctyt+K1TavZqL4pBrBpaspDnUd2G0udeGzBzQ4SkNc9sG2Dw@mail.gmail.com>
+ <CADiSq7dUKgWWO0XjimjYZ+f+vDNnGueCmp0T=D+Eh4HheLC_eg@mail.gmail.com>
+Message-ID: <CAFctytL2ufUubm_8mcwhf9xKGN63h9me+4UDkXfkFJRPwcaGeA@mail.gmail.com>
+
+Reading through that post, I think I have everything covered but this here:
+- The third and final scenario, and the one where the extended GIL
+state functions for Ensure is still required, is where code doesn't
+have the GIL as yet and wants to make a call into sub interpreter
+rather than the main interpreter, where it already has a pointer to
+the sub interpreter and nothing more. In this case the new
+PyGILState_EnsureEx() function is used, with the sub interpreter being
+passed as argument.
+
+If I understand it correctly, it means the following in practice:
+Whenever I or a third-party library start a new thread, we need to
+query what interpreter we are running at the moment (in the thread
+that is starting the new thread) and pass that information on to the
+new thread so that it can initialize the GIL for itself.
+
+Pseudo code ahead:
+void do_in_thread(func_t *what) {
+  PyThreadState* state = PyThreadState_Get(); /// or new
+PyInterpreterState_Current();
+  PyInterpreterState *interpreter = state->interp;
+  std::thread t([what, interpreter] {
+    auto s = PyGILState_EnsureEx(interpreter);
+    what();
+    PyGILState_Release(s); // could also release before what() because
+TLS was updated and next PyGILState_Ensure() will work
+  });
+}
+
+Did I get that right?
+
+Stephan
+
+Am Mo., 28. Jan. 2019 um 09:27 Uhr schrieb Nick Coghlan <ncoghlan at gmail.com>:
+>
+> On Mon, 28 Jan 2019 at 00:32, Stephan Reiter <stephan.reiter at gmail.com> wrote:
+> >
+> > Cool. Thanks, Nick!
+> >
+> > I did experiments based on this idea (https://github.com/stephanreiter/cpython/commit/3bca91c26ac81e517b4aa22302be1741b3315622) and haven't rejected it yet. :-)
+>
+> After talking to Graham about this, I unfortunately realised that the
+> reason the callback approach is appearing to work for you is because
+> your application is single-threaded, so you can readily map any
+> invocation of the callback to the desired interpreter. Multi-threaded
+> applications won't have that luxury - they need to be able to set the
+> callback target on a per-thread basis.
+>
+> Graham actually described a plausible approach for doing that several
+> years back: https://bugs.python.org/issue10915#msg126387
+>
+> We have much better subinterpreter testing support now, so if this is
+> any area that you're interested in, one potential place to start would
+> be to get Antoine's patch back to a point where it applies and
+> compiles again.
+>
+> Cheers,
+> Nick.
+>
+> --
+> Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From solipsis at pitrou.net  Mon Jan 28 05:23:27 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 28 Jan 2019 11:23:27 +0100
+Subject: [Python-Dev] Anyone else seeing a lack of caching in local docs
+ builds?
+References: <CADiSq7fMghm44aPg7W4XW=xhVgdWO=FwLWynEcS77fLeh7d7XA@mail.gmail.com>
+ <q2l1gb$46ga$1@blaine.gmane.org>
+ <CADiSq7d5iH+mb12YC2stkuYap9zWdMz1SQLA3fGx9sk=76twUg@mail.gmail.com>
+Message-ID: <20190128112327.16a18a79@fsol>
+
+On Mon, 28 Jan 2019 18:02:16 +1000
+Nick Coghlan <ncoghlan at gmail.com> wrote:
+> On Mon, 28 Jan 2019 at 05:44, Terry Reedy <tjreedy at udel.edu> wrote:
+> > On 1/27/2019 9:01 AM, Nick Coghlan wrote:  
+> > > For now, I'm assuming I've messed something up with my local docs
+> > > build setup, but figured I'd ask if anyone else was seeing this, in
+> > > case it was actually broken at the build level (CI wouldn't pick this
+> > > up, since it always builds from scratch anyway).  
+> >
+> > I think something is broken.  Caching used to work better.  
+> 
+> In my case, I had an older version of blurb installed, which was
+> keeping NEWS from rendering properly, and I suspect that was
+> preventing Sphinx from marking the cache as valid.
+> 
+> I'm not sure about that theory though, as I would have expected an
+> invalid NEWS file to only keep the NEWS file from being cached.
+
+I've often noticed oddities in Sphinx caching on other projects.
+I'm not sure the algorithm is extremely precise.
+
+Regards
+
+Antoine.
+
+
+
+From ncoghlan at gmail.com  Mon Jan 28 06:42:37 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 28 Jan 2019 21:42:37 +1000
+Subject: [Python-Dev] Sub-interpreters: importing numpy causes hang
+In-Reply-To: <CAFctytL2ufUubm_8mcwhf9xKGN63h9me+4UDkXfkFJRPwcaGeA@mail.gmail.com>
+References: <CAFctytKDsnVyOY9_23DspQRFkFjQCH9VambJ=-y2f+S0B=AwEg@mail.gmail.com>
+ <CAPJVwBnag_wzUwZ38RiRFrkOsEOy1Uy21SCi=TuayM-Ty7usPg@mail.gmail.com>
+ <CAFctytJSZsyOogbVDE4OataHSm5r5OndSZS8+Fu0t=O28_3THg@mail.gmail.com>
+ <db9bf9d4-6b67-e1b5-17f5-db218eb9a9ec@gmail.com>
+ <CAFctyt+fLRjSaBNUyjfi2wbB3FYrLwi49RGebwE_z1Jw+hFhgQ@mail.gmail.com>
+ <CALFfu7D=4yQA_fT+BYZKZZXPCoYHQ69-pV_kuqLYTx378PbfEg@mail.gmail.com>
+ <CAFctytJNOFTSw1Stevu78vHYLNGO2qc5_t8huymuZzKuXd3m2A@mail.gmail.com>
+ <CADiSq7fcfg-M7mePOJFSfhb3kBZbS=4rFDXA5OLxA76dW8fFEQ@mail.gmail.com>
+ <CAFctyt+K1TavZqL4pBrBpaspDnUd2G0udeGzBzQ4SkNc9sG2Dw@mail.gmail.com>
+ <CADiSq7dUKgWWO0XjimjYZ+f+vDNnGueCmp0T=D+Eh4HheLC_eg@mail.gmail.com>
+ <CAFctytL2ufUubm_8mcwhf9xKGN63h9me+4UDkXfkFJRPwcaGeA@mail.gmail.com>
+Message-ID: <CADiSq7fRYNVLhsCvuVMopaTyY11CL5oFqh1j7PTTJyF3tYw2-A@mail.gmail.com>
+
+On Mon, 28 Jan 2019 at 19:36, Stephan Reiter <stephan.reiter at gmail.com> wrote:
+>
+> Reading through that post, I think I have everything covered but this here:
+> - The third and final scenario, and the one where the extended GIL
+> state functions for Ensure is still required, is where code doesn't
+> have the GIL as yet and wants to make a call into sub interpreter
+> rather than the main interpreter, where it already has a pointer to
+> the sub interpreter and nothing more. In this case the new
+> PyGILState_EnsureEx() function is used, with the sub interpreter being
+> passed as argument.
+>
+> If I understand it correctly, it means the following in practice:
+> Whenever I or a third-party library start a new thread, we need to
+> query what interpreter we are running at the moment (in the thread
+> that is starting the new thread) and pass that information on to the
+> new thread so that it can initialize the GIL for itself.
+>
+> Pseudo code ahead:
+> void do_in_thread(func_t *what) {
+>   PyThreadState* state = PyThreadState_Get(); /// or new
+> PyInterpreterState_Current();
+>   PyInterpreterState *interpreter = state->interp;
+>   std::thread t([what, interpreter] {
+>     auto s = PyGILState_EnsureEx(interpreter);
+>     what();
+>     PyGILState_Release(s); // could also release before what() because
+> TLS was updated and next PyGILState_Ensure() will work
+>   });
+> }
+>
+> Did I get that right?
+
+Yeah, I think that's the essence of it, although the other case that
+can come up is when the parent thread just created a new
+subinterpreter (that only changes how it acquires the pointer though -
+the challenge of getting a child thread to make proper use of that
+pointer remains the same).
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From chris.barker at noaa.gov  Mon Jan 28 11:26:26 2019
+From: chris.barker at noaa.gov (Chris Barker - NOAA Federal)
+Date: Mon, 28 Jan 2019 08:26:26 -0800
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+ <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+Message-ID: <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+
+> But as a rule,
+>> there are a LOT of errors that can be pretty mysterious to newbies.
+>
+> Isn't that the very definition of "newbie"?  That's half a joke, but I
+> really don't think that programmers new to Python should be the
+> standard.
+
+Python is broadly advocated (and used) as a first language to learn.
+Because it is.
+
+So I think anything we can do to help newbies, *that doesn?t make the
+language less powerful, or even more annoying for experienced
+developers* is a good thing.
+
+That is: prioritizing newbie-friendliness is good. Prioritizing it
+over other important things is not.
+
+-CHB
+
+
+
+> The problematic cases are those where even a relatively
+> experienced Python programmer needs to be told why an error is raised,
+> because it's too hard to figure out from background knowledge of the
+> language, you need to know about implementation internals.
+>
+>> I would love to see Python become generally more informative with
+>> errors.
+>
+> I would love to see all automated systems become more informative with
+> errors!  One thing I like about Python the development community is
+> that people are doing something about it.  Slowly but surely ....
+>
+>> I don?t think so ? what we need are helpful error messages. If it
+>> will be raised at compile time, then it won?t generally be
+>> catchable in s try-except? so the actual exception type isn?t very
+>> important.
+>
+> +1
+>
+> In general depending much on exception type is a hit-or-miss affair.
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Mon Jan 28 23:44:17 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Tue, 29 Jan 2019 13:44:17 +0900
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+ <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+ <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+Message-ID: <23631.55841.75814.366891@turnbull.sk.tsukuba.ac.jp>
+
+Chris Barker - NOAA Federal writes:
+ > > > But as a rule,
+ > > > there are a LOT of errors that can be pretty mysterious to newbies.
+ > >
+ > > Isn't that the very definition of "newbie"?  That's half a joke, but I
+ > > really don't think that programmers new to Python should be the
+ > > standard.
+ > 
+ > Python is broadly advocated (and used) as a first language to learn.
+ > Because it is.
+ > 
+ > So I think anything we can do to help newbies, *that doesn?t make the
+ > language less powerful, or even more annoying for experienced
+ > developers* is a good thing.
+ > 
+ > That is: prioritizing newbie-friendliness is good. Prioritizing it
+ > over other important things is not.
+
+I don't disagree.  I disagree with the conclusion that it's worth the
+effort to try to improve all error messages that confuse new users,
+because new users (by definition) don't know enough to respond
+usefully in many cases.  In those cases, they need to be told what's
+going on and why, where more experienced users can figure it out from
+their background knowledge of Python semantics.  Embedding a "theory
+of operations" note in every error message would be possible, but I
+don't think it's a good idea -- it would certainly make the language
+more annoying for experienced developers.
+
+That's why I proposed the criterion
+
+ > > The problematic cases are those where even a relatively
+ > > experienced Python programmer needs to be told why an error is
+ > > raised, because it's too hard to figure out from background
+ > > knowledge of the language, you need to know about implementation
+ > > internals.
+
+Maybe that's too strict.  The pleasant hacks of giving ``quit`` and
+``help`` "values" as variables are certainly useful.  On the contrary,
+getting rid of the print statement was perhaps a better idea. :-)
+
+Steve
+
