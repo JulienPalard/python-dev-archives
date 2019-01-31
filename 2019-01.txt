@@ -10720,3 +10720,151 @@ getting rid of the print statement was perhaps a better idea. :-)
 
 Steve
 
+From ncoghlan at gmail.com  Tue Jan 29 08:44:57 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Tue, 29 Jan 2019 23:44:57 +1000
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <23631.55841.75814.366891@turnbull.sk.tsukuba.ac.jp>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+ <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+ <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+ <23631.55841.75814.366891@turnbull.sk.tsukuba.ac.jp>
+Message-ID: <CADiSq7eD-nmZPh1-WrSSO8v=imhzxr9kX4-AY7iSSVVmoYUxXQ@mail.gmail.com>
+
+On Tue, 29 Jan 2019 at 14:47, Stephen J. Turnbull
+<turnbull.stephen.fw at u.tsukuba.ac.jp> wrote:
+> I don't disagree.  I disagree with the conclusion that it's worth the
+> effort to try to improve all error messages that confuse new users,
+> because new users (by definition) don't know enough to respond
+> usefully in many cases.  In those cases, they need to be told what's
+> going on and why, where more experienced users can figure it out from
+> their background knowledge of Python semantics.  Embedding a "theory
+> of operations" note in every error message would be possible, but I
+> don't think it's a good idea -- it would certainly make the language
+> more annoying for experienced developers.
+
+FWIW, we have pretty decent evidence that error messages don't have to
+provide a wonderful explanation on their own in order to be helpful:
+they just need to be distinctive enough that a web search will
+reliably get you to a page that gives you relevant information.
+
+Pre-seeded answers on Stack Overflow are excellent for handling the
+second half of that approach (see [1] for a specific example).
+
+Cheers,
+Nick.
+
+[1] https://stackoverflow.com/questions/25445439/what-does-syntaxerror-missing-parentheses-in-call-to-print-mean-in-python
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From python at mrabarnett.plus.com  Tue Jan 29 13:55:37 2019
+From: python at mrabarnett.plus.com (MRAB)
+Date: Tue, 29 Jan 2019 18:55:37 +0000
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <CADiSq7eD-nmZPh1-WrSSO8v=imhzxr9kX4-AY7iSSVVmoYUxXQ@mail.gmail.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+ <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+ <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+ <23631.55841.75814.366891@turnbull.sk.tsukuba.ac.jp>
+ <CADiSq7eD-nmZPh1-WrSSO8v=imhzxr9kX4-AY7iSSVVmoYUxXQ@mail.gmail.com>
+Message-ID: <aa2e4d34-6192-6af2-d62a-997dbcc5e645@mrabarnett.plus.com>
+
+On 2019-01-29 13:44, Nick Coghlan wrote:
+> On Tue, 29 Jan 2019 at 14:47, Stephen J. Turnbull
+> <turnbull.stephen.fw at u.tsukuba.ac.jp> wrote:
+>> I don't disagree.  I disagree with the conclusion that it's worth the
+>> effort to try to improve all error messages that confuse new users,
+>> because new users (by definition) don't know enough to respond
+>> usefully in many cases.  In those cases, they need to be told what's
+>> going on and why, where more experienced users can figure it out from
+>> their background knowledge of Python semantics.  Embedding a "theory
+>> of operations" note in every error message would be possible, but I
+>> don't think it's a good idea -- it would certainly make the language
+>> more annoying for experienced developers.
+> 
+> FWIW, we have pretty decent evidence that error messages don't have to
+> provide a wonderful explanation on their own in order to be helpful:
+> they just need to be distinctive enough that a web search will
+> reliably get you to a page that gives you relevant information.
+> 
+> Pre-seeded answers on Stack Overflow are excellent for handling the
+> second half of that approach (see [1] for a specific example).
+> 
+> Cheers,
+> Nick.
+> 
+> [1] https://stackoverflow.com/questions/25445439/what-does-syntaxerror-missing-parentheses-in-call-to-print-mean-in-python
+> 
+I have a vague recollection that a certain computer system (Amiga?) had 
+a 'why' command. If it reported an error, you could type "why" and it 
+would give you more details.
+
+I suspect that all that was happening was that when the error occurred 
+it would store the additional details somewhere that the 'why' command 
+would simply retrieve.
+
+From pmiscml at gmail.com  Tue Jan 29 14:51:42 2019
+From: pmiscml at gmail.com (Paul Sokolovsky)
+Date: Tue, 29 Jan 2019 22:51:42 +0300
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <aa2e4d34-6192-6af2-d62a-997dbcc5e645@mrabarnett.plus.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+ <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+ <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+ <23631.55841.75814.366891@turnbull.sk.tsukuba.ac.jp>
+ <CADiSq7eD-nmZPh1-WrSSO8v=imhzxr9kX4-AY7iSSVVmoYUxXQ@mail.gmail.com>
+ <aa2e4d34-6192-6af2-d62a-997dbcc5e645@mrabarnett.plus.com>
+Message-ID: <20190129225142.62636b7b@x230>
+
+Hello,
+
+On Tue, 29 Jan 2019 18:55:37 +0000
+MRAB <python at mrabarnett.plus.com> wrote:
+
+[]
+
+> > https://stackoverflow.com/questions/25445439/what-does-syntaxerror-missing-parentheses-in-call-to-print-mean-in-python 
+> I have a vague recollection that a certain computer system (Amiga?)
+> had a 'why' command. If it reported an error, you could type "why"
+> and it would give you more details.
+> 
+> I suspect that all that was happening was that when the error
+> occurred it would store the additional details somewhere that the
+> 'why' command would simply retrieve.
+
+Well, a typical Linux install includes "errno" util:
+
+$ errno 13
+EACCES 13 Permission denied
+
+So, hail to error numbers. And indeed, even if some may think they're
+artifact of 1980'ies, they're alive, well, and useful:
+
+$ pylint --help-msg W1651
+:deprecated-itertools-function (W1651): *Accessing a deprecated function on the itertools module*
+  Used when accessing a function on itertools that has been removed in Python 3.
+  This message belongs to the python3 checker. It can't be emitted when using
+  Python >= 3.0.
+
+
+-- 
+Best regards,
+ Paul                          mailto:pmiscml at gmail.com
+
