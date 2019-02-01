@@ -10868,3 +10868,829 @@ $ pylint --help-msg W1651
 Best regards,
  Paul                          mailto:pmiscml at gmail.com
 
+From pmiscml at gmail.com  Wed Jan 30 12:54:06 2019
+From: pmiscml at gmail.com (Paul Sokolovsky)
+Date: Wed, 30 Jan 2019 20:54:06 +0300
+Subject: [Python-Dev] [ANN] "compiler" package resurrected
+Message-ID: <20190130205406.10253578@x230>
+
+Hello,
+
+I'm sorry for posting here and not to python-announce, somehow I think
+(perhaps naively) that it may be of interest to people who are
+interested in Python development. At the very least, creation of the
+original package is (very likely, I didn't trace up to that) was
+discussed on python-dev, its removal was discussed on python-dev, so
+why revival of it can't be noted here?
+
+Because, turns out, in old good times, there was a bytecode compiler
+written in Python, and even as a part of stdlib. Well, actually it's
+still there in the latest 2.7 release, with a proud notice: "Remove
+in Python3". The point is that I'm with Python since 1.5 times, and
+never knew about this package. I'd generally consider that to be
+something to be ashamed and hush of, but unfortunately I found that to
+be recurring pattern: people interested in playing with a Python
+compiler discover "by a chance" and "suddenly" that they should look no
+beyond the stdlib for their (usually pretty simple for starters) needs
+- oftentimes, after they already started on the more effortful path
+(I faithfully spent 2 days on trying to extract a bytecode compiler
+from PyPy first). 
+
+With that intro, here's it - the port of Python2 compiler package
+(https://docs.python.org/2/library/compiler.html) to Python3:
+
+https://github.com/pfalcon/python-compiler
+
+Currently, it generates bytecode compatible with CPython3.5, and is
+able to compile its entire Lib/ (which includes not just stdlib modules
+per se, but also tests, and the real "teeth-cracking" stuff is there of
+course), except for test_super.py, for which current implementation's
+teeth are indeed too weak yet.  
+
+Now that it passes the compile-stdlib test, the idea is to refactor
+it into something which can be easily played with and extended. We'll
+see how it goes.
+
+As one of the example of what's intended to be easily done with it, see
+thread
+https://mail.python.org/pipermail/python-dev/2019-January/155991.html .
+I started it when updating the codegen for Python3, but also shows the
+intended purpose - it would easy to analyze if an except handler body
+contains "del exc" and if not, skip generating superfluous bytecode.  
+
+-- 
+Best regards,
+ Paul                          mailto:pmiscml at gmail.com
+
+From stefan_ml at behnel.de  Wed Jan 30 13:12:21 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Wed, 30 Jan 2019 19:12:21 +0100
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <aa2e4d34-6192-6af2-d62a-997dbcc5e645@mrabarnett.plus.com>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+ <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+ <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+ <23631.55841.75814.366891@turnbull.sk.tsukuba.ac.jp>
+ <CADiSq7eD-nmZPh1-WrSSO8v=imhzxr9kX4-AY7iSSVVmoYUxXQ@mail.gmail.com>
+ <aa2e4d34-6192-6af2-d62a-997dbcc5e645@mrabarnett.plus.com>
+Message-ID: <q2spe6$5ki7$1@blaine.gmane.org>
+
+MRAB schrieb am 29.01.19 um 19:55:
+> On 2019-01-29 13:44, Nick Coghlan wrote:
+>> FWIW, we have pretty decent evidence that error messages don't have to
+>> provide a wonderful explanation on their own in order to be helpful:
+>> they just need to be distinctive enough that a web search will
+>> reliably get you to a page that gives you relevant information.
+>>
+>> Pre-seeded answers on Stack Overflow are excellent for handling the
+>> second half of that approach (see [1] for a specific example).
+>> [1]
+>> https://stackoverflow.com/questions/25445439/what-does-syntaxerror-missing-parentheses-in-call-to-print-mean-in-python
+> 
+> I have a vague recollection that a certain computer system (Amiga?) had a
+> 'why' command. If it reported an error, you could type "why" and it would
+> give you more details.
+> 
+> I suspect that all that was happening was that when the error occurred it
+> would store the additional details somewhere that the 'why' command would
+> simply retrieve.
+
+So ? are you suggesting to use the webbrowser module inside of the REPL to
+look up the exception message of the previously printed stack trace in
+stack overflow when a user types "why()"?
+
+I faintly recall someone implementing something in that direction. It's
+probably in some package on PyPI.
+
+Stefan
+
+
+From python at mrabarnett.plus.com  Wed Jan 30 14:33:05 2019
+From: python at mrabarnett.plus.com (MRAB)
+Date: Wed, 30 Jan 2019 19:33:05 +0000
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <q2spe6$5ki7$1@blaine.gmane.org>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+ <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+ <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+ <23631.55841.75814.366891@turnbull.sk.tsukuba.ac.jp>
+ <CADiSq7eD-nmZPh1-WrSSO8v=imhzxr9kX4-AY7iSSVVmoYUxXQ@mail.gmail.com>
+ <aa2e4d34-6192-6af2-d62a-997dbcc5e645@mrabarnett.plus.com>
+ <q2spe6$5ki7$1@blaine.gmane.org>
+Message-ID: <6414be1f-4103-9d91-330f-d35e4a54e009@mrabarnett.plus.com>
+
+On 2019-01-30 18:12, Stefan Behnel wrote:
+> MRAB schrieb am 29.01.19 um 19:55:
+>> On 2019-01-29 13:44, Nick Coghlan wrote:
+>>> FWIW, we have pretty decent evidence that error messages don't have to
+>>> provide a wonderful explanation on their own in order to be helpful:
+>>> they just need to be distinctive enough that a web search will
+>>> reliably get you to a page that gives you relevant information.
+>>>
+>>> Pre-seeded answers on Stack Overflow are excellent for handling the
+>>> second half of that approach (see [1] for a specific example).
+>>> [1]
+>>> https://stackoverflow.com/questions/25445439/what-does-syntaxerror-missing-parentheses-in-call-to-print-mean-in-python
+>> 
+>> I have a vague recollection that a certain computer system (Amiga?) had a
+>> 'why' command. If it reported an error, you could type "why" and it would
+>> give you more details.
+>> 
+>> I suspect that all that was happening was that when the error occurred it
+>> would store the additional details somewhere that the 'why' command would
+>> simply retrieve.
+> 
+> So ? are you suggesting to use the webbrowser module inside of the REPL to
+> look up the exception message of the previously printed stack trace in
+> stack overflow when a user types "why()"?
+> 
+No, I was just suggesting it as a possible way of providing newbies with 
+more information about an error without annoying more experienced users 
+with excessively long messages every time.
+
+> I faintly recall someone implementing something in that direction. It's
+> probably in some package on PyPI.
+> 
+
+From phd at phdru.name  Wed Jan 30 16:14:28 2019
+From: phd at phdru.name (Oleg Broytman)
+Date: Wed, 30 Jan 2019 22:14:28 +0100
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <q2spe6$5ki7$1@blaine.gmane.org>
+References: <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+ <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+ <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+ <23631.55841.75814.366891@turnbull.sk.tsukuba.ac.jp>
+ <CADiSq7eD-nmZPh1-WrSSO8v=imhzxr9kX4-AY7iSSVVmoYUxXQ@mail.gmail.com>
+ <aa2e4d34-6192-6af2-d62a-997dbcc5e645@mrabarnett.plus.com>
+ <q2spe6$5ki7$1@blaine.gmane.org>
+Message-ID: <20190130211428.noqlsbx5uztpxbu7@phdru.name>
+
+On Wed, Jan 30, 2019 at 07:12:21PM +0100, Stefan Behnel <stefan_ml at behnel.de> wrote:
+> > I have a vague recollection that a certain computer system (Amiga?) had a
+> > 'why' command. If it reported an error, you could type "why" and it would
+> > give you more details.
+> > 
+> > I suspect that all that was happening was that when the error occurred it
+> > would store the additional details somewhere that the 'why' command would
+> > simply retrieve.
+> 
+> So ??? are you suggesting to use the webbrowser module inside of the REPL to
+> look up the exception message of the previously printed stack trace in
+> stack overflow when a user types "why()"?
+> 
+> I faintly recall someone implementing something in that direction. It's
+> probably in some package on PyPI.
+
+   It doesn't have to be all web. Compare how ``help()`` works at the
+python REPL, ``pydoc name`` at the command line, and
+``pydoc -p`` + a browser.
+
+> Stefan
+
+Oleg.
+-- 
+    Oleg Broytman            https://phdru.name/            phd at phdru.name
+           Programmers don't die, they just GOSUB without RETURN.
+
+From greg.ewing at canterbury.ac.nz  Wed Jan 30 16:46:10 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Thu, 31 Jan 2019 10:46:10 +1300
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <q2spe6$5ki7$1@blaine.gmane.org>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+ <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+ <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+ <23631.55841.75814.366891@turnbull.sk.tsukuba.ac.jp>
+ <CADiSq7eD-nmZPh1-WrSSO8v=imhzxr9kX4-AY7iSSVVmoYUxXQ@mail.gmail.com>
+ <aa2e4d34-6192-6af2-d62a-997dbcc5e645@mrabarnett.plus.com>
+ <q2spe6$5ki7$1@blaine.gmane.org>
+Message-ID: <5C521B22.3010602@canterbury.ac.nz>
+
+Stefan Behnel wrote:
+> So ? are you suggesting to use the webbrowser module inside of the REPL to
+> look up the exception message of the previously printed stack trace in
+> stack overflow when a user types "why()"?
+
+"Python is searching for an answer to your question..."
+
+-- 
+Greg
+
+From raymond.hettinger at gmail.com  Wed Jan 30 17:32:38 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Wed, 30 Jan 2019 14:32:38 -0800
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict instead
+ of OrderedDict
+Message-ID: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+
+Now that regular dicts are ordered and compact, it makes more sense for the _asdict() method to create a regular dict (as it did in its early days) rather than an OrderedDict.  The regular dict is much smaller, much faster, and has a much cleaner looking repr.  It would also help namedtuple() stay in sync with dataclasses which already take advantage of the ordering feature of regular dicts.
+
+The question is how to be go about making the change in a way gives the most benefit to users as soon as possible and that creates the least disruption.
+
+Option 1) Add a deprecation notice to 3.8, make no code change in 3.8, and then update the code in 3.9.  This has several issues: a) it doesn't provide an executable DeprecationWarning in 3.8, b) it isn't really a deprecation, and c) it defers the benefits of the change for another release.
+
+Option 2) Add a deprecation notice to 3.8, add a DeprecationWarning to the _asdict() method, and make the actual improvement in 3.9.  The main issue here is that it will create a lot of noise for normal uses of the _asdict() method which are otherwise unaffected by the change. The typical use cases for _asdict() are to create keyword arguments and to pass named tuple data into functions or methods that expect regular dictionaries.  Those use cases would benefit from seeing the change made sooner and would suffer in the interim from their code slowing down for warnings that aren't useful.
+
+Option 3). Add a deprecation notice to 3.8 and have the _asdict() method create a subclass of OrderedDict that issues warnings only for the methods and attributes that will change (move_to_end, popitem, __eq__, __dict__, __weakref__).  This is less noisy but it adds a lot of machinery just to make a notification of a minor change.  Also, it fails to warn that the data type will change.  And it may create more confusion than options 1 and 4 which are simpler.
+
+Option 4) Just make the change directly in 3.8,  s/OrderedDict/dict/, and be done will it.  This gives users the benefits right away and doesn't annoy them with warnings that they likely don't care about.   There is some precedent for this.  To make namedtuple class creation faster, the *verbose* option was dropped without any deprecation period.  It looks like no one missed that feature at all, but they did get the immediate benefit of faster import times.  In the case of using regular dicts in named tuples, people will get immediate and significant space savings as well as a speed benefit.
+
+My recommendation is Option 4 as being less disruptive and more beneficial than the other options.  In the unlikely event that anyone is currently depending on the reordering methods for the output of _asdict(), the remediation is trivially simple:   nt._asdict() -> OrderedDict(nt.as_dict()).
+
+What do you all think?
+
+
+Raymond
+
+
+
+
+From p.f.moore at gmail.com  Wed Jan 30 17:55:24 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Wed, 30 Jan 2019 22:55:24 +0000
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+Message-ID: <CACac1F_PxspBt7cdEV=K1ytmFdf8pom5a7V3rsq29pGCx6fApg@mail.gmail.com>
+
+On Wed, 30 Jan 2019 at 22:35, Raymond Hettinger
+<raymond.hettinger at gmail.com> wrote:
+> My recommendation is Option 4 as being less disruptive and more beneficial than the other options.  In the unlikely event that anyone is currently depending on the reordering methods for the output of _asdict(), the remediation is trivially simple:   nt._asdict() -> OrderedDict(nt.as_dict()).
+>
+> What do you all think?
+
++1 from me on option 4.
+
+Paul
+
+From Matthew.Lagoe at gmail.com  Wed Jan 30 17:53:16 2019
+From: Matthew.Lagoe at gmail.com (Matthew Lagoe)
+Date: Wed, 30 Jan 2019 15:53:16 -0700
+Subject: [Python-Dev] Summer of Code 2019 Mentors
+Message-ID: <CAE_HWMtAwJLsYLv5rkrJtqFi_rFekNq7+X+hd36ihDAtDecsRQ@mail.gmail.com>
+
+Hi Python community folk!
+
+As we've done for the past many years, Python is hoping to participate
+in Google Summer of Code.  This is a neat program where students write
+code over the (northern hemisphere) summer under the tutelage of open
+source mentors and get paid: we provide the project ideas, mentors and
+choose the students, Google provides the program framework and the money
+to pay students.  You can read more about GSoC here:
+https://summerofcode.withgoogle.com/
+
+Python participates as an "umbrella org" where many different smaller
+projects ("sub orgs") that use Python can take part under our banner.
+You can also participate separately, but for people who've never done it
+before and want help or for whom the paperwork is a hassle, you're
+welcome to join up with us and let us show you the ropes!
+
+It's really fun, and we've gotten lots of new contributors to
+Python-based projects over the years, taking in as many as 70+ students
+in a single year.  Last year we only had 15, though, so we've got lots
+of space for new mentors and new projects.
+
+We didn't have any projects for core python last year as there were no
+mentors
+for the projects, so if anyone is interested in mentoring this year let us
+know asap!
+
+You can also send questions to gsoc-admins at python.org (or just hit reply
+to this email!)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190130/5eeaa33e/attachment.html>
+
+From ethan at stoneleaf.us  Wed Jan 30 18:37:56 2019
+From: ethan at stoneleaf.us (Ethan Furman)
+Date: Wed, 30 Jan 2019 15:37:56 -0800
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <CACac1F_PxspBt7cdEV=K1ytmFdf8pom5a7V3rsq29pGCx6fApg@mail.gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+ <CACac1F_PxspBt7cdEV=K1ytmFdf8pom5a7V3rsq29pGCx6fApg@mail.gmail.com>
+Message-ID: <bcce4267-8f82-429d-c3d2-b530d4d8a5b2@stoneleaf.us>
+
+On 01/30/2019 02:55 PM, Paul Moore wrote:
+> On Wed, 30 Jan 2019 at 22:35, Raymond Hettinger
+> <raymond.hettinger at gmail.com> wrote:
+>> My recommendation is Option 4 as being less disruptive and more beneficial than the other options.  In the unlikely event that anyone is currently depending on the reordering methods for the output of _asdict(), the remediation is trivially simple:   nt._asdict() -> OrderedDict(nt.as_dict()).
+>>
+>> What do you all think?
+> 
+> +1 from me on option 4.
+
+ From me as well.
+
+--
+~Ethan~
+
+From v+python at g.nevcal.com  Wed Jan 30 18:41:15 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Wed, 30 Jan 2019 15:41:15 -0800
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+Message-ID: <c87985b3-26d6-bee3-6c26-21ad835363c1@g.nevcal.com>
+
+On 1/30/2019 2:32 PM, Raymond Hettinger wrote:
+> Now that regular dicts are ordered and compact, it makes more sense for the _asdict() method to create a regular dict (as it did in its early days) rather than an OrderedDict.
+...
+> Option 4) Just make the change directly in 3.8,  s/OrderedDict/dict/, and be done will it.  This gives users the benefits right away and doesn't annoy them with warnings that they likely don't care about.   There is some precedent for this.  To make namedtuple class creation faster, the *verbose* option was dropped without any deprecation period.  It looks like no one missed that feature at all, but they did get the immediate benefit of faster import times.  In the case of using regular dicts in named tuples, people will get immediate and significant space savings as well as a speed benefit.
+>
+> My recommendation is Option 4 as being less disruptive and more beneficial than the other options.  In the unlikely event that anyone is currently depending on the reordering methods for the output of _asdict(), the remediation is trivially simple:   nt._asdict() -> OrderedDict(nt.as_dict()).
+>
+> What do you all think?
+Option 4 sounds good to me.
+
+Would it be practical to add deprecated methods to regular dict for the 
+OrderedDict reordering methods that raise with an error suggesting "To 
+use this method, convert dict to OrderedDict." (or some better wording).
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190130/711f6a52/attachment-0001.html>
+
+From greg at krypto.org  Wed Jan 30 19:50:04 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 30 Jan 2019 16:50:04 -0800
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+Message-ID: <CAGE7PN+cbBg6U50XySLgjWk7_nqse-bfgLBu__s-nho1gbqQMA@mail.gmail.com>
+
+On Wed, Jan 30, 2019 at 2:32 PM Raymond Hettinger <
+raymond.hettinger at gmail.com> wrote:
+
+> Now that regular dicts are ordered and compact, it makes more sense for
+> the _asdict() method to create a regular dict (as it did in its early days)
+> rather than an OrderedDict.  The regular dict is much smaller, much faster,
+> and has a much cleaner looking repr.  It would also help namedtuple() stay
+> in sync with dataclasses which already take advantage of the ordering
+> feature of regular dicts.
+>
+> The question is how to be go about making the change in a way gives the
+> most benefit to users as soon as possible and that creates the least
+> disruption.
+>
+> Option 1) Add a deprecation notice to 3.8, make no code change in 3.8, and
+> then update the code in 3.9.  This has several issues: a) it doesn't
+> provide an executable DeprecationWarning in 3.8, b) it isn't really a
+> deprecation, and c) it defers the benefits of the change for another
+> release.
+>
+> Option 2) Add a deprecation notice to 3.8, add a DeprecationWarning to the
+> _asdict() method, and make the actual improvement in 3.9.  The main issue
+> here is that it will create a lot of noise for normal uses of the _asdict()
+> method which are otherwise unaffected by the change. The typical use cases
+> for _asdict() are to create keyword arguments and to pass named tuple data
+> into functions or methods that expect regular dictionaries.  Those use
+> cases would benefit from seeing the change made sooner and would suffer in
+> the interim from their code slowing down for warnings that aren't useful.
+>
+> Option 3). Add a deprecation notice to 3.8 and have the _asdict() method
+> create a subclass of OrderedDict that issues warnings only for the methods
+> and attributes that will change (move_to_end, popitem, __eq__, __dict__,
+> __weakref__).  This is less noisy but it adds a lot of machinery just to
+> make a notification of a minor change.  Also, it fails to warn that the
+> data type will change.  And it may create more confusion than options 1 and
+> 4 which are simpler.
+>
+> Option 4) Just make the change directly in 3.8,  s/OrderedDict/dict/, and
+> be done will it.  This gives users the benefits right away and doesn't
+> annoy them with warnings that they likely don't care about.   There is some
+> precedent for this.  To make namedtuple class creation faster, the
+> *verbose* option was dropped without any deprecation period.  It looks like
+> no one missed that feature at all, but they did get the immediate benefit
+> of faster import times.  In the case of using regular dicts in named
+> tuples, people will get immediate and significant space savings as well as
+> a speed benefit.
+>
+> My recommendation is Option 4 as being less disruptive and more beneficial
+> than the other options.  In the unlikely event that anyone is currently
+> depending on the reordering methods for the output of _asdict(), the
+> remediation is trivially simple:   nt._asdict() ->
+> OrderedDict(nt.as_dict()).
+>
+
++1 on option 4.  I agree with everyone else.  Because the remediation that
+keeps code compatible across all versions is that simple, just go with
+option 4.  We document that in What's New and be done with it. :)
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190130/5bdde236/attachment.html>
+
+From barry at python.org  Wed Jan 30 20:07:19 2019
+From: barry at python.org (Barry Warsaw)
+Date: Wed, 30 Jan 2019 17:07:19 -0800
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+Message-ID: <86A7BD3D-0661-450A-964E-790E72BE5A46@python.org>
+
+On Jan 30, 2019, at 14:32, Raymond Hettinger <raymond.hettinger at gmail.com> wrote:
+> 
+> Now that regular dicts are ordered and compact, it makes more sense for the _asdict() method to create a regular dict (as it did in its early days) rather than an OrderedDict.  The regular dict is much smaller, much faster, and has a much cleaner looking repr.  It would also help namedtuple() stay in sync with dataclasses which already take advantage of the ordering feature of regular dicts.
+
+Thanks for the excellent write up, Raymond.
+
+> Option 1) Add a deprecation notice to 3.8 [?]
+
+In general, I don?t favor deprecation notices for things that are not actionable by the end user or the consumer of the API in question.  It ends up being just noise, and that?s one of the big reasons why they are silenced by default (i.e. the end user of a Python application can?t do anything about the deprecation, so why scare them?).
+
+Maybe we need something like a MinorBehavioralChangeWarning which would be surfaced similar to PendingDeprecationWarning, but which says ?Hey, we changed this in the current version of Python.  Be aware of that change, but you probably don?t need to do anything about it?.  At least such warnings could be reviewed, documented, and audited.
+
+I suppose in this case, there is something the consumer of the API can do (as you point out, they can wrap their code), but in all likelihood there?s really nothing they *need* to do.  I think it will be rare that a Python 3.8 user will get bitten by this.  Therefore...
+
+> Option 4) Just make the change directly in 3.8,
+
+JFDI!
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190130/71b0fd04/attachment.sig>
+
+From mertz at gnosis.cx  Wed Jan 30 21:00:31 2019
+From: mertz at gnosis.cx (David Mertz)
+Date: Wed, 30 Jan 2019 21:00:31 -0500
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <CACac1F_PxspBt7cdEV=K1ytmFdf8pom5a7V3rsq29pGCx6fApg@mail.gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+ <CACac1F_PxspBt7cdEV=K1ytmFdf8pom5a7V3rsq29pGCx6fApg@mail.gmail.com>
+Message-ID: <CAEbHw4ZOQCP_YfRQs8OFVf0OJM+A2XKeA0xpFbReegc-U+f1Uw@mail.gmail.com>
+
+Ditto +1 option 4
+
+On Wed, Jan 30, 2019, 5:56 PM Paul Moore <p.f.moore at gmail.com wrote:
+
+> On Wed, 30 Jan 2019 at 22:35, Raymond Hettinger
+> <raymond.hettinger at gmail.com> wrote:
+> > My recommendation is Option 4 as being less disruptive and more
+> beneficial than the other options.  In the unlikely event that anyone is
+> currently depending on the reordering methods for the output of _asdict(),
+> the remediation is trivially simple:   nt._asdict() ->
+> OrderedDict(nt.as_dict()).
+> >
+> > What do you all think?
+>
+> +1 from me on option 4.
+>
+> Paul
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mertz%40gnosis.cx
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190130/fa55c95a/attachment.html>
+
+From njs at pobox.com  Wed Jan 30 21:10:17 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Wed, 30 Jan 2019 18:10:17 -0800
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+Message-ID: <CAPJVwBkGKEWvEGt0UAtk5NZzuCpK60MLu4+FGTAGzEC5L12wrw@mail.gmail.com>
+
+On Wed, Jan 30, 2019 at 2:34 PM Raymond Hettinger
+<raymond.hettinger at gmail.com> wrote:
+> Now that regular dicts are ordered and compact, it makes more sense for the _asdict() method to create a regular dict (as it did in its early days) rather than an OrderedDict.  The regular dict is much smaller, much faster, and has a much cleaner looking repr.
+
+How viable would it be to make OrderedDict smaller, faster, and give
+it a cleaner looking repr?
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From raymond.hettinger at gmail.com  Wed Jan 30 23:45:46 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Wed, 30 Jan 2019 20:45:46 -0800
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <CAPJVwBkGKEWvEGt0UAtk5NZzuCpK60MLu4+FGTAGzEC5L12wrw@mail.gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+ <CAPJVwBkGKEWvEGt0UAtk5NZzuCpK60MLu4+FGTAGzEC5L12wrw@mail.gmail.com>
+Message-ID: <E05ACFC9-890B-44F9-9175-1F6636F264FC@gmail.com>
+
+
+> On Jan 30, 2019, at 6:00 PM, David Mertz <mertz at gnosis.cx> wrote:
+> 
+> Ditto +1 option 4
+> 
+> On Wed, Jan 30, 2019, 5:56 PM Paul Moore <p.f.moore at gmail.com wrote:
+> On Wed, 30 Jan 2019 at 22:35, Raymond Hettinger
+> <raymond.hettinger at gmail.com> wrote:
+> > My recommendation is Option 4 as being less disruptive and more beneficial than the other options.  In the unlikely event that anyone is currently depending on the reordering methods for the output of _asdict(), the remediation is trivially simple:   nt._asdict() -> OrderedDict(nt.as_dict()).
+> >
+> > What do you all think?
+>> 
+>> +1 from me on option 4.
+>> 
+>> Paul
+
+
+Thanks everyone.  I'll move forward with option 4.  In Barry's word, JFDI :-)
+
+> On Jan 30, 2019, at 6:10 PM, Nathaniel Smith <njs at pobox.com> wrote:
+> 
+> How viable would it be to make OrderedDict smaller, faster, and give
+> it a cleaner looking repr?
+
+Not so much.  The implementations substantially different because they have different superpowers.  A regular dict is really good at being a dict while retaining order but it isn't good at reordering operations such as popitem(False), popitem(True), move_to_end(), and whatnot.  An OrderedDict is a heavier weight structure (a hash table augmented by a doubly-linked link) -- it is worse at being a dictionary but really good at intensive reordering operations typical in cache recency tracking and whatnot.  Also, there are long-standing API differences including weak references, ability to assign attributes, an equality operation that requires exact order when compared to another ordered dict etc, as well as the reordering methods.  If it was easy, clean, and desirable, it would have already been done :-)  Overall, I think the OrderedDict is increasingly irrelevant except for use cases requiring cross-version compatibility and for cases that need heavy reordering.  Accordingly, I mostly expect to leave it alone and fall into the not-much-used category like UserDict, UserList, and UserString.
+
+> On Jan 30, 2019, at 3:41 PM, Glenn Linderman <v+python at g.nevcal.com> wrote:
+
+
+> Would it be practical to add deprecated methods to regular dict for the OrderedDict reordering methods that raise with an error suggesting "To use this method, convert dict to OrderedDict." (or some better wording).
+
+That's an interesting idea.  Regular dicts aren't well suited to the reordering operations (like lists, repeated inserts at the front of the sequence wouldn't be performant relative to OrderedDict which uses double-linked lists internally).  My instinct is to leave regular dicts alone so that they can focus on their primary task (being good a fast lookups).
+
+
+Raymond
+
+
+
+From timothy.c.delaney at gmail.com  Thu Jan 31 00:11:28 2019
+From: timothy.c.delaney at gmail.com (Tim Delaney)
+Date: Thu, 31 Jan 2019 16:11:28 +1100
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <E05ACFC9-890B-44F9-9175-1F6636F264FC@gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+ <CAPJVwBkGKEWvEGt0UAtk5NZzuCpK60MLu4+FGTAGzEC5L12wrw@mail.gmail.com>
+ <E05ACFC9-890B-44F9-9175-1F6636F264FC@gmail.com>
+Message-ID: <CAN8CLgnOucpyWGLh2boFA8h0+07LO+CMjSoqPxfhzMF+kM0sew@mail.gmail.com>
+
+On Thu, 31 Jan 2019 at 15:46, Raymond Hettinger <raymond.hettinger at gmail.com>
+wrote:
+
+>
+> > Would it be practical to add deprecated methods to regular dict for the
+> OrderedDict reordering methods that raise with an error suggesting "To use
+> this method, convert dict to OrderedDict." (or some better wording).
+>
+> That's an interesting idea.  Regular dicts aren't well suited to the
+> reordering operations (like lists, repeated inserts at the front of the
+> sequence wouldn't be performant relative to OrderedDict which uses
+> double-linked lists internally).  My instinct is to leave regular dicts
+> alone so that they can focus on their primary task (being good a fast
+> lookups).
+>
+
+Alternatively, would it be viable to make OrderedDict work in a way that so
+long as you don't use any reordering operations it's essentially just a
+very thin layer on top of a dict, but if you do use any reordering
+operations, it adds in the additional heavyweight structure required to
+support that?
+
+I'm pretty sure something similar has been considered before, but thought I
+should bring it up in the context of this discussion (if only to have to
+shot down).
+
+Tim Delaney
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190131/638e4270/attachment.html>
+
+From raymond.hettinger at gmail.com  Thu Jan 31 00:24:41 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Wed, 30 Jan 2019 21:24:41 -0800
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <CAN8CLgnOucpyWGLh2boFA8h0+07LO+CMjSoqPxfhzMF+kM0sew@mail.gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+ <CAPJVwBkGKEWvEGt0UAtk5NZzuCpK60MLu4+FGTAGzEC5L12wrw@mail.gmail.com>
+ <E05ACFC9-890B-44F9-9175-1F6636F264FC@gmail.com>
+ <CAN8CLgnOucpyWGLh2boFA8h0+07LO+CMjSoqPxfhzMF+kM0sew@mail.gmail.com>
+Message-ID: <A2D36DCA-93AF-4A32-9146-7C12E79A46EF@gmail.com>
+
+
+
+> On Jan 30, 2019, at 9:11 PM, Tim Delaney <timothy.c.delaney at gmail.com> wrote:
+> 
+> Alternatively, would it be viable to make OrderedDict work in a way that so long as you don't use any reordering operations it's essentially just a very thin layer on top of a dict,
+
+There's all kinds of tricks we could do but none of them are worth it.  It took Eric Snow a long time to write the OrderedDict patch and it took years to get most of the bugs out of it.  I would really hate to go through a redesign and eat up our time for something that probably won't be much used any more.
+
+I'm really just aiming for something as simple as s/OrderedDict/dict in namedtuple :-)  
+
+
+Raymond
+
+From v+python at g.nevcal.com  Thu Jan 31 00:18:55 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Wed, 30 Jan 2019 21:18:55 -0800
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <E05ACFC9-890B-44F9-9175-1F6636F264FC@gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+ <CAPJVwBkGKEWvEGt0UAtk5NZzuCpK60MLu4+FGTAGzEC5L12wrw@mail.gmail.com>
+ <E05ACFC9-890B-44F9-9175-1F6636F264FC@gmail.com>
+Message-ID: <e50a4c03-9bff-f944-c9b2-2e11deb5e07b@g.nevcal.com>
+
+On 1/30/2019 8:45 PM, Raymond Hettinger wrote:
+>> On Jan 30, 2019, at 3:41 PM, Glenn Linderman<v+python at g.nevcal.com>  wrote:
+>> Would it be practical to add deprecated methods to regular dict for the OrderedDict reordering methods that raise with an error suggesting "To use this method, convert dict to OrderedDict." (or some better wording).
+> That's an interesting idea.  Regular dicts aren't well suited to the reordering operations (like lists, repeated inserts at the front of the sequence wouldn't be performant relative to OrderedDict which uses double-linked lists internally).  My instinct is to leave regular dicts alone so that they can focus on their primary task (being good a fast lookups).
+
+My goal was just to give a meaningful error message if someone misses 
+the implications in What's New, and has code that actually does expect 
+named_tuple.as_dict to have the ordering operations.
+
+The added, deprecated methods could be removed after a couple of versions.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190130/d4fc9f26/attachment-0001.html>
+
+From songofacandy at gmail.com  Thu Jan 31 02:52:19 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Thu, 31 Jan 2019 16:52:19 +0900
+Subject: [Python-Dev] How about updating OrderedDict in csv and configparser
+ to regular dict?
+Message-ID: <CAEfz+TyQBiP-1HM41tz0EiT_eVtrY9jOuiTWdHnjUKnbQQfgiA@mail.gmail.com>
+
+Hi,
+
+csv.DictReader uses OrderedDict by default, from Python 3.6.
+But it doesn't make sense anymore, like namedtuple._asdict().
+How about changing default dict type back to regular dict.
+
+Python is widely used for handling learge data.  So I think
+changing default dict type to OrderedDict was performance
+and memory usage regression in 3.6.
+
+Additionally, configparser uses OrderedDict by default from Python 3.6 too.
+
+I am not sure about `parser['section1'] == parser['section2']` is not used yet.
+But we broke it once in 3.6 by changing dict to OrderedDict.  Are there any
+issue report caused by this backward incompatibility?
+
+And I think performance and memory efficiency is not so important for
+configparser, unlike csv.
+
+I'm
+
+* +1 about changing csv.DictReader's default dict type
+* +0.5 about changing configparser's default dict type.
+
+How do you think?
+
+Regards,
+--
+INADA Naoki  <songofacandy at gmail.com>
+
+From songofacandy at gmail.com  Thu Jan 31 03:00:49 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Thu, 31 Jan 2019 17:00:49 +0900
+Subject: [Python-Dev] How about updating OrderedDict in csv and
+ configparser to regular dict?
+In-Reply-To: <CAEfz+TyQBiP-1HM41tz0EiT_eVtrY9jOuiTWdHnjUKnbQQfgiA@mail.gmail.com>
+References: <CAEfz+TyQBiP-1HM41tz0EiT_eVtrY9jOuiTWdHnjUKnbQQfgiA@mail.gmail.com>
+Message-ID: <CAEfz+TxtK9fJGPz+_k7mvsUHXTJYS55bQVT_3J1qAJtPOAUiTQ@mail.gmail.com>
+
+I'm sorry, configparser is changed already.
+https://bugs.python.org/issue33504
+
+On Thu, Jan 31, 2019 at 4:52 PM INADA Naoki <songofacandy at gmail.com> wrote:
+>
+> Hi,
+>
+> csv.DictReader uses OrderedDict by default, from Python 3.6.
+> But it doesn't make sense anymore, like namedtuple._asdict().
+> How about changing default dict type back to regular dict.
+>
+> Python is widely used for handling learge data.  So I think
+> changing default dict type to OrderedDict was performance
+> and memory usage regression in 3.6.
+>
+> Additionally, configparser uses OrderedDict by default from Python 3.6 too.
+>
+> I am not sure about `parser['section1'] == parser['section2']` is not used yet.
+> But we broke it once in 3.6 by changing dict to OrderedDict.  Are there any
+> issue report caused by this backward incompatibility?
+>
+> And I think performance and memory efficiency is not so important for
+> configparser, unlike csv.
+>
+> I'm
+>
+> * +1 about changing csv.DictReader's default dict type
+> * +0.5 about changing configparser's default dict type.
+>
+> How do you think?
+>
+> Regards,
+> --
+> INADA Naoki  <songofacandy at gmail.com>
+
+
+
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+
+From mike at selik.org  Thu Jan 31 03:04:36 2019
+From: mike at selik.org (Michael Selik)
+Date: Thu, 31 Jan 2019 00:04:36 -0800
+Subject: [Python-Dev] How about updating OrderedDict in csv and
+ configparser to regular dict?
+In-Reply-To: <CAEfz+TxtK9fJGPz+_k7mvsUHXTJYS55bQVT_3J1qAJtPOAUiTQ@mail.gmail.com>
+References: <CAEfz+TyQBiP-1HM41tz0EiT_eVtrY9jOuiTWdHnjUKnbQQfgiA@mail.gmail.com>
+ <CAEfz+TxtK9fJGPz+_k7mvsUHXTJYS55bQVT_3J1qAJtPOAUiTQ@mail.gmail.com>
+Message-ID: <CAGgTfkPSDpe8yKWGVkfffM3r2RvKTbs-mZKNRt5-8GSTCBaXEg@mail.gmail.com>
+
+Waiting on review
+https://github.com/python/cpython/pull/8014
+
+On Thu, Jan 31, 2019, 12:04 AM INADA Naoki <songofacandy at gmail.com wrote:
+
+> I'm sorry, configparser is changed already.
+> https://bugs.python.org/issue33504
+>
+> On Thu, Jan 31, 2019 at 4:52 PM INADA Naoki <songofacandy at gmail.com>
+> wrote:
+> >
+> > Hi,
+> >
+> > csv.DictReader uses OrderedDict by default, from Python 3.6.
+> > But it doesn't make sense anymore, like namedtuple._asdict().
+> > How about changing default dict type back to regular dict.
+> >
+> > Python is widely used for handling learge data.  So I think
+> > changing default dict type to OrderedDict was performance
+> > and memory usage regression in 3.6.
+> >
+> > Additionally, configparser uses OrderedDict by default from Python 3.6
+> too.
+> >
+> > I am not sure about `parser['section1'] == parser['section2']` is not
+> used yet.
+> > But we broke it once in 3.6 by changing dict to OrderedDict.  Are there
+> any
+> > issue report caused by this backward incompatibility?
+> >
+> > And I think performance and memory efficiency is not so important for
+> > configparser, unlike csv.
+> >
+> > I'm
+> >
+> > * +1 about changing csv.DictReader's default dict type
+> > * +0.5 about changing configparser's default dict type.
+> >
+> > How do you think?
+> >
+> > Regards,
+> > --
+> > INADA Naoki  <songofacandy at gmail.com>
+>
+>
+>
+> --
+> INADA Naoki  <songofacandy at gmail.com>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mike%40selik.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190131/34c4a41e/attachment.html>
+
