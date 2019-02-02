@@ -11694,3 +11694,254 @@ On Thu, Jan 31, 2019, 12:04 AM INADA Naoki <songofacandy at gmail.com wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190131/34c4a41e/attachment.html>
 
+From solipsis at pitrou.net  Thu Jan 31 05:11:16 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 31 Jan 2019 11:11:16 +0100
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+Message-ID: <20190131111116.424ed48f@fsol>
+
+On Wed, 30 Jan 2019 14:32:38 -0800
+Raymond Hettinger <raymond.hettinger at gmail.com> wrote:
+> 
+> My recommendation is Option 4 as being less disruptive and more beneficial than the other options.
+
+Option 4 here as well.  Sometimes perfection is the enemy of the good.
+
+Regards
+
+Antoine.
+
+
+
+From steve at holdenweb.com  Thu Jan 31 06:04:17 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Thu, 31 Jan 2019 11:04:17 +0000
+Subject: [Python-Dev] How about updating OrderedDict in csv and
+ configparser to regular dict?
+In-Reply-To: <CAEfz+TyQBiP-1HM41tz0EiT_eVtrY9jOuiTWdHnjUKnbQQfgiA@mail.gmail.com>
+References: <CAEfz+TyQBiP-1HM41tz0EiT_eVtrY9jOuiTWdHnjUKnbQQfgiA@mail.gmail.com>
+Message-ID: <CAMofdRC0rQX+q3baoRGFJJHW_9sWOEV1PJqiAjhBw89KwrveCA@mail.gmail.com>
+
+I submitted the patch to make the csv module use an OrderedDict in
+DictReader. It doesn't, AFAIR, use anything but the ordering property of
+ordered dict, so the reversion to a simple dict should be perfectly OK as
+long as no consumers have started to make use of specific OrderedDict
+properties.
+
+regards
+Steve Holden
+
+
+On Thu, Jan 31, 2019 at 7:55 AM INADA Naoki <songofacandy at gmail.com> wrote:
+
+> Hi,
+>
+> csv.DictReader uses OrderedDict by default, from Python 3.6.
+> But it doesn't make sense anymore, like namedtuple._asdict().
+> How about changing default dict type back to regular dict.
+>
+> Python is widely used for handling learge data.  So I think
+> changing default dict type to OrderedDict was performance
+> and memory usage regression in 3.6.
+>
+> Additionally, configparser uses OrderedDict by default from Python 3.6 too.
+>
+> I am not sure about `parser['section1'] == parser['section2']` is not used
+> yet.
+> But we broke it once in 3.6 by changing dict to OrderedDict.  Are there any
+> issue report caused by this backward incompatibility?
+>
+> And I think performance and memory efficiency is not so important for
+> configparser, unlike csv.
+>
+> I'm
+>
+> * +1 about changing csv.DictReader's default dict type
+> * +0.5 about changing configparser's default dict type.
+>
+> How do you think?
+>
+> Regards,
+> --
+> INADA Naoki  <songofacandy at gmail.com>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190131/f311d9df/attachment.html>
+
+From steve at holdenweb.com  Thu Jan 31 06:06:13 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Thu, 31 Jan 2019 11:06:13 +0000
+Subject: [Python-Dev] Fwd: How about updating OrderedDict in csv and
+ configparser to regular dict?
+In-Reply-To: <CAMofdRA04QBfzoBO8SAci7Z7EWw+egFRx+=X8k+isHOpC_dYhQ@mail.gmail.com>
+References: <CAEfz+TyQBiP-1HM41tz0EiT_eVtrY9jOuiTWdHnjUKnbQQfgiA@mail.gmail.com>
+ <CAMofdRC0rQX+q3baoRGFJJHW_9sWOEV1PJqiAjhBw89KwrveCA@mail.gmail.com>
+ <CAMofdRA04QBfzoBO8SAci7Z7EWw+egFRx+=X8k+isHOpC_dYhQ@mail.gmail.com>
+Message-ID: <CAMofdRAQ2xxxWTw4BSST8XtEoW0O=VMHjzdMbuvu_h3xzV_wBg@mail.gmail.com>
+
+---------- Forwarded message ---------
+From: Steve Holden <steve at holdenweb.com>
+Date: Thu, Jan 31, 2019 at 11:05 AM
+Subject: Re: [Python-Dev] How about updating OrderedDict in csv and
+configparser to regular dict?
+To: INADA Naoki <songofacandy at gmail.com>
+
+
+And I see that such a patch is now merged. Thanks,  Raymond!
+
+>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190131/6a112930/attachment.html>
+
+From ncoghlan at gmail.com  Thu Jan 31 08:16:04 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 31 Jan 2019 23:16:04 +1000
+Subject: [Python-Dev] Add more SyntaxWarnings?
+In-Reply-To: <q2spe6$5ki7$1@blaine.gmane.org>
+References: <q2d6i0$63gm$1@blaine.gmane.org>
+ <20190124220126.luvclamlqxl2paxh@python.ca>
+ <20190124224035.GB26605@ando.pearwood.info>
+ <CAPTjJmqPKWmPpAd8eJO3pF2kSgi3NuYJ6Z4kB8CywYX2Fm33pw@mail.gmail.com>
+ <CAP7+vJL+zq=Bp_oGszfMRFwXL8HGzugbnTO=dFBRuFKBVwdvbg@mail.gmail.com>
+ <CALGmxE+0iSLhrVZ_yJFZDy4WO8aBK2XL8xUPSdMkv+jodGqYKQ@mail.gmail.com>
+ <23626.35650.790785.749597@turnbull.sk.tsukuba.ac.jp>
+ <CALGmxELU84YF+T_ifE2VSXMFQDUj3aaiVCskk3GzxKRH3TQFxg@mail.gmail.com>
+ <23631.55841.75814.366891@turnbull.sk.tsukuba.ac.jp>
+ <CADiSq7eD-nmZPh1-WrSSO8v=imhzxr9kX4-AY7iSSVVmoYUxXQ@mail.gmail.com>
+ <aa2e4d34-6192-6af2-d62a-997dbcc5e645@mrabarnett.plus.com>
+ <q2spe6$5ki7$1@blaine.gmane.org>
+Message-ID: <CADiSq7d5jFF_Zwqs0SxW04W3jXZ9TX6+josgHMD_UTnnVkXoVA@mail.gmail.com>
+
+On Thu, 31 Jan 2019 at 04:16, Stefan Behnel <stefan_ml at behnel.de> wrote:
+> I faintly recall someone implementing something in that direction. It's
+> probably in some package on PyPI.
+
+You may be thinking of Doug Hellman's https://pypi.org/project/whatthewhat/
+
+Cheers,
+Nick.
+
+P.S. More horrifyingly (in an amusing way), there's also
+https://github.com/drathier/stack-overflow-import
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Thu Jan 31 08:24:05 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 31 Jan 2019 23:24:05 +1000
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <e50a4c03-9bff-f944-c9b2-2e11deb5e07b@g.nevcal.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+ <CAPJVwBkGKEWvEGt0UAtk5NZzuCpK60MLu4+FGTAGzEC5L12wrw@mail.gmail.com>
+ <E05ACFC9-890B-44F9-9175-1F6636F264FC@gmail.com>
+ <e50a4c03-9bff-f944-c9b2-2e11deb5e07b@g.nevcal.com>
+Message-ID: <CADiSq7cW_5X9Z9iPMNfj7pq=5Ca0aMd9gniVr9jhYon455o9Xg@mail.gmail.com>
+
+On Thu, 31 Jan 2019 at 16:40, Glenn Linderman <v+python at g.nevcal.com> wrote:
+>> On 1/30/2019 8:45 PM, Raymond Hettinger wrote:
+>>> On Jan 30, 2019, at 3:41 PM, Glenn Linderman <v+python at g.nevcal.com> wrote:
+>>> Would it be practical to add deprecated methods to regular dict for the OrderedDict reordering methods that raise with an error suggesting "To use this method, convert dict to OrderedDict." (or some better wording).
+>> That's an interesting idea.  Regular dicts aren't well suited to the reordering operations (like lists, repeated inserts at the front of the sequence wouldn't be performant relative to OrderedDict which uses double-linked lists internally).  My instinct is to leave regular dicts alone so that they can focus on their primary task (being good a fast lookups).
+> My goal was just to give a meaningful error message if someone misses the implications in What's New, and has code that actually does expect named_tuple.as_dict to have the ordering operations.
+
+The downside of doing that is that automated code introspection tools
+don't know that the methods don't really exist, they just see the
+method names in the type dictionary and offer them up for code
+completion.
+
+So in this case, the extra runtime check isn't worth the cost of
+breaking static code analysis and other forms of introspection.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From raymond.hettinger at gmail.com  Thu Jan 31 12:42:54 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Thu, 31 Jan 2019 09:42:54 -0800
+Subject: [Python-Dev] Fwd: How about updating OrderedDict in csv and
+ configparser to regular dict?
+In-Reply-To: <CAMofdRAQ2xxxWTw4BSST8XtEoW0O=VMHjzdMbuvu_h3xzV_wBg@mail.gmail.com>
+References: <CAEfz+TyQBiP-1HM41tz0EiT_eVtrY9jOuiTWdHnjUKnbQQfgiA@mail.gmail.com>
+ <CAMofdRC0rQX+q3baoRGFJJHW_9sWOEV1PJqiAjhBw89KwrveCA@mail.gmail.com>
+ <CAMofdRA04QBfzoBO8SAci7Z7EWw+egFRx+=X8k+isHOpC_dYhQ@mail.gmail.com>
+ <CAMofdRAQ2xxxWTw4BSST8XtEoW0O=VMHjzdMbuvu_h3xzV_wBg@mail.gmail.com>
+Message-ID: <D371BA76-B8FA-423A-AD8D-944558795B22@gmail.com>
+
+
+
+> On Jan 31, 2019, at 3:06 AM, Steve Holden <steve at holdenweb.com> wrote:
+> 
+> And I see that such a patch is now merged. Thanks,  Raymond!
+
+And thank you for getting ordering into csv.DictReader.  That was a significant improvement in usability :-)
+
+
+Raymond
+
+From njs at pobox.com  Thu Jan 31 16:25:53 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 31 Jan 2019 13:25:53 -0800
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <CADiSq7cW_5X9Z9iPMNfj7pq=5Ca0aMd9gniVr9jhYon455o9Xg@mail.gmail.com>
+References: <DEEE3FD0-450E-4AD8-BA8E-87FDF6E0E8EB@gmail.com>
+ <CAPJVwBkGKEWvEGt0UAtk5NZzuCpK60MLu4+FGTAGzEC5L12wrw@mail.gmail.com>
+ <E05ACFC9-890B-44F9-9175-1F6636F264FC@gmail.com>
+ <e50a4c03-9bff-f944-c9b2-2e11deb5e07b@g.nevcal.com>
+ <CADiSq7cW_5X9Z9iPMNfj7pq=5Ca0aMd9gniVr9jhYon455o9Xg@mail.gmail.com>
+Message-ID: <CAPJVwBnGZovkc_67=-JSd=JVq=iONZ2w0jcYC=OAKEJWLv_y=g@mail.gmail.com>
+
+On Thu, Jan 31, 2019, 05:26 Nick Coghlan <ncoghlan at gmail.com wrote:
+
+> On Thu, 31 Jan 2019 at 16:40, Glenn Linderman <v+python at g.nevcal.com>
+> wrote:
+> >> On 1/30/2019 8:45 PM, Raymond Hettinger wrote:
+> >>> On Jan 30, 2019, at 3:41 PM, Glenn Linderman <v+python at g.nevcal.com>
+> wrote:
+> >>> Would it be practical to add deprecated methods to regular dict for
+> the OrderedDict reordering methods that raise with an error suggesting "To
+> use this method, convert dict to OrderedDict." (or some better wording).
+> >> That's an interesting idea.  Regular dicts aren't well suited to the
+> reordering operations (like lists, repeated inserts at the front of the
+> sequence wouldn't be performant relative to OrderedDict which uses
+> double-linked lists internally).  My instinct is to leave regular dicts
+> alone so that they can focus on their primary task (being good a fast
+> lookups).
+> > My goal was just to give a meaningful error message if someone misses
+> the implications in What's New, and has code that actually does expect
+> named_tuple.as_dict to have the ordering operations.
+>
+> The downside of doing that is that automated code introspection tools
+> don't know that the methods don't really exist, they just see the
+> method names in the type dictionary and offer them up for code
+> completion.
+>
+> So in this case, the extra runtime check isn't worth the cost of
+> breaking static code analysis and other forms of introspection.
+>
+
+It's technically possible for attributes to do something custom when
+accessed, without appearing in __dir__. I don't know if that's a useful
+technique in this case, but sometimes it is.
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190131/b8f1641f/attachment.html>
+
