@@ -1,0 +1,396 @@
+From emmanuelarias30 at gmail.com  Fri Feb  1 06:57:10 2019
+From: emmanuelarias30 at gmail.com (eamanu15)
+Date: Fri, 1 Feb 2019 08:57:10 -0300
+Subject: [Python-Dev] How to update namedtuple asdict() to use dict
+ instead of OrderedDict
+In-Reply-To: <mailman.7678.1548891690.4818.python-dev@python.org>
+References: <mailman.7678.1548891690.4818.python-dev@python.org>
+Message-ID: <CACttXDOnRQMpNPSDTNCMaVvAeyKoNWgUx68ybKGiAVyqOYXVZg@mail.gmail.com>
+
+Hi!
+
+
+> Option 4) Just make the change directly in 3.8,  s/OrderedDict/dict/, and
+> be done will it.  This gives users the benefits right away and doesn't
+> annoy them with warnings that they likely don't care about.   There is some
+> precedent for this.  To make namedtuple class creation faster, the
+> *verbose* option was dropped without any deprecation period.  It looks like
+> no one missed that feature at all, but they did get the immediate benefit
+> of faster import times.  In the case of using regular dicts in named
+> tuples, people will get immediate and significant space savings as well as
+> a speed benefit.
+>
+
+ +1 for option 4
+
+Regards!
+eamanu
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190201/3fd10274/attachment.html>
+
+From status at bugs.python.org  Fri Feb  1 13:07:59 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 01 Feb 2019 18:07:59 +0000
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190201180759.1.9D569A7627081917@roundup.psfhosted.org>
+
+
+ACTIVITY SUMMARY (2019-01-25 - 2019-02-01)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6985 (+32)
+  closed 40649 (+23)
+  total  47634 (+55)
+
+Open issues with patches: 2775 
+
+
+Issues opened (45)
+==================
+
+#25592: distutils docs: data_files always uses sys.prefix
+https://bugs.python.org/issue25592  reopened by pitrou
+
+#30670: pprint for dict in sorted order or insert order?
+https://bugs.python.org/issue30670  reopened by josephsmeng
+
+#35829: datetime: parse "Z" timezone suffix in fromisoformat()
+https://bugs.python.org/issue35829  opened by rdb
+
+#35830: building multiple (binary) packages from a single project
+https://bugs.python.org/issue35830  opened by stefan
+
+#35832: Installation error
+https://bugs.python.org/issue35832  opened by Stefano Bonalumi
+
+#35833: IDLE: revise doc for control chars sent to Shell
+https://bugs.python.org/issue35833  opened by Dude Roast
+
+#35834: get_type_hints exposes an instance of ForwardRef (internal cla
+https://bugs.python.org/issue35834  opened by Lincoln Quirk
+
+#35838: ConfigParser calls optionxform twice when assigning dict
+https://bugs.python.org/issue35838  opened by Phil Kang
+
+#35839: Suggestion: Ignore sys.modules entries with no __spec__ attrib
+https://bugs.python.org/issue35839  opened by ncoghlan
+
+#35840: Control flow inconsistency on closed asyncio stream
+https://bugs.python.org/issue35840  opened by schlamar
+
+#35841: Datetime strftime() does not return correct week numbers for 2
+https://bugs.python.org/issue35841  opened by tr12
+
+#35843: importlib.util docs for namespace packages innaccurate
+https://bugs.python.org/issue35843  opened by Anthony Sottile
+
+#35844: Calling `Multiprocessing.Queue.close()` too quickly causes int
+https://bugs.python.org/issue35844  opened by charmonium
+
+#35845: Can't read a F-contiguous memoryview in physical order
+https://bugs.python.org/issue35845  opened by pitrou
+
+#35846: Incomplete documentation for re.sub
+https://bugs.python.org/issue35846  opened by pbugnion
+
+#35847: RISC-V needs CTYPES_PASS_BY_REF_HACK
+https://bugs.python.org/issue35847  opened by schwab
+
+#35848: readinto is not a method on io.TextIOBase
+https://bugs.python.org/issue35848  opened by steverpalmer
+
+#35849: Added thousands separators to Lib/pstats.py final report
+https://bugs.python.org/issue35849  opened by addons_zz
+
+#35851: Make search result in online docs keep their position when sea
+https://bugs.python.org/issue35851  opened by roelschroeven
+
+#35852: Fixed tests regenerating using CRLF when running it on Windows
+https://bugs.python.org/issue35852  opened by addons_zz
+
+#35854: EnvBuilder and venv symlinks do not work on Windows on 3.7.2
+https://bugs.python.org/issue35854  opened by steve.dower
+
+#35855: IDLE squeezer: improve unsqueezing and autosqueeze default
+https://bugs.python.org/issue35855  opened by terry.reedy
+
+#35856: bundled pip syntaxwarning
+https://bugs.python.org/issue35856  opened by Dima.Tisnek
+
+#35857: Stacktrace shows lines from updated file on disk, not code act
+https://bugs.python.org/issue35857  opened by Steve Pryde
+
+#35859: Capture behavior depends on the order of an alternation
+https://bugs.python.org/issue35859  opened by davisjam
+
+#35860: ProcessPoolExecutor subprocesses crash & break pool when raisi
+https://bugs.python.org/issue35860  opened by underyx
+
+#35861: test_named_expressions raises SyntaxWarning
+https://bugs.python.org/issue35861  opened by xtreak
+
+#35862: Change the environment for a new process
+https://bugs.python.org/issue35862  opened by r-or
+
+#35866: concurrent.futures deadlock
+https://bugs.python.org/issue35866  opened by jwilk
+
+#35867: NameError is not caught at Task execution
+https://bugs.python.org/issue35867  opened by Sampsa Riikonen
+
+#35868: Support ALL_PROXY environment variable in urllib
+https://bugs.python.org/issue35868  opened by Oleh Khoma
+
+#35869: io.BufferReader.read() returns None
+https://bugs.python.org/issue35869  opened by steverpalmer
+
+#35870: readline() specification is unclear
+https://bugs.python.org/issue35870  opened by porton
+
+#35871: Pdb NameError in generator param and list comprehension
+https://bugs.python.org/issue35871  opened by jayanth
+
+#35872: Creating venv from venv no longer works in 3.7.2
+https://bugs.python.org/issue35872  opened by schlamar
+
+#35873: Controlling venv from venv no longer works in 3.7.2
+https://bugs.python.org/issue35873  opened by schlamar
+
+#35874: Clarify that the (...) convertor to PyArg_ParseTuple... accept
+https://bugs.python.org/issue35874  opened by Antony.Lee
+
+#35875: Crash - algos.cp36-win_amd64.pyd  join.cp36-win_amd64.pyd
+https://bugs.python.org/issue35875  opened by AxelArnoldBangert
+
+#35876: test_start_new_session for posix_spawnp fails
+https://bugs.python.org/issue35876  opened by pablogsal
+
+#35877: parenthesis is mandatory for named expressions in while statem
+https://bugs.python.org/issue35877  opened by xtreak
+
+#35878: ast.c: end_col_offset may be used uninitialized in this functi
+https://bugs.python.org/issue35878  opened by vstinner
+
+#35879: test_type_comments leaks references
+https://bugs.python.org/issue35879  opened by vstinner
+
+#35880: math.sin has no backward error; this isn't documented
+https://bugs.python.org/issue35880  opened by jneb
+
+#35882: distutils fails with UnicodeEncodeError with strange filename 
+https://bugs.python.org/issue35882  opened by scjody
+
+#35883: Change invalid unicode characters to replacement characters in
+https://bugs.python.org/issue35883  opened by Neui
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#35882: distutils fails with UnicodeEncodeError with strange filename 
+https://bugs.python.org/issue35882
+
+#35878: ast.c: end_col_offset may be used uninitialized in this functi
+https://bugs.python.org/issue35878
+
+#35874: Clarify that the (...) convertor to PyArg_ParseTuple... accept
+https://bugs.python.org/issue35874
+
+#35873: Controlling venv from venv no longer works in 3.7.2
+https://bugs.python.org/issue35873
+
+#35867: NameError is not caught at Task execution
+https://bugs.python.org/issue35867
+
+#35860: ProcessPoolExecutor subprocesses crash & break pool when raisi
+https://bugs.python.org/issue35860
+
+#35852: Fixed tests regenerating using CRLF when running it on Windows
+https://bugs.python.org/issue35852
+
+#35844: Calling `Multiprocessing.Queue.close()` too quickly causes int
+https://bugs.python.org/issue35844
+
+#35827: C API dictionary views type checkers are not documented
+https://bugs.python.org/issue35827
+
+#35813: shared memory construct to avoid need for serialization betwee
+https://bugs.python.org/issue35813
+
+#35812: Don't log an exception from the main coroutine in asyncio.run(
+https://bugs.python.org/issue35812
+
+#35807: Update bundled pip to 19.0
+https://bugs.python.org/issue35807
+
+#35803: Test and document that `dir=...` in tempfile may be PathLike
+https://bugs.python.org/issue35803
+
+#35801: venv in 3.7 references python3 executable
+https://bugs.python.org/issue35801
+
+#35792: Specifying AbstractEventLoop.run_in_executor as a coroutine co
+https://bugs.python.org/issue35792
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#35877: parenthesis is mandatory for named expressions in while statem
+https://bugs.python.org/issue35877
+
+#35876: test_start_new_session for posix_spawnp fails
+https://bugs.python.org/issue35876
+
+#35862: Change the environment for a new process
+https://bugs.python.org/issue35862
+
+#35861: test_named_expressions raises SyntaxWarning
+https://bugs.python.org/issue35861
+
+#35854: EnvBuilder and venv symlinks do not work on Windows on 3.7.2
+https://bugs.python.org/issue35854
+
+#35852: Fixed tests regenerating using CRLF when running it on Windows
+https://bugs.python.org/issue35852
+
+#35849: Added thousands separators to Lib/pstats.py final report
+https://bugs.python.org/issue35849
+
+#35847: RISC-V needs CTYPES_PASS_BY_REF_HACK
+https://bugs.python.org/issue35847
+
+#35843: importlib.util docs for namespace packages innaccurate
+https://bugs.python.org/issue35843
+
+#35826: Typo in example for async with statement with condition
+https://bugs.python.org/issue35826
+
+#35824: http.cookies._CookiePattern modifying regular expressions
+https://bugs.python.org/issue35824
+
+#35823: Use vfork() in subprocess on Linux
+https://bugs.python.org/issue35823
+
+#35813: shared memory construct to avoid need for serialization betwee
+https://bugs.python.org/issue35813
+
+#35810: Object Initialization Bug with Heap-allocated Types
+https://bugs.python.org/issue35810
+
+#35803: Test and document that `dir=...` in tempfile may be PathLike
+https://bugs.python.org/issue35803
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#35431: Add a function for computing binomial coefficients to the math
+https://bugs.python.org/issue35431  12 msgs
+
+#25592: distutils docs: data_files always uses sys.prefix
+https://bugs.python.org/issue25592  10 msgs
+
+#35857: Stacktrace shows lines from updated file on disk, not code act
+https://bugs.python.org/issue35857  10 msgs
+
+#35854: EnvBuilder and venv symlinks do not work on Windows on 3.7.2
+https://bugs.python.org/issue35854   7 msgs
+
+#35848: readinto is not a method on io.TextIOBase
+https://bugs.python.org/issue35848   6 msgs
+
+#35859: Capture behavior depends on the order of an alternation
+https://bugs.python.org/issue35859   6 msgs
+
+#35823: Use vfork() in subprocess on Linux
+https://bugs.python.org/issue35823   5 msgs
+
+#35829: datetime: parse "Z" timezone suffix in fromisoformat()
+https://bugs.python.org/issue35829   5 msgs
+
+#30670: pprint for dict in sorted order or insert order?
+https://bugs.python.org/issue30670   4 msgs
+
+#32834: test_gdb fails with Posix locale in 3.7
+https://bugs.python.org/issue32834   4 msgs
+
+
+
+Issues closed (22)
+==================
+
+#2212: Cookie.BaseCookie has ambiguous unicode handling
+https://bugs.python.org/issue2212  closed by martin.panter
+
+#29235: Allow profile/cProfile to be used as context managers
+https://bugs.python.org/issue29235  closed by cheryl.sabella
+
+#34003: csv.DictReader can return basic dict instead of OrderedDict
+https://bugs.python.org/issue34003  closed by rhettinger
+
+#35196: IDLE text squeezer is too aggressive and is slow
+https://bugs.python.org/issue35196  closed by terry.reedy
+
+#35717: enum.Enum error on sys._getframe(2)
+https://bugs.python.org/issue35717  closed by vstinner
+
+#35769: IDLE: change new file name from  ''Untitled" to "untitled"
+https://bugs.python.org/issue35769  closed by cheryl.sabella
+
+#35780: Recheck logic in the C version of the lru_cache()
+https://bugs.python.org/issue35780  closed by rhettinger
+
+#35797: concurrent.futures.ProcessPoolExecutor does not work in venv o
+https://bugs.python.org/issue35797  closed by steve.dower
+
+#35811: py.exe should unset the __PYVENV_LAUNCHER__ environment variab
+https://bugs.python.org/issue35811  closed by steve.dower
+
+#35825: Py_UNICODE_SIZE=4 fails to link on Windows
+https://bugs.python.org/issue35825  closed by inada.naoki
+
+#35831: Format Spec example says limited to 3.1+ but works in 2.7
+https://bugs.python.org/issue35831  closed by fdrake
+
+#35835: There is no mention of breakpoint() in the pdb documentation
+https://bugs.python.org/issue35835  closed by Mariatta
+
+#35836: ZeroDivisionError class should have a __name__ attr
+https://bugs.python.org/issue35836  closed by steven.daprano
+
+#35837: smtpd PureProxy breaks on mail_options keyword argument
+https://bugs.python.org/issue35837  closed by r.david.murray
+
+#35842: A potential bug about use of uninitialised variable
+https://bugs.python.org/issue35842  closed by josh.r
+
+#35850: CKAN installation went on script error
+https://bugs.python.org/issue35850  closed by christian.heimes
+
+#35853: Extend the functools module with more higher order function co
+https://bugs.python.org/issue35853  closed by rhettinger
+
+#35858: Consider adding the option of running shell/console commands i
+https://bugs.python.org/issue35858  closed by jcrmatos
+
+#35863: email.headers wraps headers badly
+https://bugs.python.org/issue35863  closed by r.david.murray
+
+#35864: Replace OrderedDict with regular dict in namedtuple's _asdict(
+https://bugs.python.org/issue35864  closed by rhettinger
+
+#35865: configparser document refers about random dict order
+https://bugs.python.org/issue35865  closed by inada.naoki
+
+#35881: test_type_comments leaks references and memory blocks
+https://bugs.python.org/issue35881  closed by vstinner
+
