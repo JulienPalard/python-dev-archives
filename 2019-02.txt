@@ -394,3 +394,789 @@ https://bugs.python.org/issue35865  closed by inada.naoki
 #35881: test_type_comments leaks references and memory blocks
 https://bugs.python.org/issue35881  closed by vstinner
 
+From solipsis at pitrou.net  Sun Feb  3 10:19:25 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sun, 3 Feb 2019 16:19:25 +0100
+Subject: [Python-Dev] Difference between Include/internal and
+ Include/cpython ?
+Message-ID: <20190203161925.0115cf68@fsol>
+
+
+Hello,
+
+Can someone explain why we have two separate directories
+Include/internal and Include/cpython?  What is the rule for declaring an
+API inside one or another?
+
+At first sight, it seems to me we're having gratuitous complication
+here.  For example, I notice that PyFloat_Fini() is declared in
+Include/cpython/pylifecycle.h but PyLong_Fini() is declared in
+Include/internal/pycore_pylifecycle.h?
+
+(and why the additional "pycore_XXX.h" naming convention for some of
+those files?)
+
+Regards
+
+Antoine.
+
+
+
+From ammar at ammaraskar.com  Sun Feb  3 11:10:16 2019
+From: ammar at ammaraskar.com (Ammar Askar)
+Date: Sun, 3 Feb 2019 11:10:16 -0500
+Subject: [Python-Dev] Difference between Include/internal and
+ Include/cpython ?
+In-Reply-To: <20190203161925.0115cf68@fsol>
+References: <20190203161925.0115cf68@fsol>
+Message-ID: <CAG74Ji=7_uj67Wpybd1M0OM78R=u-KY22sxHQmSrs0OqEydAmg@mail.gmail.com>
+
+This is the discussion where it was named:
+https://discuss.python.org/t/poll-what-is-your-favorite-name-for-the-new-include-subdirectory/477?u=ammaraskar
+and the bug explaining the motivation: https://bugs.python.org/issue35134
+
+>(and why the additional "pycore_XXX.h" naming convention for some ofthose files?)
+
+"* Include/internal/pycore_*.h is the "internal" API"
+
+On Sun, Feb 3, 2019 at 10:20 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+>
+> Hello,
+>
+> Can someone explain why we have two separate directories
+> Include/internal and Include/cpython?  What is the rule for declaring an
+> API inside one or another?
+>
+> At first sight, it seems to me we're having gratuitous complication
+> here.  For example, I notice that PyFloat_Fini() is declared in
+> Include/cpython/pylifecycle.h but PyLong_Fini() is declared in
+> Include/internal/pycore_pylifecycle.h?
+>
+> (and why the additional "pycore_XXX.h" naming convention for some of
+> those files?)
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/ammar%40ammaraskar.com
+
+From solipsis at pitrou.net  Sun Feb  3 11:43:28 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sun, 3 Feb 2019 17:43:28 +0100
+Subject: [Python-Dev] Difference between Include/internal and
+ Include/cpython ?
+In-Reply-To: <CAG74Ji=7_uj67Wpybd1M0OM78R=u-KY22sxHQmSrs0OqEydAmg@mail.gmail.com>
+References: <20190203161925.0115cf68@fsol>
+ <CAG74Ji=7_uj67Wpybd1M0OM78R=u-KY22sxHQmSrs0OqEydAmg@mail.gmail.com>
+Message-ID: <20190203174328.482c8175@fsol>
+
+
+But in practice the distinction doesn't seem very conclusive.  Some
+internal APIs end up in either of those two directories without any
+clear reason why.
+
+Regards
+
+Antoine.
+
+
+On Sun, 3 Feb 2019 11:10:16 -0500
+Ammar Askar <ammar at ammaraskar.com> wrote:
+> This is the discussion where it was named:
+> https://discuss.python.org/t/poll-what-is-your-favorite-name-for-the-new-include-subdirectory/477?u=ammaraskar
+> and the bug explaining the motivation: https://bugs.python.org/issue35134
+> 
+> >(and why the additional "pycore_XXX.h" naming convention for some ofthose files?)  
+> 
+> "* Include/internal/pycore_*.h is the "internal" API"
+> 
+> On Sun, Feb 3, 2019 at 10:20 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+> >
+> >
+> > Hello,
+> >
+> > Can someone explain why we have two separate directories
+> > Include/internal and Include/cpython?  What is the rule for declaring an
+> > API inside one or another?
+> >
+> > At first sight, it seems to me we're having gratuitous complication
+> > here.  For example, I notice that PyFloat_Fini() is declared in
+> > Include/cpython/pylifecycle.h but PyLong_Fini() is declared in
+> > Include/internal/pycore_pylifecycle.h?
+> >
+> > (and why the additional "pycore_XXX.h" naming convention for some of
+> > those files?)
+> >
+> > Regards
+> >
+> > Antoine.
+> >
+> >
+> > _______________________________________________
+> > Python-Dev mailing list
+> > Python-Dev at python.org
+> > https://mail.python.org/mailman/listinfo/python-dev
+> > Unsubscribe: https://mail.python.org/mailman/options/python-dev/ammar%40ammaraskar.com  
+
+
+From solipsis at pitrou.net  Sun Feb  3 16:03:40 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sun, 3 Feb 2019 22:03:40 +0100
+Subject: [Python-Dev] Asking for reversion
+Message-ID: <20190203220340.3158b236@fsol>
+
+
+Hello,
+
+I'd like to ask for the reversion of the changes done in
+https://github.com/python/cpython/pull/11664
+
+The reason is simple: the PR isn't complete, it lacks docs and tests.
+It also didn't pass any review (this was pointed by Ronald), even
+though it adds 1300 lines of code.  No programmer is perfect, so it's
+statistically likely that the PR is defective.
+
+With git, forks and branches, we definitely don't need to commit
+unfinished PRs to the main repo.  It's perfectly fine to maintain
+some non-trivial piece of work in a separate fork.  People do it on a
+regular basis (for example I have currently two such
+long-lived branches: one for PEP 556 and one for PEP 574).
+
+
+Also, this is not the first time this happened.  Another
+multiprocessing PR was merged some years ago without any docs or tests:
+https://bugs.python.org/issue28053
+
+Today that work /still/ lacks docs or tests, and there is a suspicion
+that it doesn't work as intended (see issue comments).  It's probably
+too late to revert it, but it's definitely a slippery slope.
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Sun Feb  3 17:22:25 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sun, 3 Feb 2019 23:22:25 +0100
+Subject: [Python-Dev] Difference between Include/internal and
+ Include/cpython ?
+In-Reply-To: <20190203161925.0115cf68@fsol>
+References: <20190203161925.0115cf68@fsol>
+Message-ID: <CA+3bQGFFd2B2jyEe4ZHSLDiBpmHntPjhT8j7kwfjmZX3Za9+Cw@mail.gmail.com>
+
+Hi Antoine,
+
+The rules to decide what goes where have been discussed in the issues which
+created Include/cpython/ and the issue moving more headers to
+Include/internal/.
+
+In short, internal/ should not be used outside CPython codebase. In Python
+3.7, these headers were even not installed. I chose to install them because
+I moved more headers into internal/ which is a backward incompatible
+change. You should not use these headers outside CPython code base, but the
+typical use case to use them are debug tools: debugger, tracer and
+profiler. The internal/ subdir is not included in Python default search
+path when you use python-config --cflags for example. It is a deliberate
+choice that these headers are not easily accessible.
+
+There file names are prefixed by pycore_ for practical reasons: if 2 header
+files have the same name in internal/ and Include/, the C preprocessor can
+pick the wrong one. See the internal/ issue which gives a concrete example
+(but in Python 3.7).
+
+cpython/ is just a practical separation to force developers to decide if a
+new API is part of the stable API or not. Previously, too many APIs have
+been added to the stable API by mistake (not on purpose).
+
+About inconsistencies, I invite you to open issues. I worked by small
+steps. I tried to not move too much code from "one API" (stable, cpython,
+internal) to another. IMHO all _Init() and _Fini() APIs must be internal.
+For historical reasons, they are even part of the public API (!) which is a
+mistake. I don't see the point of calling them explicitly.
+
+I tried to take notes at https://pythoncapi.readthedocs.io/ for the
+rationale, examples and track progess, but I didn't update this site with
+the work I did last 6 months.
+
+I hope that it makes more sense to you now?
+
+Victor
+
+
+Le dimanche 3 f?vrier 2019, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+>
+> Hello,
+>
+> Can someone explain why we have two separate directories
+> Include/internal and Include/cpython?  What is the rule for declaring an
+> API inside one or another?
+>
+> At first sight, it seems to me we're having gratuitous complication
+> here.  For example, I notice that PyFloat_Fini() is declared in
+> Include/cpython/pylifecycle.h but PyLong_Fini() is declared in
+> Include/internal/pycore_pylifecycle.h?
+>
+> (and why the additional "pycore_XXX.h" naming convention for some of
+> those files?)
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190203/1a603779/attachment.html>
+
+From barry at python.org  Sun Feb  3 17:25:00 2019
+From: barry at python.org (Barry Warsaw)
+Date: Sun, 3 Feb 2019 14:25:00 -0800
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <20190203220340.3158b236@fsol>
+References: <20190203220340.3158b236@fsol>
+Message-ID: <714898D1-F99E-46CE-BE12-AC885629E49F@python.org>
+
+On Feb 3, 2019, at 13:03, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> 
+> I'd like to ask for the reversion of the changes done in
+> https://github.com/python/cpython/pull/11664
+> 
+> The reason is simple: the PR isn't complete, it lacks docs and tests.
+> It also didn't pass any review (this was pointed by Ronald), even
+> though it adds 1300 lines of code.  No programmer is perfect, so it's
+> statistically likely that the PR is defective.
+
+I concur.  I actually think CI shouldn?t even pass without sufficiently covering tests and docs (sans a ?trivial? or other short circuiting label), but that might be unpopular.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190203/fac72696/attachment.sig>
+
+From solipsis at pitrou.net  Sun Feb  3 17:40:59 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sun, 3 Feb 2019 23:40:59 +0100
+Subject: [Python-Dev] Difference between Include/internal and
+ Include/cpython ?
+In-Reply-To: <CA+3bQGFFd2B2jyEe4ZHSLDiBpmHntPjhT8j7kwfjmZX3Za9+Cw@mail.gmail.com>
+References: <20190203161925.0115cf68@fsol>
+ <CA+3bQGFFd2B2jyEe4ZHSLDiBpmHntPjhT8j7kwfjmZX3Za9+Cw@mail.gmail.com>
+Message-ID: <20190203234059.2ba49a84@fsol>
+
+On Sun, 3 Feb 2019 23:22:25 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> Hi Antoine,
+> 
+> The rules to decide what goes where have been discussed in the issues which
+> created Include/cpython/ and the issue moving more headers to
+> Include/internal/.
+> 
+> In short, internal/ should not be used outside CPython codebase. In Python
+> 3.7, these headers were even not installed. I chose to install them because
+> I moved more headers into internal/ which is a backward incompatible
+> change. You should not use these headers outside CPython code base, but the
+> typical use case to use them are debug tools: debugger, tracer and
+> profiler. The internal/ subdir is not included in Python default search
+> path when you use python-config --cflags for example. It is a deliberate
+> choice that these headers are not easily accessible.
+> 
+> There file names are prefixed by pycore_ for practical reasons: if 2 header
+> files have the same name in internal/ and Include/, the C preprocessor can
+> pick the wrong one. See the internal/ issue which gives a concrete example
+> (but in Python 3.7).
+> 
+> cpython/ is just a practical separation to force developers to decide if a
+> new API is part of the stable API or not. Previously, too many APIs have
+> been added to the stable API by mistake (not on purpose).
+
+Hmm, I see.  Thanks for the explanation.
+
+Regards
+
+Antoine.
+
+From tjreedy at udel.edu  Sun Feb  3 19:31:18 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sun, 3 Feb 2019 19:31:18 -0500
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <20190203220340.3158b236@fsol>
+References: <20190203220340.3158b236@fsol>
+Message-ID: <q3814o$2ben$1@blaine.gmane.org>
+
+On 2/3/2019 4:03 PM, Antoine Pitrou wrote:
+> 
+> Hello,
+> 
+> I'd like to ask for the reversion of the changes done in
+> https://github.com/python/cpython/pull/11664
+> 
+> The reason is simple: [over 1000 lines not reviewed, no tests, no docs]
+
+Aside from the technical reasons Antoine gave, which I agree with, I 
+think the merge was legally questionable, as a non-contributor is listed 
+as a copyright holder.  Message 334805. https://bugs.python.org/issue35813
+
+-- 
+Terry Jan Reedy
+
+
+From guido at python.org  Sun Feb  3 19:49:13 2019
+From: guido at python.org (Guido van Rossum)
+Date: Sun, 3 Feb 2019 16:49:13 -0800
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <q3814o$2ben$1@blaine.gmane.org>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+Message-ID: <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+
+I think this is now up to the 3.8 release manager.
+
+On Sun, Feb 3, 2019 at 4:34 PM Terry Reedy <tjreedy at udel.edu> wrote:
+
+> On 2/3/2019 4:03 PM, Antoine Pitrou wrote:
+> >
+> > Hello,
+> >
+> > I'd like to ask for the reversion of the changes done in
+> > https://github.com/python/cpython/pull/11664
+> >
+> > The reason is simple: [over 1000 lines not reviewed, no tests, no docs]
+>
+> Aside from the technical reasons Antoine gave, which I agree with, I
+> think the merge was legally questionable, as a non-contributor is listed
+> as a copyright holder.  Message 334805. https://bugs.python.org/issue35813
+>
+> --
+> Terry Jan Reedy
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190203/9b50a6b1/attachment.html>
+
+From guido at python.org  Sun Feb  3 19:55:43 2019
+From: guido at python.org (Guido van Rossum)
+Date: Sun, 3 Feb 2019 16:55:43 -0800
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+Message-ID: <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+
+Also, did anyone ask Davin directly to roll it back?
+
+On Sun, Feb 3, 2019 at 4:49 PM Guido van Rossum <guido at python.org> wrote:
+
+> I think this is now up to the 3.8 release manager.
+>
+> On Sun, Feb 3, 2019 at 4:34 PM Terry Reedy <tjreedy at udel.edu> wrote:
+>
+>> On 2/3/2019 4:03 PM, Antoine Pitrou wrote:
+>> >
+>> > Hello,
+>> >
+>> > I'd like to ask for the reversion of the changes done in
+>> > https://github.com/python/cpython/pull/11664
+>> >
+>> > The reason is simple: [over 1000 lines not reviewed, no tests, no docs]
+>>
+>> Aside from the technical reasons Antoine gave, which I agree with, I
+>> think the merge was legally questionable, as a non-contributor is listed
+>> as a copyright holder.  Message 334805.
+>> https://bugs.python.org/issue35813
+>>
+>> --
+>> Terry Jan Reedy
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>>
+>
+>
+> --
+> --Guido van Rossum (python.org/~guido)
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190203/8a917c64/attachment.html>
+
+From tjreedy at udel.edu  Sun Feb  3 20:40:54 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sun, 3 Feb 2019 20:40:54 -0500
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+Message-ID: <q38577$1qlm$2@blaine.gmane.org>
+
+On 2/3/2019 7:55 PM, Guido van Rossum wrote:
+> Also, did anyone ask Davin directly to roll it back?
+
+Antoine posted on the issue, along with Robert O.  Robert reviewed and 
+make several suggestions.
+
+-- 
+Terry Jan Reedy
+
+
+From raymond.hettinger at gmail.com  Sun Feb  3 20:52:55 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Sun, 3 Feb 2019 17:52:55 -0800
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <20190203220340.3158b236@fsol>
+References: <20190203220340.3158b236@fsol>
+Message-ID: <E19DF3D1-2FB4-4350-A0FF-B20A45A52C92@gmail.com>
+
+
+
+> On Feb 3, 2019, at 1:03 PM, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> 
+> I'd like to ask for the reversion of the changes done in
+> https://github.com/python/cpython/pull/11664
+
+Please work *with* Davin on this one.
+
+It was only recently that you edited his name out of the list of maintainers for multiprocessing even though that is what he's been working on for the last two years and at the last two sprints.  I'd like to see more team work here rather than applying social pressures via python-dev (which is a *very* public list). 
+
+
+Raymond
+
+
+From raymond.hettinger at gmail.com  Sun Feb  3 21:10:43 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Sun, 3 Feb 2019 18:10:43 -0800
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <q38577$1qlm$2@blaine.gmane.org>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+Message-ID: <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+
+
+> On Feb 3, 2019, at 5:40 PM, Terry Reedy <tjreedy at udel.edu> wrote:
+> 
+> On 2/3/2019 7:55 PM, Guido van Rossum wrote:
+>> Also, did anyone ask Davin directly to roll it back?
+> 
+> Antoine posted on the issue, along with Robert O.  Robert reviewed and make several suggestions.
+
+I think the PR sat in a stable state for many months, and it looks like RO's review comments came *after* the commit.  
+
+FWIW, with dataclasses we decided to get the PR committed early, long before most of the tests and all of the docs. The principle was that bigger changes needed to go in as early as possible in the release cycle so that we could thoroughly exercise it (something that almost never happens while something is in the PR stage).  It would be great if the same came happen here.  IIRC, shared memory has long been the holy grail for multiprocessing, helping to mitigate its principle disadvantage (the cost of moving data between processes).  It's something we really want.
+
+But let's see what the 3.8 release manager has to say.
+
+
+Raymond
+
+
+
+From python+python_dev at discontinuity.net  Sun Feb  3 22:12:38 2019
+From: python+python_dev at discontinuity.net (Davin Potts)
+Date: Sun, 3 Feb 2019 21:12:38 -0600
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+Message-ID: <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+
+I am attempting to do the right thing and am following the advice of other
+core devs in what I have done thus far.
+
+Borrowing heavily from what I've added to issue35813 just now:
+
+This work is the result of ~1.5 years of development effort, much of it
+accomplished at the last two core dev sprints.  The code behind it has been
+stable since September 2018 and tested as an independently installable
+package by multiple people.
+
+I was encouraged by Lukasz, Yury, and others to check in this code early,
+not waiting for tests and docs, in order to both solicit more feedback and
+provide for broader testing.  I understand that doing such a thing is not
+at all a novelty.  Thankfully it is doing that -- I hope that feedback
+remains constructive and supportive.
+
+There are some tests to be found in a branch (enh-tests-shmem) of
+github.com/applio/cpython which I think should become more comprehensive
+before inclusion.  Temporarily deferring and not including them as part of
+the first alpha should reduce the complexity of that release.
+
+Regarding the BSD license on the C code being adopted, my conversations
+with Brett and subsequently Van have not raised concerns, far from it --
+there is a process which is being followed to the letter.  If there are
+other reasons to object to the thoughtful adoption of code licensed like
+this one, that deserves a decoupled and larger discussion first.
+
+
+Davin
+
+On Sun, Feb 3, 2019 at 8:12 PM Raymond Hettinger <
+raymond.hettinger at gmail.com> wrote:
+
+>
+> > On Feb 3, 2019, at 5:40 PM, Terry Reedy <tjreedy at udel.edu> wrote:
+> >
+> > On 2/3/2019 7:55 PM, Guido van Rossum wrote:
+> >> Also, did anyone ask Davin directly to roll it back?
+> >
+> > Antoine posted on the issue, along with Robert O.  Robert reviewed and
+> make several suggestions.
+>
+> I think the PR sat in a stable state for many months, and it looks like
+> RO's review comments came *after* the commit.
+>
+> FWIW, with dataclasses we decided to get the PR committed early, long
+> before most of the tests and all of the docs. The principle was that bigger
+> changes needed to go in as early as possible in the release cycle so that
+> we could thoroughly exercise it (something that almost never happens while
+> something is in the PR stage).  It would be great if the same came happen
+> here.  IIRC, shared memory has long been the holy grail for
+> multiprocessing, helping to mitigate its principle disadvantage (the cost
+> of moving data between processes).  It's something we really want.
+>
+> But let's see what the 3.8 release manager has to say.
+>
+>
+> Raymond
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/python%2Bpython_dev%40discontinuity.net
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190203/82686044/attachment.html>
+
+From python+python_dev at discontinuity.net  Sun Feb  3 22:25:27 2019
+From: python+python_dev at discontinuity.net (Davin Potts)
+Date: Sun, 3 Feb 2019 21:25:27 -0600
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+ <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+Message-ID: <CABHLM6uum1CvxdO6ywkGjQfWBKQ=KPNVF9yxOE2jVt_iDybjhQ@mail.gmail.com>
+
+On 2/3/2019 7:55 PM, Guido van Rossum wrote:
+> Also, did anyone ask Davin directly to roll it back?
+
+Simply put:  no.  There have been a number of reactionary comments in the
+last 16 hours but no attempt to reach out to me directly during that time.
+
+
+On Sun, Feb 3, 2019 at 8:12 PM Raymond Hettinger <
+raymond.hettinger at gmail.com> wrote:
+> It was only recently that you edited his name out of the list of
+maintainers for multiprocessing
+> even though that is what he's been working on for the last two years and
+at the last two sprints.
+
+I think it would be best to discuss Antoine's decision to take this
+particular action without first consulting me, elsewhere and not part of
+this thread.
+
+
+As I said, I am happy to do the most constructive thing possible and I
+sought the advice of those I highly respect first before doing as I have.
+
+
+Davin
+
+
+On Sun, Feb 3, 2019 at 9:12 PM Davin Potts <
+python+python_dev at discontinuity.net> wrote:
+
+> I am attempting to do the right thing and am following the advice of other
+> core devs in what I have done thus far.
+>
+> Borrowing heavily from what I've added to issue35813 just now:
+>
+> This work is the result of ~1.5 years of development effort, much of it
+> accomplished at the last two core dev sprints.  The code behind it has been
+> stable since September 2018 and tested as an independently installable
+> package by multiple people.
+>
+> I was encouraged by Lukasz, Yury, and others to check in this code early,
+> not waiting for tests and docs, in order to both solicit more feedback and
+> provide for broader testing.  I understand that doing such a thing is not
+> at all a novelty.  Thankfully it is doing that -- I hope that feedback
+> remains constructive and supportive.
+>
+> There are some tests to be found in a branch (enh-tests-shmem) of
+> github.com/applio/cpython which I think should become more comprehensive
+> before inclusion.  Temporarily deferring and not including them as part of
+> the first alpha should reduce the complexity of that release.
+>
+> Regarding the BSD license on the C code being adopted, my conversations
+> with Brett and subsequently Van have not raised concerns, far from it --
+> there is a process which is being followed to the letter.  If there are
+> other reasons to object to the thoughtful adoption of code licensed like
+> this one, that deserves a decoupled and larger discussion first.
+>
+>
+> Davin
+>
+> On Sun, Feb 3, 2019 at 8:12 PM Raymond Hettinger <
+> raymond.hettinger at gmail.com> wrote:
+>
+>>
+>> > On Feb 3, 2019, at 5:40 PM, Terry Reedy <tjreedy at udel.edu> wrote:
+>> >
+>> > On 2/3/2019 7:55 PM, Guido van Rossum wrote:
+>> >> Also, did anyone ask Davin directly to roll it back?
+>> >
+>> > Antoine posted on the issue, along with Robert O.  Robert reviewed and
+>> make several suggestions.
+>>
+>> I think the PR sat in a stable state for many months, and it looks like
+>> RO's review comments came *after* the commit.
+>>
+>> FWIW, with dataclasses we decided to get the PR committed early, long
+>> before most of the tests and all of the docs. The principle was that bigger
+>> changes needed to go in as early as possible in the release cycle so that
+>> we could thoroughly exercise it (something that almost never happens while
+>> something is in the PR stage).  It would be great if the same came happen
+>> here.  IIRC, shared memory has long been the holy grail for
+>> multiprocessing, helping to mitigate its principle disadvantage (the cost
+>> of moving data between processes).  It's something we really want.
+>>
+>> But let's see what the 3.8 release manager has to say.
+>>
+>>
+>> Raymond
+>>
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/python%2Bpython_dev%40discontinuity.net
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190203/07919728/attachment.html>
+
+From barry at python.org  Mon Feb  4 00:52:40 2019
+From: barry at python.org (Barry Warsaw)
+Date: Sun, 3 Feb 2019 21:52:40 -0800
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+Message-ID: <80174879-97D5-4516-97DF-093C980F363D@python.org>
+
+On Feb 3, 2019, at 18:10, Raymond Hettinger <raymond.hettinger at gmail.com> wrote:
+> 
+> FWIW, with dataclasses we decided to get the PR committed early, long before most of the tests and all of the docs. The principle was that bigger changes needed to go in as early as possible in the release cycle so that we could thoroughly exercise it (something that almost never happens while something is in the PR stage).
+
+I think that should generally be the exception, but if it does happen, there ought to be a release blocker issue for the tests and docs.  The problem then is if those things *don?t* happen and we get too late in the release cycle to roll the change back.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190203/3a966141/attachment.sig>
+
+From ronaldoussoren at mac.com  Mon Feb  4 01:53:49 2019
+From: ronaldoussoren at mac.com (Ronald Oussoren)
+Date: Mon, 4 Feb 2019 07:53:49 +0100
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+Message-ID: <90A448A1-9854-4D66-A6E7-A1F97FEBC3B0@mac.com>
+
+
+> On 4 Feb 2019, at 03:10, Raymond Hettinger <raymond.hettinger at gmail.com> wrote:
+> 
+> 
+>> On Feb 3, 2019, at 5:40 PM, Terry Reedy <tjreedy at udel.edu> wrote:
+>> 
+>> On 2/3/2019 7:55 PM, Guido van Rossum wrote:
+>>> Also, did anyone ask Davin directly to roll it back?
+>> 
+>> Antoine posted on the issue, along with Robert O.  Robert reviewed and make several suggestions.
+
+@Terry: Robert is usually called Ronald :-)
+
+> 
+> I think the PR sat in a stable state for many months, and it looks like RO's review comments came *after* the commit.  
+
+That?s because I only noticed the PR after commit: The PR was merged within an hour of creating the BPO issue. 
+
+> 
+> FWIW, with dataclasses we decided to get the PR committed early, long before most of the tests and all of the docs. The principle was that bigger changes needed to go in as early as possible in the release cycle so that we could thoroughly exercise it (something that almost never happens while something is in the PR stage).  It would be great if the same came happen here.  IIRC, shared memory has long been the holy grail for multiprocessing, helping to mitigate its principle disadvantage (the cost of moving data between processes).  It's something we really want.
+
+But with dataclasses there was public discussion on the API.  This is a new API with no documentation in a part of the library that is known to be complex in nature.
+
+Ronald
+--
+
+Twitter: @ronaldoussoren
+Blog: https://blog.ronaldoussoren.net/
+
