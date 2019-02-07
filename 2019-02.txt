@@ -3407,3 +3407,571 @@ Raymond
 
 
 
+From stephane at wirtel.be  Tue Feb  5 05:24:20 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Tue, 5 Feb 2019 11:24:20 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for
+ testing
+In-Reply-To: <23ED9695-7715-40DE-9DD5-F6A3C482612F@python.org>
+References: <C9EA8FEA-C427-41FD-8566-0201F0AA42EA@langa.pl>
+ <20190204130238.GB29197@xps>
+ <23ED9695-7715-40DE-9DD5-F6A3C482612F@python.org>
+Message-ID: <20190205102420.GA7969@xps>
+
+Hi Barry,
+
+I was not aware of this image. So it's true that it's very useful.
+
+Thank you very much,
+
+St?phane
+
+On 02/04, Barry Warsaw wrote:
+>On Feb 4, 2019, at 05:02, Stephane Wirtel <stephane at wirtel.be> wrote:
+>>
+>> Just one idea, we could create a Docker image with this alpha version.
+>>
+>> This Docker image could be used with the CI of the main projects and the
+>> test suites of these projects.
+>>
+>> If we have some issues, we should create an issue for python 3.8.0a1.
+>
+>The time machine strikes again!
+>
+>https://gitlab.com/python-devs/ci-images/tree/master
+>
+>We call these ?semi-official?!  The current image takes a slightly different approach, by including all the latest Python versions from 2.7, and 3.4-3.8, plus git head.  I just pushed an update for the latest Python 3.8 alpha and 3.7.2.  It?s building now, but the image should be published on quay.io as soon as that?s done.
+>
+>Contributions most welcome!
+>
+>-Barry
+>
+
+
+
+>_______________________________________________
+>Python-Dev mailing list
+>Python-Dev at python.org
+>https://mail.python.org/mailman/listinfo/python-dev
+>Unsubscribe: https://mail.python.org/mailman/options/python-dev/stephane%40wirtel.be
+
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From daveshawley at gmail.com  Tue Feb  5 07:05:05 2019
+From: daveshawley at gmail.com (David Shawley)
+Date: Tue, 5 Feb 2019 07:05:05 -0500
+Subject: [Python-Dev] bpo-32972: Add unittest.AsyncioTestCase review (for
+ 3.8?)
+Message-ID: <6BC0939D-0388-45F0-B1EC-E7AE9201FBCE@gmail.com>
+
+Hi everyone, I added a PR to add a sub-class of unittest.TestCase that makes it possible to write async test methods.  I wrote this a few months ago and it is waiting on core review.  Is there a core dev that can take up this review?  I would love to have this functionality in the core.
+
+Lukasz - should we add this to Python 3.8 or is it too late for feature additions?
+
+BPO link: https://bugs.python.org/issue32972 <https://bugs.python.org/issue32972>
+Github PR: https://github.com/python/cpython/pull/10296 <https://github.com/python/cpython/pull/10296>
+
+cheers, dave.
+--
+"State and behavior. State and behavior. If it doesn?t bundle state and behavior in a sensible way, it should not be an object, and there should not be a class that produces it." eevee
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190205/5e06d7ca/attachment.html>
+
+From solipsis at pitrou.net  Tue Feb  5 11:44:20 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 5 Feb 2019 17:44:20 +0100
+Subject: [Python-Dev] bpo-32972: Add unittest.AsyncioTestCase review
+ (for 3.8?)
+References: <6BC0939D-0388-45F0-B1EC-E7AE9201FBCE@gmail.com>
+Message-ID: <20190205174420.00fef68d@fsol>
+
+
+Hi David,
+
+I cannot comment on the PR, but since the functionality is
+asyncio-specific, I would suggest moving it to a dedicate
+`asyncio.testing` module, or something similar, rather than leaving it
+in `unittest` proper.
+
+Regards
+
+Antoine.
+
+
+On Tue, 5 Feb 2019 07:05:05 -0500
+David Shawley <daveshawley at gmail.com> wrote:
+> Hi everyone, I added a PR to add a sub-class of unittest.TestCase that makes it possible to write async test methods.  I wrote this a few months ago and it is waiting on core review.  Is there a core dev that can take up this review?  I would love to have this functionality in the core.
+> 
+> Lukasz - should we add this to Python 3.8 or is it too late for feature additions?
+> 
+> BPO link: https://bugs.python.org/issue32972 <https://bugs.python.org/issue32972>
+> Github PR: https://github.com/python/cpython/pull/10296 <https://github.com/python/cpython/pull/10296>
+> 
+> cheers, dave.
+> --
+> "State and behavior. State and behavior. If it doesn?t bundle state and behavior in a sensible way, it should not be an object, and there should not be a class that produces it." eevee
+> 
+> 
+
+
+
+
+From g.rodola at gmail.com  Tue Feb  5 12:52:58 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Tue, 5 Feb 2019 18:52:58 +0100
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+ <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+Message-ID: <CAFYqXL-XNfAusumYbOADR-=38HWPJ6SOv0bWf4ttG1eKd=GViw@mail.gmail.com>
+
+On Mon, Feb 4, 2019 at 4:21 AM Davin Potts <
+python+python_dev at discontinuity.net> wrote:
+
+> I am attempting to do the right thing and am following the advice of other
+> core devs in what I have done thus far.
+>
+> Borrowing heavily from what I've added to issue35813 just now:
+>
+> This work is the result of ~1.5 years of development effort, much of it
+> accomplished at the last two core dev sprints.  The code behind it has been
+> stable since September 2018 and tested as an independently installable
+> package by multiple people.
+>
+> I was encouraged by Lukasz, Yury, and others to check in this code early,
+> not waiting for tests and docs, in order to both solicit more feedback and
+> provide for broader testing.  I understand that doing such a thing is not
+> at all a novelty.
+>
+
+Actually it is a novelty (you should wait for review and approval). The
+main problem I have with this PR is that it seems to introduce 8 brand new
+APIs, but since there is no doc, docstrings or tests it's unclear which
+ones are supposed to be used, how or whether they are supposed to supersede
+or deprecate older (slower) ones involving inter process communication. The
+introduction of new APIs in the stdlib is a sensitive topic because once
+they get in they stay in, so a discussion should occur early on,
+definitively not at alphaX stage. Don't mean to point fingers here, the
+goal in itself (zero-copy, a topic I recently contributed to myself for the
+shutil module) is certainly valuable, but I concur and think this change
+should be reverted and post-poned for 3.9.
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190205/e9fa7007/attachment.html>
+
+From nas-python at arctrix.com  Tue Feb  5 14:07:40 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Tue, 5 Feb 2019 13:07:40 -0600
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <CAFYqXL-XNfAusumYbOADR-=38HWPJ6SOv0bWf4ttG1eKd=GViw@mail.gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+ <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+ <CAFYqXL-XNfAusumYbOADR-=38HWPJ6SOv0bWf4ttG1eKd=GViw@mail.gmail.com>
+Message-ID: <20190205190740.atccbo33wprrxonw@python.ca>
+
+On 2019-02-05, Giampaolo Rodola' wrote:
+> The main problem I have with this PR is that it seems to introduce
+> 8 brand new APIs, but since there is no doc, docstrings or tests
+> it's unclear which ones are supposed to be used, how or whether
+> they are supposed to supersede or deprecate older (slower) ones
+> involving inter process communication.
+
+New or changed APIs are my major concern as well.  Localized
+problems can be fixed later without much trouble.  However, APIs
+"lock" us in and make it harder to change things later.  Also, will
+new APIs need to be eventually supported by other Python
+implementations?  I would imagine that doing zero-copy mixed with
+alternative garbage collection strategies could be complicated.
+Could we somehow mark these APIs as experimental in 3.8?
+
+My gut reaction is that we shouldn't revert.  However, looking at
+the changes, it seems 'multiprocessing.shared_memory' could be an
+external extension package that lives in PyPI.  It doesn't require
+changes to other interpreter internals.  It doesn't seem to require
+internal Python header files.
+
+Regards,
+
+  Neil
+
+From raymond.hettinger at gmail.com  Tue Feb  5 14:35:49 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Tue, 5 Feb 2019 11:35:49 -0800
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <CAFYqXL-XNfAusumYbOADR-=38HWPJ6SOv0bWf4ttG1eKd=GViw@mail.gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+ <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+ <CAFYqXL-XNfAusumYbOADR-=38HWPJ6SOv0bWf4ttG1eKd=GViw@mail.gmail.com>
+Message-ID: <C7660F80-E05F-47B1-A5BE-B36DC31115DB@gmail.com>
+
+
+> On Feb 5, 2019, at 9:52 AM, Giampaolo Rodola' <g.rodola at gmail.com> wrote:
+> 
+>  The main problem I have with this PR is that it seems to introduce 8 brand new APIs, but since there is no doc, docstrings or tests it's unclear which ones are supposed to be used, how or whether they are supposed to supersede or deprecate older (slower) ones involving inter process communication.
+
+The release manger already opined that if tests and docs get finished for the second alpha, he prefers not to have a reversion and would rather on build on top of what already shipped in the first alpha.  FWIW, the absence of docs isn't desirable but it isn't atypical.  PEP 572 code landed without the docs. Docs for dataclasses arrived much after the code. The same was true for the decimal module. Hopefully, everyone will team up with Davin and help him get the ball over the goal line.
+
+BTW, this is a feature we really want.  Our multicore story for Python isn't a good one.  Due to the GIL, threading usually can't exploit multiple cores for better performance.  Async has lower overhead than threading but achieves its gains by keeping all the data in a single process.  That leaves us with multiprocessing where the primary obstacle has been the heavy cost of moving data between processes.  If that cost can be reduced, we've got a winning story for multicore.
+
+This patch is one of the better things that is happening to Python.  Aside from last week's procedural missteps and communication issues surrounding the commit, the many months of prior work on this have been stellar. How about we stop using a highly public forum to pile up on Davin (being the subject of a thread like this can be a soul crushing experience).  Right now, he could really use some help and support from everyone on the team.
+
+
+Raymond
+
+
+
+From nas-python at arctrix.com  Tue Feb  5 14:41:14 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Tue, 5 Feb 2019 13:41:14 -0600
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <20190205190740.atccbo33wprrxonw@python.ca>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+ <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+ <CAFYqXL-XNfAusumYbOADR-=38HWPJ6SOv0bWf4ttG1eKd=GViw@mail.gmail.com>
+ <20190205190740.atccbo33wprrxonw@python.ca>
+Message-ID: <20190205194114.m2pgnlz6bdubkjus@python.ca>
+
+I wrote:
+> Could we somehow mark these APIs as experimental in 3.8?
+
+It seems the change "e5ef45b8f519a9be9965590e1a0a587ff584c180" the
+one we are discussing.  It adds two new files:
+
+  Lib/multiprocessing/shared_memory.py
+  Modules/_multiprocessing/posixshmem.c
+
+It doesn't introduce new C APIs.  So, only
+multiprocessing.shared_memory seems public.  I see we have PEP 411
+that should cover this case:
+
+  https://www.python.org/dev/peps/pep-0411/
+
+The setup.py code could be more defensive.  Maybe only build on
+platforms that have supported word sizes etc?  For 3.8, could it be
+activated by uncommenting a line in Modules/Setup, rather than by
+setup.py?
+
+What happens in shared_memory if the _posixshmem module is not
+available?  On Windows it seems like an import error is raised.
+Otherwise, _PosixSharedMemory becomes 'object'.  Does that mean the
+API still works but you lose the zero-copy speed?
+
+Regards,
+
+  Neil
+
+From ethan at stoneleaf.us  Tue Feb  5 16:12:21 2019
+From: ethan at stoneleaf.us (Ethan Furman)
+Date: Tue, 5 Feb 2019 13:12:21 -0800
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <C7660F80-E05F-47B1-A5BE-B36DC31115DB@gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+ <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+ <CAFYqXL-XNfAusumYbOADR-=38HWPJ6SOv0bWf4ttG1eKd=GViw@mail.gmail.com>
+ <C7660F80-E05F-47B1-A5BE-B36DC31115DB@gmail.com>
+Message-ID: <3d865bbe-071d-3b97-a34c-5b877704d1cc@stoneleaf.us>
+
+On 02/05/2019 11:35 AM, Raymond Hettinger wrote:
+
+> How about we stop using a highly public forum to pile up on Davin (being the subject of a thread like this can be a soul crushing experience).
+
+Thank you for the reminder.
+
+>  Right now, he could really use some help and support from everyone on the team.
+
+I am really looking forward to this enhancement.  Thank you, Davin, and everyone else who has, and will, work on it.
+
+--
+~Ethan~
+
+From tjreedy at udel.edu  Tue Feb  5 17:20:47 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Tue, 5 Feb 2019 17:20:47 -0500
+Subject: [Python-Dev] bpo-32972: Add unittest.AsyncioTestCase review
+ (for 3.8?)
+In-Reply-To: <20190205174420.00fef68d@fsol>
+References: <6BC0939D-0388-45F0-B1EC-E7AE9201FBCE@gmail.com>
+ <20190205174420.00fef68d@fsol>
+Message-ID: <q3d282$4amg$1@blaine.gmane.org>
+
+On 2/5/2019 11:44 AM, Antoine Pitrou wrote:
+
+> I cannot comment on the PR, but since the functionality is
+> asyncio-specific, I would suggest moving it to a dedicate
+> `asyncio.testing` module, or something similar, rather than leaving it
+> in `unittest` proper.
+
+That is one of the options discussed on the issue.
+
+  On Tue, 5 Feb 2019 07:05:05 -0500
+> David Shawley <daveshawley at gmail.com> wrote:
+>> Hi everyone, I added a PR to add a sub-class of unittest.TestCase that makes it possible to write async test methods.  I wrote this a few months ago and it is waiting on core review.  Is there a core dev that can take up this review?  I would love to have this functionality in the core.
+>>
+>> Lukasz - should we add this to Python 3.8 or is it too late for feature additions?
+
+Features can be added until beta1, and until that, additions are not the 
+release manager decision.
+
+>> BPO link: https://bugs.python.org/issue32972 <https://bugs.python.org/issue32972>
+>> Github PR: https://github.com/python/cpython/pull/10296 <https://github.com/python/cpython/pull/10296>
+
+All or most of the relevant people are nosy on the issue.  So a reminder 
+there would be appropriate.  However, from my cursory scan, it is not 
+clear if the 5 core devs involved (marked by blue and yellow snakes) 
+agree on exactly what more should be added.  Perhaps you should 
+summarize what you think there is and is not agreement on.
+
+-- 
+Terry Jan Reedy
+
+
+From barry at python.org  Tue Feb  5 17:33:02 2019
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 5 Feb 2019 14:33:02 -0800
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for
+ testing
+In-Reply-To: <20190205102420.GA7969@xps>
+References: <C9EA8FEA-C427-41FD-8566-0201F0AA42EA@langa.pl>
+ <20190204130238.GB29197@xps>
+ <23ED9695-7715-40DE-9DD5-F6A3C482612F@python.org> <20190205102420.GA7969@xps>
+Message-ID: <37A1D61F-AF75-4F66-9279-677505623EDE@python.org>
+
+On Feb 5, 2019, at 02:24, Stephane Wirtel <stephane at wirtel.be> wrote:
+> 
+> I was not aware of this image. So it's true that it's very useful.
+> 
+> Thank you very much,
+
+You?re welcome!  I just pushed an update to add 3.8.0a1 to the set of Python?s (including git head).  Do you think there?s a better way to publicize these images?
+
+Cheers,
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190205/54b31c15/attachment.sig>
+
+From Paul.Monson at microsoft.com  Tue Feb  5 20:09:23 2019
+From: Paul.Monson at microsoft.com (Paul Monson)
+Date: Wed, 6 Feb 2019 01:09:23 +0000
+Subject: [Python-Dev] CPython on Windows ARM32
+Message-ID: <CY4PR2101MB080464E8971D5B93F1C94732F96F0@CY4PR2101MB0804.namprd21.prod.outlook.com>
+
+Hi Python Developers,
+
+
+
+I'm Paul Monson, I've spent about 20 years working with embedded software.  Since 2010 I've worked for Microsoft as a developer.
+
+
+
+Our team is working with CPython on Azure IoT Edge devices that run on x64-based devices.
+
+
+
+We would like to extend that support to Windows running on ARM 32-bit devices and have a working proof-of-concept.  Our team is prepared to provide support for CPython for Windows on ARM32 for 10 years, and to provide build bots for ARM32.
+
+
+
+I like to propose that the initial sequence of PRs could be:
+- Update to OpenSSL 1.1.1 (without anything ARM specific) - ready to go
+- Migrate to libffi directly (finish https://github.com/python/cpython/pull/3806<https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Fgithub.com%2Fpython%2Fcpython%2Fpull%2F3806&data=02%7C01%7CPaul.Monson%40microsoft.com%7C0e38d9367d2d4240725d08d680dedde6%7C72f988bf86f141af91ab2d7cd011db47%7C1%7C0%7C636838092030320471&sdata=7Mgsyy9SifmIRroagp1NZ0cx77vhRC%2BzxpUoHSQblB4%3D&reserved=0>)
+- Build file updates for OpenSSL ARM and check into cpython-bin-deps
+- Build file updates for CPython ARM
+- ctypes updates for ARM
+- Test module skips for ARM
+- Library updates and related test fixes for ARM
+
+
+
+Updating OpenSSL and libffi are independent of ARM support but need to be done as prerequisites.  OpenSSL 1.1.0 doesn't have support for ARM32 on Windows but OpenSSL 1.1.1 does.
+
+
+
+I have OpenSSL 1.1.1a ready to check in to master with all tests passing on x86 and x64 on Windows.  Since work has already been done on this for other platforms only very small changes were needed for Windows.
+
+
+
+I have also integrated and tested the current libffi on Windows x64.  Some additonal porting of x86 assembler to MSVC tools will need to be done.  I have a working port of ARM32 assembler for MSVC but it may need to be brought up to date and cleaned up.
+
+
+
+The last four all need to go in together, but can be reviewed separately.
+
+
+
+We are not planning to support Tk/Tcl on ARM32 because Windows IoT Core, Windows containers don't support GDI, which is a depenency of Tk/Tcl.
+
+
+
+Since Window IoT Core and Windows container don't support the .msi or .exe installers found on python.org my team at Microsoft will build the CPython for Windows ARM32 from the official repo and distribute it.
+
+
+
+Thanks in advance,
+
+Paul
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190206/7f864248/attachment.html>
+
+From steve.dower at python.org  Tue Feb  5 20:35:28 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 5 Feb 2019 17:35:28 -0800
+Subject: [Python-Dev] CPython on Windows ARM32
+In-Reply-To: <CY4PR2101MB080464E8971D5B93F1C94732F96F0@CY4PR2101MB0804.namprd21.prod.outlook.com>
+References: <CY4PR2101MB080464E8971D5B93F1C94732F96F0@CY4PR2101MB0804.namprd21.prod.outlook.com>
+Message-ID: <bc867b42-03dc-1678-abca-ea1816c84fe0@python.org>
+
+Just confirming for the list that I'm aware of this and supportive, but
+am not the dedicated support for this effort.
+
+I also haven't reviewed the changes yet, but provided nobody is strongly
+opposed to taking on a supported platform (without additional releases
+on python.org), I expect I'll do a big part of the reviewing then.
+
+Cheers,
+Steve
+
+On 05Feb.2019 1709, Paul Monson via Python-Dev wrote:
+> Hi Python Developers,
+> 
+> I'm Paul Monson, I've spent about 20 years working with embedded
+> software.? Since 2010 I've worked for Microsoft as a developer.
+> 
+> Our team is working with CPython on Azure IoT Edge devices that run on
+> x64-based devices.
+> 
+> We would like to extend that support to Windows running on ARM 32-bit
+> devices and have a working proof-of-concept.? Our team is prepared to
+> provide support for CPython for Windows on ARM32 for 10 years, and to
+> provide build bots for ARM32.
+> 
+> I like to propose that the initial sequence of PRs could be:
+> - Update to OpenSSL 1.1.1 (without anything ARM specific) - ready to go
+> - Migrate to libffi directly (finish https://github.com/python/cpython/pull/3806)
+> - Build file updates for OpenSSL ARM and check into cpython-bin-deps
+> - Build file updates for CPython ARM
+> - ctypes updates for ARM
+> - Test module skips for ARM
+> - Library updates and related test fixes for ARM
+> 
+> Updating OpenSSL and libffi are independent of ARM support but need to
+> be done as prerequisites.? OpenSSL 1.1.0 doesn't have support for ARM32
+> on Windows but OpenSSL 1.1.1 does.
+> 
+> I have OpenSSL 1.1.1a ready to check in to master with all tests passing
+> on x86 and x64 on Windows.? Since work has already been done on this for
+> other platforms only very small changes were needed for Windows.
+> 
+> I have also integrated and tested the current libffi on Windows x64.?
+> Some additonal porting of x86 assembler to MSVC tools will need to be
+> done.? I have a working port of ARM32 assembler for MSVC but it may need
+> to be brought up to date and cleaned up.
+> 
+> The last four all need to go in together, but can be reviewed separately.
+> 
+> We are not planning to support Tk/Tcl on ARM32 because Windows IoT Core,
+> Windows containers don't support GDI, which is a depenency of Tk/Tcl.
+> 
+> Since Window IoT Core and Windows container don't support the .msi or
+> .exe installers found on python.org my team at Microsoft will build the
+> CPython for Windows ARM32 from the official repo and distribute it.
+> 
+> Thanks in advance,
+> 
+> Paul
+
+From zachary.ware+pydev at gmail.com  Tue Feb  5 22:10:36 2019
+From: zachary.ware+pydev at gmail.com (Zachary Ware)
+Date: Tue, 5 Feb 2019 21:10:36 -0600
+Subject: [Python-Dev] CPython on Windows ARM32
+In-Reply-To: <bc867b42-03dc-1678-abca-ea1816c84fe0@python.org>
+References: <CY4PR2101MB080464E8971D5B93F1C94732F96F0@CY4PR2101MB0804.namprd21.prod.outlook.com>
+ <bc867b42-03dc-1678-abca-ea1816c84fe0@python.org>
+Message-ID: <CAKJDb-PpB5MPo9tvqGok47xYWFqdZZh3rao8dAUP9EtKrkk-9Q@mail.gmail.com>
+
+On Tue, Feb 5, 2019 at 7:37 PM Steve Dower <steve.dower at python.org> wrote:
+> I also haven't reviewed the changes yet, but provided nobody is strongly
+> opposed to taking on a supported platform (without additional releases
+> on python.org), I expect I'll do a big part of the reviewing then.
+
+I'm all for the first two changes (especially the second), and if 10
+years of pledged corporate support for a new platform is the price we
+have to pay for them, I'm ok with that :).  I expect I'll be
+automatically added to any issues/PRs that come of this, but I'll keep
+an eye out for them anyway and give reviews as I'm able.  I'll also
+help get the build bots set up when we're ready for them.
+
+-- 
+Zach
+
+From stephane at wirtel.be  Wed Feb  6 02:43:39 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Wed, 6 Feb 2019 08:43:39 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for
+ testing
+In-Reply-To: <37A1D61F-AF75-4F66-9279-677505623EDE@python.org>
+References: <C9EA8FEA-C427-41FD-8566-0201F0AA42EA@langa.pl>
+ <20190204130238.GB29197@xps>
+ <23ED9695-7715-40DE-9DD5-F6A3C482612F@python.org>
+ <20190205102420.GA7969@xps>
+ <37A1D61F-AF75-4F66-9279-677505623EDE@python.org>
+Message-ID: <20190206074339.GA23428@xps>
+
+On 02/05, Barry Warsaw wrote:
+>On Feb 5, 2019, at 02:24, Stephane Wirtel <stephane at wirtel.be> wrote:
+>You?re welcome!  I just pushed an update to add 3.8.0a1 to the set of Python?s (including git head).  Do you think there?s a better way to publicize these images?
+
+I know that Julien Palard wanted a docker image with all the versions of
+Python, see: https://github.com/docker-library/python/issues/373
+
+For my part, I wanted to propose a docker image with the last version of
+Python and try to use it for the detection of bugs in the main python
+projects (django, numpy, flask, pandas, etc...) with a CI (example:
+Gitlab-CI)
+
+First issue: pytest uses the ast module of python and since 3.8.0a1, the
+tests do not pass -> new issue for pytest
+
+Cheers,
+
+St?phane
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
