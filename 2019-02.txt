@@ -4543,3 +4543,103 @@ I would prefer to stay on 1.1.0 for 3.7, but it's up to the release manager.
 Cheers,
 Steve
 
+From stephane at wirtel.be  Thu Feb  7 11:16:22 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Thu, 7 Feb 2019 17:16:22 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for
+ testing
+In-Reply-To: <ecf1e24b-538b-2585-e4d2-80994827fd11@gmail.com>
+References: <C9EA8FEA-C427-41FD-8566-0201F0AA42EA@langa.pl>
+ <20190204130238.GB29197@xps>
+ <23ED9695-7715-40DE-9DD5-F6A3C482612F@python.org>
+ <20190205102420.GA7969@xps>
+ <37A1D61F-AF75-4F66-9279-677505623EDE@python.org>
+ <20190206074339.GA23428@xps>
+ <ecf1e24b-538b-2585-e4d2-80994827fd11@gmail.com>
+Message-ID: <20190207161622.GA29057@xps>
+
+On 02/06, Petr Viktorin wrote:
+>On 2/6/19 8:43 AM, Stephane Wirtel wrote:
+>>On 02/05, Barry Warsaw wrote:
+>>>On Feb 5, 2019, at 02:24, Stephane Wirtel <stephane at wirtel.be> wrote:
+>>>You?re welcome!? I just pushed an update to add 3.8.0a1 to the set 
+>>>of Python?s (including git head).? Do you think there?s a better 
+>>>way to publicize these images?
+>>
+>>I know that Julien Palard wanted a docker image with all the versions of
+>>Python, see: https://github.com/docker-library/python/issues/373
+>>
+>>For my part, I wanted to propose a docker image with the last version of
+>>Python and try to use it for the detection of bugs in the main python
+>>projects (django, numpy, flask, pandas, etc...) with a CI (example:
+>>Gitlab-CI)
+>>
+>>First issue: pytest uses the ast module of python and since 3.8.0a1, the
+>>tests do not pass -> new issue for pytest
+>
+>FWIW, we're preparing to rebuild all Fedora packages with the 3.8 
+>alphas/betas, so everything's tested when 3.8.0 is released: 
+>https://fedoraproject.org/wiki/Changes/Python3.8
+Hi Petr,
+
+Will you execute the tests of these packages?
+
+I have a small discussion with Julien Palard and I wanted to create a
+small CI where I will execute the tests of the updated packages from
+the RSS feed of PyPI.
+
+The first one was pytest
+
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From stephane at wirtel.be  Thu Feb  7 11:17:21 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Thu, 7 Feb 2019 17:17:21 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for
+ testing
+In-Reply-To: <d9de0971-9d83-1b2c-0207-be558352c894@gmail.com>
+References: <C9EA8FEA-C427-41FD-8566-0201F0AA42EA@langa.pl>
+ <20190204130238.GB29197@xps>
+ <23ED9695-7715-40DE-9DD5-F6A3C482612F@python.org>
+ <20190205102420.GA7969@xps>
+ <37A1D61F-AF75-4F66-9279-677505623EDE@python.org>
+ <20190206074339.GA23428@xps>
+ <ecf1e24b-538b-2585-e4d2-80994827fd11@gmail.com>
+ <cf44ac42-b609-886d-1ed3-439213fdeef9@ubuntu.com>
+ <d9de0971-9d83-1b2c-0207-be558352c894@gmail.com>
+Message-ID: <20190207161721.GB29057@xps>
+
+Sorry Petr,
+
+I didn't see this message with the test suites.
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From nas-python at arctrix.com  Thu Feb  7 13:19:14 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Thu, 7 Feb 2019 12:19:14 -0600
+Subject: [Python-Dev] About the future of multi-process Python
+In-Reply-To: <20190206180606.0dbcd927@fsol>
+References: <20190206180606.0dbcd927@fsol>
+Message-ID: <20190207181914.veoz32gymxrdj2ki@python.ca>
+
+On 2019-02-06, Antoine Pitrou wrote:
+> For maximum synergy between these initiatives and the resulting APIs,
+> it is better if things are done in the open ;-)
+
+Hi Antoine,
+
+It would be good if we could have some feedback from alternative
+Python implementations as well.  I suspect they might want to 
+support these APIs.  Doing zero-copy or sharing memory areas could
+be a challenge with a compacting GC, for example.  In that case,
+having something in the API that tells the VM that a certain chunk
+of memory cannot move would be helpful.
+
+Regards,
+
+  Neil
+
