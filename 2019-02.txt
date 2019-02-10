@@ -4643,3 +4643,584 @@ Regards,
 
   Neil
 
+From christian at python.org  Fri Feb  8 05:21:03 2019
+From: christian at python.org (Christian Heimes)
+Date: Fri, 8 Feb 2019 11:21:03 +0100
+Subject: [Python-Dev] CPython on Windows ARM32
+In-Reply-To: <E3DCEF17-74DB-4838-9AC7-A2553979CAA3@python.org>
+References: <CY4PR2101MB080464E8971D5B93F1C94732F96F0@CY4PR2101MB0804.namprd21.prod.outlook.com>
+ <436fca54-dae6-e5d6-e5e0-42614588c717@python.org>
+ <1c36ef6d-9e54-f78c-9672-7e7beffb2301@python.org>
+ <E3DCEF17-74DB-4838-9AC7-A2553979CAA3@python.org>
+Message-ID: <3b7f78b0-89a6-0ce8-5e1e-3c606faf1ce1@python.org>
+
+On 07/02/2019 00.41, Ned Deily wrote:
+> On Feb 6, 2019, at 18:28, Steve Dower <steve.dower at python.org> wrote:
+>> On 06Feb2019 1423, Christian Heimes wrote:
+>>> Do you want to update Python 3.8 (master) only or also 3.7? I'm not
+>>> strictly against updating 3.7. However we have traditionally kept the
+>>> OpenSSL version of each branch stable. 1.1.1 comes with new features,
+>>> stricter security settings and some ciphers removed.
+>> I would prefer to stay on 1.1.0 for 3.7, but it's up to the release manager.
+> 
+> Me, too.  I am concerned that 1.1.1 support has not had a lot of exposure yet.  Even the "What's New" document for 3.7 states: "The ssl module has preliminary and experimental support for TLS 1.3 and OpenSSL 1.1.1. "
+
+That's from the alpha and beta phase of OpenSSL. Support for 1.1.1 is as
+stable as it can get.
+
+> I am OK with fixes for 1.1.1 support but I think it would be premature to change the Windows and/or macOS installers from 1.1.0 to 1.1.1.
+
+1.1.1a is a solid release. Debian testing, Fedora, and RHEL 8 beta have
+been shipping and testing 1.1.1 for a while. In my professional opinion
+it's less about stability but more about backwards compatibility issues.
+TLS 1.3 behaves slightly differently and 1.1.1 has dropped some weak
+ciphers.
+
+Christian
+
+
+From encukou at gmail.com  Fri Feb  8 06:21:36 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Fri, 8 Feb 2019 12:21:36 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for
+ testing
+In-Reply-To: <20190207161622.GA29057@xps>
+References: <C9EA8FEA-C427-41FD-8566-0201F0AA42EA@langa.pl>
+ <20190204130238.GB29197@xps>
+ <23ED9695-7715-40DE-9DD5-F6A3C482612F@python.org> <20190205102420.GA7969@xps>
+ <37A1D61F-AF75-4F66-9279-677505623EDE@python.org>
+ <20190206074339.GA23428@xps> <ecf1e24b-538b-2585-e4d2-80994827fd11@gmail.com>
+ <20190207161622.GA29057@xps>
+Message-ID: <b7203272-511b-081b-fff8-9098c40fec6e@gmail.com>
+
+On 2/7/19 5:16 PM, Stephane Wirtel wrote:
+> On 02/06, Petr Viktorin wrote:
+>> On 2/6/19 8:43 AM, Stephane Wirtel wrote:
+>>> On 02/05, Barry Warsaw wrote:
+>>>> On Feb 5, 2019, at 02:24, Stephane Wirtel <stephane at wirtel.be> wrote:
+>>>> You?re welcome!? I just pushed an update to add 3.8.0a1 to the set 
+>>>> of Python?s (including git head).? Do you think there?s a better way 
+>>>> to publicize these images?
+>>>
+>>> I know that Julien Palard wanted a docker image with all the versions of
+>>> Python, see: https://github.com/docker-library/python/issues/373
+>>>
+>>> For my part, I wanted to propose a docker image with the last version of
+>>> Python and try to use it for the detection of bugs in the main python
+>>> projects (django, numpy, flask, pandas, etc...) with a CI (example:
+>>> Gitlab-CI)
+>>>
+>>> First issue: pytest uses the ast module of python and since 3.8.0a1, the
+>>> tests do not pass -> new issue for pytest
+>>
+>> FWIW, we're preparing to rebuild all Fedora packages with the 3.8 
+>> alphas/betas, so everything's tested when 3.8.0 is released: 
+>> https://fedoraproject.org/wiki/Changes/Python3.8
+> Hi Petr,
+> 
+> Will you execute the tests of these packages?
+
+It's best practice to include the test suite in Fedora packages.
+Sometimes it's not ? e.g. if the tests need network access, or all extra 
+testing dependencies aren't available, or most frequently, the 
+maintainer is just lazy.
+If you have a specific package in mind, I can check. Currently django & 
+numpy get tested; flask & pandas don't.
+
+For 3.7, we did the rebuild much later in the cycle. The builds 
+themselves caught async/await SyntaxErrors, and tests caught a lot of 
+StopIteration leaking. At the time it felt like no one really knew what 
+porting to 3.7.0 would look like ? similar to how people didn't think 
+"unicode" would be a big problem in py3k. That's what we're trying to 
+avoid for 3.8.0.
+
+> I have a small discussion with Julien Palard and I wanted to create a
+> small CI where I will execute the tests of the updated packages from
+> the RSS feed of PyPI.
+>
+> The first one was pytest 
+
+That sounds exciting! Something like that is on my "interesting possible 
+projects" list, but alas, not at the top :(
+
+
+From j.castillo.2nd at gmail.com  Fri Feb  8 11:13:34 2019
+From: j.castillo.2nd at gmail.com (Javier Castillo II)
+Date: Fri, 8 Feb 2019 10:13:34 -0600
+Subject: [Python-Dev] find_library and issue21622
+Message-ID: <CAGSMmmk17NV76VTgbxVq1iCxPzPUa+wzrm-pzv_t5frHm3vdOQ@mail.gmail.com>
+
+Ran into some issues trying to deploy in an alpine container, where I wound
+up coming across the issue. I found a solution ( not sure if an ideal
+solution can exist ) that walks the paths in the environment variable
+LD_LIBRARY_PATH. This was submitted in github PR 10460, but not sure if
+there were any technical issues with this impacting its review.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190208/67a4a7aa/attachment.html>
+
+From solipsis at pitrou.net  Fri Feb  8 12:43:34 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 8 Feb 2019 18:43:34 +0100
+Subject: [Python-Dev] About the future of multi-process Python
+In-Reply-To: <20190207181914.veoz32gymxrdj2ki@python.ca>
+References: <20190206180606.0dbcd927@fsol>
+ <20190207181914.veoz32gymxrdj2ki@python.ca>
+Message-ID: <20190208184334.2ba482f4@fsol>
+
+On Thu, 7 Feb 2019 12:19:14 -0600
+Neil Schemenauer <nas-python at arctrix.com> wrote:
+> On 2019-02-06, Antoine Pitrou wrote:
+> > For maximum synergy between these initiatives and the resulting APIs,
+> > it is better if things are done in the open ;-)  
+> 
+> Hi Antoine,
+> 
+> It would be good if we could have some feedback from alternative
+> Python implementations as well.  I suspect they might want to 
+> support these APIs.  Doing zero-copy or sharing memory areas could
+> be a challenge with a compacting GC, for example.  In that case,
+> having something in the API that tells the VM that a certain chunk
+> of memory cannot move would be helpful.
+
+Both PEP 574 and Davin's shared-memory work build on top of the
+PEP 3118 buffer API.  So I would expect that any Python implementation
+with support for the buffer API to have the required infrastructure
+to also support those initiatives.  The details may deserve to be
+clarified, though. I'll try to send an e-mail and ask for feedback.
+
+Regards
+
+Antoine.
+
+From status at bugs.python.org  Fri Feb  8 13:07:53 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 08 Feb 2019 18:07:53 +0000
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+
+
+ACTIVITY SUMMARY (2019-02-01 - 2019-02-08)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6998 (+13)
+  closed 40696 (+47)
+  total  47694 (+60)
+
+Open issues with patches: 2783 
+
+
+Issues opened (43)
+==================
+
+#35885: configparser: indentation
+https://bugs.python.org/issue35885  opened by mrs.red
+
+#35886: Move PyInterpreterState into Include/internal/pycore_pystate.h
+https://bugs.python.org/issue35886  opened by eric.snow
+
+#35887: Doc string for updating the frozen version of importlib in _bo
+https://bugs.python.org/issue35887  opened by nnja
+
+#35888: ssl module - could not get the server certificate w/o complete
+https://bugs.python.org/issue35888  opened by Lee Eric
+
+#35889: sqlite3.Row doesn't have useful repr
+https://bugs.python.org/issue35889  opened by vlad
+
+#35891: urllib.parse.splituser has no suitable replacement
+https://bugs.python.org/issue35891  opened by jaraco
+
+#35892: Fix awkwardness of statistics.mode() for multimodal datasets
+https://bugs.python.org/issue35892  opened by rhettinger
+
+#35893: distutils fails to build extension on windows when it is a pac
+https://bugs.python.org/issue35893  opened by ronaldoussoren
+
+#35898: The TARGETDIR variable must be provided when invoking this ins
+https://bugs.python.org/issue35898  opened by Thomas Trummer
+
+#35899: '_is_sunder' function in 'enum' module fails on empty string
+https://bugs.python.org/issue35899  opened by Maxpxt
+
+#35900: Add pickler hook for the user to customize the serialization o
+https://bugs.python.org/issue35900  opened by pierreglaser
+
+#35901: json.dumps infinite recurssion
+https://bugs.python.org/issue35901  opened by MultiSosnooley
+
+#35903: Build of posixshmem.c should probe for required OS functions
+https://bugs.python.org/issue35903  opened by nascheme
+
+#35904: Add statistics.fmean(seq)
+https://bugs.python.org/issue35904  opened by rhettinger
+
+#35905: macOS build docs need refresh (2019)
+https://bugs.python.org/issue35905  opened by jaraco
+
+#35906: Header Injection in urllib
+https://bugs.python.org/issue35906  opened by push0ebp
+
+#35907: Unnecessary URL scheme exists to allow file:// reading file  i
+https://bugs.python.org/issue35907  opened by push0ebp
+
+#35912: _testembed.c fails to compile when using --with-cxx-main in th
+https://bugs.python.org/issue35912  opened by pablogsal
+
+#35913: asyncore: allow handling of half closed connections
+https://bugs.python.org/issue35913  opened by Isaac Boukris
+
+#35915: re.search extreme slowness (looks like hang/livelock), searchi
+https://bugs.python.org/issue35915  opened by benspiller
+
+#35918: multiprocessing's SyncManager.dict.has_key() method is broken
+https://bugs.python.org/issue35918  opened by giampaolo.rodola
+
+#35919: multiprocessing: shared manager Pool fails with AttributeError
+https://bugs.python.org/issue35919  opened by giampaolo.rodola
+
+#35920: Windows 10 ARM32 platform support
+https://bugs.python.org/issue35920  opened by steve.dower
+
+#35921: Use ccache by default
+https://bugs.python.org/issue35921  opened by pitrou
+
+#35922: robotparser crawl_delay and request_rate do not work with no m
+https://bugs.python.org/issue35922  opened by joseph_myers
+
+#35923: Update the BuiltinImporter in importlib to use loader._ORIGIN 
+https://bugs.python.org/issue35923  opened by nnja
+
+#35924: curses segfault resizing window
+https://bugs.python.org/issue35924  opened by Josiah Ulfers
+
+#35925: test_httplib test_nntplib test_ssl fail on ARMv7 Debian buster
+https://bugs.python.org/issue35925  opened by pablogsal
+
+#35926: Need openssl 1.1.1 support on Windows for ARM and ARM64
+https://bugs.python.org/issue35926  opened by Paul Monson
+
+#35927: Intra-package References Documentation Incomplete
+https://bugs.python.org/issue35927  opened by ADataGman
+
+#35928: socket makefile read-write discards received data
+https://bugs.python.org/issue35928  opened by pravn
+
+#35930: Raising an exception raised in a "future" instance will create
+https://bugs.python.org/issue35930  opened by jcea
+
+#35931: pdb: "debug print(" crashes with SyntaxError
+https://bugs.python.org/issue35931  opened by blueyed
+
+#35933: python doc does not say that the state kwarg in Pickler.save_r
+https://bugs.python.org/issue35933  opened by pierreglaser
+
+#35934: Add socket.bind_socket() utility function
+https://bugs.python.org/issue35934  opened by giampaolo.rodola
+
+#35935: threading.Event().wait() not interruptable with Ctrl-C on Wind
+https://bugs.python.org/issue35935  opened by Chris Billington
+
+#35936: Give modulefinder some much-needed updates.
+https://bugs.python.org/issue35936  opened by brandtbucher
+
+#35937: Add instancemethod to types.py
+https://bugs.python.org/issue35937  opened by bup
+
+#35939: Remove urllib.parse._splittype from mimetypes.guess_type
+https://bugs.python.org/issue35939  opened by corona10
+
+#35940: multiprocessing manager tests fail in the Refleaks buildbots
+https://bugs.python.org/issue35940  opened by pablogsal
+
+#35941: ssl.enum_certificates() regression
+https://bugs.python.org/issue35941  opened by schlenk
+
+#35942: posixmodule.c:path_converter() returns an invalid exception me
+https://bugs.python.org/issue35942  opened by lukasz.langa
+
+#35943: PyImport_GetModule() can return partially-initialized module
+https://bugs.python.org/issue35943  opened by pitrou
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#35942: posixmodule.c:path_converter() returns an invalid exception me
+https://bugs.python.org/issue35942
+
+#35940: multiprocessing manager tests fail in the Refleaks buildbots
+https://bugs.python.org/issue35940
+
+#35939: Remove urllib.parse._splittype from mimetypes.guess_type
+https://bugs.python.org/issue35939
+
+#35936: Give modulefinder some much-needed updates.
+https://bugs.python.org/issue35936
+
+#35934: Add socket.bind_socket() utility function
+https://bugs.python.org/issue35934
+
+#35931: pdb: "debug print(" crashes with SyntaxError
+https://bugs.python.org/issue35931
+
+#35930: Raising an exception raised in a "future" instance will create
+https://bugs.python.org/issue35930
+
+#35928: socket makefile read-write discards received data
+https://bugs.python.org/issue35928
+
+#35927: Intra-package References Documentation Incomplete
+https://bugs.python.org/issue35927
+
+#35926: Need openssl 1.1.1 support on Windows for ARM and ARM64
+https://bugs.python.org/issue35926
+
+#35924: curses segfault resizing window
+https://bugs.python.org/issue35924
+
+#35920: Windows 10 ARM32 platform support
+https://bugs.python.org/issue35920
+
+#35919: multiprocessing: shared manager Pool fails with AttributeError
+https://bugs.python.org/issue35919
+
+#35918: multiprocessing's SyncManager.dict.has_key() method is broken
+https://bugs.python.org/issue35918
+
+#35912: _testembed.c fails to compile when using --with-cxx-main in th
+https://bugs.python.org/issue35912
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#35936: Give modulefinder some much-needed updates.
+https://bugs.python.org/issue35936
+
+#35934: Add socket.bind_socket() utility function
+https://bugs.python.org/issue35934
+
+#35931: pdb: "debug print(" crashes with SyntaxError
+https://bugs.python.org/issue35931
+
+#35926: Need openssl 1.1.1 support on Windows for ARM and ARM64
+https://bugs.python.org/issue35926
+
+#35922: robotparser crawl_delay and request_rate do not work with no m
+https://bugs.python.org/issue35922
+
+#35921: Use ccache by default
+https://bugs.python.org/issue35921
+
+#35920: Windows 10 ARM32 platform support
+https://bugs.python.org/issue35920
+
+#35913: asyncore: allow handling of half closed connections
+https://bugs.python.org/issue35913
+
+#35906: Header Injection in urllib
+https://bugs.python.org/issue35906
+
+#35903: Build of posixshmem.c should probe for required OS functions
+https://bugs.python.org/issue35903
+
+#35900: Add pickler hook for the user to customize the serialization o
+https://bugs.python.org/issue35900
+
+#35887: Doc string for updating the frozen version of importlib in _bo
+https://bugs.python.org/issue35887
+
+#35886: Move PyInterpreterState into Include/internal/pycore_pystate.h
+https://bugs.python.org/issue35886
+
+#35878: ast.c: end_col_offset may be used uninitialized in this functi
+https://bugs.python.org/issue35878
+
+#35876: test_start_new_session for posix_spawnp fails
+https://bugs.python.org/issue35876
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#35813: shared memory construct to avoid need for serialization betwee
+https://bugs.python.org/issue35813  19 msgs
+
+#35904: Add statistics.fmean(seq)
+https://bugs.python.org/issue35904  11 msgs
+
+#35913: asyncore: allow handling of half closed connections
+https://bugs.python.org/issue35913  11 msgs
+
+#35921: Use ccache by default
+https://bugs.python.org/issue35921   9 msgs
+
+#35706: Make it easier to use a venv with an embedded Python interpret
+https://bugs.python.org/issue35706   7 msgs
+
+#35893: distutils fails to build extension on windows when it is a pac
+https://bugs.python.org/issue35893   7 msgs
+
+#30670: pprint for dict in sorted order or insert order?
+https://bugs.python.org/issue30670   6 msgs
+
+#35907: Unnecessary URL scheme exists to allow file:// reading file  i
+https://bugs.python.org/issue35907   6 msgs
+
+#34572: C unpickling bypasses import thread safety
+https://bugs.python.org/issue34572   5 msgs
+
+#35933: python doc does not say that the state kwarg in Pickler.save_r
+https://bugs.python.org/issue35933   5 msgs
+
+
+
+Issues closed (46)
+==================
+
+#20001: pathlib inheritance diagram too large
+https://bugs.python.org/issue20001  closed by inada.naoki
+
+#22474: No explanation of how a task gets destroyed in asyncio 'task' 
+https://bugs.python.org/issue22474  closed by cheryl.sabella
+
+#24087: Documentation doesn't explain the term "coroutine" (PEP 342)
+https://bugs.python.org/issue24087  closed by paul.moore
+
+#24209: Allow IPv6 bind in http.server
+https://bugs.python.org/issue24209  closed by jaraco
+
+#26256: Fast decimalisation and conversion to other bases
+https://bugs.python.org/issue26256  closed by skrah
+
+#27344: zipfile *does* support utf-8 filenames
+https://bugs.python.org/issue27344  closed by cheryl.sabella
+
+#29734: os.stat handle leak
+https://bugs.python.org/issue29734  closed by steve.dower
+
+#30130: array.array is not an instance of collections.MutableSequence
+https://bugs.python.org/issue30130  closed by cheryl.sabella
+
+#32560: [EASY C] inherit the py launcher's STARTUPINFO
+https://bugs.python.org/issue32560  closed by steve.dower
+
+#33316: Windows: PyThread_release_lock always fails
+https://bugs.python.org/issue33316  closed by steve.dower
+
+#33895: LoadLibraryExW called with GIL held can cause deadlock
+https://bugs.python.org/issue33895  closed by steve.dower
+
+#34691: _contextvars missing in xmaster branch Windows build?
+https://bugs.python.org/issue34691  closed by steve.dower
+
+#35299: LGHT0091: Duplicate symbol 'File:include_pyconfig.h' found
+https://bugs.python.org/issue35299  closed by steve.dower
+
+#35358: Document that importlib.import_module accepts names that are n
+https://bugs.python.org/issue35358  closed by matrixise
+
+#35485: tkinter windows turn black while resized using Tk 8.6.9.1 on m
+https://bugs.python.org/issue35485  closed by ned.deily
+
+#35605: backported patch requires new sphinx, minimum sphinx version w
+https://bugs.python.org/issue35605  closed by ned.deily
+
+#35606: Add prod() function to the math module
+https://bugs.python.org/issue35606  closed by rhettinger
+
+#35615: "RuntimeError: Dictionary changed size during iteration" when 
+https://bugs.python.org/issue35615  closed by pitrou
+
+#35642: _asynciomodule.c compiled in both pythoncore.vcxproj and _asyn
+https://bugs.python.org/issue35642  closed by steve.dower
+
+#35686: BufferError with memory.release()
+https://bugs.python.org/issue35686  closed by skrah
+
+#35692: pathlib.Path.exists() on non-existent drive raises WinError in
+https://bugs.python.org/issue35692  closed by steve.dower
+
+#35758: Disable x87 control word for MSVC ARM compiler
+https://bugs.python.org/issue35758  closed by Minmin.Gong
+
+#35851: Make search result in online docs keep their position when sea
+https://bugs.python.org/issue35851  closed by xtreak
+
+#35861: test_named_expressions raises SyntaxWarning
+https://bugs.python.org/issue35861  closed by emilyemorehouse
+
+#35862: Change the environment for a new process
+https://bugs.python.org/issue35862  closed by steve.dower
+
+#35872: Creating venv from venv no longer works in 3.7.2
+https://bugs.python.org/issue35872  closed by steve.dower
+
+#35873: Controlling venv from venv no longer works in 3.7.2
+https://bugs.python.org/issue35873  closed by steve.dower
+
+#35877: parenthesis is mandatory for named expressions in while statem
+https://bugs.python.org/issue35877  closed by emilyemorehouse
+
+#35879: test_type_comments leaks references
+https://bugs.python.org/issue35879  closed by gvanrossum
+
+#35884: Add variable access benchmark to Tools/Scripts
+https://bugs.python.org/issue35884  closed by rhettinger
+
+#35890: Cleanup some non-consistent API callings
+https://bugs.python.org/issue35890  closed by steve.dower
+
+#35894: Apparent regression in 3.8-dev: 'TypeError: required field "ty
+https://bugs.python.org/issue35894  closed by gvanrossum
+
+#35895: the test suite of pytest failed with 3.8.0a1
+https://bugs.python.org/issue35895  closed by gvanrossum
+
+#35896: sysconfig.get_platform returns wrong value when Python 32b is 
+https://bugs.python.org/issue35896  closed by steve.dower
+
+#35897: Support list as argument to .startswith()
+https://bugs.python.org/issue35897  closed by rhettinger
+
+#35902: Forking from background thread
+https://bugs.python.org/issue35902  closed by pitrou
+
+#35908: build with building extension modules as builtins is broken in
+https://bugs.python.org/issue35908  closed by doko
+
+#35909: Zip Slip Vulnerability
+https://bugs.python.org/issue35909  closed by christian.heimes
+
+#35910: Curious problem with my choice of variables
+https://bugs.python.org/issue35910  closed by matrixise
+
+#35911: add a cell construtor, and expose the cell type in Lib/types.p
+https://bugs.python.org/issue35911  closed by pitrou
+
+#35914: [2.7] PyStructSequence objects not behaving like nametuple
+https://bugs.python.org/issue35914  closed by eric.snow
+
+#35916: 3.6.5 try/except/else/finally block executes code with typos, 
+https://bugs.python.org/issue35916  closed by SilentGhost
+
+#35917: multiprocessing: provide unit-tests for manager classes and sh
+https://bugs.python.org/issue35917  closed by pitrou
+
+#35929: Spam
+https://bugs.python.org/issue35929  closed by Mariatta
+
+#35932: Interpreter gets stuck while applying a regex pattern
+https://bugs.python.org/issue35932  closed by tim.peters
+
+#35938: crash of METADATA file cannot be fixed by reinstall of python
+https://bugs.python.org/issue35938  closed by steven.daprano
+
