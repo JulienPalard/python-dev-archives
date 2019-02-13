@@ -5247,3 +5247,211 @@ Sent from my iPhone
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190209/5a4d59c9/attachment.html>
 
+From vstinner at redhat.com  Mon Feb 11 06:18:45 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 11 Feb 2019 12:18:45 +0100
+Subject: [Python-Dev] find_library and issue21622
+In-Reply-To: <CAGSMmmk17NV76VTgbxVq1iCxPzPUa+wzrm-pzv_t5frHm3vdOQ@mail.gmail.com>
+References: <CAGSMmmk17NV76VTgbxVq1iCxPzPUa+wzrm-pzv_t5frHm3vdOQ@mail.gmail.com>
+Message-ID: <CA+3bQGE0=3Ffb-eKUNeFNTCC3TC-8kQfdezp1OdkL0kjLu=yUg@mail.gmail.com>
+
+Hi,
+
+Would you mind to elaborate "some issues trying to deploy in an alpine
+container"? What are you trying to do? What is the error message?
+
+Some more context:
+
+* https://github.com/python/cpython/pull/10460 "bpo-21622: ctypes.util
+find_library walk LD_LIBRARY_PATH"
+* https://bugs.python.org/issue21622 reported in 2014: "ctypes.util
+incorrectly fails for libraries without DT_SONAME"
+
+Victor
+
+Le ven. 8 f?vr. 2019 ? 17:27, Javier Castillo II
+<j.castillo.2nd at gmail.com> a ?crit :
+>
+> Ran into some issues trying to deploy in an alpine container, where I wound up coming across the issue. I found a solution ( not sure if an ideal solution can exist ) that walks the paths in the environment variable LD_LIBRARY_PATH. This was submitted in github PR 10460, but not sure if there were any technical issues with this impacting its review.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From j.castillo.2nd at gmail.com  Mon Feb 11 15:50:15 2019
+From: j.castillo.2nd at gmail.com (Javier Castillo II)
+Date: Mon, 11 Feb 2019 14:50:15 -0600
+Subject: [Python-Dev] find_library and issue21622
+In-Reply-To: <CA+3bQGE0=3Ffb-eKUNeFNTCC3TC-8kQfdezp1OdkL0kjLu=yUg@mail.gmail.com>
+References: <CAGSMmmk17NV76VTgbxVq1iCxPzPUa+wzrm-pzv_t5frHm3vdOQ@mail.gmail.com>
+ <CA+3bQGE0=3Ffb-eKUNeFNTCC3TC-8kQfdezp1OdkL0kjLu=yUg@mail.gmail.com>
+Message-ID: <CAGSMmm=JPAWLM6Uu4u+1XKCmx+oSvEO9vKcrVC5V5_zqMJ776g@mail.gmail.com>
+
+This is the overarching issue:
+https://github.com/docker-library/python/issues/111
+
+In short, libraries that rely on find_library to bind to libs failed to
+start as find_library returned nothing. In particular, a build of python
+and saltstack in a single container, and a few other packages when using
+the alpine base.
+
+On Mon, Feb 11, 2019 at 5:18 AM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hi,
+>
+> Would you mind to elaborate "some issues trying to deploy in an alpine
+> container"? What are you trying to do? What is the error message?
+>
+> Some more context:
+>
+> * https://github.com/python/cpython/pull/10460 "bpo-21622: ctypes.util
+> find_library walk LD_LIBRARY_PATH"
+> * https://bugs.python.org/issue21622 reported in 2014: "ctypes.util
+> incorrectly fails for libraries without DT_SONAME"
+>
+> Victor
+>
+> Le ven. 8 f?vr. 2019 ? 17:27, Javier Castillo II
+> <j.castillo.2nd at gmail.com> a ?crit :
+> >
+> > Ran into some issues trying to deploy in an alpine container, where I
+> wound up coming across the issue. I found a solution ( not sure if an ideal
+> solution can exist ) that walks the paths in the environment variable
+> LD_LIBRARY_PATH. This was submitted in github PR 10460, but not sure if
+> there were any technical issues with this impacting its review.
+> > _______________________________________________
+> > Python-Dev mailing list
+> > Python-Dev at python.org
+> > https://mail.python.org/mailman/listinfo/python-dev
+> > Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+>
+>
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190211/a4a6f518/attachment.html>
+
+From J.Demeyer at UGent.be  Mon Feb 11 17:52:37 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Mon, 11 Feb 2019 23:52:37 +0100
+Subject: [Python-Dev] Reviewing PEP 580
+Message-ID: <5C61FCB5.80804@UGent.be>
+
+Hello,
+
+I would like to propose to the new steering council to review PEP 580. 
+Is there already a process for that?
+
+
+Thanks,
+Jeroen.
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Mon Feb 11 22:27:26 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Tue, 12 Feb 2019 12:27:26 +0900
+Subject: [Python-Dev] Reviewing PEP 580
+In-Reply-To: <5C61FCB5.80804@UGent.be>
+References: <5C61FCB5.80804@UGent.be>
+Message-ID: <23650.15646.542253.859787@turnbull.sk.tsukuba.ac.jp>
+
+Jeroen Demeyer writes:
+
+ > I would like to propose to the new steering council to review PEP 580. 
+ > Is there already a process for that?
+
+I hope we can start with "same as it ever was."  Looking at the list,
+it's not like anything needs to change immediately.  Guido, Barry,
+Nick, and Brett have all been extremely active in general governance
+as well as the PEP process.  They know what they're doing, but the
+Council is new.  It will take some time to get going.  Carol has not
+been so prominent on these lists, but I bet she has ideas -- they all
+have ideas.  But ideas take time to implement.
+
+They're also all very busy.  They are not experts in everything --
+even Guido has been happy to delegate because he acknowledges that
+there are people who know more about specific requirements and
+implementations than he does.  Delegation is explictly permitted in
+the Steering Council model.  At least at the start, it should be
+employed while the Council is figuring out their own business, IMO.
+
+So, has has this been done in the past?  For many PEPs, the pattern
+has been
+
+1.  Proponent(s) write PEP, discuss on -ideas.
+2.  Proponent(s) stick a fork in it, it's done enough.  Either the
+    BDFL Delegate is obvious from the discussion, or they negotiate
+    with somebody, and propose a delegate.
+3.  Guido decides, including anointing a delegate if he wants.  On
+    Reject -- stop.
+    Half-baked -- go to 1.  (Never seen an inappropriate delegate
+        proposed.)
+    Approve -- go to 4.
+4.  Delegate, with the help of (usually) python-dev or some
+    appropriate SIG, picks over the PEP and comes up with an
+    implementation plan.
+5.  When brown and toasty (but not perfect, nothing ever is) delegate
+    accepts, proponent commits, and the beta testers get to work.
+
+This is *good enough*, with the exception of s/Guido/Council/ in Step
+3 -- for now.  I'm sure it will evolve.
+
+I'm not proposing the following as an application form to be adopted.
+The Council knows what they need, they'll come up with something in
+due time.  In view of the stylized process above, I believe this
+format will help speed things up for proponents and relieve some of
+the burden on the Council at this time when things are still pretty
+fluid:
+
+    Hi, I'm the proponent of PEP 666 "Adding Perl ~ Regexp Operators
+    to Python", along with Mad Max, who is doing most of the
+    implementation.  We've been discussing the PEP on Python Ideas,
+    and we've believe it's ready for pronouncement.  Max is by far the
+    most informed about the API and implementation, and is well-
+    qualified to be Delegate.  Rufus T Firefly has been deeply
+    involved in the discussion, is very expert, and would also be a
+    good delegate.
+
+With apologies to the real PEP 666, which I'm pretty sure exists and
+has nothing to do with Perl or regexps. :-)
+
+Of course one could go on to give more information, a full status
+report, open issues that the delegate or Council should decide, etc.
+But a lot of that could also be left for the delegate to deal with --
+the only thing the Council *must* do is pick a supervisor for the
+approval process, and this format helps with that.
+
+Also, the Council might decide they're not confident in any of the
+candidates for delegate (or it's an empty set), and pick a different
+person or do it themselves.  If they do it themselves, I'm sure it
+will be for good reason, but it's likely to take more time than if
+there's a single delegate.  Proponents will need to be prepared to
+accept that outcome.
+
+I am not criticizing Jeroen here.  I'm a social scientist -- group,
+and especially organization, dynamics are what I think about all day
+every day.  Rather, Jeroen's post was a good thing -- "hey, we've done
+stuff! now how do we get it in?"  If he didn't post, given the above,
+why would that particular PEP get attention?  The Council is not
+necessarily on top of the progress of every PEP!  I am merely
+suggesting some additional information to help move things along.
+
+Y'r ob'd't servant,
+
+
+
+-- 
+Associate Professor              Division of Policy and Planning Science
+http://turnbull.sk.tsukuba.ac.jp/     Faculty of Systems and Information
+Email: turnbull at sk.tsukuba.ac.jp                   University of Tsukuba
+Tel: 029-853-5175                 Tennodai 1-1-1, Tsukuba 305-8573 JAPAN
+
