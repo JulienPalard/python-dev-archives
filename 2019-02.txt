@@ -5455,3 +5455,147 @@ http://turnbull.sk.tsukuba.ac.jp/     Faculty of Systems and Information
 Email: turnbull at sk.tsukuba.ac.jp                   University of Tsukuba
 Tel: 029-853-5175                 Tennodai 1-1-1, Tsukuba 305-8573 JAPAN
 
+From ncoghlan at gmail.com  Tue Feb 12 07:49:39 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Tue, 12 Feb 2019 22:49:39 +1000
+Subject: [Python-Dev] Reviewing PEP 580
+In-Reply-To: <5C61FCB5.80804@UGent.be>
+References: <5C61FCB5.80804@UGent.be>
+Message-ID: <CADiSq7dAyt-21-GR_=CD80bX5LupZVR-6i8e8Sq+5srdCj79=A@mail.gmail.com>
+
+On Tue., 12 Feb. 2019, 9:04 am Jeroen Demeyer <J.Demeyer at ugent.be wrote:
+
+> Hello,
+>
+> I would like to propose to the new steering council to review PEP 580.
+> Is there already a process for that?
+>
+
+Hi Jeroen,
+
+We're still considering the details of how PEP 1 is going to be adjusted
+for a Steering Council rather than a BDFL.
+
+Once the Council members are clear on how *we* think that should work
+(probably via discussion on a draft PR against PEP 1), then python-dev will
+be the first to know.
+
+Cheers,
+Nick.
+
+
+>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190212/f6fedf22/attachment.html>
+
+From liu.denton at gmail.com  Tue Feb 12 05:08:35 2019
+From: liu.denton at gmail.com (Denton Liu)
+Date: Tue, 12 Feb 2019 02:08:35 -0800
+Subject: [Python-Dev] [docs] [issue35155] Requesting a review
+Message-ID: <20190212100835.GA28426@archbookpro.localdomain>
+
+Hello all,
+
+A couple months back, I reported bpo-35155[1] and I submitted a PR for
+it[2]. After a couple of reviews, it seems like progress has stalled.
+Would it be possible for someone to review this?
+
+Thanks,
+
+Denton
+
+[1]: https://bugs.python.org/issue35155
+[2]: https://github.com/python/cpython/pull/10313
+
+From liu.denton at gmail.com  Tue Feb 12 05:14:55 2019
+From: liu.denton at gmail.com (Denton Liu)
+Date: Tue, 12 Feb 2019 02:14:55 -0800
+Subject: [Python-Dev] [bpo-35155] Requesting a review
+Message-ID: <20190212101455.GA29427@archbookpro.localdomain>
+
+Hello all,
+
+A couple months back, I reported bpo-35155[1] and I submitted a PR for
+consideration[2]. After a couple of reviews, it seems like progress has
+stalled. Would it be possible for someone to review this?
+
+Thanks,
+
+Denton
+
+[1]: https://bugs.python.org/issue35155
+[2]: https://github.com/python/cpython/pull/10313
+
+From tjreedy at udel.edu  Tue Feb 12 15:24:03 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Tue, 12 Feb 2019 15:24:03 -0500
+Subject: [Python-Dev] [bpo-35155] Requesting a review
+In-Reply-To: <20190212101455.GA29427@archbookpro.localdomain>
+References: <20190212101455.GA29427@archbookpro.localdomain>
+Message-ID: <q3va15$3eq1$1@blaine.gmane.org>
+
+On 2/12/2019 5:14 AM, Denton Liu wrote:
+> Hello all,
+> 
+> A couple months back, I reported bpo-35155[1] and I submitted a PR for
+> consideration[2]. After a couple of reviews, it seems like progress has
+> stalled. Would it be possible for someone to review this?
+> 
+> Thanks,
+> 
+> Denton
+> 
+> [1]: https://bugs.python.org/issue35155
+> [2]: https://github.com/python/cpython/pull/10313
+
+The problem is that the urllib.request doc has several 
+'placeholder-literal' and 'literal-placeholder' constructs where 
+'literal' is text that the user *must copy* while 'placeholder' is text 
+that the user *must replace* with one of several strings, with no 
+evident indication of which is which.  (The constructs indicate possible 
+allowed names of user-supplied functions.)  The only issue to me is how 
+to indicate in the .rst source (and resulting html) that 'placeholder' 
+is a placeholder and not a literal.
+
+
+-- 
+Terry Jan Reedy
+
+
+From tjreedy at udel.edu  Tue Feb 12 15:31:36 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Tue, 12 Feb 2019 15:31:36 -0500
+Subject: [Python-Dev] [bpo-35155] Requesting a review
+In-Reply-To: <q3va15$3eq1$1@blaine.gmane.org>
+References: <20190212101455.GA29427@archbookpro.localdomain>
+ <q3va15$3eq1$1@blaine.gmane.org>
+Message-ID: <q3vafa$4faa$1@blaine.gmane.org>
+
+On 2/12/2019 3:24 PM, Terry Reedy wrote:
+
+> The problem is that the urllib.request doc has several 
+> 'placeholder-literal' and 'literal-placeholder' constructs where 
+
+Correction: The result must be a legal function name, so that should be 
+'placeholder_literal' and 'literal_placeholder', where the '_' is part 
+of the literal.
+
+-- 
+Terry Jan Reedy
+
+
+From benjamin at python.org  Tue Feb 12 23:45:03 2019
+From: benjamin at python.org (Benjamin Peterson)
+Date: Tue, 12 Feb 2019 23:45:03 -0500
+Subject: [Python-Dev] 2.7.16 release dates
+Message-ID: <b90c08b3-98d5-4cc4-8cae-20e16f92b8ab@www.fastmail.com>
+
+Greetings,
+I've set the dates for the 2.7.16 release in PEP 373. The release candidate will happen on February 16 with a final release 2 weeks later on March 2 if all goes well.
+
+Servus,
+Benjamin
+
