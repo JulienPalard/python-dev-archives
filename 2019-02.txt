@@ -5599,3 +5599,1449 @@ I've set the dates for the 2.7.16 release in PEP 373. The release candidate will
 Servus,
 Benjamin
 
+From g.rodola at gmail.com  Wed Feb 13 07:24:53 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Wed, 13 Feb 2019 13:24:53 +0100
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+Message-ID: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+
+Hello,
+after discovering os.makedirs() has no unit-tests (
+https://bugs.python.org/issue35982) I was thinking about working on a PR to
+increase the test coverage of fs-related os.* functions. In order to do so
+I think it would be useful to add a convenience function to "just delete
+something if it exists", regardless if it's a file, directory, directory
+tree, etc., and include it into test.support module. Basically it would be
+very similar to "rm -rf". I use something like this into psutil:
+https://github.com/giampaolo/psutil/blob/3ea94c1b8589891a8d1a5781f0445cb5080b7c3e/psutil/tests/__init__.py#L696
+I find this paradigm especially useful when testing functions involving two
+files ("src" and "dst"). E.g. in case of os.renames() unit-tests I would
+write something like this:
+
+
+class RenamesTest(unittest.TestCase):
+    srcname = support.TESTFN
+    dstname = support.TESTFN + '2'
+
+    def setUp(self):
+        test.support.rmpath(self.srcname)
+        test.support.rmpath(self.dstname)
+    tearDown = setUp
+
+    def test_rename_file(self):
+        ...
+    def test_rename_dir(self):
+        ...
+    def test_rename_failure(self):
+        # both src and dst will not exist
+        ...
+
+With the current utilities included in test.support the setUp function
+above would be written as such:
+
+    def setUp(self):
+        for path in (self.srcname, self.dstname):
+            if os.path.isdir(path):
+                test.support.rmtree(path)
+            elif os.path.exists(path):
+                test.support.unlink(path)
+
+Extra: one may argue whether this utility could be included into shutil
+module instead. The extra advantage of test.support.rmtree and
+test.support.unlink though, is that on Windows they use a timeout, catching
+"file is currently in use" exceptions for some time before giving up. That
+IMO would probably make this utility function not palatable for inclusion
+into shutil module, so test.support would probably be a better landing
+place.
+
+Thoughts?
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190213/9051fcaa/attachment.html>
+
+From ronaldoussoren at mac.com  Wed Feb 13 08:27:06 2019
+From: ronaldoussoren at mac.com (Ronald Oussoren)
+Date: Wed, 13 Feb 2019 14:27:06 +0100
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+Message-ID: <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+
+
+
+> On 13 Feb 2019, at 13:24, Giampaolo Rodola' <g.rodola at gmail.com> wrote:
+> 
+> 
+> Hello,
+> after discovering os.makedirs() has no unit-tests (https://bugs.python.org/issue35982 <https://bugs.python.org/issue35982>) I was thinking about working on a PR to increase the test coverage of fs-related os.* functions. In order to do so I think it would be useful to add a convenience function to "just delete something if it exists", regardless if it's a file, directory, directory tree, etc., and include it into test.support module.
+
+Something like shutil.rmtree() with ignore_errors=True?
+
+Ronald
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190213/e6d86cd7/attachment.html>
+
+From vstinner at redhat.com  Wed Feb 13 08:32:25 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 13 Feb 2019 14:32:25 +0100
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+Message-ID: <CA+3bQGFSMaOGvw3p3hQG2Jqj_m3cUuLo16AdAUYKnPnFHjE6kA@mail.gmail.com>
+
+Bikeshedding: I suggest to remove "safe_" from the name, it's hard to
+guarantee that removal is "safe", especially on Windows where a
+removal can be blocked for many reasons.
+
+Victor
+
+Le mer. 13 f?vr. 2019 ? 13:28, Giampaolo Rodola' <g.rodola at gmail.com> a ?crit :
+>
+>
+> Hello,
+> after discovering os.makedirs() has no unit-tests (https://bugs.python.org/issue35982) I was thinking about working on a PR to increase the test coverage of fs-related os.* functions. In order to do so I think it would be useful to add a convenience function to "just delete something if it exists", regardless if it's a file, directory, directory tree, etc., and include it into test.support module. Basically it would be very similar to "rm -rf". I use something like this into psutil:
+> https://github.com/giampaolo/psutil/blob/3ea94c1b8589891a8d1a5781f0445cb5080b7c3e/psutil/tests/__init__.py#L696
+> I find this paradigm especially useful when testing functions involving two files ("src" and "dst"). E.g. in case of os.renames() unit-tests I would write something like this:
+>
+>
+> class RenamesTest(unittest.TestCase):
+>     srcname = support.TESTFN
+>     dstname = support.TESTFN + '2'
+>
+>     def setUp(self):
+>         test.support.rmpath(self.srcname)
+>         test.support.rmpath(self.dstname)
+>     tearDown = setUp
+>
+>     def test_rename_file(self):
+>         ...
+>     def test_rename_dir(self):
+>         ...
+>     def test_rename_failure(self):
+>         # both src and dst will not exist
+>         ...
+>
+> With the current utilities included in test.support the setUp function above would be written as such:
+>
+>     def setUp(self):
+>         for path in (self.srcname, self.dstname):
+>             if os.path.isdir(path):
+>                 test.support.rmtree(path)
+>             elif os.path.exists(path):
+>                 test.support.unlink(path)
+>
+> Extra: one may argue whether this utility could be included into shutil module instead. The extra advantage of test.support.rmtree and test.support.unlink though, is that on Windows they use a timeout, catching "file is currently in use" exceptions for some time before giving up. That IMO would probably make this utility function not palatable for inclusion into shutil module, so test.support would probably be a better landing place.
+>
+> Thoughts?
+>
+> --
+> Giampaolo - http://grodola.blogspot.com
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From g.rodola at gmail.com  Wed Feb 13 10:10:48 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Wed, 13 Feb 2019 16:10:48 +0100
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+Message-ID: <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+
+On Wed, Feb 13, 2019 at 2:27 PM Ronald Oussoren <ronaldoussoren at mac.com>
+wrote:
+
+>
+>
+> On 13 Feb 2019, at 13:24, Giampaolo Rodola' <g.rodola at gmail.com> wrote:
+>
+>
+> Hello,
+> after discovering os.makedirs() has no unit-tests (
+> https://bugs.python.org/issue35982) I was thinking about working on a PR
+> to increase the test coverage of fs-related os.* functions. In order to do
+> so I think it would be useful to add a convenience function to "just delete
+> something if it exists", regardless if it's a file, directory, directory
+> tree, etc., and include it into test.support module.
+>
+>
+> Something like shutil.rmtree() with ignore_errors=True?
+>
+
+shutil.rmtree() is about directories and can't be used against files.
+support.rmpath() would take a path (meaning anything) and try to remove it.
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190213/bdfddcc7/attachment.html>
+
+From g.rodola at gmail.com  Wed Feb 13 10:12:38 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Wed, 13 Feb 2019 16:12:38 +0100
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CA+3bQGFSMaOGvw3p3hQG2Jqj_m3cUuLo16AdAUYKnPnFHjE6kA@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <CA+3bQGFSMaOGvw3p3hQG2Jqj_m3cUuLo16AdAUYKnPnFHjE6kA@mail.gmail.com>
+Message-ID: <CAFYqXL8Wvcb=XuEgV1CX8SnKJTida_ys21qBiCP8TfO=nUJ_6Q@mail.gmail.com>
+
+On Wed, Feb 13, 2019 at 2:32 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Bikeshedding: I suggest to remove "safe_" from the name, it's hard to
+> guarantee that removal is "safe", especially on Windows where a
+> removal can be blocked for many reasons.
+>
+> Victor
+>
+
+Agree. I actually meant "rmpath()" (which I used in my examples) but I
+mispelled that in the mail title. =)
+
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190213/bfbe2e58/attachment.html>
+
+From encukou at gmail.com  Wed Feb 13 10:24:48 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Wed, 13 Feb 2019 16:24:48 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command on
+ Unix-Like Systems
+Message-ID: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+
+PEP 394 says:
+
+ > This recommendation will be periodically reviewed over the next few
+ > years, and updated when the core development team judges it
+ > appropriate. As a point of reference, regular maintenance releases
+ > for the Python 2.7 series will continue until at least 2020.
+
+I think it's time for another review.
+I'm especially worried about the implication of these:
+
+- If the `python` command is installed, it should invoke the same
+   version of Python as the `python2` command
+- scripts that are deliberately written to be source compatible
+   with both Python 2.x and 3.x [...] may continue to use `python` on
+   their shebang line.
+
+So, to support scripts that adhere to the recommendation, Python 2
+needs to be installed :(
+
+
+Please see this PR for details and a suggested change: 
+https://github.com/python/peps/pull/893
+
+From solipsis at pitrou.net  Wed Feb 13 10:46:03 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 13 Feb 2019 16:46:03 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+Message-ID: <20190213164603.3894316f@fsol>
+
+On Wed, 13 Feb 2019 16:24:48 +0100
+Petr Viktorin <encukou at gmail.com> wrote:
+> PEP 394 says:
+> 
+>  > This recommendation will be periodically reviewed over the next few
+>  > years, and updated when the core development team judges it
+>  > appropriate. As a point of reference, regular maintenance releases
+>  > for the Python 2.7 series will continue until at least 2020.  
+> 
+> I think it's time for another review.
+> I'm especially worried about the implication of these:
+> 
+> - If the `python` command is installed, it should invoke the same
+>    version of Python as the `python2` command
+> - scripts that are deliberately written to be source compatible
+>    with both Python 2.x and 3.x [...] may continue to use `python` on
+>    their shebang line.
+> 
+> So, to support scripts that adhere to the recommendation, Python 2
+> needs to be installed :(
+
+I think PEP 394 should acknowledge that there are now years of
+established usage of `python` as Python 3 for many conda users.
+
+Regards
+
+Antoine.
+
+
+
+From encukou at gmail.com  Wed Feb 13 11:18:15 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Wed, 13 Feb 2019 17:18:15 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <20190213164603.3894316f@fsol>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+Message-ID: <32650e90-45d2-633f-c309-51518657aa2b@gmail.com>
+
+On 2/13/19 4:46 PM, Antoine Pitrou wrote:
+> On Wed, 13 Feb 2019 16:24:48 +0100
+> Petr Viktorin <encukou at gmail.com> wrote:
+>> PEP 394 says:
+>>
+>>   > This recommendation will be periodically reviewed over the next few
+>>   > years, and updated when the core development team judges it
+>>   > appropriate. As a point of reference, regular maintenance releases
+>>   > for the Python 2.7 series will continue until at least 2020.
+>>
+>> I think it's time for another review.
+>> I'm especially worried about the implication of these:
+>>
+>> - If the `python` command is installed, it should invoke the same
+>>     version of Python as the `python2` command
+>> - scripts that are deliberately written to be source compatible
+>>     with both Python 2.x and 3.x [...] may continue to use `python` on
+>>     their shebang line.
+>>
+>> So, to support scripts that adhere to the recommendation, Python 2
+>> needs to be installed :(
+> 
+> I think PEP 394 should acknowledge that there are now years of
+> established usage of `python` as Python 3 for many conda users.
+
+The intention is that Conda environments are treated the same as venv 
+environments, i.e.:
+
+When a virtual environment (created by the PEP 405 venv package or a 
+similar tool) is active, the python command should refer to the virtual 
+environment's interpreter. In other words, activating a virtual 
+environment counts as deliberate user action to change the default 
+python interpreter.
+
+
+Do you think conda should be listed explicitly along with venv?
+
+From vstinner at redhat.com  Wed Feb 13 11:20:55 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 13 Feb 2019 17:20:55 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <20190213164603.3894316f@fsol>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+Message-ID: <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+
+Hi,
+
+I'm a (strong) supporter of providing a "python" command which would
+be the latest Python version!
+
+As php does nowadays (after previous issues with "php4" vs "php5".) I
+don't recall that perl had "perl4" vs "perl5", the command was always
+"perl", no? Same for Ruby: it was still "ruby" after for Ruby 2, no?
+Only Python and PHP used different program names depending on the
+language version, no? And PHP now moved back to a single "php"
+program.
+
+In the container and virtualenv era, it's now easy to get your
+favorite Python version for the "python" command.
+
+On my Windows VM, "python" is Python 3.7 :-) In virtual environments,
+"python" can also be Python 3 as well.
+
+I recall that I saw commands using "python" rather than "python3" in
+the *official* Python 3 documentation: see examples below (*).
+Problem: On Windows, "python" is the right command. "python3" doesn't
+work (doesn't exist) on Windows. Should we write the doc for Windows
+or for Unix? Oooops.
+
+There was an interesting discussion about the Python version following
+Python 3.9: Python 3.10 or Python 4? And what are the issues which
+would make us prefer 3.10 rather than 4.0?
+https://mail.python.org/pipermail/python-committers/2018-September/006152.html
+
+One practical issue is that right now, six.PY3 is defined by "PY3 =
+sys.version_info[0] == 3" and so "if six.PY3:" will be false on Python
+4.
+
+Another interesting thing to mention is the Unix Python launcher
+("py") written by Brett Cannon written in Rust:
+https://github.com/brettcannon/python-launcher
+
+
+(*) A few examples of "python" commands in the Python official documentation
+
+"$ python prog.py -h"
+https://docs.python.org/dev/library/argparse.html
+
+"$ python logctx.py"
+https://docs.python.org/dev/howto/logging-cookbook.html
+
+"python setup.py install"
+https://docs.python.org/dev/install/index.html
+
+"python --help"
+https://docs.python.org/dev/howto/argparse.html
+
+"python setup.py build"
+https://docs.python.org/dev/extending/building.html
+
+"exec python $0 ${1+"$@"}"
+https://docs.python.org/dev/faq/library.html
+
+"python setup.py --help build_ext"
+https://docs.python.org/dev/distutils/configfile.html
+
+Victor
+
+Le mer. 13 f?vr. 2019 ? 16:49, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+>
+> On Wed, 13 Feb 2019 16:24:48 +0100
+> Petr Viktorin <encukou at gmail.com> wrote:
+> > PEP 394 says:
+> >
+> >  > This recommendation will be periodically reviewed over the next few
+> >  > years, and updated when the core development team judges it
+> >  > appropriate. As a point of reference, regular maintenance releases
+> >  > for the Python 2.7 series will continue until at least 2020.
+> >
+> > I think it's time for another review.
+> > I'm especially worried about the implication of these:
+> >
+> > - If the `python` command is installed, it should invoke the same
+> >    version of Python as the `python2` command
+> > - scripts that are deliberately written to be source compatible
+> >    with both Python 2.x and 3.x [...] may continue to use `python` on
+> >    their shebang line.
+> >
+> > So, to support scripts that adhere to the recommendation, Python 2
+> > needs to be installed :(
+>
+> I think PEP 394 should acknowledge that there are now years of
+> established usage of `python` as Python 3 for many conda users.
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From solipsis at pitrou.net  Wed Feb 13 11:28:59 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 13 Feb 2019 17:28:59 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <32650e90-45d2-633f-c309-51518657aa2b@gmail.com>
+Message-ID: <20190213172859.41d00642@fsol>
+
+On Wed, 13 Feb 2019 17:18:15 +0100
+Petr Viktorin <encukou at gmail.com> wrote:
+> On 2/13/19 4:46 PM, Antoine Pitrou wrote:
+> > On Wed, 13 Feb 2019 16:24:48 +0100
+> > Petr Viktorin <encukou at gmail.com> wrote:  
+> >> PEP 394 says:
+> >>  
+> >>   > This recommendation will be periodically reviewed over the next few
+> >>   > years, and updated when the core development team judges it
+> >>   > appropriate. As a point of reference, regular maintenance releases
+> >>   > for the Python 2.7 series will continue until at least 2020.  
+> >>
+> >> I think it's time for another review.
+> >> I'm especially worried about the implication of these:
+> >>
+> >> - If the `python` command is installed, it should invoke the same
+> >>     version of Python as the `python2` command
+> >> - scripts that are deliberately written to be source compatible
+> >>     with both Python 2.x and 3.x [...] may continue to use `python` on
+> >>     their shebang line.
+> >>
+> >> So, to support scripts that adhere to the recommendation, Python 2
+> >> needs to be installed :(  
+> > 
+> > I think PEP 394 should acknowledge that there are now years of
+> > established usage of `python` as Python 3 for many conda users.  
+> 
+> The intention is that Conda environments are treated the same as venv 
+> environments, i.e.:
+> 
+> When a virtual environment (created by the PEP 405 venv package or a 
+> similar tool) is active, the python command should refer to the virtual 
+> environment's interpreter. In other words, activating a virtual 
+> environment counts as deliberate user action to change the default 
+> python interpreter.
+
+Anaconda is often used as providing, not only virtual environments, but
+the "main" user Python.  At least it certainly is so on Windows and
+macOS, but I'm sure it is used like that as well on Linux, especially on
+ancient distributions such as RHEL 6 or Ubuntu 14.04.
+
+In any case, the fact that many people are used to "python" pointing to
+Python 3 is IMHO an important data point.
+
+Regards
+
+Antoine.
+
+
+
+
+From vstinner at redhat.com  Wed Feb 13 11:45:44 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 13 Feb 2019 17:45:44 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+Message-ID: <CA+3bQGE6i82hiDALcUNVt6E4YvLhQhKibw1qWodzbdh5EuoJWw@mail.gmail.com>
+
+Some more context about Petr's change, Fedora, RHEL and Red Hat.
+
+At the latest Language Summit (2018), Petr detailed the state of the
+migration to Python 3 and how Python 2 is and will be handled at Red
+Hat; "Linux distributions and Python 2" talk with Matthias Klose (who
+works on Debian/Ubuntu):
+https://lwn.net/Articles/756628/
+
+Petr explained in a comment on this change that /usr/bin/python is
+configurable in the incoming RHEL8:
+https://github.com/python/peps/pull/893#issuecomment-463240453
+"I'm responsible for how this is handled in RHEL 8 beta, where
+`/usr/bin/python` is configurable (though configuring it is
+discouraged). I don't recommend that in the PEP ? I don't think it
+needs to cover distros that need to lock in the behavior of
+`/usr/bin/python` for a decade."
+
+More details in his nice "Python in RHEL 8" article:
+https://developers.redhat.com/blog/2018/11/14/python-in-rhel-8/
+
+RHEL8 has specific challenges since it will be released around Python2
+end-of-life with customers who are still running Python 2, but has
+also to be prepared for the bright Python 3 world since RHEL is
+usually supported for 10 years (if not longer).
+
+Petr and me are working for Red Hat on Fedora and RHEL. My team is
+helping on actively removing Python 2 from Fedora:
+https://fedoraproject.org/wiki/Changes/Mass_Python_2_Package_Removal
+"Python 2 will be deprecated in Fedora. Packagers can mark any other
+Python 2 packages as deprecated as well."
+
+See also:
+
+* https://fedoraproject.org/wiki/FinalizingFedoraSwitchtoPython3 --
+work-in-progress
+* https://fedoraproject.org/wiki/Changes/Python_3_as_Default --
+implemented in Fedora 23
+
+The base installation of Fedora only provides "python3" (no "python"
+nor "python2") since Fedora 23 (released in 2015), as does Ubuntu
+nowadays. You get get "python" on Fedora by installing a special
+"python-unversioned-command" package :-)
+
+Victor
+
+Le mer. 13 f?vr. 2019 ? 16:28, Petr Viktorin <encukou at gmail.com> a ?crit :
+>
+> PEP 394 says:
+>
+>  > This recommendation will be periodically reviewed over the next few
+>  > years, and updated when the core development team judges it
+>  > appropriate. As a point of reference, regular maintenance releases
+>  > for the Python 2.7 series will continue until at least 2020.
+>
+> I think it's time for another review.
+> I'm especially worried about the implication of these:
+>
+> - If the `python` command is installed, it should invoke the same
+>    version of Python as the `python2` command
+> - scripts that are deliberately written to be source compatible
+>    with both Python 2.x and 3.x [...] may continue to use `python` on
+>    their shebang line.
+>
+> So, to support scripts that adhere to the recommendation, Python 2
+> needs to be installed :(
+>
+>
+> Please see this PR for details and a suggested change:
+> https://github.com/python/peps/pull/893
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From steve.dower at python.org  Wed Feb 13 12:13:06 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 13 Feb 2019 09:13:06 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+Message-ID: <2fecf1f1-2754-e961-f0f9-6a6d01728e9a@python.org>
+
+On 13Feb2019 0820, Victor Stinner wrote:
+> On my Windows VM, "python" is Python 3.7 :-) In virtual environments,
+> "python" can also be Python 3 as well.
+> 
+> I recall that I saw commands using "python" rather than "python3" in
+> the *official* Python 3 documentation: see examples below (*).
+> Problem: On Windows, "python" is the right command. "python3" doesn't
+> work (doesn't exist) on Windows. Should we write the doc for Windows
+> or for Unix? Oooops.
+
+With the Windows Store package of Python, you get "python", "python3", 
+and "python3.x" links added to your PATH, and I'm still thinking about 
+ways to make this reasonable/reliable through the full installer as well 
+(the difference is that the OS manages the links through the Store 
+package, whereas each individual installer has to do it on their own 
+otherwise).
+
+I'm inclined to view "python" as the default, official command, with the 
+versioned ones being workarounds added by distributors. So:
+* our docs should say "python" consistently
+* we should recommend that distributors use the same workaround
+* our docs should describe the recommended workaround in any places 
+people are likely to first encounter it (tutorial, sys.executable, etc.)
+
+(And maybe this isn't currently how things are done, but I'd rather hold 
+up an ideal than pretend that the status quo can't be changed - this 
+list is literally for discussing changing the status quo of anything in 
+core Python ;) )
+
+Cheers,
+Steve
+
+From chris.barker at noaa.gov  Wed Feb 13 12:41:05 2019
+From: chris.barker at noaa.gov (Chris Barker - NOAA Federal)
+Date: Wed, 13 Feb 2019 12:41:05 -0500
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <2fecf1f1-2754-e961-f0f9-6a6d01728e9a@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <2fecf1f1-2754-e961-f0f9-6a6d01728e9a@python.org>
+Message-ID: <CALGmxEKq51-dD6sHdcu==3q65Ct3d_ACXcUarjJScq+mb-Rg=w@mail.gmail.com>
+
+> On Feb 13, 2019, at 9:13 AM, Steve Dower <steve.dower at python.org>
+>
+> I'm inclined to view "python" as the default, official command, with the versioned ones being workarounds added by distributors.
+
++1 ? almost. I agree that ?python? be the default, but it would be
+good to require (or at least highly encourage) that there be a
+?python3? as well.
+
+There will be folks wanting to run python3 on systems where there is
+still a ?python? pointing to py2 ? particularly since that is still
+the ?correct? way to do it!
+
+> (And maybe this isn't currently how things are done, but I'd rather hold up an ideal than pretend that the status quo can't be changed -
+
+Exactly.
+
+-CHB
+
+
+> this list is literally for discussing changing the status quo of anything in core Python ;) )
+>
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/chris.barker%40noaa.gov
+
+From barry at python.org  Wed Feb 13 15:26:08 2019
+From: barry at python.org (Barry Warsaw)
+Date: Wed, 13 Feb 2019 12:26:08 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+Message-ID: <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+
+On Feb 13, 2019, at 08:20, Victor Stinner <vstinner at redhat.com> wrote:
+
+> I'm a (strong) supporter of providing a "python" command which would
+> be the latest Python version!
+
+I think we should aspire for this to be the case too, eventually.  When this has come up in the past, we?ve said that it?s not appropriate to change PEP 394 until Python 2 is officially deprecated.  OTOH, I appreciate that distros and others have to make decisions on this now.  I think it?s worth discussing where we eventually want to be as a community, even if we continue to recommend no official change until 2020.
+
+I personally would like for `python` to be the latest Python 3 version (or perhaps Brett?s launcher), `python2` to be Python 2.7 where installed (and not mandatory).  `python3` would be an alias for the latest Python 3.
+
+> There was an interesting discussion about the Python version following
+> Python 3.9: Python 3.10 or Python 4? And what are the issues which
+> would make us prefer 3.10 rather than 4.0?
+> https://mail.python.org/pipermail/python-committers/2018-September/006152.html
+
+I don?t think this should be conflated with PEP 394.  IMHO, 3.10 is just fine.  Python 4 should be reserved for some future mythical GIL-less interpreter or other major API breaking change.  It might never happen.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190213/730ce607/attachment.sig>
+
+From neil at python.ca  Wed Feb 13 16:00:52 2019
+From: neil at python.ca (Neil Schemenauer)
+Date: Wed, 13 Feb 2019 15:00:52 -0600
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+Message-ID: <20190213210052.w35eezwfwmhurj43@python.ca>
+
+On 2019-02-13, Barry Warsaw wrote:
+> I personally would like for `python` to be the latest Python 3
+> version (or perhaps Brett?s launcher), `python2` to be Python 2.7
+> where installed (and not mandatory).  `python3` would be an alias
+> for the latest Python 3.
+
+To me, having 'py' on Unix would be a good thing(tm).  If we have
+that then I suppose we will encourage people to prefer it over
+'python', 'python3', and 'python2'.  At that point, where 'python'
+points would be less of an issue.
+
+I'm not opposed to making 'python' configurable or eventually
+pointing it to python3.  However, if we do go with 'py' as the
+preferred command in the future, it seems to be some pain for little
+gain.  If the OS already allows it to be re-directed, maybe that's
+good enough.
+
+Regards,
+
+  Neil
+
+From tjreedy at udel.edu  Wed Feb 13 17:16:54 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 13 Feb 2019 17:16:54 -0500
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+Message-ID: <q4250o$7mcn$1@blaine.gmane.org>
+
+On 2/13/2019 3:26 PM, Barry Warsaw wrote:
+
+> I personally would like for `python` to be the latest Python 3 version (or perhaps Brett?s launcher), `python2` to be Python 2.7 where installed (and not mandatory).  `python3` would be an alias for the latest Python 3.
+
+It appears python is already python3 for a large majority of human users 
+(as opposed to machines).
+
+https://www.jetbrains.com/research/python-developers-survey-2018/
+Nearly 20000 valid responses, Oct-Nov.
+
+"Which version of Python do you use the most"
+Python 3: 75% in 2017, 84% in 2018. The figure for other public surveys 
+were 22%, 34%, 40% in Dec 2013, Dec 2014, Jan 2016. I expect at least 
+90% by next January.  Py3 is already 90% among data scientists.
+
+-- 
+Terry Jan Reedy
+
+
+
+From steve at pearwood.info  Wed Feb 13 18:00:05 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 14 Feb 2019 10:00:05 +1100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <q4250o$7mcn$1@blaine.gmane.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <q4250o$7mcn$1@blaine.gmane.org>
+Message-ID: <20190213230004.GV1834@ando.pearwood.info>
+
+On Wed, Feb 13, 2019 at 05:16:54PM -0500, Terry Reedy wrote:
+
+> It appears python is already python3 for a large majority of human users 
+> (as opposed to machines).
+> 
+> https://www.jetbrains.com/research/python-developers-survey-2018/
+> Nearly 20000 valid responses, Oct-Nov.
+
+They may be valid responses, but we don't know if they are 
+representative of the broader Python community. Its a self-selected 
+survey of people which always makes the results statistically suspect.
+
+(By definition, an Internet survey eliminates responses from people who 
+don't fill out surveys on the Internet.)
+
+BUt even if representative, this survey only tells us what version 
+people are using, now how they invoke it. We can't conclude that the 
+command "python" means Python 3 for these users. We simply don't know 
+one way or another (and I personally wouldn't want to hazard a guess.)
+
+
+
+-- 
+Steven
+
+From vstinner at redhat.com  Wed Feb 13 18:07:35 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 14 Feb 2019 00:07:35 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+Message-ID: <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+
+Le mer. 13 f?vr. 2019 ? 21:26, Barry Warsaw <barry at python.org> a ?crit :
+> I don?t think this should be conflated with PEP 394.  IMHO, 3.10 is just fine.  Python 4 should be reserved for some future mythical GIL-less interpreter or other major API breaking change.  It might never happen.
+
+My point is that changing the major version from 3 to 4 *will* break
+things. We have to prepare the community to support such change.
+
+For example, advice to replace "if major_version == 3:  ... else: ..."
+with "if major_version >= 3:  ... else: ...".
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From chris.barker at noaa.gov  Wed Feb 13 18:31:10 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Wed, 13 Feb 2019 15:31:10 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+Message-ID: <CALGmxEJuo39=WhUgt3sA5rNkTX8AKGgYfwCbYFnoBBipxcMCXw@mail.gmail.com>
+
+On Wed, Feb 13, 2019 at 12:29 PM Barry Warsaw <barry at python.org> wrote:
+
+> I think we should aspire for this to be the case too, eventually.  When
+> this has come up in the past, we?ve said that it?s not appropriate to
+> change PEP 394 until Python 2 is officially deprecated.  OTOH, I appreciate
+> that distros and others have to make decisions on this now.  I think it?s
+> worth discussing where we eventually want to be as a community, even if we
+> continue to recommend no official change until 2020.
+>
+
+I don't think end-users will see any discontinuity in 2020. For quite a
+while now, more and more people have shifted from using python2 as the
+default to using python3 as the default. On the other hand, some folks are
+still using python2, and will continue to do so after 2020 (old, still
+supported versions RedHat anyone?) Hopefully, after 2020 no one will start
+anything new with py2, but it's going to be around for a long, long time.
+
+So as there will be no time for a "clear break", we might as well make
+changes when the time "seems" right. And has been pointed out in this
+thread, there are a lot of folks not following the PEP anyway (virtual
+environments, conda, ??). I myself have been telling my newbie students to
+make a link from "python" to python3 for a couple years (before I saw that
+PEP!).
+
+I personally would like for `python` to be the latest Python 3 version (or
+> perhaps Brett?s launcher), `python2` to be Python 2.7 where installed (and
+> not mandatory).  `python3` would be an alias for the latest Python 3.
+>
+
++1
+
+Starting now.
+
+-CHB
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190213/4077ab5c/attachment.html>
+
+From barry at python.org  Wed Feb 13 18:33:21 2019
+From: barry at python.org (Barry Warsaw)
+Date: Wed, 13 Feb 2019 15:33:21 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+Message-ID: <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+
+On Feb 13, 2019, at 15:07, Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> Le mer. 13 f?vr. 2019 ? 21:26, Barry Warsaw <barry at python.org> a ?crit :
+>> I don?t think this should be conflated with PEP 394.  IMHO, 3.10 is just fine.  Python 4 should be reserved for some future mythical GIL-less interpreter or other major API breaking change.  It might never happen.
+> 
+> My point is that changing the major version from 3 to 4 *will* break
+> things. We have to prepare the community to support such change.
+
+Perhaps.  I just don?t think Python 4 is anything but distant vaporware.  There?s a cost to freaking everyone out that Python 4 is coming and will be as disruptive as Python 3.  Calling Python 3.9+1 Python 4 feeds into that FUD for no reason that I can tell except for an aversion to two digit minor version numbers.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190213/7ea6b6b3/attachment.sig>
+
+From nas-python at arctrix.com  Wed Feb 13 18:41:12 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Wed, 13 Feb 2019 17:41:12 -0600
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <q4250o$7mcn$1@blaine.gmane.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <q4250o$7mcn$1@blaine.gmane.org>
+Message-ID: <20190213234112.eyzc4dxk6pjqezo6@python.ca>
+
+On 2019-02-13, Terry Reedy wrote:
+> It appears python is already python3 for a large majority of human users (as
+> opposed to machines).
+
+IMHO, the question about where /usr/bin/python points is more
+important for machines than for humans.  Think about changing
+/bin/sh to some different version of the Borne Shell that changes
+'echo'.  Or changing 'awk' to some incompatible version.  That's
+going to break a lot of scripts (cron jobs, etc).
+
+I experienced the bad old days when you couldn't rely on /bin/sh to
+be a proper POSIX shell.  It was a mess and it wasted countless
+hours of human life to work around all the flavours.  Python is not
+as fundamental as the Unix shell but it has replaced a lot of shell
+scripting.
+
+How can we avoid making a lot of work for people?  I don't see an
+easy answer.  We don't want Python to become frozen forever (whether
+it is called 'python', 'python3', or 'py').  OTOH, making
+/usr/bin/python point to the most recent X.Y release doesn't seem
+like a good solution either.  For example, if I used 'async' as a
+variable in some of my scripts and then 3.7 broke them.
+
+Should we dust off PEP 407 "New release cycle and introducing
+long-term support versions"?  Having /usr/bin/python point to a LTS
+release seems better to me.  I don't know if the core developers are
+willing to support PEP 407 though.  Maybe OS packagers like Red Hat
+and Debian will already do something like LTS releases and core
+developers don't need to.  /usr/bin/python in Red Hat has behaved
+like that, as far as I know.
+
+Another idea is that we could adopt something like the Rust
+"language edition" system.  Obviously lots of details to be worked
+out.  If we had that, the 'py' command could take an argument to
+specify the Python edition.  OTOH, perhaps deprecation warnings and
+__future__ achieves most of the same benefits.  Maintaining
+different editions sounds like a lot of work.  More work than doing
+LTS releases.
+
+Maybe the solution is just that we become a lot more careful about
+making incompatible changes.  To me, that would seem to reduce the
+rate that Python is improving.  However, a less evolved but more
+stable Python could actually have a higher value to society.
+
+We could create an experimental branch of Python, e.g. python-ng.
+Then, all the crazy new ideas go in there.  Only after they are
+stable would we merge them into the stable version of Python.  I'm
+not sure how well that works in practice though.  That's similar to
+what Linux did with the even/odd version numbering.  It turned into
+a mess because the experimental (next) version quickly outran the
+stable version and merging fixes between them was difficult.  They
+abandoned that and now use something like PEP 407 for LTS releases.
+
+Regards,
+
+  Neil
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Wed Feb 13 19:17:47 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Thu, 14 Feb 2019 09:17:47 +0900
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <20190213230004.GV1834@ando.pearwood.info>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <q4250o$7mcn$1@blaine.gmane.org>
+ <20190213230004.GV1834@ando.pearwood.info>
+Message-ID: <23652.45995.691039.338687@turnbull.sk.tsukuba.ac.jp>
+
+Steven D'Aprano writes:
+
+ > But even if representative, this survey only tells us what version 
+ > people are using, now how they invoke it. We can't conclude that the 
+ > command "python" means Python 3 for these users. We simply don't know 
+ > one way or another (and I personally wouldn't want to hazard a
+ > guess.)
+
+Agreed on "can't tell invocation".  I've been using "pythonX.Y" since
+the last time I used Red Hat a lot (which was when Red Hat required
+Python 1.5.2 or it almost wouldn't boot, and before several core
+developers were born, I suspect).
+
+We should also remember that Python is often invoked implicitly in
+scripts that may be even older than that.
+
+I don't think that Perl and PHP experience are sufficiently analogous.
+As far as I can tell, they're pretty much backward compatible, except
+that errors became valid code.  The unicode -> str, str -> bytes
+upgrade in Python 3 means that an awful lot of scripts break if you
+use the wrong one.
+
+I think in the spirit of saving keystrokes ;-), we should encourage
+the use of the "py" wrapper.
+
+Yet another Steve
+
+-- 
+Associate Professor              Division of Policy and Planning Science
+http://turnbull.sk.tsukuba.ac.jp/     Faculty of Systems and Information
+Email: turnbull at sk.tsukuba.ac.jp                   University of Tsukuba
+Tel: 029-853-5175                 Tennodai 1-1-1, Tsukuba 305-8573 JAPAN
+
+From njs at pobox.com  Wed Feb 13 20:32:44 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Wed, 13 Feb 2019 17:32:44 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <20190213230004.GV1834@ando.pearwood.info>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <q4250o$7mcn$1@blaine.gmane.org>
+ <20190213230004.GV1834@ando.pearwood.info>
+Message-ID: <CAPJVwB=ZNOk-7dW20GXMgbGhNHgjiiW4jfx8PSMLuUwnEcpCTA@mail.gmail.com>
+
+On Wed, Feb 13, 2019 at 3:02 PM Steven D'Aprano <steve at pearwood.info> wrote:
+>
+> On Wed, Feb 13, 2019 at 05:16:54PM -0500, Terry Reedy wrote:
+>
+> > It appears python is already python3 for a large majority of human users
+> > (as opposed to machines).
+> >
+> > https://www.jetbrains.com/research/python-developers-survey-2018/
+> > Nearly 20000 valid responses, Oct-Nov.
+>
+> They may be valid responses, but we don't know if they are
+> representative of the broader Python community. Its a self-selected
+> survey of people which always makes the results statistically suspect.
+>
+> (By definition, an Internet survey eliminates responses from people who
+> don't fill out surveys on the Internet.)
+>
+> BUt even if representative, this survey only tells us what version
+> people are using, now how they invoke it. We can't conclude that the
+> command "python" means Python 3 for these users. We simply don't know
+> one way or another (and I personally wouldn't want to hazard a guess.)
+
+Can we gather data? What if pip started reporting info on how it was
+run when contacting pypi?
+
+What info would be useful? I guess whether it's pip/pip3/python -m
+pip/python3 -m pip would be nice to know. I don't know if
+sys.executable would tell us anything useful or not. pip knows where
+the current python's script directory is; maybe it should report
+whether it contains 'python2', 'python3', 'python', and perhaps which
+ones are the same as each other?
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From steve at pearwood.info  Wed Feb 13 22:25:33 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 14 Feb 2019 14:25:33 +1100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+ <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+Message-ID: <20190214032533.GY1834@ando.pearwood.info>
+
+On Wed, Feb 13, 2019 at 03:33:21PM -0800, Barry Warsaw wrote:
+
+> I just don?t think Python 4 is anything but distant vaporware.
+
+If Python 4 follows 3.9, that could be as little as 3-4 years away :-)
+
+> There?s a cost to freaking everyone out that Python 4 is coming and 
+> will be as disruptive as Python 3.
+
+Indeed. I do my bit to combat that in two ways:
+
+- remind people that Guido has pronounced that Python 4 will not be
+  a disruptive, backwards-incompatible change like Python 3 was;
+
+- and use "Python 5000" to refer to any such hypothetical and 
+  very unlikely incompatible version.
+
+
+> Calling Python 3.9+1 Python 4 
+> feeds into that FUD for no reason that I can tell except for an 
+> aversion to two digit minor version numbers.
+
+I haven't come across this FUD about Python 4, so I wonder whether it 
+exists more in our fears than the reality. I daresay there are a few 
+people out there who will instantly react to even a casual mention of 
+"Python 4" as if it were a concrete upgrade that just broke their 
+servers, but I would hope the average Python coder had more sense.
+
+I know that we have to plan for the community we have rather the 
+community we want, but I would be very sad if we had decisions forced on 
+us by the most ignorant, Dunning-Kruger, unteachable and proud of it 
+segment of the community.
+
+Any such hypothetical Python 3.10/4.0 version is at least three or four 
+years away. Let's not limit our options until we know whether or not 
+this FUD is widespread.
+
+Whatever we plan, we should allow for *both* a Python 3.10 and a Python 
+4, and then we'll be good even if 4.0 follows 3.12 :-)
+
+
+-- 
+Steven
+
+From tjreedy at udel.edu  Wed Feb 13 23:59:25 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 13 Feb 2019 23:59:25 -0500
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <20190214032533.GY1834@ando.pearwood.info>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+ <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+ <20190214032533.GY1834@ando.pearwood.info>
+Message-ID: <q42sje$4efu$1@blaine.gmane.org>
+
+On 2/13/2019 10:25 PM, Steven D'Aprano wrote:
+
+> I haven't come across this FUD about Python 4,
+
+I have, on StackOverflow, induced by people reading something like 
+"deprecated now, removed in 4.0"
+
+
+-- 
+Terry Jan Reedy
+
+
+From rbellevi at google.com  Thu Feb 14 00:05:54 2019
+From: rbellevi at google.com (Richard Belleville)
+Date: Wed, 13 Feb 2019 21:05:54 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+Message-ID: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+
+In a recent code review, the following snippet was called out as
+reinventing the
+wheel:
+
+_MICROSECONDS_PER_SECOND = 1000000
+
+
+def _timedelta_to_microseconds(delta):
+  return int(delta.total_seconds() * _MICROSECONDS_PER_SECOND)
+
+
+The reviewer thought that there must already exist a standard library
+function
+that fulfills this functionality. After we had both satisfied ourselves
+that we
+hadn't simply missed something in the documentation, we decided that we had
+better raise the issue with a wider audience.
+
+Does this functionality already exist within the standard library? If not,
+would
+a datetime.timedelta.total_microseconds function be a reasonable addition? I
+would be happy to submit a patch for such a thing.
+
+Richard Belleville
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190213/1586f59c/attachment.html>
+
+From tahafut at gmail.com  Thu Feb 14 00:23:38 2019
+From: tahafut at gmail.com (Henry Chen)
+Date: Wed, 13 Feb 2019 21:23:38 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+Message-ID: <CAPAfSum6-OhwbD26cdoRgh07cY9fHaJ761uVH8UjGPb79cg-iw@mail.gmail.com>
+
+Looks like timedelta has a microseconds property. Would this work for your
+needs?
+
+In [12]: d
+Out[12]: datetime.timedelta(0, 3, 398407)
+
+In [13]: d.microseconds
+Out[13]: 398407
+
+On Wed, Feb 13, 2019 at 9:08 PM Richard Belleville via Python-Dev <
+python-dev at python.org> wrote:
+
+> In a recent code review, the following snippet was called out as
+> reinventing the
+> wheel:
+>
+> _MICROSECONDS_PER_SECOND = 1000000
+>
+>
+> def _timedelta_to_microseconds(delta):
+>   return int(delta.total_seconds() * _MICROSECONDS_PER_SECOND)
+>
+>
+> The reviewer thought that there must already exist a standard library
+> function
+> that fulfills this functionality. After we had both satisfied ourselves
+> that we
+> hadn't simply missed something in the documentation, we decided that we had
+> better raise the issue with a wider audience.
+>
+> Does this functionality already exist within the standard library? If not,
+> would
+> a datetime.timedelta.total_microseconds function be a reasonable addition?
+> I
+> would be happy to submit a patch for such a thing.
+>
+> Richard Belleville
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/tahafut%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190213/e4ba5bc6/attachment.html>
+
+From tahafut at gmail.com  Thu Feb 14 00:35:20 2019
+From: tahafut at gmail.com (Henry Chen)
+Date: Wed, 13 Feb 2019 21:35:20 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CAPAfSum6-OhwbD26cdoRgh07cY9fHaJ761uVH8UjGPb79cg-iw@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <CAPAfSum6-OhwbD26cdoRgh07cY9fHaJ761uVH8UjGPb79cg-iw@mail.gmail.com>
+Message-ID: <CAPAfSukvcqcjUmiqOjMcvyTHEibNWpKtkvvbHuS0fuwTN2heoA@mail.gmail.com>
+
+Oops. That isn't the TOTAL microseconds, but just the microseconds portion.
+Sorry for the confusion.
+
+On Wed, Feb 13, 2019 at 9:23 PM Henry Chen <tahafut at gmail.com> wrote:
+
+> Looks like timedelta has a microseconds property. Would this work for your
+> needs?
+>
+> In [12]: d
+> Out[12]: datetime.timedelta(0, 3, 398407)
+>
+> In [13]: d.microseconds
+> Out[13]: 398407
+>
+> On Wed, Feb 13, 2019 at 9:08 PM Richard Belleville via Python-Dev <
+> python-dev at python.org> wrote:
+>
+>> In a recent code review, the following snippet was called out as
+>> reinventing the
+>> wheel:
+>>
+>> _MICROSECONDS_PER_SECOND = 1000000
+>>
+>>
+>> def _timedelta_to_microseconds(delta):
+>>   return int(delta.total_seconds() * _MICROSECONDS_PER_SECOND)
+>>
+>>
+>> The reviewer thought that there must already exist a standard library
+>> function
+>> that fulfills this functionality. After we had both satisfied ourselves
+>> that we
+>> hadn't simply missed something in the documentation, we decided that we
+>> had
+>> better raise the issue with a wider audience.
+>>
+>> Does this functionality already exist within the standard library? If
+>> not, would
+>> a datetime.timedelta.total_microseconds function be a reasonable
+>> addition? I
+>> would be happy to submit a patch for such a thing.
+>>
+>> Richard Belleville
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/tahafut%40gmail.com
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190213/fef34745/attachment.html>
+
+From jason.swails at gmail.com  Thu Feb 14 00:57:36 2019
+From: jason.swails at gmail.com (Jason Swails)
+Date: Thu, 14 Feb 2019 00:57:36 -0500
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+Message-ID: <CAEk9e3pbx5VYEOYF=P2AzE1eMg047VMy4s9YahUf+9+e9u2Wdg@mail.gmail.com>
+
+On Wed, Feb 13, 2019 at 10:26 AM Petr Viktorin <encukou at gmail.com> wrote:
+
+> PEP 394 says:
+>
+>  > This recommendation will be periodically reviewed over the next few
+>  > years, and updated when the core development team judges it
+>  > appropriate. As a point of reference, regular maintenance releases
+>  > for the Python 2.7 series will continue until at least 2020.
+>
+> I think it's time for another review.
+> I'm especially worried about the implication of these:
+>
+> - If the `python` command is installed, it should invoke the same
+>    version of Python as the `python2` command
+> - scripts that are deliberately written to be source compatible
+>    with both Python 2.x and 3.x [...] may continue to use `python` on
+>    their shebang line.
+>
+> So, to support scripts that adhere to the recommendation, Python 2
+> needs to be installed :(
+>
+
+I literally just ran into this problem now.  Part of a software suite I've
+written uses Python to fetch updates during the installation process.  Due
+to the target audience, it needs to access the system Python (only), and
+support systems as old as RHEL 5 (Python 2.4 and later, including Python
+3.x in the same code base, using nothing but the stdlib).  The shebang line
+was "#!/usr/bin/env python"
+
+It's been working for years, but was only now reported broken by a user
+that upgraded their Ubuntu distribution and suddenly had no "python"
+executable anywhere.  But they had python3.
+
+I suspect suddenly not having any "python" executable in a Linux system
+will screw up a lot more people than just me.  The workaround was ugly.
+
+I'd like to see there always be a `python` executable available if any
+version of Python is installed.
+
+Thanks,
+Jason
+
+-- 
+Jason M. Swails
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/6e404eae/attachment.html>
+
+From mcepl at cepl.eu  Thu Feb 14 02:08:48 2019
+From: mcepl at cepl.eu (=?UTF-8?Q?Mat=C4=9Bj?= Cepl)
+Date: Thu, 14 Feb 2019 08:08:48 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+ <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+Message-ID: <slrnq6a500.h09.mcepl@milic.suse.cz>
+
+On 2019-02-13, 23:33 GMT, Barry Warsaw wrote:
+> Perhaps.  I just don?t think Python 4 is anything but distant 
+> vaporware.  There?s a cost to freaking everyone out that 
+> Python 4 is coming and will be as disruptive as Python 3.  
+> Calling Python 3.9+1 Python 4 feeds into that FUD for no 
+> reason that I can tell except for an aversion to two digit 
+> minor version numbers.
+
+Is this relevant to the discussion at hand? We are talking about 
+the binary /usr/bin/python3 which will be surely be provided 
+even by Python 4, won't it?
+
+Mat?j
+-- 
+https://matej.ceplovi.cz/blog/, Jabber: mcepl at ceplovi.cz
+GPG Finger: 3C76 A027 CA45 AD70 98B5  BC1D 7920 5802 880B C9D8
+ 
+Reading after a certain age diverts the mind too much from its
+creative pursuits. Any man who reads too much and uses his own
+brain too little falls into lazy habits of thinking, just as the
+man who spends too much time in the theater is tempted to be
+content with living vicariously instead of living his own life.
+  -- Albert Einstein to The Saturday Evening Post, October 1929
+
+
