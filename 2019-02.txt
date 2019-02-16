@@ -7045,3 +7045,1546 @@ content with living vicariously instead of living his own life.
   -- Albert Einstein to The Saturday Evening Post, October 1929
 
 
+From solipsis at pitrou.net  Thu Feb 14 03:41:20 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 14 Feb 2019 09:41:20 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <q4250o$7mcn$1@blaine.gmane.org>
+ <20190213230004.GV1834@ando.pearwood.info>
+ <CAPJVwB=ZNOk-7dW20GXMgbGhNHgjiiW4jfx8PSMLuUwnEcpCTA@mail.gmail.com>
+Message-ID: <20190214094120.536c2b13@fsol>
+
+On Wed, 13 Feb 2019 17:32:44 -0800
+Nathaniel Smith <njs at pobox.com> wrote:
+> On Wed, Feb 13, 2019 at 3:02 PM Steven D'Aprano <steve at pearwood.info> wrote:
+> >
+> > On Wed, Feb 13, 2019 at 05:16:54PM -0500, Terry Reedy wrote:
+> >  
+> > > It appears python is already python3 for a large majority of human users
+> > > (as opposed to machines).
+> > >
+> > > https://www.jetbrains.com/research/python-developers-survey-2018/
+> > > Nearly 20000 valid responses, Oct-Nov.  
+> >
+> > They may be valid responses, but we don't know if they are
+> > representative of the broader Python community. Its a self-selected
+> > survey of people which always makes the results statistically suspect.
+> >
+> > (By definition, an Internet survey eliminates responses from people who
+> > don't fill out surveys on the Internet.)
+> >
+> > BUt even if representative, this survey only tells us what version
+> > people are using, now how they invoke it. We can't conclude that the
+> > command "python" means Python 3 for these users. We simply don't know
+> > one way or another (and I personally wouldn't want to hazard a guess.)  
+> 
+> Can we gather data? What if pip started reporting info on how it was
+> run when contacting pypi?
+
+The most important information pip should report is whether it's
+running on a CI platform (should be doable by looking at a few
+environment variables, at least for the most popular platforms).
+Currently nobody knows what the PyPI download stats mean, because they
+could be 99% human or 99% CI.
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Thu Feb 14 03:44:17 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 14 Feb 2019 09:44:17 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <CAEk9e3pbx5VYEOYF=P2AzE1eMg047VMy4s9YahUf+9+e9u2Wdg@mail.gmail.com>
+Message-ID: <20190214094417.26f6a2e7@fsol>
+
+On Thu, 14 Feb 2019 00:57:36 -0500
+Jason Swails <jason.swails at gmail.com> wrote:
+> 
+> I literally just ran into this problem now.  Part of a software suite I've
+> written uses Python to fetch updates during the installation process.  Due
+> to the target audience, it needs to access the system Python (only), and
+> support systems as old as RHEL 5 (Python 2.4 and later, including Python
+> 3.x in the same code base, using nothing but the stdlib).  The shebang line
+> was "#!/usr/bin/env python"
+> 
+> It's been working for years, but was only now reported broken by a user
+> that upgraded their Ubuntu distribution and suddenly had no "python"
+> executable anywhere.  But they had python3.
+> 
+> I suspect suddenly not having any "python" executable in a Linux system
+> will screw up a lot more people than just me.  The workaround was ugly.
+
+I'm not sure what you mean.  Isn't the workaround to install Python 2
+in this case?
+
+Regards
+
+Antoine.
+
+
+
+From njs at pobox.com  Thu Feb 14 03:51:43 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 14 Feb 2019 00:51:43 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <20190214094120.536c2b13@fsol>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <q4250o$7mcn$1@blaine.gmane.org>
+ <20190213230004.GV1834@ando.pearwood.info>
+ <CAPJVwB=ZNOk-7dW20GXMgbGhNHgjiiW4jfx8PSMLuUwnEcpCTA@mail.gmail.com>
+ <20190214094120.536c2b13@fsol>
+Message-ID: <CAPJVwBk5ZNA1zgA31zszXzX1c0-vvKK437eQaH+oAh+Gkh7Tsg@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 12:43 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+> On Wed, 13 Feb 2019 17:32:44 -0800
+> Nathaniel Smith <njs at pobox.com> wrote:
+> > On Wed, Feb 13, 2019 at 3:02 PM Steven D'Aprano <steve at pearwood.info> wrote:
+> > >
+> > > On Wed, Feb 13, 2019 at 05:16:54PM -0500, Terry Reedy wrote:
+> > >
+> > > > It appears python is already python3 for a large majority of human users
+> > > > (as opposed to machines).
+> > > >
+> > > > https://www.jetbrains.com/research/python-developers-survey-2018/
+> > > > Nearly 20000 valid responses, Oct-Nov.
+> > >
+> > > They may be valid responses, but we don't know if they are
+> > > representative of the broader Python community. Its a self-selected
+> > > survey of people which always makes the results statistically suspect.
+> > >
+> > > (By definition, an Internet survey eliminates responses from people who
+> > > don't fill out surveys on the Internet.)
+> > >
+> > > BUt even if representative, this survey only tells us what version
+> > > people are using, now how they invoke it. We can't conclude that the
+> > > command "python" means Python 3 for these users. We simply don't know
+> > > one way or another (and I personally wouldn't want to hazard a guess.)
+> >
+> > Can we gather data? What if pip started reporting info on how it was
+> > run when contacting pypi?
+>
+> The most important information pip should report is whether it's
+> running on a CI platform (should be doable by looking at a few
+> environment variables, at least for the most popular platforms).
+> Currently nobody knows what the PyPI download stats mean, because they
+> could be 99% human or 99% CI.
+
+I agree :-) https://github.com/pypa/pip/issues/5499#issuecomment-406840712
+
+That's kind of orthogonal to this discussion though.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From encukou at gmail.com  Thu Feb 14 03:56:08 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 14 Feb 2019 09:56:08 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+Message-ID: <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+
+On 2/13/19 4:24 PM, Petr Viktorin wrote:
+> I think it's time for another review.
+[...]
+> Please see this PR for details and a suggested change: 
+> https://github.com/python/peps/pull/893
+
+Summary of the thread so far.
+
+Antoine Pitrou noted that the PEP should acknowledge that there are now 
+years of
+established usage of `python` as Python 3 for many conda users, often as 
+the "main" Python.
+
+Victor Stinner expressed support for "python" being the latest Python 
+version, citing PHP, Ruby, Perl; containers; mentions of "python" in our 
+docs.
+
+Steve Dower later proposed concrete points how to make "python" the 
+default command:
+   * our docs should say "python" consistently
+   * we should recommend that distributors use the same workaround
+   * our docs should describe the recommended workaround in any places 
+people are likely to first encounter it (tutorial, sys.executable, etc.)
+
+Chris Barker added that "python3" should still be available, even if 
+"python" is default.
+
+Barry Warsaw gave a +1 to making "python" default, noting that there 
+were plans to change this when Python 2 is officially deprecated. But 
+distros need to make decisions about 2020 now.
+
+Chris Barker noted that users won't see any discuntinuity in 2020. 
+That's just a date support from CPython devs ends.
+
+Victor pointed to discussions on 4.0 vs. 3.10. (I'll ignore discussions 
+on 4.0 in this summary.)
+Victor also posted some interesting info and links on Fedora and RHEL.
+There was a discussion on the PSF survey about how many people use 
+Python 3. (I'll ignore this sub-thread, it's not really about the 
+"python" command.)
+
+Steve noted that the Windows Store package of Python 3 provides 
+"python", but he is still thinking how to make this reasonable/reliable 
+in the full installer.
+
+Several people think "py" on Unix would be a good thing. Neil 
+Schemenauer supposes we would encourage people to use it over 
+"python"/"python2"/"python3", so "python" would be less of an issue.
+
+Neil Schemenauer is not opposed to making "python" configurable or 
+eventually pointing it to Python 3.
+
+Jason Swails shared experience from running software with a 
+"#!/usr/bin/env python" shebang on a system that didn't have Python 2 
+(and followed the PEP, so no "python" either). The workaround was ugly.
+
+-------------
+
+Since this list is public, I'd like to remind all readers that it is 
+full of people who work extensively with Python 3, and tend to drive it 
+forward at any opportunity. (Myself included, but on this thread I'll 
+leave the arguments to someone else ? they're covered adequately.)
+
+Thoughts of Python developers are important, but we're not hearing any 
+other voices. Perhaps everyone with a different opinion has already 
+self-selected out.
+
+I don't know of a good place for this discussion, and I'm not a good 
+person to give arguments to support the original "python" should be 
+Python 2 direction. (But if I did, I imagine posting them here would 
+feel a bit scary.)
+But I would not be surprised, or annoyed, if the Council had a private 
+discussion and pronounced "No, sorry, not yet".
+
+Anyway, how should this be decided? Where should it be discussed?
+
+From ronaldoussoren at mac.com  Thu Feb 14 04:46:43 2019
+From: ronaldoussoren at mac.com (Ronald Oussoren)
+Date: Thu, 14 Feb 2019 10:46:43 +0100
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+Message-ID: <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+
+
+?
+
+Twitter: @ronaldoussoren
+Blog: https://blog.ronaldoussoren.net/
+
+> On 13 Feb 2019, at 16:10, Giampaolo Rodola' <g.rodola at gmail.com> wrote:
+> 
+> 
+> 
+> On Wed, Feb 13, 2019 at 2:27 PM Ronald Oussoren <ronaldoussoren at mac.com <mailto:ronaldoussoren at mac.com>> wrote:
+> 
+> 
+>> On 13 Feb 2019, at 13:24, Giampaolo Rodola' <g.rodola at gmail.com <mailto:g.rodola at gmail.com>> wrote:
+>> 
+>> 
+>> Hello,
+>> after discovering os.makedirs() has no unit-tests (https://bugs.python.org/issue35982 <https://bugs.python.org/issue35982>) I was thinking about working on a PR to increase the test coverage of fs-related os.* functions. In order to do so I think it would be useful to add a convenience function to "just delete something if it exists", regardless if it's a file, directory, directory tree, etc., and include it into test.support module.
+> 
+> Something like shutil.rmtree() with ignore_errors=True?
+> 
+> shutil.rmtree() is about directories and can't be used against files. support.rmpath() would take a path (meaning anything) and try to remove it.
+
+You?re right.  
+
+I usually use shutil.rmtree for tests that need to create temporary files, and create a temporary directory for those files (that is, use tempfile.mkdtemp in setUp() and use shutil.rmtree in tearDown()). That way I don?t have to adjust house-keeping code when I make changes to test code.
+
+Ronald
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/46b9d666/attachment.html>
+
+From stephane at wirtel.be  Thu Feb 14 05:00:46 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Thu, 14 Feb 2019 11:00:46 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+Message-ID: <20190214100046.GA29072@xps>
+
+Hi Petr,
+
+I would like to add this issue from the devguide where I ask if we need
+to use python or python3 in the documentation.
+
+https://github.com/python/devguide/issues/208
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From encukou at gmail.com  Thu Feb 14 07:30:26 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 14 Feb 2019 13:30:26 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CA+3bQGE6i82hiDALcUNVt6E4YvLhQhKibw1qWodzbdh5EuoJWw@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <CA+3bQGE6i82hiDALcUNVt6E4YvLhQhKibw1qWodzbdh5EuoJWw@mail.gmail.com>
+Message-ID: <e330fdff-f8c2-5c34-391e-4d653c04f6a1@gmail.com>
+
+On 2/13/19 5:45 PM, Victor Stinner wrote:
+> Some more context about Petr's change, Fedora, RHEL and Red Hat.
+[...]
+
+Fedora could switch "python" to Python 3 now*, if the PEP changes to 
+allow it.
+
+* "now" has a release date of around October 2019. The next release 
+after that should then be around May 2020.
+
+From jason.swails at gmail.com  Thu Feb 14 07:35:49 2019
+From: jason.swails at gmail.com (Jason Swails)
+Date: Thu, 14 Feb 2019 07:35:49 -0500
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <20190214094417.26f6a2e7@fsol>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <CAEk9e3pbx5VYEOYF=P2AzE1eMg047VMy4s9YahUf+9+e9u2Wdg@mail.gmail.com>
+ <20190214094417.26f6a2e7@fsol>
+Message-ID: <C375205B-28E4-4B58-8C08-6C9669881826@gmail.com>
+
+ 
+
+> On Feb 14, 2019, at 3:44 AM, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> 
+> On Thu, 14 Feb 2019 00:57:36 -0500
+> Jason Swails <jason.swails at gmail.com> wrote:
+>> 
+>> I literally just ran into this problem now.  Part of a software suite I've
+>> written uses Python to fetch updates during the installation process.  Due
+>> to the target audience, it needs to access the system Python (only), and
+>> support systems as old as RHEL 5 (Python 2.4 and later, including Python
+>> 3.x in the same code base, using nothing but the stdlib).  The shebang line
+>> was "#!/usr/bin/env python"
+>> 
+>> It's been working for years, but was only now reported broken by a user
+>> that upgraded their Ubuntu distribution and suddenly had no "python"
+>> executable anywhere.  But they had python3.
+>> 
+>> I suspect suddenly not having any "python" executable in a Linux system
+>> will screw up a lot more people than just me.  The workaround was ugly.
+> 
+> I'm not sure what you mean.  Isn't the workaround to install Python 2
+> in this case?
+
+I release the software, so the problem is not my machine, it?s others?. The installation process also fetches a local miniconda distribution for the Python utilities that are part of the program suite (and the python programs are optional and typically not installed when this suite is deployed on a supercomputer, for instance). But the software needs to check for updates before it does any of that (hence my concern ? this script needs to be able to run before the user does *anything* else, including installing dependencies). 
+
+This would also be the first time we?d have to give different installation instructions for different versions of the same Linux distro. 
+
+The workaround from a users perspective is simple for me, but I can?t make that same assumption for all of my users. This is an impediment to keeping the user experience as simple as possible. 
+
+Thanks,
+Jason
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/39e68045/attachment.html>
+
+From doko at ubuntu.com  Thu Feb 14 08:11:05 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Thu, 14 Feb 2019 14:11:05 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+Message-ID: <d73dcfb0-66b2-f596-1972-65f7578aa9c8@ubuntu.com>
+
+On 13.02.19 17:20, Victor Stinner wrote:
+> Hi,
+> 
+> I'm a (strong) supporter of providing a "python" command which would
+> be the latest Python version!
+
+This very much depends on what is working with the latest Python version, and
+what amount of third party packages your distro has to support. It doesn't have
+to be the newest version.
+
+> As php does nowadays (after previous issues with "php4" vs "php5".) I
+> don't recall that perl had "perl4" vs "perl5", the command was always
+> "perl", no? Same for Ruby: it was still "ruby" after for Ruby 2, no?
+> Only Python and PHP used different program names depending on the
+> language version, no? And PHP now moved back to a single "php"
+> program.
+
+it's not only upstreams doing that kind of versioned names; distros are doing
+that to ease the pain for larger transitions.
+
+> In the container and virtualenv era, it's now easy to get your
+> favorite Python version for the "python" command.
+> 
+> On my Windows VM, "python" is Python 3.7 :-) In virtual environments,
+> "python" can also be Python 3 as well.
+
+maybe the PEP should recommend to have python3 in virtual environments as well?
+
+Matthias
+
+From doko at ubuntu.com  Thu Feb 14 08:35:33 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Thu, 14 Feb 2019 14:35:33 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+Message-ID: <e0e45870-96a4-e0f4-a4dd-78b2f1e792a2@ubuntu.com>
+
+On 13.02.19 16:24, Petr Viktorin wrote:
+> PEP 394 says:
+> 
+>> This recommendation will be periodically reviewed over the next few
+>> years, and updated when the core development team judges it
+>> appropriate. As a point of reference, regular maintenance releases
+>> for the Python 2.7 series will continue until at least 2020.
+> 
+> I think it's time for another review.
+> I'm especially worried about the implication of these:
+> 
+> - If the `python` command is installed, it should invoke the same
+> ? version of Python as the `python2` command
+> - scripts that are deliberately written to be source compatible
+> ? with both Python 2.x and 3.x [...] may continue to use `python` on
+> ? their shebang line.
+> 
+> So, to support scripts that adhere to the recommendation, Python 2
+> needs to be installed :(
+
+Debian's concern about pointing python to python3 is that it will break software
+after an upgrade.  The current state seems is still the same that Debian doesn't
+want to ship a python symlink after the Python2 removal.
+
+For Ubuntu, I'm not sure if I want a python executable at all, because there is
+not much progress in handling more than one python installation, so just using
+python3 for the distro sounds fine.  pypi.org now recommends unconditionally
+installing with pip, and pip is still happy to modify system installed packages
+when asked, messing around with the distro packages.  But probably that kind of
+users then install their own python symlink anyway.
+
+For the Ubuntu 20.04 LTS release and the Debian bullseye release (maybe 2021), I
+am trying to make sure that the python shebang isn't used by distro packages
+anymore (either by removing python2 altogether, or by using the
+python2/python2.7 shebangs).
+
+Matthias
+
+From paul at ganssle.io  Thu Feb 14 09:04:20 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Thu, 14 Feb 2019 09:04:20 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+Message-ID: <1cfc2984-216c-fdc7-7ea2-692662d93971@ganssle.io>
+
+I don't think it's totally unreasonable to have other total_X() methods,
+where X would be days, hours, minutes and microseconds, but it also
+doesn't seem like a pressing need to me.
+
+I think the biggest argument against it is that they are all trivial to
+implement as necessary, because they're just unit conversions that
+involve multiplication or division by constants, which is nowhere near
+as complicated to implement as the original `total_seconds` method.
+Here's the issue where total_seconds() was implemented, it doesn't seem
+like there was any discussion of other total methods until after the
+issue was closed: https://bugs.python.org/issue5788
+
+I think the main issue is how "thick" we want the timedelta class to
+be.? With separate methods for every unit, we have to maintain and
+document 5 methods instead of 1, though the methods are trivial and the
+documentation could maybe be shared.
+
+If I had a time machine, I'd probably recommend an interface something
+like this:
+
+def total_duration(self, units='seconds'):
+??? return self._total_seconds() * _SECONDS_PER_UNIT[units]
+
+I suppose it would be possible to move to that interface today, though I
+think it would be mildly confusing to have two functions that do the
+same thing (total_seconds and total_duration), which may not be worth it
+considering that these functions are a pretty minor convenience.
+
+Best,
+
+Paul
+
+On 2/14/19 12:05 AM, Richard Belleville via Python-Dev wrote:
+> In a recent code review, the following snippet was called out as
+> reinventing the
+> wheel:
+>
+> _MICROSECONDS_PER_SECOND = 1000000
+>
+>
+> def _timedelta_to_microseconds(delta):
+> ? return int(delta.total_seconds() * _MICROSECONDS_PER_SECOND)
+>
+>
+> The reviewer thought that there must already exist a standard library
+> function
+> that fulfills this functionality. After we had both satisfied
+> ourselves that we
+> hadn't simply missed something in the documentation, we decided that
+> we had
+> better raise the issue with a wider audience.
+>
+> Does this functionality already exist within the standard library? If
+> not, would
+> a datetime.timedelta.total_microseconds function be a reasonable
+> addition? I
+> would be happy to submit a patch for such a thing.
+>
+> Richard Belleville
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/paul%40ganssle.io
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/140d15c6/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/140d15c6/attachment.sig>
+
+From ericsnowcurrently at gmail.com  Thu Feb 14 09:25:42 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Thu, 14 Feb 2019 07:25:42 -0700
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+Message-ID: <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+
+On Thu, Feb 14, 2019, 02:47 Ronald Oussoren via Python-Dev <
+python-dev at python.org wrote:
+
+>
+> I usually use shutil.rmtree for tests that need to create temporary files,
+> and create a temporary directory for those files (that is, use
+> tempfile.mkdtemp in setUp() and use shutil.rmtree in tearDown()). That way
+> I don?t have to adjust house-keeping code when I make changes to test code.
+>
+
+Same here.
+
+-eric
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/fec5b65d/attachment.html>
+
+From g.rodola at gmail.com  Thu Feb 14 09:56:52 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Thu, 14 Feb 2019 15:56:52 +0100
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+ <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+Message-ID: <CAFYqXL8=pyMfA5ZZp=w3w+oAJ0cO7=XMhhz=o=MDt_ji9i6w8A@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 3:25 PM Eric Snow <ericsnowcurrently at gmail.com>
+wrote:
+
+> On Thu, Feb 14, 2019, 02:47 Ronald Oussoren via Python-Dev <
+> python-dev at python.org wrote:
+>
+>>
+>> I usually use shutil.rmtree for tests that need to create temporary
+>> files, and create a temporary directory for those files (that is, use
+>> tempfile.mkdtemp in setUp() and use shutil.rmtree in tearDown()). That way
+>> I don?t have to adjust house-keeping code when I make changes to test code.
+>>
+>
+> Same here.
+>
+> -eric
+>
+>>
+What I generally do is avoid relying on tempfile.mkdtemp() and always use
+TESTFN instead. I think it's cleaner as a pradigm because it's an incentive
+to not pollute the single unit tests with  `self.addCleanup()` instructions
+(the whole cleanup logic is always supposed to occur in setUp/tearDown):
+
+
+TESTFN = support.TESTFN
+TESTFN2 = TESTFN + '2'
+
+class FilesystemTest(unittest.TestCase):
+
+    def setUp(self):
+        remove_file_or_dir(TESTFN)
+        remove_file_or_dir(TESTFN2)
+    tearDown = setUp
+
+    def test_mkdir(self):
+        ...
+    def test_listdir(self):
+        ...
+    def test_rename(self):
+        ...
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/854e57a6/attachment.html>
+
+From mail at timgolden.me.uk  Thu Feb 14 10:03:47 2019
+From: mail at timgolden.me.uk (Tim Golden)
+Date: Thu, 14 Feb 2019 15:03:47 +0000
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CAFYqXL8=pyMfA5ZZp=w3w+oAJ0cO7=XMhhz=o=MDt_ji9i6w8A@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+ <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+ <CAFYqXL8=pyMfA5ZZp=w3w+oAJ0cO7=XMhhz=o=MDt_ji9i6w8A@mail.gmail.com>
+Message-ID: <6083f67a-8413-fc40-0118-cfab2284ae2a@timgolden.me.uk>
+
+On 14/02/2019 14:56, Giampaolo Rodola' wrote:
+> 
+> 
+> On Thu, Feb 14, 2019 at 3:25 PM Eric Snow <ericsnowcurrently at gmail.com 
+> <mailto:ericsnowcurrently at gmail.com>> wrote:
+> 
+>     On Thu, Feb 14, 2019, 02:47 Ronald Oussoren via Python-Dev
+>     <python-dev at python.org <mailto:python-dev at python.org> wrote:
+> 
+> 
+>         I usually use shutil.rmtree for tests that need to create
+>         temporary files, and create a temporary directory for those
+>         files (that is, use tempfile.mkdtemp in setUp() and use
+>         shutil.rmtree in tearDown()). That way I don?t have to adjust
+>         house-keeping code when I make changes to test code.
+> 
+> 
+>     Same here.
+> 
+>     -eric
+> 
+> 
+> What I generally do is avoid relying on tempfile.mkdtemp() and always 
+> use TESTFN instead. I think it's cleaner as a pradigm because it's an 
+> incentive to not pollute the single unit tests with? `self.addCleanup()` 
+> instructions (the whole cleanup logic is always supposed to occur in 
+> setUp/tearDown):
+
+Must chime in here because I've been pushing (variously months & years 
+ago) to move *away* from TESTFN because it generates numerous 
+intermittent errors on my Windows setup. I've had several goes at 
+starting to do that but a combination of my own lack of time plus some 
+people's reluctance to go that route altogether has stalled the thing.
+
+I'm not sure I understand the difference in cleanup/teardown terms 
+between using tempfile and using TESTFN. The objections I've seen from 
+people (apart, obviously, from test churn) are to do with building up 
+testing temp artefacts on a possibly low-sized disk.
+
+TJG
+
+From g.rodola at gmail.com  Thu Feb 14 10:24:41 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Thu, 14 Feb 2019 16:24:41 +0100
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <6083f67a-8413-fc40-0118-cfab2284ae2a@timgolden.me.uk>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+ <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+ <CAFYqXL8=pyMfA5ZZp=w3w+oAJ0cO7=XMhhz=o=MDt_ji9i6w8A@mail.gmail.com>
+ <6083f67a-8413-fc40-0118-cfab2284ae2a@timgolden.me.uk>
+Message-ID: <CAFYqXL8Oufz4aQuTggbM04kqU+u36QqatYgKLsYSObpMDx4sBQ@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 4:03 PM Tim Golden <mail at timgolden.me.uk> wrote:
+
+> On 14/02/2019 14:56, Giampaolo Rodola' wrote:
+> >
+> >
+> > On Thu, Feb 14, 2019 at 3:25 PM Eric Snow <ericsnowcurrently at gmail.com
+> > <mailto:ericsnowcurrently at gmail.com>> wrote:
+> >
+> >     On Thu, Feb 14, 2019, 02:47 Ronald Oussoren via Python-Dev
+> >     <python-dev at python.org <mailto:python-dev at python.org> wrote:
+> >
+> >
+> >         I usually use shutil.rmtree for tests that need to create
+> >         temporary files, and create a temporary directory for those
+> >         files (that is, use tempfile.mkdtemp in setUp() and use
+> >         shutil.rmtree in tearDown()). That way I don?t have to adjust
+> >         house-keeping code when I make changes to test code.
+> >
+> >
+> >     Same here.
+> >
+> >     -eric
+> >
+> >
+> > What I generally do is avoid relying on tempfile.mkdtemp() and always
+> > use TESTFN instead. I think it's cleaner as a pradigm because it's an
+> > incentive to not pollute the single unit tests with  `self.addCleanup()`
+> > instructions (the whole cleanup logic is always supposed to occur in
+> > setUp/tearDown):
+>
+> Must chime in here because I've been pushing (variously months & years
+> ago) to move *away* from TESTFN because it generates numerous
+> intermittent errors on my Windows setup. I've had several goes at
+> starting to do that but a combination of my own lack of time plus some
+> people's reluctance to go that route altogether has stalled the thing.
+>
+> I'm not sure I understand the difference in cleanup/teardown terms
+> between using tempfile and using TESTFN. The objections I've seen from
+> people (apart, obviously, from test churn) are to do with building up
+> testing temp artefacts on a possibly low-sized disk.
+>
+> TJG
+>
+
+I suppose you mean the intermittent failures are usually due to "file is
+already in use by another process" correct? test.support's unlink(),
+rmdir() and rmtree() functions already implement a retry-with-timeout logic
+in order to prevent this issue. I suppose when this issue may still occur,
+though, is when the file/handle is held by another process, meaning that
+the unit-test probably forgot to terminate()/wait() a subprocess or should
+have used support.read_children(). In summary, my approach is more "strict"
+because it implies that unit-tests always do a proper cleanup.
+tempfile.mkdtemp() may prevent failures but it may hide a unit-test which
+doesn't do a proper file/dir cleanup and should have been fixed instead.
+The drawback in practical terms is that orphaned test files are left behind.
+
+Extra: an argument in favor of using tempfile.mkdtemp() instead of TESTFN
+is parallel testing, but I think we're not using it.
+
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/7b23f0e7/attachment-0001.html>
+
+From mail at timgolden.me.uk  Thu Feb 14 10:31:42 2019
+From: mail at timgolden.me.uk (Tim Golden)
+Date: Thu, 14 Feb 2019 15:31:42 +0000
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CAFYqXL8Oufz4aQuTggbM04kqU+u36QqatYgKLsYSObpMDx4sBQ@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+ <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+ <CAFYqXL8=pyMfA5ZZp=w3w+oAJ0cO7=XMhhz=o=MDt_ji9i6w8A@mail.gmail.com>
+ <6083f67a-8413-fc40-0118-cfab2284ae2a@timgolden.me.uk>
+ <CAFYqXL8Oufz4aQuTggbM04kqU+u36QqatYgKLsYSObpMDx4sBQ@mail.gmail.com>
+Message-ID: <55edeb6e-8a22-200f-22de-538da20ba55c@timgolden.me.uk>
+
+On 14/02/2019 15:24, Giampaolo Rodola' wrote:
+> 
+> 
+> On Thu, Feb 14, 2019 at 4:03 PM Tim Golden <mail at timgolden.me.uk 
+> <mailto:mail at timgolden.me.uk>> wrote:
+> 
+>     On 14/02/2019 14:56, Giampaolo Rodola' wrote:
+>      >
+>      >
+>      > On Thu, Feb 14, 2019 at 3:25 PM Eric Snow
+>     <ericsnowcurrently at gmail.com <mailto:ericsnowcurrently at gmail.com>
+>      > <mailto:ericsnowcurrently at gmail.com
+>     <mailto:ericsnowcurrently at gmail.com>>> wrote:
+>      >
+>      >? ? ?On Thu, Feb 14, 2019, 02:47 Ronald Oussoren via Python-Dev
+>      >? ? ?<python-dev at python.org <mailto:python-dev at python.org>
+>     <mailto:python-dev at python.org <mailto:python-dev at python.org>> wrote:
+>      >
+>      >
+>      >? ? ? ? ?I usually use shutil.rmtree for tests that need to create
+>      >? ? ? ? ?temporary files, and create a temporary directory for those
+>      >? ? ? ? ?files (that is, use tempfile.mkdtemp in setUp() and use
+>      >? ? ? ? ?shutil.rmtree in tearDown()). That way I don?t have to adjust
+>      >? ? ? ? ?house-keeping code when I make changes to test code.
+>      >
+>      >
+>      >? ? ?Same here.
+>      >
+>      >? ? ?-eric
+>      >
+>      >
+>      > What I generally do is avoid relying on tempfile.mkdtemp() and
+>     always
+>      > use TESTFN instead. I think it's cleaner as a pradigm because
+>     it's an
+>      > incentive to not pollute the single unit tests with 
+>     `self.addCleanup()`
+>      > instructions (the whole cleanup logic is always supposed to occur in
+>      > setUp/tearDown):
+> 
+>     Must chime in here because I've been pushing (variously months & years
+>     ago) to move *away* from TESTFN because it generates numerous
+>     intermittent errors on my Windows setup. I've had several goes at
+>     starting to do that but a combination of my own lack of time plus some
+>     people's reluctance to go that route altogether has stalled the thing.
+> 
+>     I'm not sure I understand the difference in cleanup/teardown terms
+>     between using tempfile and using TESTFN. The objections I've seen from
+>     people (apart, obviously, from test churn) are to do with building up
+>     testing temp artefacts on a possibly low-sized disk.
+> 
+>     TJG
+> 
+> 
+> I suppose you mean the intermittent failures are usually due to "file is 
+> already in use by another process" correct? test.support's unlink(), 
+
+Occasionally (and those are usually down to a poorly-handled cleanup).
+
+More commonly it's due to residual share-delete handles on those files, 
+probably from indexing & virus checkers or TortoiseXXX cache handlers. 
+Obviously I can (and to some extent do) try to mitigate those issues.
+
+In short: reusing the same filepath over and over for tests which are 
+run in quick succession doesn't seem like a good idea usually. That's 
+commonly what TESTFN-based tests do (some do; some don't).
+
+I'm 100% with you on strict clean-up, not leaving testing turds behind, 
+not over-complicating simple tests with lost of framework. All that. But 
+-- however it's done -- I'd prefer to move away from the test-global 
+TESTFN approach.
+
+I'm not at my dev box atm so can't pick out examples but I definitely 
+have some :) I have no issue with your proposal here: better and simpler 
+cleanup is A Good Thing. But it won't solve the problem of re-using the 
+same test filepath again and again.
+
+TJG
+
+From j.orponen at 4teamwork.ch  Thu Feb 14 10:39:30 2019
+From: j.orponen at 4teamwork.ch (Joni Orponen)
+Date: Thu, 14 Feb 2019 16:39:30 +0100
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+Message-ID: <CA+LW3i2V7YD4Aq_YtztHZ-U-0yLKUVUMsH9EMYHD5=ELPG-uUg@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 10:49 AM Ronald Oussoren via Python-Dev <
+python-dev at python.org> wrote:
+
+> I usually use shutil.rmtree for tests that need to create temporary files,
+> and create a temporary directory for those files (that is, use
+> tempfile.mkdtemp in setUp() and use shutil.rmtree in tearDown()). That way
+> I don?t have to adjust house-keeping code when I make changes to test code.
+>
+
+As tempfile provides context managers, should these be used internally for
+something like this? Provide a decorator which passes in the temp file /
+directory.
+
+-- 
+Joni Orponen
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/df7e9f53/attachment.html>
+
+From vstinner at redhat.com  Thu Feb 14 10:49:52 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 14 Feb 2019 16:49:52 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <e0e45870-96a4-e0f4-a4dd-78b2f1e792a2@ubuntu.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <e0e45870-96a4-e0f4-a4dd-78b2f1e792a2@ubuntu.com>
+Message-ID: <CA+3bQGGMrA7qGiA0BZ4z0DxbvG6nvZV5zUp8ZRUEHVG2vPhYrw@mail.gmail.com>
+
+Le jeu. 14 f?vr. 2019 ? 14:38, Matthias Klose <doko at ubuntu.com> a ?crit :
+> Debian's concern about pointing python to python3 is that it will break software
+> after an upgrade.  The current state seems is still the same that Debian doesn't
+> want to ship a python symlink after the Python2 removal.
+
+The other safer alternative is to start to provide "py" launcher on
+Unix as well. Since it's something new, it's perfectly fine to decide
+from the start to make it point to the latest Python version by
+default.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From sorin.sbarnea at gmail.com  Thu Feb 14 07:46:35 2019
+From: sorin.sbarnea at gmail.com (Sorin Sbarnea)
+Date: Thu, 14 Feb 2019 12:46:35 +0000
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+Message-ID: <F426C0E3-4676-412E-B841-A8C8F6E0E6DB@gmail.com>
+
+I am glad this resurfaced as back in September I proposed updated that very old PEP but I got rejected.
+https://github.com/python/peps/pull/785 <https://github.com/python/peps/pull/785>
+
+The main issue is that most distros will not fix it until PEP is refreshed because most of them do want to follow PEPs.
+
+There is still hope.
+
+Cheers
+Sorin
+
+> On 13 Feb 2019, at 16:20, Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> Hi,
+> 
+> I'm a (strong) supporter of providing a "python" command which would
+> be the latest Python version!
+> 
+> As php does nowadays (after previous issues with "php4" vs "php5".) I
+> don't recall that perl had "perl4" vs "perl5", the command was always
+> "perl", no? Same for Ruby: it was still "ruby" after for Ruby 2, no?
+> Only Python and PHP used different program names depending on the
+> language version, no? And PHP now moved back to a single "php"
+> program.
+> 
+> In the container and virtualenv era, it's now easy to get your
+> favorite Python version for the "python" command.
+> 
+> On my Windows VM, "python" is Python 3.7 :-) In virtual environments,
+> "python" can also be Python 3 as well.
+> 
+> I recall that I saw commands using "python" rather than "python3" in
+> the *official* Python 3 documentation: see examples below (*).
+> Problem: On Windows, "python" is the right command. "python3" doesn't
+> work (doesn't exist) on Windows. Should we write the doc for Windows
+> or for Unix? Oooops.
+> 
+> There was an interesting discussion about the Python version following
+> Python 3.9: Python 3.10 or Python 4? And what are the issues which
+> would make us prefer 3.10 rather than 4.0?
+> https://mail.python.org/pipermail/python-committers/2018-September/006152.html
+> 
+> One practical issue is that right now, six.PY3 is defined by "PY3 =
+> sys.version_info[0] == 3" and so "if six.PY3:" will be false on Python
+> 4.
+> 
+> Another interesting thing to mention is the Unix Python launcher
+> ("py") written by Brett Cannon written in Rust:
+> https://github.com/brettcannon/python-launcher
+> 
+> 
+> (*) A few examples of "python" commands in the Python official documentation
+> 
+> "$ python prog.py -h"
+> https://docs.python.org/dev/library/argparse.html
+> 
+> "$ python logctx.py"
+> https://docs.python.org/dev/howto/logging-cookbook.html
+> 
+> "python setup.py install"
+> https://docs.python.org/dev/install/index.html
+> 
+> "python --help"
+> https://docs.python.org/dev/howto/argparse.html
+> 
+> "python setup.py build"
+> https://docs.python.org/dev/extending/building.html
+> 
+> "exec python $0 ${1+"$@"}"
+> https://docs.python.org/dev/faq/library.html
+> 
+> "python setup.py --help build_ext"
+> https://docs.python.org/dev/distutils/configfile.html
+> 
+> Victor
+> 
+> Le mer. 13 f?vr. 2019 ? 16:49, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+>> 
+>> On Wed, 13 Feb 2019 16:24:48 +0100
+>> Petr Viktorin <encukou at gmail.com> wrote:
+>>> PEP 394 says:
+>>> 
+>>>> This recommendation will be periodically reviewed over the next few
+>>>> years, and updated when the core development team judges it
+>>>> appropriate. As a point of reference, regular maintenance releases
+>>>> for the Python 2.7 series will continue until at least 2020.
+>>> 
+>>> I think it's time for another review.
+>>> I'm especially worried about the implication of these:
+>>> 
+>>> - If the `python` command is installed, it should invoke the same
+>>>   version of Python as the `python2` command
+>>> - scripts that are deliberately written to be source compatible
+>>>   with both Python 2.x and 3.x [...] may continue to use `python` on
+>>>   their shebang line.
+>>> 
+>>> So, to support scripts that adhere to the recommendation, Python 2
+>>> needs to be installed :(
+>> 
+>> I think PEP 394 should acknowledge that there are now years of
+>> established usage of `python` as Python 3 for many conda users.
+>> 
+>> Regards
+>> 
+>> Antoine.
+>> 
+>> 
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+> 
+> 
+> 
+> -- 
+> Night gathers, and now my watch begins. It shall not end until my death.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/sorin.sbarnea%40gmail.com
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/54c78027/attachment.html>
+
+From barry at python.org  Thu Feb 14 12:28:48 2019
+From: barry at python.org (Barry Warsaw)
+Date: Thu, 14 Feb 2019 09:28:48 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <slrnq6a500.h09.mcepl@milic.suse.cz>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+ <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+ <slrnq6a500.h09.mcepl@milic.suse.cz>
+Message-ID: <22F2AD71-5694-4EB5-9C21-8B965654A481@python.org>
+
+On Feb 13, 2019, at 23:08, Mat?j Cepl <mcepl at cepl.eu> wrote:
+
+> Is this relevant to the discussion at hand? We are talking about
+> the binary /usr/bin/python3 which will be surely be provided
+> even by Python 4, won't it?
+
+Why would it be?  Since this is all hypothetical anyway <wink>, I?d more likely expect to only ship /usr/bin/python.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/71cb586d/attachment.sig>
+
+From brett at python.org  Thu Feb 14 12:48:40 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 14 Feb 2019 09:48:40 -0800
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CAFYqXL8Oufz4aQuTggbM04kqU+u36QqatYgKLsYSObpMDx4sBQ@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+ <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+ <CAFYqXL8=pyMfA5ZZp=w3w+oAJ0cO7=XMhhz=o=MDt_ji9i6w8A@mail.gmail.com>
+ <6083f67a-8413-fc40-0118-cfab2284ae2a@timgolden.me.uk>
+ <CAFYqXL8Oufz4aQuTggbM04kqU+u36QqatYgKLsYSObpMDx4sBQ@mail.gmail.com>
+Message-ID: <CAP1=2W5rV7sfrhDmBuQSnmfdcpRK6pM-bZBKE-AQOHXMBKq28g@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 7:26 AM Giampaolo Rodola' <g.rodola at gmail.com>
+wrote:
+
+>
+>
+> On Thu, Feb 14, 2019 at 4:03 PM Tim Golden <mail at timgolden.me.uk> wrote:
+>
+>> On 14/02/2019 14:56, Giampaolo Rodola' wrote:
+>> >
+>> >
+>> > On Thu, Feb 14, 2019 at 3:25 PM Eric Snow <ericsnowcurrently at gmail.com
+>> > <mailto:ericsnowcurrently at gmail.com>> wrote:
+>> >
+>> >     On Thu, Feb 14, 2019, 02:47 Ronald Oussoren via Python-Dev
+>> >     <python-dev at python.org <mailto:python-dev at python.org> wrote:
+>> >
+>> >
+>> >         I usually use shutil.rmtree for tests that need to create
+>> >         temporary files, and create a temporary directory for those
+>> >         files (that is, use tempfile.mkdtemp in setUp() and use
+>> >         shutil.rmtree in tearDown()). That way I don?t have to adjust
+>> >         house-keeping code when I make changes to test code.
+>> >
+>> >
+>> >     Same here.
+>> >
+>> >     -eric
+>> >
+>> >
+>> > What I generally do is avoid relying on tempfile.mkdtemp() and always
+>> > use TESTFN instead. I think it's cleaner as a pradigm because it's an
+>> > incentive to not pollute the single unit tests with
+>> `self.addCleanup()`
+>> > instructions (the whole cleanup logic is always supposed to occur in
+>> > setUp/tearDown):
+>>
+>> Must chime in here because I've been pushing (variously months & years
+>> ago) to move *away* from TESTFN because it generates numerous
+>> intermittent errors on my Windows setup. I've had several goes at
+>> starting to do that but a combination of my own lack of time plus some
+>> people's reluctance to go that route altogether has stalled the thing.
+>>
+>> I'm not sure I understand the difference in cleanup/teardown terms
+>> between using tempfile and using TESTFN. The objections I've seen from
+>> people (apart, obviously, from test churn) are to do with building up
+>> testing temp artefacts on a possibly low-sized disk.
+>>
+>> TJG
+>>
+>
+> I suppose you mean the intermittent failures are usually due to "file is
+> already in use by another process" correct? test.support's unlink(),
+> rmdir() and rmtree() functions already implement a retry-with-timeout logic
+> in order to prevent this issue. I suppose when this issue may still occur,
+> though, is when the file/handle is held by another process, meaning that
+> the unit-test probably forgot to terminate()/wait() a subprocess or should
+> have used support.read_children(). In summary, my approach is more "strict"
+> because it implies that unit-tests always do a proper cleanup.
+> tempfile.mkdtemp() may prevent failures but it may hide a unit-test which
+> doesn't do a proper file/dir cleanup and should have been fixed instead.
+> The drawback in practical terms is that orphaned test files are left behind.
+>
+> Extra: an argument in favor of using tempfile.mkdtemp() instead of TESTFN
+> is parallel testing, but I think we're not using it.
+>
+
+With -j you can do parallel testing and I know I always run with that on.
+But TESTFN does *attempt *to account for that
+<https://github.com/python/cpython/blob/8a1657b93469580ef345c7c91738587f3d76e87d/Lib/test/support/__init__.py#L835>
+by using the PID in the name.
+
+Having said that, I do use tempfile like Eric, Ronald, and Tim when I write
+tests as I have real-world experience using tempfile so I usually remember
+to clean up versus TESTFN which is Python stdlib internals only and I have
+to remember that it won't clean up itself.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/4ba76fcd/attachment.html>
+
+From brett at python.org  Thu Feb 14 12:59:06 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 14 Feb 2019 09:59:06 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CA+3bQGGMrA7qGiA0BZ4z0DxbvG6nvZV5zUp8ZRUEHVG2vPhYrw@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <e0e45870-96a4-e0f4-a4dd-78b2f1e792a2@ubuntu.com>
+ <CA+3bQGGMrA7qGiA0BZ4z0DxbvG6nvZV5zUp8ZRUEHVG2vPhYrw@mail.gmail.com>
+Message-ID: <CAP1=2W7zncVETF-YF-nZ64YyjdytQ5WyG6Qn8qjusgC=uS_8bg@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 7:50 AM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Le jeu. 14 f?vr. 2019 ? 14:38, Matthias Klose <doko at ubuntu.com> a ?crit :
+> > Debian's concern about pointing python to python3 is that it will break
+> software
+> > after an upgrade.  The current state seems is still the same that Debian
+> doesn't
+> > want to ship a python symlink after the Python2 removal.
+>
+> The other safer alternative is to start to provide "py" launcher on
+> Unix as well. Since it's something new, it's perfectly fine to decide
+> from the start to make it point to the latest Python version by
+> default.
+>
+
+Since it has come up a couple of times and in case people are curious, the
+Python Launcher for UNIX is currently available at
+https://crates.io/crates/python-launcher and the basics are there. I have
+one more key feature to implement -- `py --list` -- before I view it as
+having all the basics in place. Once I have --list done it will be trying
+to tackle the hard issue of how to tie in things like PyPy or
+non-PATH-installed interpreters into the launcher (which, since it is
+configuration, people will bikeshed on forever about, so maybe I should
+ignore people and solve it quickly ;) .
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/06c48834/attachment.html>
+
+From alexander.belopolsky at gmail.com  Thu Feb 14 13:12:00 2019
+From: alexander.belopolsky at gmail.com (Alexander Belopolsky)
+Date: Thu, 14 Feb 2019 13:12:00 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <1cfc2984-216c-fdc7-7ea2-692662d93971@ganssle.io>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <1cfc2984-216c-fdc7-7ea2-692662d93971@ganssle.io>
+Message-ID: <CAP7h-xavkxsqF60M_aR0641M21D+oeVj90f7=h671+8Y5TUyeA@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 9:07 AM Paul Ganssle <paul at ganssle.io> wrote:
+
+> I don't think it's totally unreasonable to have other total_X() methods,
+> where X would be days, hours, minutes and microseconds
+>
+I do.  I was against adding the total_seconds() method to begin with
+because the same effect can be achieved with
+
+delta / timedelta(seconds=1)
+
+this is easily generalized to
+
+delta / timedelta(X=1)
+
+where X can be days, hours, minutes or microseconds.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/29358ce4/attachment.html>
+
+From paul at ganssle.io  Thu Feb 14 13:17:26 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Thu, 14 Feb 2019 13:17:26 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CAP7h-xavkxsqF60M_aR0641M21D+oeVj90f7=h671+8Y5TUyeA@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <1cfc2984-216c-fdc7-7ea2-692662d93971@ganssle.io>
+ <CAP7h-xavkxsqF60M_aR0641M21D+oeVj90f7=h671+8Y5TUyeA@mail.gmail.com>
+Message-ID: <3e46f177-bc42-71d3-01f1-5e1868d4a155@ganssle.io>
+
+Ah yes, good point, I forgot about this because IIRC it's not supported
+in Python 2.7, so it's not a particularly common idiom in polyglot
+library code.
+
+Obviously any new methods would be Python 3-only, so there's no benefit
+to adding them.
+
+Best,
+
+Paul
+
+On 2/14/19 1:12 PM, Alexander Belopolsky wrote:
+>
+>
+> On Thu, Feb 14, 2019 at 9:07 AM Paul Ganssle <paul at ganssle.io
+> <mailto:paul at ganssle.io>> wrote:
+>
+>     I don't think it's totally unreasonable to have other total_X()
+>     methods, where X would be days, hours, minutes and microseconds
+>
+> I do.? I was against adding the total_seconds() method to begin with
+> because?the same effect can be achieved with
+>
+> delta / timedelta(seconds=1)
+>
+> this is easily generalized to
+>
+> delta / timedelta(X=1)
+>
+> where X can be days, hours, minutes or microseconds.
+> ?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/05ccf9fe/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/05ccf9fe/attachment.sig>
+
+From gjcarneiro at gmail.com  Thu Feb 14 13:20:11 2019
+From: gjcarneiro at gmail.com (Gustavo Carneiro)
+Date: Thu, 14 Feb 2019 18:20:11 +0000
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CA+3bQGGMrA7qGiA0BZ4z0DxbvG6nvZV5zUp8ZRUEHVG2vPhYrw@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <e0e45870-96a4-e0f4-a4dd-78b2f1e792a2@ubuntu.com>
+ <CA+3bQGGMrA7qGiA0BZ4z0DxbvG6nvZV5zUp8ZRUEHVG2vPhYrw@mail.gmail.com>
+Message-ID: <CAO-CpEJf5jPTLkH5Hswubu7+Ucu2vEWHSPN+8d1PurOa=gne9Q@mail.gmail.com>
+
+On Thu, 14 Feb 2019 at 15:52, Victor Stinner <vstinner at redhat.com> wrote:
+
+> Le jeu. 14 f?vr. 2019 ? 14:38, Matthias Klose <doko at ubuntu.com> a ?crit :
+> > Debian's concern about pointing python to python3 is that it will break
+> software
+> > after an upgrade.  The current state seems is still the same that Debian
+> doesn't
+> > want to ship a python symlink after the Python2 removal.
+>
+> The other safer alternative is to start to provide "py" launcher on
+> Unix as well. Since it's something new, it's perfectly fine to decide
+> from the start to make it point to the latest Python version by
+> default.
+>
+
+While I like very much the idea of having `py` as command, does it really
+need to be a wrapper command?  Why can't it simply be a symlink?
+
+    /usr/bin/py -> /usr/bin/python3
+
+I worry about (1) startup time overhead of starting another process, (2)
+added complexity of learning about py's additional command-line options, we
+don't really need them, imho.
+
+
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/gjcarneiro%40gmail.com
+>
+
+
+-- 
+Gustavo J. A. M. Carneiro
+Gambit Research
+"The universe is always one step beyond logic." -- Frank Herbert
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/b6b03b0c/attachment.html>
+
+From eelizondo at fb.com  Thu Feb 14 14:01:36 2019
+From: eelizondo at fb.com (Eddie Elizondo)
+Date: Thu, 14 Feb 2019 19:01:36 +0000
+Subject: [Python-Dev] An update on heap-allocated types
+Message-ID: <94D97A63-B1AD-4E4B-A451-2ECB7DBF8D3A@fb.com>
+
+I?ll be adding a change to move the Py_INCREF of heap allocated types from PyType_GenericAlloc to PyObject_Init. You can follow the discussion and/or add comments to: https://bugs.python.org/issue35810. This change will make types created through PyType_FromSpec behave like classes in managed code. Thus, making CPython much safer.
+
+Without this change, there are a couple of edge cases where the use of PyObject_{,GC}_New{,Var} does not correctly increase refcount. This leads to weird behavior, especially when migrating types from PyType_Ready to PyType_FromSpec. For example, consider a static type with tp_new = NULL and tp_dealloc = NULL. This type initializes instances through PyObject_New and never increases the type?s refcount. tp_dealloc will be a no-op since it's NULL and it's a static type. When this type is migrated to PyType_FromSpec, tp_dealloc will now inherit subtype_dealloc which decrefs the type. This leads to a crash.
+
+For the vast majority of existing code this should not have a visible side effect. And, at worst, this will only cause some type to become immortal. I?ve added instructions in the ?Porting to Python 3.8? to correctly account for this new incref along with examples. In general, there are only two cases that would require any modification:
+
+  1.  If the type creates instances through PyObject_{,GC}_New{,Var} and the type manually increfs afterwards. The fix here is to remove that manual incref.
+  2.  If the type has a custom tp_dealloc and it?s not decrefing the type. The fix here is that a custom tp_dealloc should ALWAYS decref the type.
+
+Open to feedback/discussion so feel free to reply if you have any questions!
+
+- Eddie Elizondo
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/2736c245/attachment-0001.html>
+
+From steve.dower at python.org  Thu Feb 14 14:38:25 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 14 Feb 2019 11:38:25 -0800
+Subject: [Python-Dev] Is distutils.util.get_platform() the "current" or the
+ "target" platform
+Message-ID: <7f0f615b-fab5-0504-b1bf-20b3c9cd0402@python.org>
+
+As part of adding ARM32 support for Windows, we need to enable 
+cross-compilation in distutils. This is easy enough, though it requires 
+somehow getting the target platform as well as the current platform.
+
+Right now, the change at https://github.com/python/cpython/pull/11774 
+adds a get_target_platform() function for this and updates (as far as I 
+can tell) all uses of get_platform() to use this instead. I would rather 
+just change get_platform() to return the target platform.
+
+The current docs are somewhat vague on exactly what this function does, 
+and I suspect have been mostly written from an "always build from 
+source" mentality that may have implied, but not explicitly considered 
+cross-compilation.
+
+https://docs.python.org/3/distutils/apiref.html#distutils.util.get_platform
+
+"Return a string that identifies the current platform. This is used 
+mainly to distinguish platform-specific build directories and 
+platform-specific built distributions."
+
+So it says "current" platform, explicitly says that "os.uname()" is the 
+source, but then goes on to say:
+
+"For non-POSIX platforms, currently just returns sys.platform."
+
+Which is incorrect, as sys.platform is always "win32" always but 
+get_platform() already returns "win-amd64" for 64-bit builds.
+
+And also:
+
+"For Mac OS X systems the OS version reflects the minimal version on 
+which binaries will run (that is, the value of MACOSX_DEPLOYMENT_TARGET 
+during the build of Python), not the OS version of the current system."
+
+So it seems like this function is already returning "the default 
+platform that should be used when building extensions" - ignoring bugs 
+in libraries that monkeypatch distutils, the "--plat-name" option should 
+entirely override the return value of this function.
+
+Given this, does it seem to be okay to have it determine and return the 
+target platform rather than the host platform? Right now, that would 
+only affect the new target of building for win-arm32, but I would also 
+like to update the documentation to make it more about how this value 
+should be used rather than where it comes from.
+
+Any objections or concerns?
+
+Cheers,
+Steve
+
+From greg at krypto.org  Thu Feb 14 14:47:38 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Thu, 14 Feb 2019 11:47:38 -0800
+Subject: [Python-Dev] Is distutils.util.get_platform() the "current" or
+ the "target" platform
+In-Reply-To: <7f0f615b-fab5-0504-b1bf-20b3c9cd0402@python.org>
+References: <7f0f615b-fab5-0504-b1bf-20b3c9cd0402@python.org>
+Message-ID: <CAGE7PNLMHkQ8AcmPjk=aOmMgv81QQcomFHJnofbEg8dTVEG-qQ@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 11:38 AM Steve Dower <steve.dower at python.org> wrote:
+
+> As part of adding ARM32 support for Windows, we need to enable
+> cross-compilation in distutils. This is easy enough, though it requires
+> somehow getting the target platform as well as the current platform.
+>
+> Right now, the change at https://github.com/python/cpython/pull/11774
+> adds a get_target_platform() function for this and updates (as far as I
+> can tell) all uses of get_platform() to use this instead. I would rather
+> just change get_platform() to return the target platform.
+>
+> The current docs are somewhat vague on exactly what this function does,
+> and I suspect have been mostly written from an "always build from
+> source" mentality that may have implied, but not explicitly considered
+> cross-compilation.
+>
+> https://docs.python.org/3/distutils/apiref.html#distutils.util.get_platform
+>
+> "Return a string that identifies the current platform. This is used
+> mainly to distinguish platform-specific build directories and
+> platform-specific built distributions."
+>
+> So it says "current" platform, explicitly says that "os.uname()" is the
+> source, but then goes on to say:
+>
+> "For non-POSIX platforms, currently just returns sys.platform."
+>
+> Which is incorrect, as sys.platform is always "win32" always but
+> get_platform() already returns "win-amd64" for 64-bit builds.
+>
+> And also:
+>
+> "For Mac OS X systems the OS version reflects the minimal version on
+> which binaries will run (that is, the value of MACOSX_DEPLOYMENT_TARGET
+> during the build of Python), not the OS version of the current system."
+>
+> So it seems like this function is already returning "the default
+> platform that should be used when building extensions" - ignoring bugs
+> in libraries that monkeypatch distutils, the "--plat-name" option should
+> entirely override the return value of this function.
+>
+> Given this, does it seem to be okay to have it determine and return the
+> target platform rather than the host platform? Right now, that would
+> only affect the new target of building for win-arm32, but I would also
+> like to update the documentation to make it more about how this value
+> should be used rather than where it comes from.
+>
+> Any objections or concerns?
+>
+
+To alleviate confusion long term I'd love it if we could deprecate the
+unqualified get_platform() API and point people towards always being
+explicit about get_target_platform() vs get_current_platform().
+
+There are valid reasons for people to be expecting either target or current
+return values from get_platform(), but I agree with you, having it return
+the target platform *feels* more likely to be what people want.  It'd be
+worth auditing a random sample of people's calls of this API in open source
+projects to confirm that intuition.
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/68ba943f/attachment.html>
+
+From larry at hastings.org  Thu Feb 14 21:29:32 2019
+From: larry at hastings.org (Larry Hastings)
+Date: Thu, 14 Feb 2019 18:29:32 -0800
+Subject: [Python-Dev] Proposed dates for Python 3.4.10 and Python 3.5.7
+Message-ID: <ad821da8-a8f3-0ff8-6366-b24c0209d3c3@hastings.org>
+
+
+Howdy howdy!? It's time to make the next bugfix release of 3.5--and the 
+/final/ release /ever/ of Python 3.4. Here's the schedule I propose:
+
+    3.4.10rc1 and 3.5.7rc1 - Saturday March 2 2019
+    3.4.10 final and 3.5.7 final - Saturday March 16 2019
+
+
+What's going in these releases?? Not much.? I have two outstanding PRs 
+against 3.5:
+
+    bpo-33127 GH-10994: Compatibility patch for LibreSSL 2.7.0
+    bpo-34623 GH-9933: XML_SetHashSalt in _elementtree
+
+and one PR against 3.4:
+
+    bpo-34623 GH-9953: Use XML_SetHashSalt in _elementtree
+
+I expect to merge all three of those, I just need to get around to it.? 
+There's one more recent security fix (bpo-35746, GH-11569) that? I want 
+in these releases that still needs backporting.
+
+
+And that's the entire list.? bpo-34623 is the only current release 
+blocker for either 3.4 or 3.5--I'm not aware of anything else in the 
+pipeline.? If you have anything you think needs to go into the next 3.5, 
+or the final 3.4, and it's /not/ listed above, please either file a 
+GitHub PR, file a release-blocker bug on bpo, or email me directly.
+
+
+Good night sweet Python 3.4, and flights of angels sing thee to thy rest!
+
+
+//arry/
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/329387b4/attachment.html>
+
