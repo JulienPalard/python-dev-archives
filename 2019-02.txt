@@ -8588,3 +8588,1219 @@ Good night sweet Python 3.4, and flights of angels sing thee to thy rest!
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190214/329387b4/attachment.html>
 
+From mhroncok at redhat.com  Fri Feb 15 06:01:15 2019
+From: mhroncok at redhat.com (=?UTF-8?Q?Miro_Hron=c4=8dok?=)
+Date: Fri, 15 Feb 2019 12:01:15 +0100
+Subject: [Python-Dev] Proposed dates for Python 3.4.10 and Python 3.5.7
+In-Reply-To: <ad821da8-a8f3-0ff8-6366-b24c0209d3c3@hastings.org>
+References: <ad821da8-a8f3-0ff8-6366-b24c0209d3c3@hastings.org>
+Message-ID: <4e9b1cc3-0ed1-d86d-fcf6-84f4abc18066@redhat.com>
+
+On 15. 02. 19 3:29, Larry Hastings wrote:
+> If you have 
+> anything you think needs to go into the next 3.5, or the final 3.4, and it's 
+> /not/ listed above, please either file a GitHub PR, file a release-blocker bug 
+> on bpo, or email me directly.
+
+I've checked Fedora CVE bugs against python 3.4 and 3.5. Here is one missing I 
+found:
+
+CVE-2018-20406 https://bugs.python.org/issue34656
+memory exhaustion in Modules/_pickle.c:1393
+Marked as resolved, but I don't see it fixed on 3.5 or 3.4.
+
+Should we get it fixed? openSUSE AFAK has backported the patch.
+
+-- 
+Miro Hron?ok
+--
+Phone: +420777974800
+IRC: mhroncok
+
+From vstinner at redhat.com  Fri Feb 15 06:28:45 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 15 Feb 2019 12:28:45 +0100
+Subject: [Python-Dev] Proposed dates for Python 3.4.10 and Python 3.5.7
+In-Reply-To: <4e9b1cc3-0ed1-d86d-fcf6-84f4abc18066@redhat.com>
+References: <ad821da8-a8f3-0ff8-6366-b24c0209d3c3@hastings.org>
+ <4e9b1cc3-0ed1-d86d-fcf6-84f4abc18066@redhat.com>
+Message-ID: <CA+3bQGFmQqOUfih6oONT7711GWrb3fxmJ5g9UpZhC0Sf64jaEg@mail.gmail.com>
+
+Hi,
+
+Le ven. 15 f?vr. 2019 ? 12:07, Miro Hron?ok <mhroncok at redhat.com> a ?crit :
+> I've checked Fedora CVE bugs against python 3.4 and 3.5. Here is one missing I
+> found:
+>
+> CVE-2018-20406 https://bugs.python.org/issue34656
+> memory exhaustion in Modules/_pickle.c:1393
+> Marked as resolved, but I don't see it fixed on 3.5 or 3.4.
+>
+> Should we get it fixed? openSUSE AFAK has backported the patch.
+
+I'm working on fixes :-) I had a draft email but you was faster than
+me to post yours.
+
+Le ven. 15 f?vr. 2019 ? 03:29, Larry Hastings <larry at hastings.org> a ?crit :
+> What's going in these releases?  Not much.  I have two outstanding PRs against 3.5:
+>
+> bpo-33127 GH-10994: Compatibility patch for LibreSSL 2.7.0
+> bpo-34623 GH-9933: XML_SetHashSalt in _elementtree
+
+According to my tool tracking security fixes, 3.5 lacks fixes for:
+
+https://python-security.readthedocs.io/vuln/ssl-crl-dps-dos.html
+https://python-security.readthedocs.io/vuln/pickle-load-dos.html
+https://python-security.readthedocs.io/vuln/xml-pakage-ignore-environment.html
+
+> and one PR against 3.4:
+>
+> bpo-34623 GH-9953: Use XML_SetHashSalt in _elementtree
+
+and 3.4 lacks fixes for:
+
+https://python-security.readthedocs.io/vuln/ssl-crl-dps-dos.html
+https://python-security.readthedocs.io/vuln/pickle-load-dos.html =>
+Matej Cepl backported the change to 3.4, but the patch should be
+converted into a PR
+https://python-security.readthedocs.io/vuln/xml-pakage-ignore-environment.html
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Fri Feb 15 07:05:26 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 15 Feb 2019 13:05:26 +0100
+Subject: [Python-Dev] Proposed dates for Python 3.4.10 and Python 3.5.7
+In-Reply-To: <CA+3bQGFmQqOUfih6oONT7711GWrb3fxmJ5g9UpZhC0Sf64jaEg@mail.gmail.com>
+References: <ad821da8-a8f3-0ff8-6366-b24c0209d3c3@hastings.org>
+ <4e9b1cc3-0ed1-d86d-fcf6-84f4abc18066@redhat.com>
+ <CA+3bQGFmQqOUfih6oONT7711GWrb3fxmJ5g9UpZhC0Sf64jaEg@mail.gmail.com>
+Message-ID: <CA+3bQGEj-=dgm+qgbmM8buZtZOxmo6W8obTisMJ9RxUz6mRDQw@mail.gmail.com>
+
+I wrote fixes:
+
+Le ven. 15 f?vr. 2019 ? 12:28, Victor Stinner <vstinner at redhat.com> a ?crit :
+> https://python-security.readthedocs.io/vuln/ssl-crl-dps-dos.html
+
+3.5: https://github.com/python/cpython/pull/11867
+3.4: https://github.com/python/cpython/pull/11868
+
+> https://python-security.readthedocs.io/vuln/pickle-load-dos.html
+
+3.5: https://github.com/python/cpython/pull/11869
+3.4: https://github.com/python/cpython/pull/11870
+
+> https://python-security.readthedocs.io/vuln/xml-pakage-ignore-environment.html
+
+3.5: https://github.com/python/cpython/pull/11871
+3.4: https://github.com/python/cpython/pull/11872
+
+It would be nice if someone can review these PRs to help Larry ;-)
+
+Victor
+
+
+Victor
+
+From g.rodola at gmail.com  Fri Feb 15 07:44:07 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Fri, 15 Feb 2019 13:44:07 +0100
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CAP1=2W5rV7sfrhDmBuQSnmfdcpRK6pM-bZBKE-AQOHXMBKq28g@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+ <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+ <CAFYqXL8=pyMfA5ZZp=w3w+oAJ0cO7=XMhhz=o=MDt_ji9i6w8A@mail.gmail.com>
+ <6083f67a-8413-fc40-0118-cfab2284ae2a@timgolden.me.uk>
+ <CAFYqXL8Oufz4aQuTggbM04kqU+u36QqatYgKLsYSObpMDx4sBQ@mail.gmail.com>
+ <CAP1=2W5rV7sfrhDmBuQSnmfdcpRK6pM-bZBKE-AQOHXMBKq28g@mail.gmail.com>
+Message-ID: <CAFYqXL9onVCw4-pPnAx2xmFxviHqLMTyMOz6c5OOLpebCF1MAw@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 6:48 PM Brett Cannon <brett at python.org> wrote:
+
+>
+> With -j you can do parallel testing and I know I always run with that on.
+> But TESTFN does *attempt *to account for that
+> <https://github.com/python/cpython/blob/8a1657b93469580ef345c7c91738587f3d76e87d/Lib/test/support/__init__.py#L835>
+> by using the PID in the name.
+>
+
+Good to know, thanks. TESTFN aside, I was more interested in knowing if
+there's interest in landing something like this in test.support:
+
+def rmpath(path):
+    "Try to remove a path regardless of its type."
+    if os.path.isdir(path):
+        test.support.rmtree(path)
+    elif os.path.exists(path):
+        test.support.unlink(path)
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190215/16a033f6/attachment.html>
+
+From stephane at wirtel.be  Fri Feb 15 11:13:30 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Fri, 15 Feb 2019 17:13:30 +0100
+Subject: [Python-Dev] Python 3.8.0a1 with sqlite 3.27.1 -> OK
+Message-ID: <20190215161330.GA17161@xps>
+
+Hi all,
+
+I wanted to test with the new version of SQLite3 3.27.1 and there is no
+issue (compiled with a debian:latest docker image and the last version
+of 3.27.1).
+
+Sorry, it's not a bug, I wanted to inform you there is no issue with the
+last stable version of SQLite3.
+
+Have a nice week-end, 
+
+St?phane
+
+root at 3b7c342683ff:/src# ./python -m test test_sqlite -v
+== CPython 3.8.0a1+ (default, Feb 15 2019, 16:05:54) [GCC 6.3.0 20170516]
+== Linux-4.20.7-200.fc29.x86_64-x86_64-with-glibc2.17 little-endian
+== cwd: /src/build/test_python_15721
+== CPU count: 4
+== encodings: locale=UTF-8, FS=utf-8
+Run tests sequentially
+0:00:00 load avg: 1.99 [1/1] test_sqlite
+test_sqlite: testing with version '2.6.0', sqlite_version '3.27.1'
+
+...
+
+Ran 288 tests in 0.553s
+
+OK (skipped=3)
+
+== Tests result: SUCCESS ==
+
+1 test OK.
+
+Total duration: 654 ms
+Tests result: SUCCESS
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From xdegaye at gmail.com  Fri Feb 15 11:57:38 2019
+From: xdegaye at gmail.com (Xavier de Gaye)
+Date: Fri, 15 Feb 2019 17:57:38 +0100
+Subject: [Python-Dev] buildbottest on Android emulator with docker
+Message-ID: <feb49ef1-64de-971e-bf36-11ae64a5fdd2@gmail.com>
+
+The following command runs the buildbottest on an Android emulator with docker (it will use a little bit more than 11 GB):
+
+     $ docker run -it --privileged xdegaye/abifa:r14b-24-x86_64-master
+
+This command does:
+* pull an image from the Docker hub (only the first time that the command is run, note that this a 2 GB download !) and start a container
+* pull the latest changes from the GitHub cpython repository and cross-compile python
+* start an Android emulator and install python on it
+* run the buildbottest target of cpython Makefile
+
+The image is built from a Dockerfile [2].
+
+This same image can also be used with the 'bash' command line argument to enter bash in the container and run python interactively on the emulator [1].  If the 'docker run' command also sets a bind mount to a local cpython repository, then it is possible to develop/debug/fix python on the emulator running in this container using one's own clone of cpython.
+
+[1] documentation at https://xdegaye.gitlab.io/abifa/docker.html
+[2] Dockerfile at https://gitlab.com/xdegaye/abifa/blob/master/docker/Dockerfile.r14b-24-x86_64-master
+
+Xavier
+
+From steve.dower at python.org  Fri Feb 15 12:43:13 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 15 Feb 2019 09:43:13 -0800
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CAP1=2W5rV7sfrhDmBuQSnmfdcpRK6pM-bZBKE-AQOHXMBKq28g@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+ <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+ <CAFYqXL8=pyMfA5ZZp=w3w+oAJ0cO7=XMhhz=o=MDt_ji9i6w8A@mail.gmail.com>
+ <6083f67a-8413-fc40-0118-cfab2284ae2a@timgolden.me.uk>
+ <CAFYqXL8Oufz4aQuTggbM04kqU+u36QqatYgKLsYSObpMDx4sBQ@mail.gmail.com>
+ <CAP1=2W5rV7sfrhDmBuQSnmfdcpRK6pM-bZBKE-AQOHXMBKq28g@mail.gmail.com>
+Message-ID: <1c094bac-a1d1-aaaf-4e3a-0f110c0dfd4f@python.org>
+
+On 14Feb.2019 0948, Brett Cannon wrote:
+> On Thu, Feb 14, 2019 at 7:26 AM Giampaolo Rodola' <g.rodola at gmail.com
+> <mailto:g.rodola at gmail.com>> wrote:
+>     Extra: an argument in favor of using tempfile.mkdtemp() instead of
+>     TESTFN is parallel testing, but I think we're not using it.
+> 
+> 
+> With -j you can do parallel testing and I know I always run with that
+> on. But TESTFN does /attempt /to account for that
+> <https://github.com/python/cpython/blob/8a1657b93469580ef345c7c91738587f3d76e87d/Lib/test/support/__init__.py#L835>
+> by using the PID in the name.
+> 
+> Having said that, I do use tempfile like Eric, Ronald, and Tim when I
+> write tests as I have real-world experience using tempfile so I usually
+> remember to clean up versus TESTFN which is Python stdlib internals only
+> and I have to remember that it won't clean up itself.
+
+I spend a decent amount of time rewriting tests to use TESTFN, since
+that enables us to keep all test files constrained to either a default
+directory or the one specified by --tempdir (which is a relatively
+recent addition, I'll grant, but it's been useful for improving test
+performance and stability when the default TEMP locations are not
+reliable - e.g. if $tmp is a mount point it breaks some tests, if it's a
+symlink it breaks others, if it's got particular permissions it breaks
+others again, etc.).
+
+That said, I'd love to have a context manager that we can use to make
+this easier. Really, none of us should be having to decide "how am I
+going to use a temporary location on the file system in my test",
+because we should have one obvious (and easy!) way to do it.
+
+But please, don't keep reinventing the functions we already have in
+test.support for doing this (unless you're putting better versions in
+test.support!)
+
+Cheers,
+Steve
+
+From vstinner at redhat.com  Fri Feb 15 12:51:58 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 15 Feb 2019 18:51:58 +0100
+Subject: [Python-Dev] OpenSSL 1.1.1 fixes merged into Python 2.7
+Message-ID: <CA+3bQGFxwvyR9kr1bfBAJE6g4s+fizbSw6ocmMOxTbQeKJn59A@mail.gmail.com>
+
+Hi,
+
+I reviewed and merged pull requests written by my colleague
+Charalampos Stratakis to backport OpenSSL 1.1.1 fixes into the future
+Python 2.7.16. Benjamin Peterson (Python 2.7 release manager) wrote
+me: "I would very much like to see 1.1.1 support in a Python 2.7
+release." These changes are backports of Python 3.6 changes written by
+Christian Heimes.
+
+With these changes, Python 2.7 becomes more secure and should be
+closer to Python 3.6 security.
+
+I apologize for merging these changes late in 2.7.16 devcycle, but we
+were very busy with higher priority issues :-( I hope that 2.7.16
+release candidate will provide enough time to test properly these
+changes (and fix regressions if any).
+
+So far, I'm only aware of one issue on one specific buildbot worker,
+but I'm not sure that the test failures are regressions caused by
+merged ssl changes (the worker was offline for 1 month for an unknown
+reason):
+https://bugs.python.org/issue33570
+
+Summary of the ssl changes:
+
+(*) ssl.SSLContext is now created with secure default values. The
+options OP_NO_COMPRESSION, OP_CIPHER_SERVER_PREFERENCE,
+OP_SINGLE_DH_USE, OP_SINGLE_ECDH_USE, OP_NO_SSLv2 (except for
+PROTOCOL_SSLv2), OP_NO_SSLv3 (except for PROTOCOL_SSLv3) are set by
+default. The initial cipher suite list contains only "HIGH" ciphers,
+no "NULL" ciphers and no "MD5" ciphers (except for PROTOCOL_SSLv2).
+
+(*) OpenSSL 1.1.1 has TLS 1.3 cipher suites enabled by default. The
+suites cannot be disabled with SSLContext.set_ciphers().
+
+(*) Add a new ssl.OP_ENABLE_MIDDLEBOX_COMPAT constant
+
+(*) Tools/ssl/multissltests.py has been updated for OpenSSL 1.1.1.
+
+
+I merged 4 changes into 2.7:
+
+commit c49f63c1761ce03df7850b9e0b31a18c432dac64
+Author: stratakis <cstratak at redhat.com>
+Date:   Fri Feb 15 14:17:12 2019 +0100
+
+    [2.7] bpo-33570: TLS 1.3 ciphers for OpenSSL 1.1.1 (GH-6976)
+(GH-8760) (GH-10607)
+
+    Change TLS 1.3 cipher suite settings for compatibility with OpenSSL
+    1.1.1-pre6 and newer. OpenSSL 1.1.1 will have TLS 1.3 cipers enabled by
+    default.
+
+    Also update multissltests to test with latest OpenSSL.
+
+    Signed-off-by: Christian Heimes <christian at python.org>.
+    (cherry picked from commit 3e630c541b35c96bfe5619165255e559f577ee71)
+    Co-authored-by: Christian Heimes <christian at python.org>
+
+commit b8eaec697a2b5d9d2def2950a0aa50e8ffcf1059
+Author: stratakis <cstratak at redhat.com>
+Date:   Fri Feb 15 15:24:11 2019 +0100
+
+    [2.7] bpo-28043: improved default settings for SSLContext (GH-10608)
+
+    The options OP_NO_COMPRESSION, OP_CIPHER_SERVER_PREFERENCE,
+    OP_SINGLE_DH_USE, OP_SINGLE_ECDH_USE, OP_NO_SSLv2 (except
+    for PROTOCOL_SSLv2), and OP_NO_SSLv3 (except for PROTOCOL_SSLv3)
+    are set by default. The initial cipher suite list contains only
+    HIGH ciphers, no NULL ciphers and MD5 ciphers (except for PROTOCOL_SSLv2).
+
+    (cherry picked from commit 358cfd426ccc0fcd6a7940d306602138e76420ae)
+
+commit 28eb87f4f558952f259fada7be1ab5b31b8a91ef (upstream/2.7, 2.7)
+Author: stratakis <cstratak at redhat.com>
+Date:   Fri Feb 15 17:18:58 2019 +0100
+
+    Fixup from test_ssl test_default_ecdh_curve (GH-11877)
+
+    Partial backport from cb5b68abdeb1b1d56c581d5b4d647018703d61e3
+
+    Co-authored-by: Christian Heimes <christian at python.org>
+
+commit 2149a9ad7a9d39d7d680ec0fb602042c91057484 (HEAD -> 2.7, upstream/2.7)
+Author: stratakis <cstratak at redhat.com>
+Date:   Fri Feb 15 18:27:44 2019 +0100
+
+    [2.7] bpo-32947: Fixes for TLS 1.3 and OpenSSL 1.1.1 (GH-8761) (GH-11876)
+
+    Backport of TLS 1.3 related fixes from 3.7.
+
+    Misc fixes and workarounds for compatibility with OpenSSL 1.1.1 from git
+    master and TLS 1.3 support. With OpenSSL 1.1.1, Python negotiates TLS 1.3 by
+    default. Some test cases only apply to TLS 1.2.
+
+    OpenSSL 1.1.1 has added a new option OP_ENABLE_MIDDLEBOX_COMPAT for TLS
+    1.3. The feature is enabled by default for maximum compatibility with
+    broken middle boxes. Users should be able to disable the hack and
+CPython's test suite needs
+    it to verify default options
+
+    Signed-off-by: Christian Heimes <christian at python.org>
+    (cherry picked from commit 2a4ee8aa01d61b6a9c8e9c65c211e61bdb471826)
+
+
+And there is a minor multissltests update that's going will be merged as well:
+https://github.com/python/cpython/pull/11879
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From zachary.ware+pydev at gmail.com  Fri Feb 15 13:01:40 2019
+From: zachary.ware+pydev at gmail.com (Zachary Ware)
+Date: Fri, 15 Feb 2019 12:01:40 -0600
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <1c094bac-a1d1-aaaf-4e3a-0f110c0dfd4f@python.org>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+ <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+ <CAFYqXL8=pyMfA5ZZp=w3w+oAJ0cO7=XMhhz=o=MDt_ji9i6w8A@mail.gmail.com>
+ <6083f67a-8413-fc40-0118-cfab2284ae2a@timgolden.me.uk>
+ <CAFYqXL8Oufz4aQuTggbM04kqU+u36QqatYgKLsYSObpMDx4sBQ@mail.gmail.com>
+ <CAP1=2W5rV7sfrhDmBuQSnmfdcpRK6pM-bZBKE-AQOHXMBKq28g@mail.gmail.com>
+ <1c094bac-a1d1-aaaf-4e3a-0f110c0dfd4f@python.org>
+Message-ID: <CAKJDb-P-Jvw0w+Qkw8KjHn0xpQcaZ78dJG1MQdhyPcb7QLeAkg@mail.gmail.com>
+
+On Fri, Feb 15, 2019 at 11:44 AM Steve Dower <steve.dower at python.org> wrote:
+> That said, I'd love to have a context manager that we can use to make
+> this easier. Really, none of us should be having to decide "how am I
+> going to use a temporary location on the file system in my test",
+> because we should have one obvious (and easy!) way to do it.
+
+I found an old rejected issue [1] for adding a `tmpdir` method to
+unittest.TestCase, which is actually a solution that we've
+independently developed and use frequently for work.  It basically
+works by registering a cleanup function before returning the path to
+the temporary directory, so you just call `self.tmpdir()`, use the
+path, forget about cleanup, and don't lose a level of indentation to a
+context manager.  I think it would be worthwhile to reconsider this
+addition to unittest, or add it as a standard base test class in
+test.support (though either way it would need a cleaner and more
+robust implementation than is offered in that issue).
+
+[1] https://bugs.python.org/issue2156
+
+-- 
+Zach
+
+From rob.cliffe at btinternet.com  Fri Feb 15 14:44:39 2019
+From: rob.cliffe at btinternet.com (Rob Cliffe)
+Date: Fri, 15 Feb 2019 19:44:39 +0000
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+Message-ID: <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+
+A function with "microseconds" in the name IMO misleadingly suggests 
+that it has something closer to microsecond accuracy than a 1-second 
+granularity.
+Rob Cliffe
+
+On 14/02/2019 05:05:54, Richard Belleville via Python-Dev wrote:
+> In a recent code review, the following snippet was called out as 
+> reinventing the
+> wheel:
+>
+> _MICROSECONDS_PER_SECOND = 1000000
+>
+>
+> def _timedelta_to_microseconds(delta):
+> ? return int(delta.total_seconds() * _MICROSECONDS_PER_SECOND)
+>
+>
+> The reviewer thought that there must already exist a standard library 
+> function
+> that fulfills this functionality. After we had both satisfied 
+> ourselves that we
+> hadn't simply missed something in the documentation, we decided that 
+> we had
+> better raise the issue with a wider audience.
+>
+> Does this functionality already exist within the standard library? If 
+> not, would
+> a datetime.timedelta.total_microseconds function be a reasonable 
+> addition? I
+> would be happy to submit a patch for such a thing.
+>
+> Richard Belleville
+>
+> <http://www.avg.com/email-signature?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient> 
+> 	Virus-free. www.avg.com 
+> <http://www.avg.com/email-signature?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient> 
+>
+>
+> <#DAB4FAD8-2DD7-40BB-A1B8-4E2AA1F9FDF2>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/rob.cliffe%40btinternet.com
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190215/79582420/attachment.html>
+
+From chris.barker at noaa.gov  Fri Feb 15 16:48:57 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Fri, 15 Feb 2019 13:48:57 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+Message-ID: <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+
+On Fri, Feb 15, 2019 at 11:58 AM Rob Cliffe via Python-Dev <
+python-dev at python.org> wrote:
+
+> A function with "microseconds" in the name IMO misleadingly suggests that
+> it has something closer to microsecond accuracy than a 1-second granularity.
+>
+
+it sure does, but `delta.total_seconds()` is a float, so ms accuracy is
+preserved.
+
+However, if you DO want a "timedelta_to_microseconds" function, it really
+should use the microseconds field in the timedelta object. I haven't
+thought it through, but it makes me nervous to convert to floating point,
+and then back again -- for some large values of timedelta some precision
+may be lost.
+
+Also:
+
+_MICROSECONDS_PER_SECOND = 1000000
+
+
+really? why in the world would you define a constant for something that
+simple that can never change? (and probably isn't used in more than one
+place anyway
+
+As Alexander pointed out the canonical way to spell this would be:
+
+delta / timedelta(microseconds=1)
+
+but I think that is less than obvious to the usual user, so I think a:
+
+delta.total_microseconds()
+
+would be a reasonable addition.
+
+I know I use .totalseconds() quite a bit, and would not want to have to
+spell it:
+
+delta / timedelta(seconds=1)
+
+(and can't do that in py2 anyway)
+
+-CHB
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190215/e64e426d/attachment.html>
+
+From steve.dower at python.org  Fri Feb 15 17:02:43 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 15 Feb 2019 14:02:43 -0800
+Subject: [Python-Dev] Is distutils.util.get_platform() the "current" or
+ the "target" platform
+In-Reply-To: <CAGE7PNLMHkQ8AcmPjk=aOmMgv81QQcomFHJnofbEg8dTVEG-qQ@mail.gmail.com>
+References: <7f0f615b-fab5-0504-b1bf-20b3c9cd0402@python.org>
+ <CAGE7PNLMHkQ8AcmPjk=aOmMgv81QQcomFHJnofbEg8dTVEG-qQ@mail.gmail.com>
+Message-ID: <a97bbb7a-5e4d-7d54-afa1-ed195d573d90@python.org>
+
+On 14Feb2019 1147, Gregory P. Smith wrote:
+> To alleviate confusion long term I'd love it if we could deprecate the 
+> unqualified get_platform() API and point people towards always being 
+> explicit about get_target_platform() vs get_current_platform().
+
+This is an option too, though it doesn't reduce the code churn. I 
+personally want to consider distutils deprecated as a whole anyway, and 
+only maintained for the sake of our core needs.
+
+> There are valid reasons for people to be expecting either target or 
+> current return values from get_platform(), but I agree with you, having 
+> it return the target platform /feels/ more likely to be what people 
+> want.? It'd be worth auditing a random sample of people's calls of this 
+> API in open source projects to confirm that intuition.
+
+I took a random sample of about 50 uses from GitHub and 100% of them 
+were copies of our distutils/tests/test_util.py (not even kidding: 
+https://github.com/search?q=distutils+get_platform&type=Code)
+
+If you go far enough down the results, they're all copies of wheel's (or 
+pip's) pep425tags.py, which import distutils.util but don't seem to use 
+get_platform
+
+I'm inclined to say that nobody but us uses this API :) Does that make 
+it seem more okay to "clarify" that it's returning target platform?
+
+Cheers,
+Steve
+
+From greg at krypto.org  Fri Feb 15 17:23:09 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Fri, 15 Feb 2019 14:23:09 -0800
+Subject: [Python-Dev] Is distutils.util.get_platform() the "current" or
+ the "target" platform
+In-Reply-To: <a97bbb7a-5e4d-7d54-afa1-ed195d573d90@python.org>
+References: <7f0f615b-fab5-0504-b1bf-20b3c9cd0402@python.org>
+ <CAGE7PNLMHkQ8AcmPjk=aOmMgv81QQcomFHJnofbEg8dTVEG-qQ@mail.gmail.com>
+ <a97bbb7a-5e4d-7d54-afa1-ed195d573d90@python.org>
+Message-ID: <CAGE7PNKr3v6wv5mVtC=MQdhV0RVdGUou+EYWK44F6dn8b=Rzeg@mail.gmail.com>
+
+On Fri, Feb 15, 2019 at 2:02 PM Steve Dower <steve.dower at python.org> wrote:
+
+> On 14Feb2019 1147, Gregory P. Smith wrote:
+> > To alleviate confusion long term I'd love it if we could deprecate the
+> > unqualified get_platform() API and point people towards always being
+> > explicit about get_target_platform() vs get_current_platform().
+>
+> This is an option too, though it doesn't reduce the code churn. I
+> personally want to consider distutils deprecated as a whole anyway, and
+> only maintained for the sake of our core needs.
+>
+> > There are valid reasons for people to be expecting either target or
+> > current return values from get_platform(), but I agree with you, having
+> > it return the target platform /feels/ more likely to be what people
+> > want.  It'd be worth auditing a random sample of people's calls of this
+> > API in open source projects to confirm that intuition.
+>
+> I took a random sample of about 50 uses from GitHub and 100% of them
+> were copies of our distutils/tests/test_util.py (not even kidding:
+> https://github.com/search?q=distutils+get_platform&type=Code)
+>
+> If you go far enough down the results, they're all copies of wheel's (or
+> pip's) pep425tags.py, which import distutils.util but don't seem to use
+> get_platform
+>
+> I'm inclined to say that nobody but us uses this API :) Does that make
+> it seem more okay to "clarify" that it's returning target platform?
+>
+
+All of the instances of its use that I can find in a quick search
+(excluding copies/clones/forks of other code) are using it to mean target
+platform as well.
+
+So yeah, I'd just go with that assumption.
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190215/bca2dd8c/attachment-0001.html>
+
+From paul at ganssle.io  Fri Feb 15 17:23:43 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Fri, 15 Feb 2019 17:23:43 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+ <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+Message-ID: <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+
+I'm still with Alexander on this. I see functions like total_X as
+basically putting one of the arguments directly in the function name -
+it should be `total_duration(units)`, not `total_units()`, because all
+of those functions do the same thing and only differ in the units they use.
+
+But Alexander's approach of "divide it by the base unit" is /even more
+general/ than this, because it allows you to use non-traditional units
+like weeks (timedelta(days=7)) or "two-day periods" or whatever you
+want. If you use this idiom a lot and want a simple "calculate the
+total" function, this should suffice:
+
+def total_duration(td, *args, **kwargs):
+??? return td / timedelta(*args, **kwargs)
+
+Then you can spell "x.total_microseconds()" as:
+
+total_duration(x, microseconds=1)
+
+Or you can write it like this:
+
+def total_duration(td, units='seconds'):
+??? return td / timedelta(**{units: 1})
+
+In which case it would be spelled:
+
+total_duration(x, units='microseconds')
+
+I don't see there being any compelling reason to add a bunch of methods
+for a marginal (and I'd say arguable) gain in aesthetics.
+
+On 2/15/19 4:48 PM, Chris Barker via Python-Dev wrote:
+> On Fri, Feb 15, 2019 at 11:58 AM Rob Cliffe via Python-Dev
+> <python-dev at python.org <mailto:python-dev at python.org>> wrote:
+>
+>     A function with "microseconds" in the name IMO misleadingly
+>     suggests that it has something closer to microsecond accuracy than
+>     a 1-second granularity.
+>
+>
+> it sure does, but `delta.total_seconds()` is a float, so ms accuracy
+> is preserved.
+>
+> However, if you DO want a "timedelta_to_microseconds" function, it
+> really should use the microseconds field in the timedelta object. I
+> haven't thought it through, but it makes me nervous to convert to
+> floating point, and then back again -- for some large values of
+> timedelta some precision may be lost.
+>
+> Also:
+>
+>> _MICROSECONDS_PER_SECOND = 1000000
+>
+> really? why in the world would you define a constant for something
+> that simple that can never change? (and probably isn't used in more
+> than one place anyway
+> ?
+> As Alexander pointed out the canonical way to spell this would be:
+>
+> delta / timedelta(microseconds=1)
+>
+> but I think that is less than obvious to the usual user, so I think a:
+>
+> delta.total_microseconds()
+>
+> would be a reasonable addition.
+>
+> I know I use .totalseconds() quite a bit, and would not want to have
+> to spell it:
+>
+> delta / timedelta(seconds=1)
+>
+> (and can't do that in py2 anyway)
+>
+> -CHB
+>
+> -- 
+>
+> Christopher Barker, Ph.D.
+> Oceanographer
+>
+> Emergency Response Division
+> NOAA/NOS/OR&R ? ? ? ? ? ?(206) 526-6959?? voice
+> 7600 Sand Point Way NE ??(206) 526-6329?? fax
+> Seattle, WA ?98115 ? ? ??(206) 526-6317?? main reception
+>
+> Chris.Barker at noaa.gov <mailto:Chris.Barker at noaa.gov>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/paul%40ganssle.io
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190215/994408e0/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190215/994408e0/attachment.sig>
+
+From brett at python.org  Fri Feb 15 17:35:44 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 15 Feb 2019 14:35:44 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CAO-CpEJf5jPTLkH5Hswubu7+Ucu2vEWHSPN+8d1PurOa=gne9Q@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <e0e45870-96a4-e0f4-a4dd-78b2f1e792a2@ubuntu.com>
+ <CA+3bQGGMrA7qGiA0BZ4z0DxbvG6nvZV5zUp8ZRUEHVG2vPhYrw@mail.gmail.com>
+ <CAO-CpEJf5jPTLkH5Hswubu7+Ucu2vEWHSPN+8d1PurOa=gne9Q@mail.gmail.com>
+Message-ID: <CAP1=2W496zXrTubGXy=xASP8L=vFhYnET+T=PCEkpQfAcw2B5g@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 10:21 AM Gustavo Carneiro <gjcarneiro at gmail.com>
+wrote:
+
+>
+>
+> On Thu, 14 Feb 2019 at 15:52, Victor Stinner <vstinner at redhat.com> wrote:
+>
+>> Le jeu. 14 f?vr. 2019 ? 14:38, Matthias Klose <doko at ubuntu.com> a ?crit :
+>> > Debian's concern about pointing python to python3 is that it will break
+>> software
+>> > after an upgrade.  The current state seems is still the same that
+>> Debian doesn't
+>> > want to ship a python symlink after the Python2 removal.
+>>
+>> The other safer alternative is to start to provide "py" launcher on
+>> Unix as well. Since it's something new, it's perfectly fine to decide
+>> from the start to make it point to the latest Python version by
+>> default.
+>>
+>
+> While I like very much the idea of having `py` as command, does it really
+> need to be a wrapper command?  Why can't it simply be a symlink?
+>
+>     /usr/bin/py -> /usr/bin/python3
+>
+
+Because that is not guaranteed to be the *latest* version of Python 3, just
+the *last* version installed or the *first* one that happens to be on PATH.
+
+
+>
+> I worry about (1) startup time overhead of starting another process,
+>
+
+It's being implemented in Rust, uses execv(), etc. The initial design is
+such that it is meant to minimize overhead such that you should worry more
+about what you import at startup than using the Python launcher if you're
+that concerned with startup performance. :) But honestly, you don't *have*
+to use the launcher; it's just for convenience.
+
+
+> (2) added complexity of learning about py's additional command-line
+> options, we don't really need them, imho.
+>
+
+There's only 2 more and they only work in the first position, so the
+cognitive overhead is extremely low.
+
+In my experience after using 'py' on Windows I consistently miss it on UNIX
+now, so to me there is enough of a benefit that I will continue to chip
+away at the project until it's done regardless of whether anyone else uses
+it. :)
+
+-Brett
+
+
+>
+>
+>> Victor
+>> --
+>> Night gathers, and now my watch begins. It shall not end until my death.
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/gjcarneiro%40gmail.com
+>>
+>
+>
+> --
+> Gustavo J. A. M. Carneiro
+> Gambit Research
+> "The universe is always one step beyond logic." -- Frank Herbert
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190215/095701ec/attachment.html>
+
+From tahafut at gmail.com  Fri Feb 15 17:50:42 2019
+From: tahafut at gmail.com (Henry Chen)
+Date: Fri, 15 Feb 2019 14:50:42 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+ <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+ <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+Message-ID: <CAPAfSu=dC2ZQqVL2EkxEcUXfA7JmH66Or42hMEWHRsJMFaM+dg@mail.gmail.com>
+
+Indeed there is a potential loss of precision:
+
+_timedelta_to_microseconds(timedelta(0, 1, 1)) returns 1000000
+
+where conversion function is defined according to the initial message in
+this thread
+
+On Fri, Feb 15, 2019 at 2:29 PM Paul Ganssle <paul at ganssle.io> wrote:
+
+> I'm still with Alexander on this. I see functions like total_X as
+> basically putting one of the arguments directly in the function name - it
+> should be `total_duration(units)`, not `total_units()`, because all of
+> those functions do the same thing and only differ in the units they use.
+>
+> But Alexander's approach of "divide it by the base unit" is *even more
+> general* than this, because it allows you to use non-traditional units
+> like weeks (timedelta(days=7)) or "two-day periods" or whatever you want.
+> If you use this idiom a lot and want a simple "calculate the total"
+> function, this should suffice:
+>
+> def total_duration(td, *args, **kwargs):
+>     return td / timedelta(*args, **kwargs)
+>
+> Then you can spell "x.total_microseconds()" as:
+>
+> total_duration(x, microseconds=1)
+>
+> Or you can write it like this:
+>
+> def total_duration(td, units='seconds'):
+>     return td / timedelta(**{units: 1})
+>
+> In which case it would be spelled:
+>
+> total_duration(x, units='microseconds')
+>
+> I don't see there being any compelling reason to add a bunch of methods
+> for a marginal (and I'd say arguable) gain in aesthetics.
+> On 2/15/19 4:48 PM, Chris Barker via Python-Dev wrote:
+>
+> On Fri, Feb 15, 2019 at 11:58 AM Rob Cliffe via Python-Dev <
+> python-dev at python.org> wrote:
+>
+>> A function with "microseconds" in the name IMO misleadingly suggests that
+>> it has something closer to microsecond accuracy than a 1-second granularity.
+>>
+>
+> it sure does, but `delta.total_seconds()` is a float, so ms accuracy is
+> preserved.
+>
+> However, if you DO want a "timedelta_to_microseconds" function, it really
+> should use the microseconds field in the timedelta object. I haven't
+> thought it through, but it makes me nervous to convert to floating point,
+> and then back again -- for some large values of timedelta some precision
+> may be lost.
+>
+> Also:
+>
+> _MICROSECONDS_PER_SECOND = 1000000
+>
+>
+> really? why in the world would you define a constant for something that
+> simple that can never change? (and probably isn't used in more than one
+> place anyway
+>
+> As Alexander pointed out the canonical way to spell this would be:
+>
+> delta / timedelta(microseconds=1)
+>
+> but I think that is less than obvious to the usual user, so I think a:
+>
+> delta.total_microseconds()
+>
+> would be a reasonable addition.
+>
+> I know I use .totalseconds() quite a bit, and would not want to have to
+> spell it:
+>
+> delta / timedelta(seconds=1)
+>
+> (and can't do that in py2 anyway)
+>
+> -CHB
+>
+> --
+>
+> Christopher Barker, Ph.D.
+> Oceanographer
+>
+> Emergency Response Division
+> NOAA/NOS/OR&R            (206) 526-6959   voice
+> 7600 Sand Point Way NE   (206) 526-6329   fax
+> Seattle, WA  98115       (206) 526-6317   main reception
+>
+> Chris.Barker at noaa.gov
+>
+> _______________________________________________
+> Python-Dev mailing listPython-Dev at python.orghttps://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/paul%40ganssle.io
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/tahafut%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190215/2367ddce/attachment.html>
+
+From chris.barker at noaa.gov  Fri Feb 15 18:13:35 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Fri, 15 Feb 2019 15:13:35 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CAP1=2W496zXrTubGXy=xASP8L=vFhYnET+T=PCEkpQfAcw2B5g@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <e0e45870-96a4-e0f4-a4dd-78b2f1e792a2@ubuntu.com>
+ <CA+3bQGGMrA7qGiA0BZ4z0DxbvG6nvZV5zUp8ZRUEHVG2vPhYrw@mail.gmail.com>
+ <CAO-CpEJf5jPTLkH5Hswubu7+Ucu2vEWHSPN+8d1PurOa=gne9Q@mail.gmail.com>
+ <CAP1=2W496zXrTubGXy=xASP8L=vFhYnET+T=PCEkpQfAcw2B5g@mail.gmail.com>
+Message-ID: <CALGmxEKC9mP_SYLVMONpEZc1cW=vep62LHYAm8rP21L0sJVijg@mail.gmail.com>
+
+On Fri, Feb 15, 2019 at 2:39 PM Brett Cannon <brett at python.org> wrote:
+
+> In my experience after using 'py' on Windows I consistently miss it on
+> UNIX now, so to me there is enough of a benefit that I will continue to
+> chip away at the project until it's done regardless of whether anyone else
+> uses it. :)
+>
+
+And I would REALLY like it if as much was the same as possible on all
+platforms...
+
+-CHB
+
+
+
+
+> -Brett
+>
+>
+>>
+>>
+>>> Victor
+>>> --
+>>> Night gathers, and now my watch begins. It shall not end until my death.
+>>> _______________________________________________
+>>> Python-Dev mailing list
+>>> Python-Dev at python.org
+>>> https://mail.python.org/mailman/listinfo/python-dev
+>>> Unsubscribe:
+>>> https://mail.python.org/mailman/options/python-dev/gjcarneiro%40gmail.com
+>>>
+>>
+>>
+>> --
+>> Gustavo J. A. M. Carneiro
+>> Gambit Research
+>> "The universe is always one step beyond logic." -- Frank Herbert
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/chris.barker%40noaa.gov
+>
+
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190215/f866bfca/attachment-0001.html>
+
+From greg at krypto.org  Fri Feb 15 18:15:25 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Fri, 15 Feb 2019 15:15:25 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <22F2AD71-5694-4EB5-9C21-8B965654A481@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+ <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+ <slrnq6a500.h09.mcepl@milic.suse.cz>
+ <22F2AD71-5694-4EB5-9C21-8B965654A481@python.org>
+Message-ID: <CAGE7PNLjV9aN9KOUjv1rMGNKS1=mB2ZLFBL1KR1cyatf7rGiXQ@mail.gmail.com>
+
+On Thu, Feb 14, 2019 at 9:29 AM Barry Warsaw <barry at python.org> wrote:
+
+> On Feb 13, 2019, at 23:08, Mat?j Cepl <mcepl at cepl.eu> wrote:
+>
+> > Is this relevant to the discussion at hand? We are talking about
+> > the binary /usr/bin/python3 which will be surely be provided
+> > even by Python 4, won't it?
+>
+> Why would it be?  Since this is all hypothetical anyway <wink>, I?d more
+> likely expect to only ship /usr/bin/python.
+>
+
+Because nobody can use 'python' and expect that to be anything but a 2and3
+compatible interpreter for the next 5+ years given we live in a world where
+people routinely have a very real need to write #! lines that works with
+obsolete distributions.  python3 implies >=3.x, thus python 4, 5, 6, 2069,
+3001, and 90210 should all have python3 point to them.  realistically
+people will stop referring to python3 by 2069 so we could consider removing
+the recommendation at that point.
+
+2020 is not the end of use or end of importance for Python 2.  It is merely
+the end of bugfixes applied by python-dev.
+
+A thing I want to make sure we _don't_ do in the future is allow future
+pythonN binaries.  python4, python90210, etc.  those should never exist.
+python, python3, and pythonX.Y only.  If we were ever to go back on our
+promise and create another world-breaking python version, it could get its
+own canonical binary name.  But we're specifically planning _not_ to make
+that mistake again.
+
+I suspect most of my opining below will be contentious to multiple people
+because I describe a state of the world that is at conflict with decisions
+multiple independent distros have already made.  Accept their mistakes and
+move on past it to the hack in that case:
+
+A new "py" launcher isn't going to solve this problem - it is separate and
+should be its own PEP as it has its own set of requirements and reasons to
+be considered (especially on platforms with no concept of a #!).  Recommend
+"py" today-ish and nobody can rely on it for at least 10+ years in a wide
+support cross platform scripting type of situation because it won't be
+present on the obsolete or long term supported things that people have a
+need for such #!s to run on.
+
+Not our problem?  Well, actually, it is.  Matthias speaking for Debian
+suggesting they don't want to have "python" at all if it isn't a synonym
+for "python2" because it'll break software is... wrong.  If software is not
+3 compatible and uses "python", it'll also break when python is python3.
+Just in a different manner.  "python" should point to python3 when a distro
+does not require python2 for its core.  It should not _vary_ as to which of
+2.7 or 3.7 it will point to within a given stable distribution (installing
+python2.7 should never suddenly redirect it back to python2).  But "python"
+itself should always exist when any python interpreter is core to the OS.
+That means if a distro no longer requires python2 as part of its base/core
+but does require python3... "python" must point to "python3".  If a posixy
+OS no longer requires python at all (surely there are some by now?) the
+question of what python should point to when an OS distro supplied optional
+python package gets installed is likely either "nothing at all" or ">=3.x"
+but should never be decided as "2.7" (which sadly may be what macOS does).
+
+Do we already have LTS _stable_ distributions making that mistake today?
+If so they've done something undesirable for the world at large and we're
+already screwed if that distro release is deemed important by masses of
+users: There is no way to write a *direct* #! line that works out of the
+box to launch a working latest version Python interpreter across all
+platforms.
+
+The hack to make that work otherwise involves:
+
+```sh
+#!/bin/sh   # (or bash if that much is guaranteed)
+... some shell logic to find _an_ acceptible interpreter ...
+exec "${DISCOVERED_PYTHON}" - <<<END_OF_PYTHON_CODE
+# actual Python code here, escaped as appropriate when needed for being
+embedded within a shell script
+END_OF_PYTHON_CODE
+```
+
+Obviously someone should write code to take a standalone single file python
+program as input and generate that wrapper on it (and upload the tool to
+pip) instead of telling people to reinvent their own or cut and paste it
+into their direct source files.
+
+This problem isn't new.  A chapeau rouge distro shipped python -> 1.5.2 for
+eons at the same time as shipping 2.x on the system.  The entire world
+wanted to be writing 2.0-2.4 code but there was no simple "python2" binary
+on most systems with 2.x installed yet.  We all survived despite ourselves.
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190215/e13d3015/attachment.html>
+
+From ericsnowcurrently at gmail.com  Fri Feb 15 18:37:53 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Fri, 15 Feb 2019 16:37:53 -0700
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+Message-ID: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+
+Hi all,
+
+I've been working on the runtime lately, particularly focused on my
+multi-core Python project.  One thing that would help simplify changes
+in this area is if PyInterpreterState were defined in
+Include/internal.  This would mean the type would be opaque unless
+Py_BUILD_CORE were defined.
+
+The docs [1] already say none of the struct's fields are public.
+Furthermore, Victor already moved it into Include/cpython (i.e. not in
+the stable ABI) in November.  Overall, the benefit of making internal
+types like this opaque is realized in our ability to change the
+internal details without further breaking C-API users.
+
+Realistically, there may be extension modules out there that use
+PyInterpreterState fields directly.  They would break.  I expect there
+to be few such modules and fixing them would not involve great effort.
+We'd have to add any missing accessor functions to the public C-API,
+which I see as a good thing.  I have an issue [2] open for the change
+and a PR open.  My PR already adds an entry to the porting section of
+the 3.8 What's New doc about dealing with PyInterpreterState.
+
+Anyway, I just wanted to see if there are any objections to making
+PyInterpreterState an opaque type outside of core use.
+
+-eric
+
+p.s. I'd like to do the same with PyThreadState, but that's a bit
+trickier [3] and not one of my immediate needs. :)
+
+
+[1] https://docs.python.org/3/c-api/init.html#c.PyInterpreterState
+[2] https://bugs.python.org/issue35886
+[3] https://bugs.python.org/issue35949
+
