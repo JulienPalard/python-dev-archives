@@ -9804,3 +9804,740 @@ trickier [3] and not one of my immediate needs. :)
 [2] https://bugs.python.org/issue35886
 [3] https://bugs.python.org/issue35949
 
+From J.Demeyer at UGent.be  Sat Feb 16 05:15:44 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Sat, 16 Feb 2019 11:15:44 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+Message-ID: <5C67E2D0.7020906@UGent.be>
+
+On 2019-02-16 00:37, Eric Snow wrote:
+> One thing that would help simplify changes
+> in this area is if PyInterpreterState were defined in
+> Include/internal.
+
+How would that help anything? I don't like the idea (in general, I'm not 
+talking about PyInterpreterState specifically) that external modules 
+should be second-class citizens compared to modules inside CPython.
+
+If you want to break the undocumented API, just break it. I don't mind. 
+But I don't see why it's required to move the include to 
+Include/internal for that.
+
+From ncoghlan at gmail.com  Sat Feb 16 11:31:18 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 17 Feb 2019 02:31:18 +1000
+Subject: [Python-Dev] Is distutils.util.get_platform() the "current" or
+ the "target" platform
+In-Reply-To: <a97bbb7a-5e4d-7d54-afa1-ed195d573d90@python.org>
+References: <7f0f615b-fab5-0504-b1bf-20b3c9cd0402@python.org>
+ <CAGE7PNLMHkQ8AcmPjk=aOmMgv81QQcomFHJnofbEg8dTVEG-qQ@mail.gmail.com>
+ <a97bbb7a-5e4d-7d54-afa1-ed195d573d90@python.org>
+Message-ID: <CADiSq7dfVoym2DScQ6LS+Ywv2NeE4MQFQ-HrWhi_ytJ8p+V9GA@mail.gmail.com>
+
+On Sat, 16 Feb 2019 at 08:06, Steve Dower <steve.dower at python.org> wrote:
+> I'm inclined to say that nobody but us uses this API :) Does that make
+> it seem more okay to "clarify" that it's returning target platform?
+
+I've always treated the situation as "Cross-compilation doesn't work,
+build on the target platform, using a VM if you have to", and I
+suspect a lot of folks have approached the status quo the same way.
+
+So if there are functions you can change to make cross-compilation
+actually work without requiring changes to a lot of other projects,
+that seems like a good thing to me.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sat Feb 16 11:59:36 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 17 Feb 2019 02:59:36 +1000
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CAP7h-xavkxsqF60M_aR0641M21D+oeVj90f7=h671+8Y5TUyeA@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <1cfc2984-216c-fdc7-7ea2-692662d93971@ganssle.io>
+ <CAP7h-xavkxsqF60M_aR0641M21D+oeVj90f7=h671+8Y5TUyeA@mail.gmail.com>
+Message-ID: <CADiSq7ee-1MNbNQrcYQUjW921517=AvB_gT20VdMKfq3UzEGOw@mail.gmail.com>
+
+On Fri, 15 Feb 2019 at 04:15, Alexander Belopolsky
+<alexander.belopolsky at gmail.com> wrote:
+>
+>
+>
+> On Thu, Feb 14, 2019 at 9:07 AM Paul Ganssle <paul at ganssle.io> wrote:
+>>
+>> I don't think it's totally unreasonable to have other total_X() methods, where X would be days, hours, minutes and microseconds
+>
+> I do.  I was against adding the total_seconds() method to begin with because the same effect can be achieved with
+>
+> delta / timedelta(seconds=1)
+>
+> this is easily generalized to
+>
+> delta / timedelta(X=1)
+>
+> where X can be days, hours, minutes or microseconds.
+
+As someone who reads date/time manipulation code far more often then
+he writes it, it's immediately obvious to me what
+"delta.total_seconds()" is doing, while "some_var / some_other_var"
+could be doing anything.
+
+So for the sake of those us that aren't as well versed in how time
+delta division works, it seems to me that adding:
+
+    def total_duration(td, interval=timedelta(seconds=1)):
+        return td / interval
+
+as a module level helper function would make a lot of sense. (This is
+a variant on Paul's helper function that accepts the divisor as a
+specifically named argument with a default value, rather than creating
+it on every call)
+
+Cheers,
+Nick.
+
+P.S. Why a function rather than a method? Mostly because this feels
+like "len() for timedelta objects" to me, but also because as a helper
+function, the docs can easily describe how to add it as a utility
+function for older versions.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From paul at ganssle.io  Sat Feb 16 12:16:32 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Sat, 16 Feb 2019 12:16:32 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CADiSq7ee-1MNbNQrcYQUjW921517=AvB_gT20VdMKfq3UzEGOw@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <1cfc2984-216c-fdc7-7ea2-692662d93971@ganssle.io>
+ <CAP7h-xavkxsqF60M_aR0641M21D+oeVj90f7=h671+8Y5TUyeA@mail.gmail.com>
+ <CADiSq7ee-1MNbNQrcYQUjW921517=AvB_gT20VdMKfq3UzEGOw@mail.gmail.com>
+Message-ID: <d713733c-61a5-8571-f3b9-082e67fbc3d9@ganssle.io>
+
+I am definitely sympathetic to the idea of it being more readable, but I
+feel like this adds some unnecessary bloat to the interface when "divide
+the value by the units" is not at all uncommon. Plus, if you add a
+total_duration that by default does the same thing as total_seconds, you
+now have three functions that do exactly the same thing:
+
+- td / timedelta(seconds=1)
+- td.total_seconds()
+- total_duration(td)
+
+If it's just for the purposes of readability, you can also do this:
+
+??? from operator import truediv as total_duration?? # (timedelta, interval)
+
+I think if we add such a function, it will essentially be just a slower
+version of something that already exists. I suspect the main reason the
+"divide the timedelta by the interval" thing isn't a common enough idiom
+that people see it all the time is that it's only supported in Python 3.
+As more code drops Python 2, I think the "td / interval" idiom will
+hopefully become common enough that it will obviate the need for a
+total_duration function.
+
+That said, if people feel very strongly that a total_duration function
+would be useful, maybe the best thing to do would be for me to add it to
+dateutil.utils? In that case it would at least be available in Python 2,
+so people who find it more readable /and/ people still writing polyglot
+code would be able to use it, without the standard library unnecessarily
+providing two ways to do the exact same thing.
+
+On 2/16/19 11:59 AM, Nick Coghlan wrote:
+> On Fri, 15 Feb 2019 at 04:15, Alexander Belopolsky
+> <alexander.belopolsky at gmail.com> wrote:
+>>
+>>
+>> On Thu, Feb 14, 2019 at 9:07 AM Paul Ganssle <paul at ganssle.io> wrote:
+>>> I don't think it's totally unreasonable to have other total_X() methods, where X would be days, hours, minutes and microseconds
+>> I do.  I was against adding the total_seconds() method to begin with because the same effect can be achieved with
+>>
+>> delta / timedelta(seconds=1)
+>>
+>> this is easily generalized to
+>>
+>> delta / timedelta(X=1)
+>>
+>> where X can be days, hours, minutes or microseconds.
+> As someone who reads date/time manipulation code far more often then
+> he writes it, it's immediately obvious to me what
+> "delta.total_seconds()" is doing, while "some_var / some_other_var"
+> could be doing anything.
+>
+> So for the sake of those us that aren't as well versed in how time
+> delta division works, it seems to me that adding:
+>
+>     def total_duration(td, interval=timedelta(seconds=1)):
+>         return td / interval
+>
+> as a module level helper function would make a lot of sense. (This is
+> a variant on Paul's helper function that accepts the divisor as a
+> specifically named argument with a default value, rather than creating
+> it on every call)
+>
+> Cheers,
+> Nick.
+>
+> P.S. Why a function rather than a method? Mostly because this feels
+> like "len() for timedelta objects" to me, but also because as a helper
+> function, the docs can easily describe how to add it as a utility
+> function for older versions.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190216/49c4c702/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190216/49c4c702/attachment.sig>
+
+From ncoghlan at gmail.com  Sat Feb 16 12:25:04 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 17 Feb 2019 03:25:04 +1000
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CAGE7PNLjV9aN9KOUjv1rMGNKS1=mB2ZLFBL1KR1cyatf7rGiXQ@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+ <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+ <slrnq6a500.h09.mcepl@milic.suse.cz>
+ <22F2AD71-5694-4EB5-9C21-8B965654A481@python.org>
+ <CAGE7PNLjV9aN9KOUjv1rMGNKS1=mB2ZLFBL1KR1cyatf7rGiXQ@mail.gmail.com>
+Message-ID: <CADiSq7e-SPb_7TWYu2ROgTcS7YxuNoAD-dzAygbXD2etWa3FAg@mail.gmail.com>
+
+On Sat, 16 Feb 2019 at 09:19, Gregory P. Smith <greg at krypto.org> wrote:
+> Not our problem?  Well, actually, it is.  Matthias speaking for Debian suggesting they don't want to have "python" at all if it isn't a synonym for "python2" because it'll break software is... wrong.  If software is not 3 compatible and uses "python", it'll also break when python is python3.  Just in a different manner.  "python" should point to python3 when a distro does not require python2 for its core.  It should not _vary_ as to which of 2.7 or 3.7 it will point to within a given stable distribution (installing python2.7 should never suddenly redirect it back to python2).  But "python" itself should always exist when any python interpreter is core to the OS.  That means if a distro no longer requires python2 as part of its base/core but does require python3... "python" must point to "python3".  If a posixy OS no longer requires python at all (surely there are some by now?) the question of what python should point to when an OS distro supplied optional python package gets installed is likely either "nothing at all" or ">=3.x" but should never be decided as "2.7" (which sadly may be what macOS does).
+>
+> Do we already have LTS _stable_ distributions making that mistake today?  If so they've done something undesirable for the world at large and we're already screwed if that distro release is deemed important by masses of users: There is no way to write a direct #! line that works out of the box to launch a working latest version Python interpreter across all platforms.
+
+This is exactly why we want to change Fedora et al to have
+/usr/bin/python aliased to /usr/bin/python3 by default, and yes,
+having /usr/bin/python missing by default does indeed break the world
+(search for Fedora 28 and Ubuntu 16.04 Ansible Python issues for
+more).
+
+While Matthias is still personally reluctant to add the alias for
+Debian/Ubuntu, the *only* thing preventing aliasing /usr/bin/python to
+/usr/bin/python3 right now on the Fedora & RHEL side of things is PEP
+394, and Guido objected strongly when Petr last tried to get the PEP
+to even acknowledge that it was reasonable for distros to make that
+setting configurable on a system-wide basis:
+https://github.com/python/peps/pull/630
+
+For RHEL 8, the resolution was "Well, we'll ignore the upstream PEP,
+then" and make the setting configurable anyway, but Fedora tries to
+work more closely with upstream than that - if we think upstream are
+giving people bad or outdated advice, then we'll aim to get the advice
+changed rather than ignoring it.
+
+In this case, the advice is outdated: there have been a couple of
+years of releases with /usr/bin/python missing, so it's time to move
+to the "/usr/bin/python3" side of source compatibility, and go back to
+having "just run python" be the way you start a modern Python
+interpreter, even when you're using the system Python on a Linux
+distro.
+
+Cheers,
+Nick.
+
+P.S. Note that we're not asking for the PEP to say "You should do
+this..." - just for the PEP to acknowledge it as a reasonable choice
+for distros to make given the looming Python 2 End of Life.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From steve.dower at python.org  Sat Feb 16 12:29:15 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Sat, 16 Feb 2019 09:29:15 -0800
+Subject: [Python-Dev] Is distutils.util.get_platform() the "current" or
+ the "target" platform
+In-Reply-To: <CADiSq7dfVoym2DScQ6LS+Ywv2NeE4MQFQ-HrWhi_ytJ8p+V9GA@mail.gmail.com>
+References: <7f0f615b-fab5-0504-b1bf-20b3c9cd0402@python.org>
+ <CAGE7PNLMHkQ8AcmPjk=aOmMgv81QQcomFHJnofbEg8dTVEG-qQ@mail.gmail.com>
+ <a97bbb7a-5e4d-7d54-afa1-ed195d573d90@python.org>
+ <CADiSq7dfVoym2DScQ6LS+Ywv2NeE4MQFQ-HrWhi_ytJ8p+V9GA@mail.gmail.com>
+Message-ID: <03fa7e4a-6cb9-58b8-709c-44a589fdb706@python.org>
+
+On 16Feb.2019 0831, Nick Coghlan wrote:
+> On Sat, 16 Feb 2019 at 08:06, Steve Dower <steve.dower at python.org> wrote:
+>> I'm inclined to say that nobody but us uses this API :) Does that make
+>> it seem more okay to "clarify" that it's returning target platform?
+> 
+> I've always treated the situation as "Cross-compilation doesn't work,
+> build on the target platform, using a VM if you have to", and I
+> suspect a lot of folks have approached the status quo the same way.
+
+For platforms where pyconfig.h is generated, this is still going to be
+true, at least until the compiler classes learn to add a
+platform-specific include path.
+
+On Windows, we have a static pyconfig.h that changes behaviour based on
+compiler and Windows SDK provided preprocessor directives, so we can
+quite comfortably use the same file.
+
+> So if there are functions you can change to make cross-compilation
+> actually work without requiring changes to a lot of other projects,
+> that seems like a good thing to me.
+
+Okay Paul (Monson), that's your cue to update the PR :)
+
+Cheers,
+Steve
+
+From ncoghlan at gmail.com  Sat Feb 16 12:38:01 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 17 Feb 2019 03:38:01 +1000
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <d713733c-61a5-8571-f3b9-082e67fbc3d9@ganssle.io>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <1cfc2984-216c-fdc7-7ea2-692662d93971@ganssle.io>
+ <CAP7h-xavkxsqF60M_aR0641M21D+oeVj90f7=h671+8Y5TUyeA@mail.gmail.com>
+ <CADiSq7ee-1MNbNQrcYQUjW921517=AvB_gT20VdMKfq3UzEGOw@mail.gmail.com>
+ <d713733c-61a5-8571-f3b9-082e67fbc3d9@ganssle.io>
+Message-ID: <CADiSq7c0=4SBcpyKjMiXJ=8QNzk6rkHjiK6ayg1O4_Cbajh5uA@mail.gmail.com>
+
+On Sun, 17 Feb 2019 at 03:20, Paul Ganssle <paul at ganssle.io> wrote:
+> I think if we add such a function, it will essentially be just a slower version of something that already exists. I suspect the main reason the "divide the timedelta by the interval" thing isn't a common enough idiom that people see it all the time is that it's only supported in Python 3. As more code drops Python 2, I think the "td / interval" idiom will hopefully become common enough that it will obviate the need for a total_duration function.
+
+And personally, the total_seconds() case has always been enough for me.
+
+> That said, if people feel very strongly that a total_duration function would be useful, maybe the best thing to do would be for me to add it to dateutil.utils? In that case it would at least be available in Python 2, so people who find it more readable and people still writing polyglot code would be able to use it, without the standard library unnecessarily providing two ways to do the exact same thing.
+
+I'm now thinking a slight documentation improvement would have
+addressed my own confusion (and I suspect the OPs as well):
+
+* In the "Supported Operations" section of
+https://docs.python.org/3/library/datetime.html#timedelta-objects,
+change "Division (3) of t2 by t3." to "Division (3) of overall
+duration t2 by interval unit t3."
+* In the total_seconds() documentation, add a sentence "For interval
+units other than seconds, use the division form directly (e.g. `td /
+timedelta(microseconds=1)`)"
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From tahafut at gmail.com  Sat Feb 16 13:47:34 2019
+From: tahafut at gmail.com (Henry Chen)
+Date: Sat, 16 Feb 2019 10:47:34 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CADiSq7c0=4SBcpyKjMiXJ=8QNzk6rkHjiK6ayg1O4_Cbajh5uA@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <1cfc2984-216c-fdc7-7ea2-692662d93971@ganssle.io>
+ <CAP7h-xavkxsqF60M_aR0641M21D+oeVj90f7=h671+8Y5TUyeA@mail.gmail.com>
+ <CADiSq7ee-1MNbNQrcYQUjW921517=AvB_gT20VdMKfq3UzEGOw@mail.gmail.com>
+ <d713733c-61a5-8571-f3b9-082e67fbc3d9@ganssle.io>
+ <CADiSq7c0=4SBcpyKjMiXJ=8QNzk6rkHjiK6ayg1O4_Cbajh5uA@mail.gmail.com>
+Message-ID: <CAPAfSuk-y-ZC_20sp-m_2WdgUBHVbWE4HqHg32KWbsBd6TiR5Q@mail.gmail.com>
+
++1 on the improved docs solution: no new code to maintain and big return on
+investment in preventing future bugs / confusion :)
+
+On Sat, Feb 16, 2019 at 9:40 AM Nick Coghlan <ncoghlan at gmail.com> wrote:
+
+> On Sun, 17 Feb 2019 at 03:20, Paul Ganssle <paul at ganssle.io> wrote:
+> > I think if we add such a function, it will essentially be just a slower
+> version of something that already exists. I suspect the main reason the
+> "divide the timedelta by the interval" thing isn't a common enough idiom
+> that people see it all the time is that it's only supported in Python 3. As
+> more code drops Python 2, I think the "td / interval" idiom will hopefully
+> become common enough that it will obviate the need for a total_duration
+> function.
+>
+> And personally, the total_seconds() case has always been enough for me.
+>
+> > That said, if people feel very strongly that a total_duration function
+> would be useful, maybe the best thing to do would be for me to add it to
+> dateutil.utils? In that case it would at least be available in Python 2, so
+> people who find it more readable and people still writing polyglot code
+> would be able to use it, without the standard library unnecessarily
+> providing two ways to do the exact same thing.
+>
+> I'm now thinking a slight documentation improvement would have
+> addressed my own confusion (and I suspect the OPs as well):
+>
+> * In the "Supported Operations" section of
+> https://docs.python.org/3/library/datetime.html#timedelta-objects,
+> change "Division (3) of t2 by t3." to "Division (3) of overall
+> duration t2 by interval unit t3."
+> * In the total_seconds() documentation, add a sentence "For interval
+> units other than seconds, use the division form directly (e.g. `td /
+> timedelta(microseconds=1)`)"
+>
+> Cheers,
+> Nick.
+>
+> --
+> Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/tahafut%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190216/48630dfa/attachment.html>
+
+From barry at python.org  Sat Feb 16 14:13:03 2019
+From: barry at python.org (Barry Warsaw)
+Date: Sat, 16 Feb 2019 11:13:03 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CADiSq7e-SPb_7TWYu2ROgTcS7YxuNoAD-dzAygbXD2etWa3FAg@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+ <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+ <slrnq6a500.h09.mcepl@milic.suse.cz>
+ <22F2AD71-5694-4EB5-9C21-8B965654A481@python.org>
+ <CAGE7PNLjV9aN9KOUjv1rMGNKS1=mB2ZLFBL1KR1cyatf7rGiXQ@mail.gmail.com>
+ <CADiSq7e-SPb_7TWYu2ROgTcS7YxuNoAD-dzAygbXD2etWa3FAg@mail.gmail.com>
+Message-ID: <2DBD97CF-855A-45DA-968B-102FA785B9CF@python.org>
+
+On Feb 16, 2019, at 09:25, Nick Coghlan <ncoghlan at gmail.com> wrote:
+
+> While Matthias is still personally reluctant to add the alias for
+> Debian/Ubuntu, the *only* thing preventing aliasing /usr/bin/python to
+> /usr/bin/python3 right now on the Fedora & RHEL side of things is PEP
+> 394, and Guido objected strongly when Petr last tried to get the PEP
+> to even acknowledge that it was reasonable for distros to make that
+> setting configurable on a system-wide basis:
+> https://github.com/python/peps/pull/630
+
+> P.S. Note that we're not asking for the PEP to say "You should do
+> this..." - just for the PEP to acknowledge it as a reasonable choice
+> for distros to make given the looming Python 2 End of Life.
+
+I think this is a reasonable ask.  PEP 394 shouldn?t *prevent* distros from doing what they believe is in the best interest of their users.  While we do want consistency in the user experience across Linux distros (and more broadly, across all supported platforms), I think we also have to acknowledge that we?re still in a time of transition (maybe more so right now), so we should find ways to allow for experimentation within that context.  I?m not sure that I agree with all the proposed changes to PEP 394, but those are the guidelines I think I?ll re-evaluate the PR by.
+
+-Barry
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190216/6d4b393c/attachment-0001.sig>
+
+From solipsis at pitrou.net  Sat Feb 16 16:32:10 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sat, 16 Feb 2019 22:32:10 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+Message-ID: <20190216223210.09ef3944@fsol>
+
+On Sat, 16 Feb 2019 11:15:44 +0100
+Jeroen Demeyer <J.Demeyer at UGent.be> wrote:
+> On 2019-02-16 00:37, Eric Snow wrote:
+> > One thing that would help simplify changes
+> > in this area is if PyInterpreterState were defined in
+> > Include/internal.  
+> 
+> How would that help anything? I don't like the idea (in general, I'm not 
+> talking about PyInterpreterState specifically) that external modules 
+> should be second-class citizens compared to modules inside CPython.
+> 
+> If you want to break the undocumented API, just break it. I don't mind. 
+> But I don't see why it's required to move the include to 
+> Include/internal for that.
+
+This sounds like a reasonable design principle: decree the API
+non-stable and prone to breakage (it already is, anyway), don't hide it.
+
+It's true that in the PyInterpreterState case specifically, there
+doesn't seem much worthy of use by third-party libraries.
+
+Regards
+
+Antoine.
+
+
+
+From steve.dower at python.org  Sat Feb 16 17:34:46 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Sat, 16 Feb 2019 14:34:46 -0800
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <20190216223210.09ef3944@fsol>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be> <20190216223210.09ef3944@fsol>
+Message-ID: <b264eda2-0185-8f82-ca62-3362995fe77b@python.org>
+
+On 16Feb.2019 1332, Antoine Pitrou wrote:
+> On Sat, 16 Feb 2019 11:15:44 +0100
+> Jeroen Demeyer <J.Demeyer at UGent.be> wrote:
+>> On 2019-02-16 00:37, Eric Snow wrote:
+>>> One thing that would help simplify changes
+>>> in this area is if PyInterpreterState were defined in
+>>> Include/internal.  
+>>
+>> How would that help anything? I don't like the idea (in general, I'm not 
+>> talking about PyInterpreterState specifically) that external modules 
+>> should be second-class citizens compared to modules inside CPython.
+>>
+>> If you want to break the undocumented API, just break it. I don't mind. 
+>> But I don't see why it's required to move the include to 
+>> Include/internal for that.
+> 
+> This sounds like a reasonable design principle: decree the API
+> non-stable and prone to breakage (it already is, anyway), don't hide it.
+
+As I was chatting with Eric shortly before he posted this, I assume the
+idea would be to expose anything useful/necessary via a function. That
+at least removes the struct layout from the ABI, without removing
+functionality.
+
+> It's true that in the PyInterpreterState case specifically, there
+> doesn't seem much worthy of use by third-party libraries.
+
+Which seems to suggest that the answer to "which members are important
+to expose?" is "probably none". And that's possibly why Eric didn't
+mention it in his email :)
+
+This is mostly about being able to assign blame when things break, so
+I'm totally okay with extension modules that want to play with internals
+declaring Py_BUILD_CORE to get access to them (though I suspect that
+won't work out of the box - maybe we should have a
+Py_I_TOO_LIKE_TO_LIVE_DANGEROUSLY?).
+
+I like that we're taking (small) steps to reduce the size of our API. It
+helps balance out the growth and leaves us with a chance of one day
+being able to have an extension model that isn't as tied to C's ABI.
+
+Cheers,
+Steve
+
+From solipsis at pitrou.net  Sat Feb 16 17:47:31 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sat, 16 Feb 2019 23:47:31 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be> <20190216223210.09ef3944@fsol>
+ <b264eda2-0185-8f82-ca62-3362995fe77b@python.org>
+Message-ID: <20190216234731.4ea34101@fsol>
+
+On Sat, 16 Feb 2019 14:34:46 -0800
+Steve Dower <steve.dower at python.org> wrote:
+> On 16Feb.2019 1332, Antoine Pitrou wrote:
+> > On Sat, 16 Feb 2019 11:15:44 +0100
+> > Jeroen Demeyer <J.Demeyer at UGent.be> wrote:  
+> >> On 2019-02-16 00:37, Eric Snow wrote:  
+> >>> One thing that would help simplify changes
+> >>> in this area is if PyInterpreterState were defined in
+> >>> Include/internal.    
+> >>
+> >> How would that help anything? I don't like the idea (in general, I'm not 
+> >> talking about PyInterpreterState specifically) that external modules 
+> >> should be second-class citizens compared to modules inside CPython.
+> >>
+> >> If you want to break the undocumented API, just break it. I don't mind. 
+> >> But I don't see why it's required to move the include to 
+> >> Include/internal for that.  
+> > 
+> > This sounds like a reasonable design principle: decree the API
+> > non-stable and prone to breakage (it already is, anyway), don't hide it.  
+> 
+> As I was chatting with Eric shortly before he posted this, I assume the
+> idea would be to expose anything useful/necessary via a function. That
+> at least removes the struct layout from the ABI, without removing
+> functionality.
+
+Well, the ABI is allowed to break at each feature version (except for
+the "stable ABI" subset, which PyInterpreterState isn't part of), so I'm
+not sure that would change anything ;-)
+
+> > It's true that in the PyInterpreterState case specifically, there
+> > doesn't seem much worthy of use by third-party libraries.  
+> 
+> Which seems to suggest that the answer to "which members are important
+> to expose?" is "probably none".
+
+That sounds intuitive. But we don't know what kind of hacks some
+extension authors might do, for legitimate reasons...
+
+(perhaps some gevent-like framework needs access to the interpreter
+state?)
+
+Regards
+
+Antoine.
+
+
+
+From richardlev at gmail.com  Sat Feb 16 18:23:38 2019
+From: richardlev at gmail.com (Richard Levasseur)
+Date: Sat, 16 Feb 2019 15:23:38 -0800
+Subject: [Python-Dev] Adding test.support.safe_rmpath()
+In-Reply-To: <CAKJDb-P-Jvw0w+Qkw8KjHn0xpQcaZ78dJG1MQdhyPcb7QLeAkg@mail.gmail.com>
+References: <CAFYqXL-UsoJ582AKjvtx7gowqE6_CPwMQdoQRyp+9TzEO5002w@mail.gmail.com>
+ <7AF16DF0-A237-44B7-B272-7427CB5AD5B0@mac.com>
+ <CAFYqXL_-nyTX98+XzaL37X5sOQgX=w-gpttoFxJa2j+15d0JvQ@mail.gmail.com>
+ <3C12F8E9-E825-4F28-9CFE-A81FB35694A6@mac.com>
+ <CALFfu7CFhPip2T0jbMoX33QKw9T=UeOrR86vKcYnMcMhE1K53A@mail.gmail.com>
+ <CAFYqXL8=pyMfA5ZZp=w3w+oAJ0cO7=XMhhz=o=MDt_ji9i6w8A@mail.gmail.com>
+ <6083f67a-8413-fc40-0118-cfab2284ae2a@timgolden.me.uk>
+ <CAFYqXL8Oufz4aQuTggbM04kqU+u36QqatYgKLsYSObpMDx4sBQ@mail.gmail.com>
+ <CAP1=2W5rV7sfrhDmBuQSnmfdcpRK6pM-bZBKE-AQOHXMBKq28g@mail.gmail.com>
+ <1c094bac-a1d1-aaaf-4e3a-0f110c0dfd4f@python.org>
+ <CAKJDb-P-Jvw0w+Qkw8KjHn0xpQcaZ78dJG1MQdhyPcb7QLeAkg@mail.gmail.com>
+Message-ID: <CAJg0tbusmVamfttBZzHY5myuAzORZbZrBxD_rCJve_0EK=mz0A@mail.gmail.com>
+
+On Fri, Feb 15, 2019 at 10:02 AM Zachary Ware <zachary.ware+pydev at gmail.com>
+wrote:
+
+> On Fri, Feb 15, 2019 at 11:44 AM Steve Dower <steve.dower at python.org>
+> wrote:
+> > That said, I'd love to have a context manager that we can use to make
+> > this easier. Really, none of us should be having to decide "how am I
+> > going to use a temporary location on the file system in my test",
+> > because we should have one obvious (and easy!) way to do it.
+>
+> I found an old rejected issue [1] for adding a `tmpdir` method to
+> unittest.TestCase, which is actually a solution that we've
+> independently developed and use frequently for work.  It basically
+> works by registering a cleanup function before returning the path to
+> the temporary directory, so you just call `self.tmpdir()`, use the
+> path, forget about cleanup, and don't lose a level of indentation to a
+> context manager.  I think it would be worthwhile to reconsider this
+> addition to unittest, or add it as a standard base test class in
+> test.support (though either way it would need a cleaner and more
+> robust implementation than is offered in that issue).
+>
+
+(Sorry if this starts to veer off the original topic a bit)
+
+I added something similar (though more robust) in the absl testing framework
+<https://github.com/abseil/abseil-py/blob/master/absl/testing/absltest.py#L539>.
+Tests can just call self.create_tempfile() or self.create_tempdir() and not
+have to worry about cleanup, prior state, or the low-level details of where
+and how the file gets created. I have re-implemented the same logic quite a
+few times, and seen it code reviews even more times, but *rarely* have I
+seen it done *correctly* -- it turns out its not easy to do entirely right.
+
+tl;dr: I agree: it would be nice if unittest provided some help here.
+
+I apologize for the length here. I've had to answer "just use tempfile,
+whats wrong with that?" a few times, so I've got a whole enumerated list of
+points :).
+
+While adding this conceptually simple feature to absl, I unexpectedly found
+it to be kinda complicated. I'll try to keep it short and to the point. To
+be clear, this is all about needing a named file on disk that can be used
+with e.g. open() by the code-under-test. I wouldn't call this incredibly
+common overall, but its not uncommon.
+
+There's basically 3 problems that have a bit of overlap.
+
+First: The tempfile module is a poor fit for testing (don't get me wrong,
+it works, but its not *nice for use in tests*)*.* This is because:
+1. Using it as a context manager is distracting. The indentation signifies
+a conceptual scope the reader needs to be aware of, but in a test context,
+its usually not useful. At worst, it covers most of the test. At best, its
+constrained to a block at the start.
+2. tempfile defaults to binary mode instead of text; just another thing to
+bite you.
+3. On windows, you can't reopen the file, so for cross-platform stuff, you
+can't even use it for this case.
+4. You pretty much always have to pass delete=False, which *kinda* defeats
+the point of e.g. using a context manager
+
+Second: The various file/test apis to do setup and cleanup are awkward.
+This is because:
+1. Are you deleting a file, directory tree, just a directory (is it
+empty?)? Make sure to call the proper function, otherwise you'll get an
+error.
+2. Creating a directory tree? Make sure to call makedirs() with the right
+parameters, otherwise you'll get an error.
+3. Using tearDown? Make sure to handle errors, lest other tearDown logic
+not run and leave a dirty post-test state that might inconsistently break a
+following test.
+4. Using setUp? Make sure to not assume a clean state because of (3).
+5. Did you write a helper function to e.g., making creating
+"foo/bar/baz.txt" easy? Now you have to implement logic to split up the
+path, create dirs, etc. Not hard, admittedly, but its the ~9th thing in
+this list so far -- "I just want to create a temp file for testing"
+6. Are you using mkstemp? Remember to close the FD it returns, even though
+its "just a test"
+7. Are you using tempfile.gettempdir (or some other manual scheme)? Make
+sure to give each test a unique location within it, otherwise collisions
+can happen.
+
+Third: This is a bit more opinion: I'm *really* into optimizing my
+edit-debug cycle latency, so random file/dir names are really annoying
+because they slow me down. They're absolutely necessary for running a
+finished test suite, but get in the way for debugging specific tests (i.e.
+where a dev spends the majority of their time when dealing with a failing
+test).
+This is because:
+1. Command history is lost. I can't up-arrow-enter to re-run e.g. a grep
+over the file I'm interested in.
+2. The only way to inspect a file is to set_trace() before it gets deleted,
+but after the logic I need to check has run. Then run some expression
+that'll print the filename.
+
+
+
+
+> [1] https://bugs.python.org/issue2156
+>
+> --
+> Zach
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/richardlev%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190216/0cc7fc46/attachment.html>
+
+From benjamin at python.org  Sat Feb 16 20:10:48 2019
+From: benjamin at python.org (Benjamin Peterson)
+Date: Sat, 16 Feb 2019 20:10:48 -0500
+Subject: [Python-Dev] [RELEASE] Python 2.7.16 release candidate 1
+Message-ID: <715ded96-a728-42ec-8bb7-72c3f7e1695b@www.fastmail.com>
+
+I'm pleased to announce the immediate availability of Python 2.7.16 release candidate 1. This is a prerelease for yet another bug fix release in the Python 2.7.x series. It includes over 100 fixes over Python 2.7.15. See the changelog at
+
+    https://raw.githubusercontent.com/python/cpython/baacaac06f93dd624c9d7b3bac0e13fbe34f2d8c/Misc/NEWS.d/2.7.16rc1.rst
+
+for full details.
+
+Downloads are at:
+
+    https://www.python.org/downloads/release/python-2716rc1/
+
+Please test your software against the new release and report any issues to
+
+    https://bugs.python.org/
+
+If all goes according to plan, Python 2.7.16 final will be released on March 2.
+
+All the best,
+Benjamin
+
