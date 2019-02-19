@@ -10541,3 +10541,624 @@ If all goes according to plan, Python 2.7.16 final will be released on March 2.
 All the best,
 Benjamin
 
+From cedric.krier at b2ck.com  Sun Feb 17 11:58:50 2019
+From: cedric.krier at b2ck.com (=?utf-8?Q?C=C3=A9dric?= Krier)
+Date: Sun, 17 Feb 2019 17:58:50 +0100
+Subject: [Python-Dev] Request review for bpo-35153
+Message-ID: <20190217165850.GB11909@kei>
+
+Hi,
+
+A few months ago, I submitted bpo-35153 with a PR to allow to set
+headers from xmlrpc.client.ServerProxy.
+Is there a core developer willing to review it? It will be great to have
+it for Python 3.8.
+
+https://bugs.python.org/issue35153
+https://github.com/python/cpython/pull/10308
+
+Thanks,
+-- 
+C?dric Krier - B2CK SPRL
+Email/Jabber: cedric.krier at b2ck.com
+Tel: +32 472 54 46 59
+Website: http://www.b2ck.com/
+
+From doko at ubuntu.com  Mon Feb 18 10:34:33 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Mon, 18 Feb 2019 16:34:33 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CAGE7PNLjV9aN9KOUjv1rMGNKS1=mB2ZLFBL1KR1cyatf7rGiXQ@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+ <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+ <slrnq6a500.h09.mcepl@milic.suse.cz>
+ <22F2AD71-5694-4EB5-9C21-8B965654A481@python.org>
+ <CAGE7PNLjV9aN9KOUjv1rMGNKS1=mB2ZLFBL1KR1cyatf7rGiXQ@mail.gmail.com>
+Message-ID: <1632d0c7-4958-4641-a7fb-db6ebfc0fbca@ubuntu.com>
+
+On 16.02.19 00:15, Gregory P. Smith wrote:
+> On Thu, Feb 14, 2019 at 9:29 AM Barry Warsaw <barry at python.org> wrote:
+> 
+>> On Feb 13, 2019, at 23:08, Mat?j Cepl <mcepl at cepl.eu> wrote:
+>>
+>>> Is this relevant to the discussion at hand? We are talking about
+>>> the binary /usr/bin/python3 which will be surely be provided
+>>> even by Python 4, won't it?
+>>
+>> Why would it be?  Since this is all hypothetical anyway <wink>, I?d more
+>> likely expect to only ship /usr/bin/python.
+>>
+> 
+> Because nobody can use 'python' and expect that to be anything but a 2and3
+> compatible interpreter for the next 5+ years given we live in a world where
+> people routinely have a very real need to write #! lines that works with
+> obsolete distributions.  python3 implies >=3.x, thus python 4, 5, 6, 2069,
+> 3001, and 90210 should all have python3 point to them.  realistically
+> people will stop referring to python3 by 2069 so we could consider removing
+> the recommendation at that point.
+> 
+> 2020 is not the end of use or end of importance for Python 2.  It is merely
+> the end of bugfixes applied by python-dev.
+> 
+> A thing I want to make sure we _don't_ do in the future is allow future
+> pythonN binaries.  python4, python90210, etc.  those should never exist.
+> python, python3, and pythonX.Y only.  If we were ever to go back on our
+> promise and create another world-breaking python version, it could get its
+> own canonical binary name.  But we're specifically planning _not_ to make
+> that mistake again.
+> 
+> I suspect most of my opining below will be contentious to multiple people
+> because I describe a state of the world that is at conflict with decisions
+> multiple independent distros have already made.  Accept their mistakes and
+> move on past it to the hack in that case:
+> 
+> A new "py" launcher isn't going to solve this problem - it is separate and
+> should be its own PEP as it has its own set of requirements and reasons to
+> be considered (especially on platforms with no concept of a #!).  Recommend
+> "py" today-ish and nobody can rely on it for at least 10+ years in a wide
+> support cross platform scripting type of situation because it won't be
+> present on the obsolete or long term supported things that people have a
+> need for such #!s to run on.
+> 
+> Not our problem?  Well, actually, it is.  Matthias speaking for Debian
+> suggesting they don't want to have "python" at all if it isn't a synonym
+> for "python2" because it'll break software is... wrong.  If software is not
+> 3 compatible and uses "python", it'll also break when python is python3.
+> Just in a different manner.  "python" should point to python3 when a distro
+> does not require python2 for its core.  It should not _vary_ as to which of
+> 2.7 or 3.7 it will point to within a given stable distribution (installing
+> python2.7 should never suddenly redirect it back to python2).  But "python"
+> itself should always exist when any python interpreter is core to the OS.
+> That means if a distro no longer requires python2 as part of its base/core
+> but does require python3... "python" must point to "python3".  If a posixy
+> OS no longer requires python at all (surely there are some by now?) the
+> question of what python should point to when an OS distro supplied optional
+> python package gets installed is likely either "nothing at all" or ">=3.x"
+> but should never be decided as "2.7" (which sadly may be what macOS does).
+
+There is no notion of a "core" for Debian. So "core" applies to the whole
+distro, as long as there are python shebangs found.
+
+For Ubuntu, you don't have a python command on the default desktop install, just
+python3.  Trying to invoke python, command-not-found tells you:
+
+  $ python
+
+  Command 'python' not found, but can be installed with:
+
+  [...]
+
+  You also have python3 installed, you can run 'python3' instead.
+
+That tells you which way to go.
+
+> Do we already have LTS _stable_ distributions making that mistake today?
+> If so they've done something undesirable for the world at large and we're
+> already screwed if that distro release is deemed important by masses of
+> users: There is no way to write a *direct* #! line that works out of the
+> box to launch a working latest version Python interpreter across all
+> platforms.
+
+If you count the above example towards this "mistake", probably yes. But there
+is *no* way to have a sane way to have what you want.
+
+Matthias
+
+From doko at ubuntu.com  Mon Feb 18 10:38:49 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Mon, 18 Feb 2019 16:38:49 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CADiSq7e-SPb_7TWYu2ROgTcS7YxuNoAD-dzAygbXD2etWa3FAg@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+ <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+ <slrnq6a500.h09.mcepl@milic.suse.cz>
+ <22F2AD71-5694-4EB5-9C21-8B965654A481@python.org>
+ <CAGE7PNLjV9aN9KOUjv1rMGNKS1=mB2ZLFBL1KR1cyatf7rGiXQ@mail.gmail.com>
+ <CADiSq7e-SPb_7TWYu2ROgTcS7YxuNoAD-dzAygbXD2etWa3FAg@mail.gmail.com>
+Message-ID: <dd9d27f0-5cfa-ed8e-9a3d-539c353101d9@ubuntu.com>
+
+On 16.02.19 18:25, Nick Coghlan wrote:
+> While Matthias is still personally reluctant to add the alias for
+> Debian/Ubuntu, the *only* thing preventing aliasing /usr/bin/python to
+> /usr/bin/python3 right now on the Fedora & RHEL side of things is PEP
+> 394, and Guido objected strongly when Petr last tried to get the PEP
+> to even acknowledge that it was reasonable for distros to make that
+> setting configurable on a system-wide basis:
+> https://github.com/python/peps/pull/630
+
+No, I'm not "personally reluctant" about this, it's the current majority view of
+people on the debian-python ML.  Barry stepped back as a Debian maintainer, so
+there are not many people supporting your view.
+
+Matthias
+
+From remi.lapeyre at henki.fr  Mon Feb 18 11:16:36 2019
+From: remi.lapeyre at henki.fr (=?UTF-8?Q?R=C3=A9mi_Lapeyre?=)
+Date: Mon, 18 Feb 2019 08:16:36 -0800
+Subject: [Python-Dev] int() and math.trunc don't accept objects that only
+ define __index__
+Message-ID: <CA+jiYFCY-Fboaz=4+hvN_5LG4o=eHyOxUafGaJV6Yc51mOgtVw@mail.gmail.com>
+
+Hi, I open this thread to discuss the proposal by Nick Coghlan in
+https://bugs.python.org/issue33039
+to add __int__ and __trunc__ to a type when __index__ is defined.
+
+Currently __int__ does not default to __index__ during class initialisation
+so
+both must be defined to get a coherant behavior:
+
+    (cpython-venv) ?  cpython git:(add-key-argument-to-bisect) ? python3
+    Python 3.8.0a1+ (heads/add-key-argument-to-bisect:b7aaa1adad, Feb 18
+2019, 16:10:22)
+    [Clang 10.0.0 (clang-1000.10.44.4)] on darwin
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import math
+    >>> class MyInt:
+    ...     def __index__(self):
+    ...             return 4
+    ...
+    >>> int(MyInt())
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    TypeError: int() argument must be a string, a bytes-like object or a
+number, not 'MyInt'
+    >>> math.trunc(MyInt())
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    TypeError: type MyInt doesn't define __trunc__ method
+    >>> hex(MyInt())
+    '0x4'
+    >>> len("a"*MyInt())
+    4
+    >>> MyInt.__int__ = MyInt.__index__
+    >>> int(MyInt())
+    4
+
+
+The difference in behavior is espacially weird in builtins like int() and
+hex().
+
+
+The documentation mentions at
+https://docs.python.org/3/reference/datamodel.html#object.__index__
+the need to always define both __index__ and __int__:
+
+    Note: In order to have a coherent integer type class, when __index__()
+is defined __int__() should also be defined, and both should return the
+same value.
+
+Nick Coghlan proposes to make __int__ defaults to __index__ when only the
+second
+is defined and asked to open a discussion on python-dev before making any
+change
+"as the closest equivalent we have to this right now is the "negative"
+derivation,
+where overriding __eq__ without overriding __hash__ implicitly marks the
+derived
+class as unhashable (look for "type->tp_hash =
+PyObject_HashNotImplemented;").".
+
+
+I think the change proposed makes more sense than the current behavior and
+volunteer to implement it if it is accepted.
+
+
+What do you think about this?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190218/1c2faf82/attachment.html>
+
+From greg at krypto.org  Mon Feb 18 12:28:21 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Mon, 18 Feb 2019 09:28:21 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <1632d0c7-4958-4641-a7fb-db6ebfc0fbca@ubuntu.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <20190213164603.3894316f@fsol>
+ <CA+3bQGEQgjKOCkpK=nZ1V2abRzgvdM3oKWnOSmRVX8nTk9ctsg@mail.gmail.com>
+ <F1DA6F88-8178-4813-80D9-BB508CB4336E@python.org>
+ <CA+3bQGEXLBKNKGPCBkMEUzjbVY6v=7mq6W_f3wU=r41e=m=D=w@mail.gmail.com>
+ <BBA1594F-DFF7-40DF-B686-D08ECDA21DC3@python.org>
+ <slrnq6a500.h09.mcepl@milic.suse.cz>
+ <22F2AD71-5694-4EB5-9C21-8B965654A481@python.org>
+ <CAGE7PNLjV9aN9KOUjv1rMGNKS1=mB2ZLFBL1KR1cyatf7rGiXQ@mail.gmail.com>
+ <1632d0c7-4958-4641-a7fb-db6ebfc0fbca@ubuntu.com>
+Message-ID: <CAGE7PNL7pKdrrbPmjegCgPpTOgjgX9MLrse+OecjDUY+e+Txtg@mail.gmail.com>
+
+On Mon, Feb 18, 2019, 7:34 AM Matthias Klose <doko at ubuntu.com wrote:
+
+> On 16.02.19 00:15, Gregory P. Smith wrote:
+> > On Thu, Feb 14, 2019 at 9:29 AM Barry Warsaw <barry at python.org> wrote:
+> >
+> >> On Feb 13, 2019, at 23:08, Mat?j Cepl <mcepl at cepl.eu> wrote:
+> >>
+> >>> Is this relevant to the discussion at hand? We are talking about
+> >>> the binary /usr/bin/python3 which will be surely be provided
+> >>> even by Python 4, won't it?
+> >>
+> >> Why would it be?  Since this is all hypothetical anyway <wink>, I?d more
+> >> likely expect to only ship /usr/bin/python.
+> >>
+> >
+> > Because nobody can use 'python' and expect that to be anything but a
+> 2and3
+> > compatible interpreter for the next 5+ years given we live in a world
+> where
+> > people routinely have a very real need to write #! lines that works with
+> > obsolete distributions.  python3 implies >=3.x, thus python 4, 5, 6,
+> 2069,
+> > 3001, and 90210 should all have python3 point to them.  realistically
+> > people will stop referring to python3 by 2069 so we could consider
+> removing
+> > the recommendation at that point.
+> >
+> > 2020 is not the end of use or end of importance for Python 2.  It is
+> merely
+> > the end of bugfixes applied by python-dev.
+> >
+> > A thing I want to make sure we _don't_ do in the future is allow future
+> > pythonN binaries.  python4, python90210, etc.  those should never exist.
+> > python, python3, and pythonX.Y only.  If we were ever to go back on our
+> > promise and create another world-breaking python version, it could get
+> its
+> > own canonical binary name.  But we're specifically planning _not_ to make
+> > that mistake again.
+> >
+> > I suspect most of my opining below will be contentious to multiple people
+> > because I describe a state of the world that is at conflict with
+> decisions
+> > multiple independent distros have already made.  Accept their mistakes
+> and
+> > move on past it to the hack in that case:
+> >
+> > A new "py" launcher isn't going to solve this problem - it is separate
+> and
+> > should be its own PEP as it has its own set of requirements and reasons
+> to
+> > be considered (especially on platforms with no concept of a #!).
+> Recommend
+> > "py" today-ish and nobody can rely on it for at least 10+ years in a wide
+> > support cross platform scripting type of situation because it won't be
+> > present on the obsolete or long term supported things that people have a
+> > need for such #!s to run on.
+> >
+> > Not our problem?  Well, actually, it is.  Matthias speaking for Debian
+> > suggesting they don't want to have "python" at all if it isn't a synonym
+> > for "python2" because it'll break software is... wrong.  If software is
+> not
+> > 3 compatible and uses "python", it'll also break when python is python3.
+> > Just in a different manner.  "python" should point to python3 when a
+> distro
+> > does not require python2 for its core.  It should not _vary_ as to which
+> of
+> > 2.7 or 3.7 it will point to within a given stable distribution
+> (installing
+> > python2.7 should never suddenly redirect it back to python2).  But
+> "python"
+> > itself should always exist when any python interpreter is core to the OS.
+> > That means if a distro no longer requires python2 as part of its
+> base/core
+> > but does require python3... "python" must point to "python3".  If a
+> posixy
+> > OS no longer requires python at all (surely there are some by now?) the
+> > question of what python should point to when an OS distro supplied
+> optional
+> > python package gets installed is likely either "nothing at all" or
+> ">=3.x"
+> > but should never be decided as "2.7" (which sadly may be what macOS
+> does).
+>
+> There is no notion of a "core" for Debian. So "core" applies to the whole
+> distro, as long as there are python shebangs found.
+>
+> For Ubuntu, you don't have a python command on the default desktop
+> install, just
+> python3.  Trying to invoke python, command-not-found tells you:
+>
+>   $ python
+>
+>   Command 'python' not found, but can be installed with:
+>
+>   [...]
+>
+>   You also have python3 installed, you can run 'python3' instead.
+>
+> That tells you which way to go.
+>
+
+"Core" just means part of the minimal install, needed by startup scripts
+and the package manager perhaps. This would be a default install with no
+package groups selected or perhaps the netinst image for Debian. If
+packages in that set don't need a python interpreter, Debian is in great
+shape! :)
+
+
+> > Do we already have LTS _stable_ distributions making that mistake today?
+> > If so they've done something undesirable for the world at large and we're
+> > already screwed if that distro release is deemed important by masses of
+> > users: There is no way to write a *direct* #! line that works out of the
+> > box to launch a working latest version Python interpreter across all
+> > platforms.
+>
+> If you count the above example towards this "mistake", probably yes. But
+> there
+> is *no* way to have a sane way to have what you want.
+>
+
+Agreed.
+
+In the long run, expecting python 2 to exist is not sane.  But given our
+pep394 text of "for the time being, all distributions *should* ensure that
+python, if installed, refers to the same target as python2," What Debian
+has done is still unfortunately encouraged by us.
+
+We've created a world where #! lines cannot be used to invoke an
+intentionally compatible script across a wide variety of platforms over
+time. But our decision to do that was the decision to have an incompatible
+release in the first place.
+
+Too late now. :)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190218/9cc9dcf5/attachment.html>
+
+From ericsnowcurrently at gmail.com  Mon Feb 18 14:25:40 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Mon, 18 Feb 2019 12:25:40 -0700
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <b264eda2-0185-8f82-ca62-3362995fe77b@python.org>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be> <20190216223210.09ef3944@fsol>
+ <b264eda2-0185-8f82-ca62-3362995fe77b@python.org>
+Message-ID: <CALFfu7A0rt=CA=rR+6T9aUEwCATPsN6TjAT0SdJLG6Yws4RPYA@mail.gmail.com>
+
+On Sat, Feb 16, 2019 at 3:34 PM Steve Dower <steve.dower at python.org> wrote:
+> On 16Feb.2019 1332, Antoine Pitrou wrote:
+> > This sounds like a reasonable design principle: decree the API
+> > non-stable and prone to breakage (it already is, anyway), don't hide it.
+>
+> As I was chatting with Eric shortly before he posted this, I assume the
+> idea would be to expose anything useful/necessary via a function. That
+> at least removes the struct layout from the ABI, without removing
+> functionality.
+>
+> > It's true that in the PyInterpreterState case specifically, there
+> > doesn't seem much worthy of use by third-party libraries.
+>
+> Which seems to suggest that the answer to "which members are important
+> to expose?" is "probably none". And that's possibly why Eric didn't
+> mention it in his email :)
+>
+> This is mostly about being able to assign blame when things break, so
+> I'm totally okay with extension modules that want to play with internals
+> declaring Py_BUILD_CORE to get access to them (though I suspect that
+> won't work out of the box - maybe we should have a
+> Py_I_TOO_LIKE_TO_LIVE_DANGEROUSLY?).
+>
+> I like that we're taking (small) steps to reduce the size of our API. It
+> helps balance out the growth and leaves us with a chance of one day
+> being able to have an extension model that isn't as tied to C's ABI.
+
+Yeah, what Steve said. :)
+
+-eric
+
+From ericsnowcurrently at gmail.com  Mon Feb 18 14:27:55 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Mon, 18 Feb 2019 12:27:55 -0700
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <20190216234731.4ea34101@fsol>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be> <20190216223210.09ef3944@fsol>
+ <b264eda2-0185-8f82-ca62-3362995fe77b@python.org>
+ <20190216234731.4ea34101@fsol>
+Message-ID: <CALFfu7Dpq=-7Qdo_GEgrgnCP66g7bRjPChfZWaeHUUr0XShoHg@mail.gmail.com>
+
+On Sat, Feb 16, 2019 at 3:47 PM Antoine Pitrou <solipsis at pitrou.net> wrote:
+> On Sat, 16 Feb 2019 14:34:46 -0800
+> Steve Dower <steve.dower at python.org> wrote:
+> > Which seems to suggest that the answer to "which members are important
+> > to expose?" is "probably none".
+>
+> That sounds intuitive. But we don't know what kind of hacks some
+> extension authors might do, for legitimate reasons...
+>
+> (perhaps some gevent-like framework needs access to the interpreter
+> state?)
+
+In those cases either we will expose accessor functions in the C-API
+or they can define Py_BUILD_CORE.
+
+-eric
+
+From ericsnowcurrently at gmail.com  Mon Feb 18 15:17:50 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Mon, 18 Feb 2019 13:17:50 -0700
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <5C67E2D0.7020906@UGent.be>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+Message-ID: <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+
+On Sat, Feb 16, 2019 at 3:16 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+> On 2019-02-16 00:37, Eric Snow wrote:
+> > One thing that would help simplify changes
+> > in this area is if PyInterpreterState were defined in
+> > Include/internal.
+>
+> How would that help anything?
+
+I'm talking just about changes in the runtime implementation.  A lot
+of of the runtime-related API is defined in Include/internal.  Relying
+on the public headers (i.e. Include/*) for internal runtime API can
+complicate changes there.  I've run into this recently.  Moving more
+internal API into the internal headers helps with that problem.
+Having distinct header files for the internal API is a relatively new
+thing (i.e. in the last year), which is why some of the internal API
+is still defined in the public header files.
+
+> I don't like the idea (in general, I'm not
+> talking about PyInterpreterState specifically) that external modules
+> should be second-class citizens compared to modules inside CPython.
+>
+> If you want to break the undocumented API, just break it. I don't mind.
+> But I don't see why it's required to move the include to
+> Include/internal for that.
+
+Keep in mind that the "internal" (or "private") API is intended for
+use exclusively in the runtime and in the builtin modules.
+Historically our approach to keeping API private was to use underscore
+prefixes and to leave them out of the documentation (along with
+guarding with "#ifndef Py_LIMITED_API").  However, this has lead to
+occasional confusion and breakage, and even to leaking things into the
+stable ABI that shouldn't have been.  Lately we've been working on
+making the distinction between internal and public API (and stable
+ABI) more clear and less prone to accidental exposure.  Victor has
+done a lot of work in this area.
+
+So I'd like to understand your objection.  Is it with exposing some
+things only under Py_BUILD_CORE (i.e. when building Python itself)?
+Is it to having "private" C-API in general?  Is it just to having
+separate include directories?
+
+-eric
+
+From J.Demeyer at UGent.be  Mon Feb 18 16:24:00 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Mon, 18 Feb 2019 22:24:00 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+Message-ID: <5C6B2270.1080203@UGent.be>
+
+On 2019-02-18 21:17, Eric Snow wrote:
+> Historically our approach to keeping API private was to use underscore
+> prefixes and to leave them out of the documentation (along with
+> guarding with "#ifndef Py_LIMITED_API").  However, this has lead to
+> occasional confusion and breakage, and even to leaking things into the
+> stable ABI that shouldn't have been.  Lately we've been working on
+> making the distinction between internal and public API (and stable
+> ABI) more clear and less prone to accidental exposure.  Victor has
+> done a lot of work in this area.
+>
+> So I'd like to understand your objection.
+
+First of all, if everybody can actually #define Py_BUILD_CORE and get 
+access to the complete API, I don't mind so much. But then it's 
+important that this actually keeps working (i.e. that those headers will 
+always be installed).
+
+Still, do we really need so many levels of API:
+(1) stable API (with #define Py_LIMITED_API)
+(2) public documented API
+(3) private undocumented API (the default exposed API)
+(4) internal API (with #define Py_BUILD_CORE)
+
+I would argue to fold (4) into (3). Applications using (3) already know 
+that they are living dangerously by using private API.
+
+I'm afraid of hiding actually useful private macros under Py_BUILD_CORE. 
+For example, Modules/_functoolsmodule.c and Modules/_json.c use API 
+functions from (4). But if an API function is useful for implementing 
+functools or json, then it's probably also useful for external extension 
+modules: what if I want to implement something similar to functools or 
+json, why shouldn't I be allowed to use those same API functions?
+
+For a very concrete example, was it really necessary to put 
+_PyTuple_ITEMS in (4)? That's used in _functoolsmodule.c. Especially 
+given that the very similar PySequence_Fast_ITEMS is in (2), that seems 
+like a strange and arbitrary limiting choice.
+
+
+Jeroen.
+
+From steve.dower at python.org  Mon Feb 18 22:04:31 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 18 Feb 2019 19:04:31 -0800
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <5C6B2270.1080203@UGent.be>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be>
+Message-ID: <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+
+On 18Feb.2019 1324, Jeroen Demeyer wrote:
+> Still, do we really need so many levels of API:
+> (1) stable API (with #define Py_LIMITED_API)
+> (2) public documented API
+> (3) private undocumented API (the default exposed API)
+> (4) internal API (with #define Py_BUILD_CORE)
+> 
+> I would argue to fold (4) into (3). Applications using (3) already know
+> that they are living dangerously by using private API.
+
+I agree completely. It's unfortunate we ended up in a state where the
+stable API was opt-in, but that's where we are now and we have to
+transition carefully.
+
+The ideal would be:
+* default to cross-version supported APIs (i.e. stable for all 3.*)
+* opt-in to current-version stable APIs (i.e. stable for all 3.7.*)
+* extra opt-in to unstable APIs (i.e. you are guaranteed to break one
+day without warning)
+
+> I'm afraid of hiding actually useful private macros under Py_BUILD_CORE.
+> For example, Modules/_functoolsmodule.c and Modules/_json.c use API
+> functions from (4). But if an API function is useful for implementing
+> functools or json, then it's probably also useful for external extension
+> modules: what if I want to implement something similar to functools or
+> json, why shouldn't I be allowed to use those same API functions?
+> 
+> For a very concrete example, was it really necessary to put
+> _PyTuple_ITEMS in (4)? That's used in _functoolsmodule.c. Especially
+> given that the very similar PySequence_Fast_ITEMS is in (2), that seems
+> like a strange and arbitrary limiting choice.
+
+The reason to do this is that we can "guarantee" that we've fixed all
+users when we change the internal representation. Otherwise, the
+internal memory layout becomes part of the public ABI, which is what we
+want to fix. (PyTuple_GET_ITEM is just as problematic, FWIW.)
+
+If you always rebuild your extension for every micro version (3.x.y) of
+CPython, then sure, go ahead and use this. But you're by far into the
+minority of users/developers, and so we really don't want to optimise
+for this case when it's going to break the 90%+ of people who don't
+recompile everything all the time.
+
+Cheers,
+Steve
+
