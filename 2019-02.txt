@@ -12304,3 +12304,448 @@ On Tue, Feb 19, 2019 at 10:57 PM Steve Dower <steve.dower at python.org> wrote:
 > >     [2] https://www.python.org/dev/peps/pep-0513/#id49
 >
 
+From xdegaye at gmail.com  Wed Feb 20 04:38:02 2019
+From: xdegaye at gmail.com (Xavier de Gaye)
+Date: Wed, 20 Feb 2019 10:38:02 +0100
+Subject: [Python-Dev] buildbottest on Android emulator with docker
+In-Reply-To: <20190219155249.GA30353@xps>
+References: <feb49ef1-64de-971e-bf36-11ae64a5fdd2@gmail.com>
+ <20190219122656.GA7124@xps> <20190219155249.GA30353@xps>
+Message-ID: <13650274-52bc-afad-c905-ff51542df662@gmail.com>
+
+> Timeout (360 seconds) reached; failed to start emulator
+> ---> Device ready.
+> ---> Install Python on the emulator.
+> /home/pydev/build/python-native/python -B /home/pydev/abifa/Android/tools/install.py
+> error: device 'emulator-5556' not found
+
+I can reproduce this error after removing the kvm kernel modules (I am on ArchLinux and ArchLinux kernels provide the required kernel modules to support KVM virtualization).  So my fault, forgot to explain that kvm is required to run this docker image, kvm is not required though when the docker image is built for other architectures (non x86_64), but it is very very slow then.
+
+To fix the problem one must install the Linux distribution packages that provide KVM virtualization.  Whatever the Linux distribution it may also be necessary to enable virtualization support in the BIOS.
+
+I will enter an issue and update the documentation at https://gitlab.com/xdegaye/abifa.
+
+Thanks Stephane for the report.
+
+Xavier
+
+
+On 2/19/19 4:52 PM, Stephane Wirtel wrote:
+> Hi Xavier,
+> 
+> I get this exception
+> 
+> Timeout (360 seconds) reached; failed to start emulator
+> ---> Device ready.
+> ---> Install Python on the emulator.
+> /home/pydev/build/python-native/python -B /home/pydev/abifa/Android/tools/install.py
+> error: device 'emulator-5556' not found
+> unzip -q /home/pydev/dist/python3.8-android-24-x86_64-stdlib.zip -d /tmp/tmpt_v_gdbo
+> /home/pydev/android/android-sdk/platform-tools/adb -s emulator-5556 shell mkdir -p /data/local/tmp/python
+> Command "('/home/pydev/android/android-sdk/platform-tools/adb', '-s', 'emulator-5556', 'shell', 'mkdir -p /data/local/tmp/python')" returned non-zero exit status 1
+> /home/pydev/abifa/Android/emulator.mk:57: recipe for target '_install' failed
+> make: *** [_install] Error 1
+
+From stephane at wirtel.be  Wed Feb 20 10:01:20 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Wed, 20 Feb 2019 16:01:20 +0100
+Subject: [Python-Dev] Question - Bug Triage for 3.4 & 3.5
+Message-ID: <20190220150120.GA26898@xps>
+
+Hi,
+
+As you know, Python 3.4 and 3.5 are in security mode and the EOL for
+these versions are respectively 2019-03-16 and 2020-09-13.
+
+Number of issues
+
+3.4: 1530 issues
+3.5: 1901 issues
+
+But some issues are not related to the security.
+
+Could we update these issues (non-security) to 3.6/3.7 & 3.8?
+
+Cheers,
+
+St?phane
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From stephane at wirtel.be  Wed Feb 20 10:11:20 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Wed, 20 Feb 2019 16:11:20 +0100
+Subject: [Python-Dev] Question - Bug Triage for 3.4 & 3.5
+In-Reply-To: <20190220150120.GA26898@xps>
+References: <20190220150120.GA26898@xps>
+Message-ID: <20190220151120.GA27904@xps>
+
+After discussion with Victor, my proposal will generate noise with the
+ML, maybe for nothing.
+
+On 02/20, Stephane Wirtel wrote:
+>Hi,
+>
+>As you know, Python 3.4 and 3.5 are in security mode and the EOL for
+>these versions are respectively 2019-03-16 and 2020-09-13.
+>
+>Number of issues
+>
+>3.4: 1530 issues
+>3.5: 1901 issues
+>
+>But some issues are not related to the security.
+>
+>Could we update these issues (non-security) to 3.6/3.7 & 3.8?
+>
+>Cheers,
+>
+>St?phane
+>
+>-- 
+>St?phane Wirtel - https://wirtel.be - @matrixise
+>_______________________________________________
+>Python-Dev mailing list
+>Python-Dev at python.org
+>https://mail.python.org/mailman/listinfo/python-dev
+>Unsubscribe: https://mail.python.org/mailman/options/python-dev/stephane%40wirtel.be
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From steve.dower at python.org  Wed Feb 20 10:22:11 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 20 Feb 2019 07:22:11 -0800
+Subject: [Python-Dev] Question - Bug Triage for 3.4 & 3.5
+In-Reply-To: <20190220151120.GA27904@xps>
+References: <20190220150120.GA26898@xps> <20190220151120.GA27904@xps>
+Message-ID: <94b593ba-47e1-8489-5ee4-6ddeb24cf4b8@python.org>
+
+On 20Feb.2019 0711, Stephane Wirtel wrote:
+> After discussion with Victor, my proposal will generate noise with the
+> ML, maybe for nothing.
+> 
+> On 02/20, Stephane Wirtel wrote:
+>> Hi,
+>>
+>> As you know, Python 3.4 and 3.5 are in security mode and the EOL for
+>> these versions are respectively 2019-03-16 and 2020-09-13.
+>>
+>> Number of issues
+>>
+>> 3.4: 1530 issues
+>> 3.5: 1901 issues
+>>
+>> But some issues are not related to the security.
+>>
+>> Could we update these issues (non-security) to 3.6/3.7 & 3.8?
+>>
+>> Cheers,
+>>
+>> St?phane
+
+It'll make same noise, sure, but if we schedule a bulk close of issues
+that have not been touched since 3.6 was released then at least it'll be
+easy to "mark all as read". And searching for current issues will become
+easier.
+
+I'm always in favor of cleaning up inactionable bugs (as much as I'm in
+favor of keeping actionable-but-low-priority bugs open, which causes
+quite a few conflicts at work...)
+
+That said, maybe it makes sense to wait until 2.7's EOL and do them all
+at once?
+
+Cheers,
+Steve
+
+From storchaka at gmail.com  Wed Feb 20 10:38:00 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Wed, 20 Feb 2019 17:38:00 +0200
+Subject: [Python-Dev] Question - Bug Triage for 3.4 & 3.5
+In-Reply-To: <20190220150120.GA26898@xps>
+References: <20190220150120.GA26898@xps>
+Message-ID: <q4js8q$9js$1@blaine.gmane.org>
+
+20.02.19 17:01, Stephane Wirtel ????:
+> As you know, Python 3.4 and 3.5 are in security mode and the EOL for
+> these versions are respectively 2019-03-16 and 2020-09-13.
+> 
+> Number of issues
+> 
+> 3.4: 1530 issues
+> 3.5: 1901 issues
+> 
+> But some issues are not related to the security.
+> 
+> Could we update these issues (non-security) to 3.6/3.7 & 3.8?
+
+I am against a mass changing the status of issue, since this will 
+generate an enormous amount of noise (to me at least). But you are free 
+to update issues one by one if you can to do some progress with them.
+
+
+From stephane at wirtel.be  Wed Feb 20 10:56:50 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Wed, 20 Feb 2019 16:56:50 +0100
+Subject: [Python-Dev] Question - Bug Triage for 3.4 & 3.5
+In-Reply-To: <q4js8q$9js$1@blaine.gmane.org>
+References: <20190220150120.GA26898@xps>
+ <q4js8q$9js$1@blaine.gmane.org>
+Message-ID: <20190220155650.GA1700@xps>
+
+>I am against a mass changing the status of issue, since this will 
+>generate an enormous amount of noise (to me at least). But you are 
+>free to update issues one by one if you can to do some progress with 
+>them.
+Sure, I don't want to update them massively, just one by one. 
+But I prefer to ask before this kind of operation.
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From stephane at wirtel.be  Wed Feb 20 11:02:53 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Wed, 20 Feb 2019 17:02:53 +0100
+Subject: [Python-Dev] Question - Bug Triage for 3.4 & 3.5
+In-Reply-To: <94b593ba-47e1-8489-5ee4-6ddeb24cf4b8@python.org>
+References: <20190220150120.GA26898@xps> <20190220151120.GA27904@xps>
+ <94b593ba-47e1-8489-5ee4-6ddeb24cf4b8@python.org>
+Message-ID: <20190220160253.GB1700@xps>
+
+Hi Steve,
+
+I reply on the mailing list
+
+On 02/20, Steve Dower wrote:
+>It'll make same noise, sure, but if we schedule a bulk close of issues
+>that have not been touched since 3.6 was released then at least it'll be
+>easy to "mark all as read". And searching for current issues will become
+>easier.
+As Serhyi proposed, a one by one could be interesting, to be sure we
+"migrate" the right issue to the right version.
+>
+>I'm always in favor of cleaning up inactionable bugs (as much as I'm in
+>favor of keeping actionable-but-low-priority bugs open, which causes
+>quite a few conflicts at work...)
+>
+>That said, maybe it makes sense to wait until 2.7's EOL and do them all
+>at once?
+I have already started with some issues.
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From vstinner at redhat.com  Wed Feb 20 12:58:18 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 20 Feb 2019 18:58:18 +0100
+Subject: [Python-Dev] Question - Bug Triage for 3.4 & 3.5
+In-Reply-To: <20190220150120.GA26898@xps>
+References: <20190220150120.GA26898@xps>
+Message-ID: <CA+3bQGGQK2cJwSu=AMT_mOM9+SfTw3pUQkhCfnpqjZKeykFtPw@mail.gmail.com>
+
+Hi,
+
+If Python 3.4 was the current version when a bug was reported, I would
+expect the version field of the bug set to Python 3.4. Maybe the bug
+has been fixed in the meanwhile, maybe not. Closing all bugs affected
+to 3.4 is a risk of loosing useful information on real bugs: closed
+bugs are ignored by default in "Search" operation.
+
+Changing the version field: well, I don't think that it's useful. I
+usually ignore this field. And it would send like 3000 emails... I
+don't see the point.
+
+It's not uncommon that I fix bugs which 5 years old if not longer.
+Sometimes, I decide to look at all bugs of a specific module. And most
+of old bugs are still relevant nowadays. Sometimes, closing the bug as
+WONTFIX is the right answer, but it can only be done on a case by case
+basis.
+
+Note: Same rationale for Python 3.5, Python 2.6, or another other old
+Python version ;-)
+
+Bug triage is hard and requires plenty of time :-)
+
+Victor
+
+Le mer. 20 f?vr. 2019 ? 16:05, Stephane Wirtel <stephane at wirtel.be> a ?crit :
+>
+> Hi,
+>
+> As you know, Python 3.4 and 3.5 are in security mode and the EOL for
+> these versions are respectively 2019-03-16 and 2020-09-13.
+>
+> Number of issues
+>
+> 3.4: 1530 issues
+> 3.5: 1901 issues
+>
+> But some issues are not related to the security.
+>
+> Could we update these issues (non-security) to 3.6/3.7 & 3.8?
+>
+> Cheers,
+>
+> St?phane
+>
+> --
+> St?phane Wirtel - https://wirtel.be - @matrixise
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From brett at python.org  Wed Feb 20 14:17:30 2019
+From: brett at python.org (Brett Cannon)
+Date: Wed, 20 Feb 2019 11:17:30 -0800
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <9dd3d0cb-14b2-aaf7-661a-94e4276805f1@python.org>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be> <20190216223210.09ef3944@fsol>
+ <b264eda2-0185-8f82-ca62-3362995fe77b@python.org>
+ <eccef93f-c4ed-b98d-d03e-3d39ef38757a@python.org>
+ <9dd3d0cb-14b2-aaf7-661a-94e4276805f1@python.org>
+Message-ID: <CAP1=2W6eg9R03kkuLrRru7JjHWiD2Cnbg1=ZNvzTK_tEmd1U9g@mail.gmail.com>
+
+On Tue, Feb 19, 2019 at 12:45 PM Steve Dower <steve.dower at python.org> wrote:
+
+> On 19Feb2019 1141, Barry Warsaw wrote:
+> > Steve Dower wrote on 2/16/19 14:34:>
+> >> This is mostly about being able to assign blame when things break, so
+> >> I'm totally okay with extension modules that want to play with internals
+> >> declaring Py_BUILD_CORE to get access to them (though I suspect that
+> >> won't work out of the box - maybe we should have a
+> >> Py_I_TOO_LIKE_TO_LIVE_DANGEROUSLY?).
+> >
+> > Let's call it Py_POINTED_STICK of course!
+> >
+> > http://www.montypython.net/scripts/fruit.php
+>
+> +1, and instead of "using the internal API" we can call it "coming at
+> CPython with a banana" :D
+>
+
+I don't think now is the exact time to do this since how to even handle
+PEPs isn't really settled in this new steering council world, but
+eventually maybe a PEP to outlining the re-org, how to opt into what seems
+to be the 3 different layers of the C API for users, guidelines on how to
+decide what APIs go where, etc. might be warranted? Stuff is starting to
+get strewn about without a centralized thing to focus discussions around so
+probably having a PEP to focus around might help.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190220/300d9bc7/attachment.html>
+
+From alexander.belopolsky at gmail.com  Wed Feb 20 15:59:27 2019
+From: alexander.belopolsky at gmail.com (Alexander Belopolsky)
+Date: Wed, 20 Feb 2019 15:59:27 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+ <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+ <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+Message-ID: <CAP7h-xb1SmaouhgnobQyvyPPchopBAw1RnbJeH==F4Au15+m3g@mail.gmail.com>
+
+On Fri, Feb 15, 2019 at 5:29 PM Paul Ganssle <paul at ganssle.io> wrote:
+
+>  it allows you to use non-traditional units like weeks (timedelta(days=7))
+>
+
+Weeks are traditional:
+
+>>> timedelta(weeks=1)
+datetime.timedelta(7)
+
+:-)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190220/3995f115/attachment.html>
+
+From Paul.Monson at microsoft.com  Wed Feb 20 15:15:44 2019
+From: Paul.Monson at microsoft.com (Paul Monson)
+Date: Wed, 20 Feb 2019 20:15:44 +0000
+Subject: [Python-Dev] Is distutils.util.get_platform() the "current" or
+ the "target" platform
+In-Reply-To: <414ae4ee-5a56-b137-6efe-570070cc9e9a@gmail.com>
+References: <7f0f615b-fab5-0504-b1bf-20b3c9cd0402@python.org>
+ <CAGE7PNLMHkQ8AcmPjk=aOmMgv81QQcomFHJnofbEg8dTVEG-qQ@mail.gmail.com>
+ <a97bbb7a-5e4d-7d54-afa1-ed195d573d90@python.org>
+ <CADiSq7dfVoym2DScQ6LS+Ywv2NeE4MQFQ-HrWhi_ytJ8p+V9GA@mail.gmail.com>
+ <03fa7e4a-6cb9-58b8-709c-44a589fdb706@python.org>
+ <CAN4cRFzmYTn-d97FX5Br0rqP3yWyk63xvV9xK=0oSCErm2df5A@mail.gmail.com>
+ <f953610b-b056-bde6-e889-d698476eddf1@python.org>
+ <414ae4ee-5a56-b137-6efe-570070cc9e9a@gmail.com>
+Message-ID: <CY4PR2101MB0804C6E02525BC84F00CD455F97D0@CY4PR2101MB0804.namprd21.prod.outlook.com>
+
+Thanks for the feedback. 
+I updated the PR to use get_platform and get_host_platform.
+More testing is still needed before it's ready to merge to make sure it still does what it was intended to do.
+
+-----Original Message-----
+From: Python-Dev <python-dev-bounces+paulmon=microsoft.com at python.org> On Behalf Of Xavier de Gaye
+Sent: Tuesday, February 19, 2019 12:06 PM
+To: Steve Dower <steve.dower at python.org>; python-dev at python.org
+Subject: Re: [Python-Dev] Is distutils.util.get_platform() the "current" or the "target" platform
+
+> [Any reason for dropping python-dev?]
+
+Sorry. just clicked the wrong button.
+
+> And the answer is a resounding "yes, it returns the target platform"? It seems you're saying this, but the wording of your email sounds just enough of a question that I'm not sure whether you are definitively answering it or not.
+
+The answer is yes indeed, it returns the target platform.
+This is a listing of the non-obvious steps that lead to this conclusion.
+
+Xavier
+
+
+On 2/19/19 8:45 PM, Steve Dower wrote:
+> [Any reason for dropping python-dev?]
+> 
+> On 19Feb2019 1139, Xavier de Gaye wrote:
+>> Is distutils.util.get_platform() the "current" or the "target" platform ?
+> 
+> I *think* you're answering this below, yes?
+> 
+>> * When cross-compiling on posix platforms using autoconf, configure is
+>> ?? run with the '--host=host-type' [1] command line option to specify
+>> ?? the target platform.
+>>
+>> * The AC_CANONICAL_HOST macro is used by configure.ac to get the
+>> ?? canonical variables `host' and `host_cpu' [2].
+>> ?? Those variables are used to compute _PYTHON_HOST_PLATFORM.
+>>
+>> * The Makefile generated by configure runs setup.py,
+>> ?? generate-posix-vars, etc... on the build platform using
+>> ?? PYTHON_FOR_BUILD, a native python interpreter that is set
+>> ?? to run with the _PYTHON_HOST_PLATFORM environment variable.
+>>
+>> * get_platform() in setup.py and in Lib/distutils/util.py returns the
+>> ?? value of _PYTHON_HOST_PLATFORM when cross-compiling.
+>>
+>> So the process of cross-compilation on posix platforms has
+>> get_platform() return the target ('host' in autoconf terminology) platform.
+>>
+>> [1] https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Fwww.gnu.org%2Fsavannah-checkouts%2Fgnu%2Fautoconf%2Fmanual%2Fautoconf-2.69%2Fhtml_node%2FSpecifying-Target-Triplets.html&amp;data=02%7C01%7CPaul.Monson%40microsoft.com%7C186de203c3d644c7517208d696a5f266%7C72f988bf86f141af91ab2d7cd011db47%7C1%7C0%7C636862036817328765&amp;sdata=2PMKn%2Bt5ed82gkSBnew0nT1TA1qzDuU3VZNOFPYPqIM%3D&amp;reserved=0
+>> [2] https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Fwww.gnu.org%2Fsavannah-checkouts%2Fgnu%2Fautoconf%2Fmanual%2Fautoconf-2.69%2Fhtml_node%2FCanonicalizing.html&amp;data=02%7C01%7CPaul.Monson%40microsoft.com%7C186de203c3d644c7517208d696a5f266%7C72f988bf86f141af91ab2d7cd011db47%7C1%7C0%7C636862036817328765&amp;sdata=zRtcyLjDrkL%2BfcignLCDjtUri29j7mCscdVkGqhNk50%3D&amp;reserved=0
+> 
+> And the answer is a resounding "yes, it returns the target platform"? It seems you're saying this, but the wording of your email sounds just enough of a question that I'm not sure whether you are definitively answering it or not.
+> 
+> Cheers,
+> Steve
+
+_______________________________________________
+Python-Dev mailing list
+Python-Dev at python.org
+https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Fmail.python.org%2Fmailman%2Flistinfo%2Fpython-dev&amp;data=02%7C01%7CPaul.Monson%40microsoft.com%7C186de203c3d644c7517208d696a5f266%7C72f988bf86f141af91ab2d7cd011db47%7C1%7C0%7C636862036817328765&amp;sdata=Au0xrggEwNRRAen6dr8GnBuTTvMbxVhSuWOtX67p3Ts%3D&amp;reserved=0
+Unsubscribe: https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Fmail.python.org%2Fmailman%2Foptions%2Fpython-dev%2Fpaulmon%2540microsoft.com&amp;data=02%7C01%7CPaul.Monson%40microsoft.com%7C186de203c3d644c7517208d696a5f266%7C72f988bf86f141af91ab2d7cd011db47%7C1%7C0%7C636862036817328765&amp;sdata=nVHiEW69so29h6uTbY7XDjPF6%2FwU0pnlNpQEeYSoygY%3D&amp;reserved=0
+
