@@ -12749,3 +12749,1802 @@ Python-Dev at python.org
 https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Fmail.python.org%2Fmailman%2Flistinfo%2Fpython-dev&amp;data=02%7C01%7CPaul.Monson%40microsoft.com%7C186de203c3d644c7517208d696a5f266%7C72f988bf86f141af91ab2d7cd011db47%7C1%7C0%7C636862036817328765&amp;sdata=Au0xrggEwNRRAen6dr8GnBuTTvMbxVhSuWOtX67p3Ts%3D&amp;reserved=0
 Unsubscribe: https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Fmail.python.org%2Fmailman%2Foptions%2Fpython-dev%2Fpaulmon%2540microsoft.com&amp;data=02%7C01%7CPaul.Monson%40microsoft.com%7C186de203c3d644c7517208d696a5f266%7C72f988bf86f141af91ab2d7cd011db47%7C1%7C0%7C636862036817328765&amp;sdata=nVHiEW69so29h6uTbY7XDjPF6%2FwU0pnlNpQEeYSoygY%3D&amp;reserved=0
 
+From aixtools at felt.demon.nl  Thu Feb 21 04:44:46 2019
+From: aixtools at felt.demon.nl (Michael)
+Date: Thu, 21 Feb 2019 10:44:46 +0100
+Subject: [Python-Dev] Question - Bug Triage for 3.4 & 3.5
+In-Reply-To: <CA+3bQGGQK2cJwSu=AMT_mOM9+SfTw3pUQkhCfnpqjZKeykFtPw@mail.gmail.com>
+References: <20190220150120.GA26898@xps>
+ <CA+3bQGGQK2cJwSu=AMT_mOM9+SfTw3pUQkhCfnpqjZKeykFtPw@mail.gmail.com>
+Message-ID: <e1dea1a5-8be4-7832-3d7f-7d84b503b79c@felt.demon.nl>
+
+On 20/02/2019 18:58, Victor Stinner wrote:
+> If Python 3.4 was the current version when a bug was reported, I would
+> expect the version field of the bug set to Python 3.4. Maybe the bug
+> has been fixed in the meanwhile, maybe not. Closing all bugs affected
+> to 3.4 is a risk of loosing useful information on real bugs: closed
+> bugs are ignored by default in "Search" operation.
+
+Short: add version 3.X when it is discovered in "latest branch" versus
+issues reported against a "binary packaged" version.
+
+Maybe the instructions re: setting version (for new issues) should be to
+leave it blank (especially if it is still valid on the latest (e.g., 3.X
+rather than official numbered branch) or only indicate the branches that
+will be considered for a fix).
+
+Where "version" could be useful would be when someone finds something in
+a "binary" release at say level 3.6, while testing shows it works fine
+on 3.7 (or 3.8-alpha).
+
+In other words, I see little value in a bug/issue reported when, e.g.,
+3.4 was fully supported (or better becoming the latest branch comparable
+to labeling as 3.8 today). Maybe having a label "3.X" that just goes
+with the flow - in addition to 3.4 - (I am thinking maybe it is not bad
+to know it was first reported against 3.4, but does that also mean it
+wasn't there at 3.3?)
+
+
+>
+> Changing the version field: well, I don't think that it's useful. I
+> usually ignore this field. And it would send like 3000 emails... I
+> don't see the point.
+>
+> It's not uncommon that I fix bugs which 5 years old if not longer.
+> Sometimes, I decide to look at all bugs of a specific module. And most
+> of old bugs are still relevant nowadays. Sometimes, closing the bug as
+> WONTFIX is the right answer, but it can only be done on a case by case
+> basis.
+>
+> Note: Same rationale for Python 3.5, Python 2.6, or another other old
+> Python version ;-)
+>
+> Bug triage is hard and requires plenty of time :-)
+Again, if early on, an issue could (also) be flagged as 3.X - this may
+make it easier to track 'ancient' bugs - and automate keeping them in sight.
+
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 488 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/788671a1/attachment.sig>
+
+From aixtools at felt.demon.nl  Thu Feb 21 05:26:07 2019
+From: aixtools at felt.demon.nl (Michael)
+Date: Thu, 21 Feb 2019 11:26:07 +0100
+Subject: [Python-Dev] before I open an issue re: posix.stat and/or os.stat
+Message-ID: <d229a52f-3c40-515b-917f-3c9a89d9f6a2@felt.demon.nl>
+
+My focus is AIX - and I believe I found a bug in AIX include files in
+64-bit mode. I'll take that up with IBM and AIX support. However, this
+issue might also be valid in Python3.
+
+
+The following is from Centos, not AIX
+
+Python 2.7.5 (default, Jul 13 2018, 13:06:57)
+[GCC 4.8.5 20150623 (Red Hat 4.8.5-28)] on linux2
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import sys
+>>> sys.maxsize
+9223372036854775807
+>>> import posix
+>>> posix.stat("/tmp/xxx")
+posix.stat_result(st_mode=33188, st_ino=33925869, st_dev=64768L,
+st_nlink=1, st_uid=0, st_gid=0, st_size=0, st_atime=1550742595,
+st_mtime=1550742595, st_ctime=1550742595)
+>>> st=posix.stat("/tmp/xxx")
+>>> dev=st.st_dev
+>>> min=posix.minor(dev)
+>>> maj=posix.major(dev)
+>>> min,max
+(0, <built-in function max>)
+>>> min
+0
+>>> max
+<built-in function max>
+>>> maj
+253
+>>> posix.minor(dev)
+0
+>>> posix.major(655536)
+2560
+>>> posix.major(65536)
+256
+>>> posix.major(256)
+1
+>>> import os
+>>> os.major(256)
+1
+>>>
+
+In AIX - 64-bit mode
+
+Python 3.8.0a1+ (heads/master:e7a4bb554e, Feb 20 2019, 18:40:08) [C] on aix7
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import sys,os,posix
+>>> sys.maxsize
+9223372036854775807
+>>> posix.major(256)
+0
+>>> posix.major(65536)
+1
+>>> posix.stat("/tmp/xxx")
+os.stat_result(st_mode=33188, st_ino=12, st_dev=-9223371993905102841,
+st_nlink=1, st_uid=202, st_gid=1954, st_size=0, st_atime=1550690105,
+st_mtime=1550690105, st_ctime=1550690105)
+
+AIX 32-bit:
+
+root at x066:[/data/prj/python/git/python3-3.8.0.66]./python
+Python 3.8.0a1+ (heads/master:e7a4bb554e, Feb 19 2019, 11:22:56) [C] on aix6
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import os,sys,posix
+>>> sys.maxsize
+2147483647
+>>> posix.major(65536)
+1
+>>> posix.stat("/tmp/xxx")
+os.stat_result(st_mode=33188, st_ino=149, st_dev=655367, st_nlink=1,
+st_uid=0, st_gid=0, st_size=0, st_atime=1550743517, st_mtime=1550743517,
+st_ctime=1550743517)
+
+
+To make it easier to view:
+
+buildbot at x064:[/home/buildbot]cat osstat.c
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/sysmacros.h>
+#include <stdio.h>
+
+main()
+{
+??????? dev_t dev;
+??????? char *path = "/tmp/xxx";
+??????? struct stat st;
+??????? int???? minor,major;
+
+??????? lstat(path,&st);
+
+??????? printf("size: %d\n", sizeof(st.st_dev));
+??????? dev = st.st_dev;
+??????? minor = minor(dev);
+??????? major = major(dev);
+??????? printf("%016lx %ld %ld\n",dev,dev, (unsigned) dev);
+??????? printf("%d,%d\n",major,minor);
+}
+
+buildbot at x064:[/home/buildbot]OBJECT_MODE=32 cc osstat.c -o osstat-32 &&
+./osstat-32
+size: 4
+00000000000a0007 655367 655367
+10,7
+
+And here is the AIX behavior (and bug - major() macro!)
+
+buildbot at x064:[/home/buildbot]OBJECT_MODE=64 cc osstat.c -o osstat-64 &&
+./osstat-64
+size: 8
+8000000a00000007 -9223371993905102841 7
+0,7
+
+The same on AIX 6 (above is AIX7) - and also with gcc:
+
+root at x068:[/data/prj]gcc -maix64 osstat.c -o osstat-64 && ./osstat-64
+size: 8
+8000000a00000007 -9223371993905102841 42949672967
+0,7
+root at x068:[/data/prj]gcc -maix32 osstat.c -o osstat-32 && ./osstat-32
+size: 4
+00000000000a0007 655367 0
+10,7
+root at x068:[/data/prj]
+
+So, the AIX 'bug' with the macro major() has been around for ages - but
+ALSO setting the MSB of the st_dev.
+
++++++
+
+Now my question:
+
+Will this continue to be enough space - i.e., is the Dev size going to
+be enough?
+
+?+2042? #ifdef MS_WINDOWS
+?+2043????? PyStructSequence_SET_ITEM(v, 2,
+PyLong_FromUnsignedLong(st->st_dev));
+?+2044? #else
+?+2045????? PyStructSequence_SET_ITEM(v, 2, _PyLong_FromDev(st->st_dev));
+?+2046? #endif
+
+?+711? #define _PyLong_FromDev PyLong_FromLongLong
+
+It seems so - however, Is there something such as PyUnsignedLong and is
+that large enough for a "long long"? and if it exists, would that make
+the value positive (for the first test).
+
+posix.major and os.major will need to mask away the MSB and
+posix.makedev and os.makedev will need to add it back.
+
+OR - do I need to make the PyStat values "the same" in both 32-bit and
+64-bit?
+
+Puzzled on what you think is the correct approach.
+
+Michael
+
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 488 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/eaf6a849/attachment.sig>
+
+From vstinner at redhat.com  Thu Feb 21 06:13:51 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 21 Feb 2019 12:13:51 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <q4hnul$5lde$1@blaine.gmane.org>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be> <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <20190219113741.4514750e@fsol>
+ <CADiSq7ePgM0znxp4kNttsB75rwv0ntDmk29euduQy+4Jt+4jiA@mail.gmail.com>
+ <q4hnul$5lde$1@blaine.gmane.org>
+Message-ID: <CA+3bQGGb9OFq3JU5qkMdsxCAA76KHzBhA6O0P3ZptmBKUKVjuw@mail.gmail.com>
+
+Le mar. 19 f?vr. 2019 ? 21:15, Stefan Behnel <stefan_ml at behnel.de> a ?crit :
+> What I would ask, though, and I think that's also Jeroen's request, is to
+> be careful what you lock up behind Py_BUILD_CORE. Any new functionality
+> should be available to extension modules by default, unless there is a good
+> reason why it should remain internal. Usually, there is a reason why this
+> functionality was added, and I doubt that there are many cases where these
+> reasons are entirely internal to CPython.
+
+I think that we should have some rules here.
+
+One rule is that we should avoid APIs which allow to do something no
+possible in Python. That's an important rule for PyPy and other Python
+implementations. We cannot avoid such APIs completely, but they should
+be the exception, not the default.
+
+Another rule is to avoid stop adding new APIs which only exist for
+performance. For example, PyDict_GetItem() only exists for
+performance: PyObject_GetItem() can be used instead. There are
+multiple issues with writing "specialized code". For example,
+PyDict_GetItem() must only used if the type is exactly dict
+(PyDict_CheckExact). Otherwise, you change the Python semantics (don't
+respect overriden __getitem__). Each new API means more work for other
+Python implementations, but also more maintenance work for CPython.
+
+Premature optimization is the root of all evil. Most C extensions use
+premature optimization which are causing us a lot of troubles nowadays
+when we want to make the C API evolve and cause issues to PyPy which
+has issues to reimplement the C API on top of their different object
+model with a different GC.
+
+These are just proposals. Feel free to comment :-)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Thu Feb 21 06:18:41 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 21 Feb 2019 12:18:41 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+Message-ID: <CA+3bQGHTzje1Cn5jXArJX3ByVPE+jasCr02YAmb9ihQWCVjopA@mail.gmail.com>
+
+Hi Eric,
+
+IMHO the main blocker issue for any C API change is that nobody is
+able to measure the risk these changes. To better control the risk, I
+propose to select a list of popular C extensions, and build a CI to
+run their test suite on top of the development version of Python. Such
+CI wouldn't detect all backward incompatible changes. It wouldn't
+prevent us to merge backward incompatible changes. Some projects are
+already tested on the master branch of Python.
+
+My intent is to detect issues earlier, and if something goes wrong:
+discuss early to decide what to do. Fixing only some popular C
+extensions is one option. Another option is to provide some commands /
+hints to help maintainers of C extensions to adapt their code to the
+new C API. The other obvious option is to revert the change and maybe
+do it differently.
+
+Right now, it's too scary to walk in the dark.
+
+What I also would like to see is the creation of a group of people who
+work on the C API to discuss each change and test these changes
+properly.
+
+Victor
+
+Le sam. 16 f?vr. 2019 ? 00:41, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+>
+> Hi all,
+>
+> I've been working on the runtime lately, particularly focused on my
+> multi-core Python project.  One thing that would help simplify changes
+> in this area is if PyInterpreterState were defined in
+> Include/internal.  This would mean the type would be opaque unless
+> Py_BUILD_CORE were defined.
+>
+> The docs [1] already say none of the struct's fields are public.
+> Furthermore, Victor already moved it into Include/cpython (i.e. not in
+> the stable ABI) in November.  Overall, the benefit of making internal
+> types like this opaque is realized in our ability to change the
+> internal details without further breaking C-API users.
+>
+> Realistically, there may be extension modules out there that use
+> PyInterpreterState fields directly.  They would break.  I expect there
+> to be few such modules and fixing them would not involve great effort.
+> We'd have to add any missing accessor functions to the public C-API,
+> which I see as a good thing.  I have an issue [2] open for the change
+> and a PR open.  My PR already adds an entry to the porting section of
+> the 3.8 What's New doc about dealing with PyInterpreterState.
+>
+> Anyway, I just wanted to see if there are any objections to making
+> PyInterpreterState an opaque type outside of core use.
+>
+> -eric
+>
+> p.s. I'd like to do the same with PyThreadState, but that's a bit
+> trickier [3] and not one of my immediate needs. :)
+>
+>
+> [1] https://docs.python.org/3/c-api/init.html#c.PyInterpreterState
+> [2] https://bugs.python.org/issue35886
+> [3] https://bugs.python.org/issue35949
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From solipsis at pitrou.net  Thu Feb 21 06:32:52 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 21 Feb 2019 12:32:52 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be>
+ <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <20190219113741.4514750e@fsol>
+ <CADiSq7ePgM0znxp4kNttsB75rwv0ntDmk29euduQy+4Jt+4jiA@mail.gmail.com>
+ <q4hnul$5lde$1@blaine.gmane.org>
+ <CA+3bQGGb9OFq3JU5qkMdsxCAA76KHzBhA6O0P3ZptmBKUKVjuw@mail.gmail.com>
+Message-ID: <20190221123252.11bd1d31@fsol>
+
+On Thu, 21 Feb 2019 12:13:51 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> Premature optimization is the root of all evil. Most C extensions use
+> premature optimization
+
+How do you know it's premature?  Some extensions _are_ meant for speed.
+
+Regards
+
+Antoine.
+
+
+
+From aixtools at felt.demon.nl  Thu Feb 21 06:35:09 2019
+From: aixtools at felt.demon.nl (Michael)
+Date: Thu, 21 Feb 2019 12:35:09 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <b264eda2-0185-8f82-ca62-3362995fe77b@python.org>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be> <20190216223210.09ef3944@fsol>
+ <b264eda2-0185-8f82-ca62-3362995fe77b@python.org>
+Message-ID: <62a79cfb-a0ae-925a-9186-33bc6e5ee74a@felt.demon.nl>
+
+On 16/02/2019 23:34, Steve Dower wrote:
+> I like that we're taking (small) steps to reduce the size of our API. 
+
+I consider myself - an "outsider", so an "outsider's" view is that
+anything that makes it more clear about what is intended aka supported
+as the Python API is an improvement.
+
+Without clarity there is a chance (read risk) that someone starts using
+something and forces a long and difficult process to make it part of the
+official API or get acceptance that something never should have been
+done "that way".
+
+Shorter: promote clarity.
+
+IMHO: it is easier to move something from the 'internal' to public than
+v.v. and whenever there is not a compelling reason to not put something
+into some form of 'internal' - do it before not doing so bites you in a
+nasty way.
+
+My two (outsider) bits - :)
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 488 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/f83967cd/attachment.sig>
+
+From p.f.moore at gmail.com  Thu Feb 21 06:58:00 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 21 Feb 2019 11:58:00 +0000
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <20190221123252.11bd1d31@fsol>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be> <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <20190219113741.4514750e@fsol>
+ <CADiSq7ePgM0znxp4kNttsB75rwv0ntDmk29euduQy+4Jt+4jiA@mail.gmail.com>
+ <q4hnul$5lde$1@blaine.gmane.org>
+ <CA+3bQGGb9OFq3JU5qkMdsxCAA76KHzBhA6O0P3ZptmBKUKVjuw@mail.gmail.com>
+ <20190221123252.11bd1d31@fsol>
+Message-ID: <CACac1F-Gk3o9T0kz__MMB5sxw5xQ=E6WYSr2+mP4zzjQCCGG=w@mail.gmail.com>
+
+On Thu, 21 Feb 2019 at 11:35, Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+> On Thu, 21 Feb 2019 12:13:51 +0100
+> Victor Stinner <vstinner at redhat.com> wrote:
+> >
+> > Premature optimization is the root of all evil. Most C extensions use
+> > premature optimization
+>
+> How do you know it's premature?  Some extensions _are_ meant for speed.
+
+Extensions that need to squeeze every bit of speed out of the C API
+are the exception rather than the rule. Making it easier for extension
+authors to naturally pick portable options seems reasonable to me.
+Gating the "fast, but unsafe" APIs behind some sort of "opt in"
+setting seems like a sensible approach.
+
+However I agree, making it *impossible* to get right down to the
+high-speed calls (with the understanding that you're typing yourself
+to CPython and need to carefully track internal changes) is not
+something we should do. Python's built an ecosystem around
+high-performance C extensions, and we should support that ecosystem.
+
+Paul
+
+From antoine at python.org  Thu Feb 21 07:09:38 2019
+From: antoine at python.org (Antoine Pitrou)
+Date: Thu, 21 Feb 2019 13:09:38 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <CACac1F-Gk3o9T0kz__MMB5sxw5xQ=E6WYSr2+mP4zzjQCCGG=w@mail.gmail.com>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be> <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <20190219113741.4514750e@fsol>
+ <CADiSq7ePgM0znxp4kNttsB75rwv0ntDmk29euduQy+4Jt+4jiA@mail.gmail.com>
+ <q4hnul$5lde$1@blaine.gmane.org>
+ <CA+3bQGGb9OFq3JU5qkMdsxCAA76KHzBhA6O0P3ZptmBKUKVjuw@mail.gmail.com>
+ <20190221123252.11bd1d31@fsol>
+ <CACac1F-Gk3o9T0kz__MMB5sxw5xQ=E6WYSr2+mP4zzjQCCGG=w@mail.gmail.com>
+Message-ID: <4a4990bf-b386-a629-3a69-171af83976f9@python.org>
+
+
+Le 21/02/2019 ? 12:58, Paul Moore a ?crit?:
+> On Thu, 21 Feb 2019 at 11:35, Antoine Pitrou <solipsis at pitrou.net> wrote:
+>>
+>> On Thu, 21 Feb 2019 12:13:51 +0100
+>> Victor Stinner <vstinner at redhat.com> wrote:
+>>>
+>>> Premature optimization is the root of all evil. Most C extensions use
+>>> premature optimization
+>>
+>> How do you know it's premature?  Some extensions _are_ meant for speed.
+> 
+> Extensions that need to squeeze every bit of speed out of the C API
+> are the exception rather than the rule. Making it easier for extension
+> authors to naturally pick portable options seems reasonable to me.
+
+Actually, it would be interesting to have some kind of survey of C
+extensions (through random sampling? or popularity?) to find out why the
+developers had to write a C extension in the first place and what their
+concerns are.
+
+Intuitively there are three categories of C extensions:
+
+1. extensions whose entire purpose is performance (this includes all
+scientific computing C extensions - including Numpy or Pandas -, but
+also C accelerators such as SQLAlchemy's or simplejson's)
+
+2. extensions wrapping third-party APIs that are not
+performance-critical.  If you are exposing a wrapper to e.g. the
+posix_spawn() system call, probably the wrapper performance isn't very
+important.
+
+3. extensions wrapping third-party APIs that are performance-critical.
+For example, in a database wrapper, it's important that your native
+DB-to-Python and Python-to-native DB conversions are as fast as
+possible, because users are going to convert a *lot* of data.
+
+Note that category 2 may be taken care of by ctypes or cffi.
+
+Regards
+
+Antoine.
+
+From p.f.moore at gmail.com  Thu Feb 21 07:22:32 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 21 Feb 2019 12:22:32 +0000
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <4a4990bf-b386-a629-3a69-171af83976f9@python.org>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be> <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <20190219113741.4514750e@fsol>
+ <CADiSq7ePgM0znxp4kNttsB75rwv0ntDmk29euduQy+4Jt+4jiA@mail.gmail.com>
+ <q4hnul$5lde$1@blaine.gmane.org>
+ <CA+3bQGGb9OFq3JU5qkMdsxCAA76KHzBhA6O0P3ZptmBKUKVjuw@mail.gmail.com>
+ <20190221123252.11bd1d31@fsol>
+ <CACac1F-Gk3o9T0kz__MMB5sxw5xQ=E6WYSr2+mP4zzjQCCGG=w@mail.gmail.com>
+ <4a4990bf-b386-a629-3a69-171af83976f9@python.org>
+Message-ID: <CACac1F-RGUK6-Pwqs8TBGa0XD8zmC7Z5SHWM-o1BRt7dEwi7Jw@mail.gmail.com>
+
+On Thu, 21 Feb 2019 at 12:12, Antoine Pitrou <antoine at python.org> wrote:
+
+> Actually, it would be interesting to have some kind of survey of C
+> extensions (through random sampling? or popularity?) to find out why the
+> developers had to write a C extension in the first place and what their
+> concerns are.
+
+Indeed. There's also embedding, where I suspect there's a much higher
+likelihood that performance isn't key.
+
+And in your survey, I'd split out "needs the Python/C interface to be
+fast" from "needs internal operations to be fast, but data transfer
+between C and Python isn't as critical". I suspect there's a lot of
+people who believe they are in the former category, but are actually
+in the latter...
+
+Paul
+
+From vstinner at redhat.com  Thu Feb 21 07:45:05 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 21 Feb 2019 13:45:05 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <20190221123252.11bd1d31@fsol>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be> <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <20190219113741.4514750e@fsol>
+ <CADiSq7ePgM0znxp4kNttsB75rwv0ntDmk29euduQy+4Jt+4jiA@mail.gmail.com>
+ <q4hnul$5lde$1@blaine.gmane.org>
+ <CA+3bQGGb9OFq3JU5qkMdsxCAA76KHzBhA6O0P3ZptmBKUKVjuw@mail.gmail.com>
+ <20190221123252.11bd1d31@fsol>
+Message-ID: <CA+3bQGHxF3YiFaw5jdt7FQ4jBCUi674VvHGr62+72rVKKkLtFA@mail.gmail.com>
+
+Le jeu. 21 f?vr. 2019 ? 12:36, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+>
+> On Thu, 21 Feb 2019 12:13:51 +0100
+> Victor Stinner <vstinner at redhat.com> wrote:
+> >
+> > Premature optimization is the root of all evil. Most C extensions use
+> > premature optimization
+>
+> How do you know it's premature?  Some extensions _are_ meant for speed.
+
+Sorry, I don't ask to stop optimizing C extension. I'm asking to stop
+to use low-level C API like PyTuple_GET_ITEM() if the modified code is
+the not the performance bottleneck.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From songofacandy at gmail.com  Thu Feb 21 08:01:07 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Thu, 21 Feb 2019 22:01:07 +0900
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <CACac1F-RGUK6-Pwqs8TBGa0XD8zmC7Z5SHWM-o1BRt7dEwi7Jw@mail.gmail.com>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be> <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <20190219113741.4514750e@fsol>
+ <CADiSq7ePgM0znxp4kNttsB75rwv0ntDmk29euduQy+4Jt+4jiA@mail.gmail.com>
+ <q4hnul$5lde$1@blaine.gmane.org>
+ <CA+3bQGGb9OFq3JU5qkMdsxCAA76KHzBhA6O0P3ZptmBKUKVjuw@mail.gmail.com>
+ <20190221123252.11bd1d31@fsol>
+ <CACac1F-Gk3o9T0kz__MMB5sxw5xQ=E6WYSr2+mP4zzjQCCGG=w@mail.gmail.com>
+ <4a4990bf-b386-a629-3a69-171af83976f9@python.org>
+ <CACac1F-RGUK6-Pwqs8TBGa0XD8zmC7Z5SHWM-o1BRt7dEwi7Jw@mail.gmail.com>
+Message-ID: <CAEfz+TxY7gd-cUQbTX-Z7QZegsxcBNr-zZySN0cYwuJ2AS4scg@mail.gmail.com>
+
+On Thu, Feb 21, 2019 at 9:23 PM Paul Moore <p.f.moore at gmail.com> wrote:
+>
+> On Thu, 21 Feb 2019 at 12:12, Antoine Pitrou <antoine at python.org> wrote:
+>
+> > Actually, it would be interesting to have some kind of survey of C
+> > extensions (through random sampling? or popularity?) to find out why the
+> > developers had to write a C extension in the first place and what their
+> > concerns are.
+>
+> Indeed. There's also embedding, where I suspect there's a much higher
+> likelihood that performance isn't key.
+>
+> And in your survey, I'd split out "needs the Python/C interface to be
+> fast" from "needs internal operations to be fast, but data transfer
+> between C and Python isn't as critical". I suspect there's a lot of
+> people who believe they are in the former category, but are actually
+> in the latter...
+>
+> Paul
+
+As my experience, I can't believe the majority of extensions are in category B.
+
+And when speed is matter, PyPy support is not mandatory.  PyPy is fast enough
+with pure Python implementation.  Python/C API doesn't make PyPy fast when
+creating or reading massive objects.
+
+These are my recent Python/C API usages.
+
+# msgpack
+
+msgpack is a serialization format like JSON, but in binary format.
+
+It contains pure Python implementation and Cython implementation.
+Cython implementation is for CPython.  PyPy is fast enough with pure
+Python implementation.
+
+It is important to fast object access.  It is like marshal in Python.
+So this is clearly in category A.
+
+
+# mysqlclient
+
+It is binding of libmysqlclient or libmariadbclient.
+In some case, query can return many small data and I need to convert them
+to Python object.
+So this library is basically in category B, but sometime in C.
+
+
+# MarkupSafe
+
+It is library which escape strings.
+
+It should handle massive small string chunks, because it is called
+from template engine.
+
+So this library is in category A.
+Note that MarkupSafe having pure Python version, like msgpack.
+While MarkupSafe is not optimized for PyPy yet, it's possible to add
+implementation for PyPy written in Python using PyPy's string builder [1].
+
+[1] https://morepypy.blogspot.com/2011/10/speeding-up-json-encoding-in-pypy.html
+
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+
+From solipsis at pitrou.net  Thu Feb 21 07:53:46 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 21 Feb 2019 13:53:46 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <CA+3bQGHxF3YiFaw5jdt7FQ4jBCUi674VvHGr62+72rVKKkLtFA@mail.gmail.com>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be>
+ <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <20190219113741.4514750e@fsol>
+ <CADiSq7ePgM0znxp4kNttsB75rwv0ntDmk29euduQy+4Jt+4jiA@mail.gmail.com>
+ <q4hnul$5lde$1@blaine.gmane.org>
+ <CA+3bQGGb9OFq3JU5qkMdsxCAA76KHzBhA6O0P3ZptmBKUKVjuw@mail.gmail.com>
+ <20190221123252.11bd1d31@fsol>
+ <CA+3bQGHxF3YiFaw5jdt7FQ4jBCUi674VvHGr62+72rVKKkLtFA@mail.gmail.com>
+Message-ID: <20190221135346.15337d59@fsol>
+
+On Thu, 21 Feb 2019 13:45:05 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> Le jeu. 21 f?vr. 2019 ? 12:36, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+> >
+> > On Thu, 21 Feb 2019 12:13:51 +0100
+> > Victor Stinner <vstinner at redhat.com> wrote:  
+> > >
+> > > Premature optimization is the root of all evil. Most C extensions use
+> > > premature optimization  
+> >
+> > How do you know it's premature?  Some extensions _are_ meant for speed.  
+> 
+> Sorry, I don't ask to stop optimizing C extension. I'm asking to stop
+> to use low-level C API like PyTuple_GET_ITEM() if the modified code is
+> the not the performance bottleneck.
+
+As long as some people need that API, you'll have to maintain it
+anyway, even if _less_ people use it.  Ingesting lists and tuples as
+fast as possible is important for some use cases.  I have worked
+personally on some of them (on e.g. Numba or PyArrow).
+
+Regards
+
+Antoine.
+
+From J.Demeyer at UGent.be  Thu Feb 21 08:49:02 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 21 Feb 2019 14:49:02 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <CA+3bQGHTzje1Cn5jXArJX3ByVPE+jasCr02YAmb9ihQWCVjopA@mail.gmail.com>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <CA+3bQGHTzje1Cn5jXArJX3ByVPE+jasCr02YAmb9ihQWCVjopA@mail.gmail.com>
+Message-ID: <5C6EAC4E.1050304@UGent.be>
+
+On 2019-02-21 12:18, Victor Stinner wrote:
+> What I also would like to see is the creation of a group of people who
+> work on the C API to discuss each change and test these changes
+> properly.
+
+I don't think that we should "discuss each change", we should first have 
+an overall plan. It doesn't make a lot of sense to take small steps if 
+we have no clue where we're heading to. I am aware of 
+https://pythoncapi.readthedocs.io/new_api.html but we should first make 
+that into an accepted PEP.
+
+From armin.rigo at gmail.com  Thu Feb 21 08:58:49 2019
+From: armin.rigo at gmail.com (Armin Rigo)
+Date: Thu, 21 Feb 2019 14:58:49 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <CA+3bQGFAuqWLFBHho6=7=ZzZe4r=yXw2BgiRMExMiuGhPm41_g@mail.gmail.com>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be> <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <5C6BDA74.8060800@UGent.be>
+ <CAEfz+TxbVaj_NOjh2fdQTrT85xibgLXsXkgGAduT5WLBuQODAg@mail.gmail.com>
+ <CA+3bQGFAuqWLFBHho6=7=ZzZe4r=yXw2BgiRMExMiuGhPm41_g@mail.gmail.com>
+Message-ID: <CAMSv6X166MxPakKWJ7AM5ZJj0oMuo8_v-G2O8ThyA7aGatHv4A@mail.gmail.com>
+
+Hi,
+
+On Tue, 19 Feb 2019 at 13:12, Victor Stinner <vstinner at redhat.com> wrote:
+> Please don't use &PyTuple_GET_ITEM() or _PyTuple_ITEMS(). It prevents
+> to use a more efficient storage for tuple. Something like:
+> https://pythoncapi.readthedocs.io/optimization_ideas.html#specialized-list-for-small-integers
+>
+> PyPy already has the issue right now.
+
+Just to clarify PyPy's point of view (or at least mine):
+
+1. No, it no longer has this issue.  You can misuse
+``&PyTuple_GET_ITEM()`` freely with PyPy too.
+
+2. This whole discussion is nice but is of little help to PyPy at this
+point.  The performance hit comes mostly from emulating reference
+counting and non-movable objects.  If the API was half the size and
+did not contain anything with irregular behavior, it would have made
+our job easier in the past, but now it's done---and it wouldn't have
+improved the performance of the result.
+
+
+A bient?t,
+
+Armin.
+
+From stephane at wirtel.be  Thu Feb 21 09:53:40 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Thu, 21 Feb 2019 15:53:40 +0100
+Subject: [Python-Dev] Add minimal information with a new issue?
+Message-ID: <20190221145340.GA4286@xps>
+
+Hi,
+
+What do you think if we suggest a "template" for the new bugs?
+
+For example:
+* Python version (exact version)
+* Operating System 
+  * on Linux -> Distribution (python can have some patches)
+* Add a script for the reproduction of the bug
+* Eventually, try with the docker images (on i386,x86_64, ...)
+* etc...
+
+We can lost a lot of time just trying to find the right information for
+the reproduction of the issue.
+
+Cheers,
+
+St?phane
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From steve.dower at python.org  Thu Feb 21 10:03:38 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 21 Feb 2019 07:03:38 -0800
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <CAMSv6X166MxPakKWJ7AM5ZJj0oMuo8_v-G2O8ThyA7aGatHv4A@mail.gmail.com>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be> <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <5C6BDA74.8060800@UGent.be>
+ <CAEfz+TxbVaj_NOjh2fdQTrT85xibgLXsXkgGAduT5WLBuQODAg@mail.gmail.com>
+ <CA+3bQGFAuqWLFBHho6=7=ZzZe4r=yXw2BgiRMExMiuGhPm41_g@mail.gmail.com>
+ <CAMSv6X166MxPakKWJ7AM5ZJj0oMuo8_v-G2O8ThyA7aGatHv4A@mail.gmail.com>
+Message-ID: <d09dfeba-18c9-9bc2-8474-5519a8341d11@python.org>
+
+Just letting everyone know that I'm intending to restart this discussion
+over in capi-sig, as I feel like I've got an informational-PEP worth of
+"vision", "ideas" and "direction" and nomenclature for our C API (*not*
+talking about a rewrite, but the principles we should be following
+now... and would also want to follow in any rewrite ;) ).
+
+Nothing that should be extremely controversial. Well, perhaps. But let's
+at least get the stuff we already agree on into a PEP that we can use as
+a reference for guiding future work.
+
+I'll throw together an outline draft by email first, as I want to
+discuss the ideas right now rather than the grammar. Hopefully later
+this morning (next 3-4 hours). python-dev can expect (hope for) an
+informational PEP to return.
+
+If you're not currently on capi-sig, you can join it at
+https://mail.python.org/mailman3/lists/capi-sig.python.org/
+
+Cheers,
+Steve
+
+From skrah at bytereef.org  Thu Feb 21 06:24:51 2019
+From: skrah at bytereef.org (Stefan Krah)
+Date: Thu, 21 Feb 2019 12:24:51 +0100
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+Message-ID: <20190221112451.GA4998@bytereef.org>
+
+
+Victor Stinner wrote:
+> Premature optimization is the root of all evil. Most C extensions use
+> premature optimization which are causing us a lot of troubles nowadays
+> when we want to make the C API evolve and cause issues to PyPy which
+> has issues to reimplement the C API on top of their different object
+> model with a different GC.
+
+I'm intimately familiar with several C extensions in the math/science space
+and this is not the impression I get at all. Most people are happy if they
+get things to work, because the actual problems are much harder than focusing
+on private vs. public API.
+
+As for PyPy, if I understood correctly, Armin Rigo was skeptical of the
+proposed plan and favored publishing an API as a third party package.
+
+
+Stefan Krah
+
+
+
+
+From chekat2 at gmail.com  Thu Feb 21 08:57:25 2019
+From: chekat2 at gmail.com (Cheryl Sabella)
+Date: Thu, 21 Feb 2019 08:57:25 -0500
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+Message-ID: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+
+Hello!
+
+Due to the upcoming sprints at PyCon, there will be issues marked in the
+bug tracker as 'Good first issues'.  Please do *not* submit pull requests
+for these as it is difficult to find suitable issues.
+
+Instead of working on these issues, I'd like to propose a much more
+difficult challenge to current contributors looking for something to work
+on.  Please find issues which can be tackled at the sprint!  They are out
+there, but the trick is finding them.  :-)
+
+Here's the link to the mentored sprint page to understand the audience:
+https://us.pycon.org/2019/hatchery/mentoredsprints/
+
+I don't think this needs to be limited to documentation changes, but those
+are the obvious choice (even the devguide suggests it).  The goal is really
+workflow, meaning the new contributor doesn't necessarily have to solve the
+problem themselves - if an issue says: x function in y module needs to have
+z applied, then there's a lot of hurdles there for a newcomer which may not
+involve solving the problem.
+
+If you find anything you think is suitable, please add a comment with 'good
+first issue' and nosy me or Mariatta on it.  If you're unsure, then nosy us
+anyway.  It would be awesome to have too many issues to choose from than
+not enough.  If an issue isn't worked on at the sprint, then it would still
+be available to new contributors afterwards, so the exercise of flagging
+the issues wouldn't be wasted effort.
+
+Thanks!
+Cheryl
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/f4821020/attachment.html>
+
+From barry at python.org  Thu Feb 21 13:08:22 2019
+From: barry at python.org (Barry Warsaw)
+Date: Thu, 21 Feb 2019 10:08:22 -0800
+Subject: [Python-Dev] Add minimal information with a new issue?
+In-Reply-To: <20190221145340.GA4286@xps>
+References: <20190221145340.GA4286@xps>
+Message-ID: <EE6F873D-85A1-4E93-8E39-B8653DA16B11@python.org>
+
+On Feb 21, 2019, at 06:53, Stephane Wirtel <stephane at wirtel.be> wrote:
+> 
+> What do you think if we suggest a "template" for the new bugs?
+> 
+> For example:
+> * Python version (exact version)
+> * Operating System  * on Linux -> Distribution (python can have some patches)
+> * Add a script for the reproduction of the bug
+> * Eventually, try with the docker images (on i386,x86_64, ...)
+> * etc...
+> 
+> We can lost a lot of time just trying to find the right information for
+> the reproduction of the issue.
+
+Getting reproducible cases is usually the hardest part of any bug fix. :)
+
+If there is information about the platform, version of Python, build flags etc. that we want to capture in bug reports, there should be a `python -m bugreport` or some such that we can ask people to run and attach or paste into their issue.  Maybe even cooler would be something that opens a new GitHub issue with that information pre-populated.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/69a6debf/attachment.sig>
+
+From vstinner at redhat.com  Thu Feb 21 13:17:29 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 21 Feb 2019 19:17:29 +0100
+Subject: [Python-Dev] Add minimal information with a new issue?
+In-Reply-To: <EE6F873D-85A1-4E93-8E39-B8653DA16B11@python.org>
+References: <20190221145340.GA4286@xps>
+ <EE6F873D-85A1-4E93-8E39-B8653DA16B11@python.org>
+Message-ID: <CA+3bQGFVvkTFL02fNk=4N-o2-NWe+csiTu2HEcQBVZ5jwKziHA@mail.gmail.com>
+
+Hi,
+
+I wrote "python -m test.pythoninfo", but I wrote it to debug buildbot
+failures. It produces a large output. Only very few info are useful,
+but previously it was hard to get these info. I wouldn't suggest to
+start to request it. Or if you want it, it should be attached as a
+file to not pollute the issue.
+
+Note: On Fedora at least, you have to install python3-test package to
+get test.pythoninfo.
+
+Victor
+
+Le jeu. 21 f?vr. 2019 ? 19:11, Barry Warsaw <barry at python.org> a ?crit :
+>
+> On Feb 21, 2019, at 06:53, Stephane Wirtel <stephane at wirtel.be> wrote:
+> >
+> > What do you think if we suggest a "template" for the new bugs?
+> >
+> > For example:
+> > * Python version (exact version)
+> > * Operating System  * on Linux -> Distribution (python can have some patches)
+> > * Add a script for the reproduction of the bug
+> > * Eventually, try with the docker images (on i386,x86_64, ...)
+> > * etc...
+> >
+> > We can lost a lot of time just trying to find the right information for
+> > the reproduction of the issue.
+>
+> Getting reproducible cases is usually the hardest part of any bug fix. :)
+>
+> If there is information about the platform, version of Python, build flags etc. that we want to capture in bug reports, there should be a `python -m bugreport` or some such that we can ask people to run and attach or paste into their issue.  Maybe even cooler would be something that opens a new GitHub issue with that information pre-populated.
+>
+> -Barry
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From raymond.hettinger at gmail.com  Thu Feb 21 13:34:49 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Thu, 21 Feb 2019 10:34:49 -0800
+Subject: [Python-Dev] Add minimal information with a new issue?
+In-Reply-To: <20190221145340.GA4286@xps>
+References: <20190221145340.GA4286@xps>
+Message-ID: <90812FDD-1B6A-40D3-9E79-C9C8BEF610CD@gmail.com>
+
+On Feb 21, 2019, at 6:53 AM, Stephane Wirtel <stephane at wirtel.be> wrote:
+> 
+> What do you think if we suggest a "template" for the new bugs?
+
+99% of the time the template would be not applicable.  Historically, we asked for more information when needed and that wasn't very often.
+
+I think that anything that raises the cost of filing a bug report will work to our detriment. Ideally, we want the barriers to reporting to be as low as possible.
+
+
+Raymond
+
+
+From barry at python.org  Thu Feb 21 14:17:07 2019
+From: barry at python.org (Barry Warsaw)
+Date: Thu, 21 Feb 2019 11:17:07 -0800
+Subject: [Python-Dev] Add minimal information with a new issue?
+In-Reply-To: <90812FDD-1B6A-40D3-9E79-C9C8BEF610CD@gmail.com>
+References: <20190221145340.GA4286@xps>
+ <90812FDD-1B6A-40D3-9E79-C9C8BEF610CD@gmail.com>
+Message-ID: <E91B06C8-FD6D-4A00-9BBB-E07A1811434E@python.org>
+
+On Feb 21, 2019, at 10:34, Raymond Hettinger <raymond.hettinger at gmail.com> wrote:
+> 
+> I think that anything that raises the cost of filing a bug report will work to our detriment. Ideally, we want the barriers to reporting to be as low as possible.
+
+`python -m reportbug` could make the process even easier (too easy?).
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/a2960eab/attachment.sig>
+
+From python at mrabarnett.plus.com  Thu Feb 21 14:15:43 2019
+From: python at mrabarnett.plus.com (MRAB)
+Date: Thu, 21 Feb 2019 19:15:43 +0000
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <20190221135346.15337d59@fsol>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be> <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <20190219113741.4514750e@fsol>
+ <CADiSq7ePgM0znxp4kNttsB75rwv0ntDmk29euduQy+4Jt+4jiA@mail.gmail.com>
+ <q4hnul$5lde$1@blaine.gmane.org>
+ <CA+3bQGGb9OFq3JU5qkMdsxCAA76KHzBhA6O0P3ZptmBKUKVjuw@mail.gmail.com>
+ <20190221123252.11bd1d31@fsol>
+ <CA+3bQGHxF3YiFaw5jdt7FQ4jBCUi674VvHGr62+72rVKKkLtFA@mail.gmail.com>
+ <20190221135346.15337d59@fsol>
+Message-ID: <6c93d989-0dff-454d-ec38-b065437826c4@mrabarnett.plus.com>
+
+On 2019-02-21 12:53, Antoine Pitrou wrote:
+> On Thu, 21 Feb 2019 13:45:05 +0100
+> Victor Stinner <vstinner at redhat.com> wrote:
+>> Le jeu. 21 f?vr. 2019 ? 12:36, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+>> >
+>> > On Thu, 21 Feb 2019 12:13:51 +0100
+>> > Victor Stinner <vstinner at redhat.com> wrote:  
+>> > >
+>> > > Premature optimization is the root of all evil. Most C extensions use
+>> > > premature optimization  
+>> >
+>> > How do you know it's premature?  Some extensions _are_ meant for speed.  
+>> 
+>> Sorry, I don't ask to stop optimizing C extension. I'm asking to stop
+>> to use low-level C API like PyTuple_GET_ITEM() if the modified code is
+>> the not the performance bottleneck.
+> 
+> As long as some people need that API, you'll have to maintain it
+> anyway, even if _less_ people use it.  Ingesting lists and tuples as
+> fast as possible is important for some use cases.  I have worked
+> personally on some of them (on e.g. Numba or PyArrow).
+> 
+If I'm working with a dict, the first place I look is PyDict_*, and that 
+leads me to PyDict_GetItem. The docs for PyDict_GetItem don't mention 
+PyObject_GetItem. Perhaps, if PyObject_GetItem is recommended, it should 
+say so, and similarly for other parts of the API.
+
+From steve.dower at python.org  Thu Feb 21 15:06:29 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 21 Feb 2019 12:06:29 -0800
+Subject: [Python-Dev] Add minimal information with a new issue?
+In-Reply-To: <E91B06C8-FD6D-4A00-9BBB-E07A1811434E@python.org>
+References: <20190221145340.GA4286@xps>
+ <90812FDD-1B6A-40D3-9E79-C9C8BEF610CD@gmail.com>
+ <E91B06C8-FD6D-4A00-9BBB-E07A1811434E@python.org>
+Message-ID: <935b0f98-70ae-af79-558e-c4ede09b3021@python.org>
+
+On 21Feb2019 1117, Barry Warsaw wrote:
+> On Feb 21, 2019, at 10:34, Raymond Hettinger <raymond.hettinger at gmail.com> wrote:
+>>
+>> I think that anything that raises the cost of filing a bug report will work to our detriment. Ideally, we want the barriers to reporting to be as low as possible.
+> 
+> `python -m reportbug` could make the process even easier (too easy?).
+
+
+It's spelled `python -m reportabug` ;)
+
+https://pypi.org/project/reportabug/
+https://github.com/zooba/reportabug
+
+Example: https://github.com/zooba/reportabug/issues/1
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Thu Feb 21 15:08:31 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 21 Feb 2019 12:08:31 -0800
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+Message-ID: <ade3b167-14a1-2ffd-3c61-820a5b834146@python.org>
+
+On 21Feb2019 0557, Cheryl Sabella wrote:
+> If you find anything you think is suitable, please add a comment with 
+> 'good first issue' and nosy me or Mariatta on it.? If you're unsure, 
+> then nosy us anyway.? It would be awesome to have too many issues to 
+> choose from than not enough.? If an issue isn't worked on at the sprint, 
+> then it would still be available to new contributors afterwards, so the 
+> exercise of flagging the issues wouldn't be wasted effort.
+
+I agree completely. We normally add the "Easy" or "Easy (C)" keywords to 
+mark these (the latter for issues that involve C code), and these are 
+collected under the "Easy issues" link at the left hand side of the tracker.
+
+Any reason to change from this process?
+
+Cheers,
+Steve
+
+From stephane at wirtel.be  Thu Feb 21 15:31:03 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Thu, 21 Feb 2019 21:31:03 +0100
+Subject: [Python-Dev] Add minimal information with a new issue?
+In-Reply-To: <935b0f98-70ae-af79-558e-c4ede09b3021@python.org>
+References: <20190221145340.GA4286@xps>
+ <90812FDD-1B6A-40D3-9E79-C9C8BEF610CD@gmail.com>
+ <E91B06C8-FD6D-4A00-9BBB-E07A1811434E@python.org>
+ <935b0f98-70ae-af79-558e-c4ede09b3021@python.org>
+Message-ID: <08FC7C35-AC20-40BD-9CA9-38953196169A@wirtel.be>
+
++1
+
+> Le 21 f?vr. 2019 ? 21:06, Steve Dower <steve.dower at python.org> a ?crit :
+> 
+>> On 21Feb2019 1117, Barry Warsaw wrote:
+>>> On Feb 21, 2019, at 10:34, Raymond Hettinger <raymond.hettinger at gmail.com> wrote:
+>>> 
+>>> I think that anything that raises the cost of filing a bug report will work to our detriment. Ideally, we want the barriers to reporting to be as low as possible.
+>> `python -m reportbug` could make the process even easier (too easy?).
+> 
+> 
+> It's spelled `python -m reportabug` ;)
+> 
+> https://pypi.org/project/reportabug/
+> https://github.com/zooba/reportabug
+> 
+> Example: https://github.com/zooba/reportabug/issues/1
+> 
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/stephane%40wirtel.be
+
+
+From chekat2 at gmail.com  Thu Feb 21 15:58:55 2019
+From: chekat2 at gmail.com (Cheryl Sabella)
+Date: Thu, 21 Feb 2019 15:58:55 -0500
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <ade3b167-14a1-2ffd-3c61-820a5b834146@python.org>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <ade3b167-14a1-2ffd-3c61-820a5b834146@python.org>
+Message-ID: <CAACPsK6+v3m5EvTzzcpvk4OhZotOgErkPChJmBZdsrY_GFsP9w@mail.gmail.com>
+
+>
+> I agree completely. We normally add the "Easy" or "Easy (C)" keywords to
+> mark these (the latter for issues that involve C code), and these are
+> collected under the "Easy issues" link at the left hand side of the
+> tracker.
+>
+> Any reason to change from this process?
+>
+>
+Thanks for asking about this.  The intent isn't to stop the use of the
+'easy' keyword, but to try to reserve some tickets for May.  If they are
+just marked as 'easy', then there could be more of a risk that someone
+would work on it before the sprints.  By assigning them to Mariatta, it
+will serve the dual purpose of trying to reserve these as well as making
+them easier to find later on.  I think the equivalent would be the ability
+to add an additional tag to GitHub issues, such as when there's a 'good
+first date', 'help wanted' and 'sprint' tag on the same ticket.
+
+But, I also don't want to complicate the current process, so I apologize if
+my idea isn't constructive.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/1c3f0ecd/attachment.html>
+
+From lisandrosnik at gmail.com  Thu Feb 21 16:26:49 2019
+From: lisandrosnik at gmail.com (Lysandros Nikolaou)
+Date: Thu, 21 Feb 2019 22:26:49 +0100
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <CAACPsK6+v3m5EvTzzcpvk4OhZotOgErkPChJmBZdsrY_GFsP9w@mail.gmail.com>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <ade3b167-14a1-2ffd-3c61-820a5b834146@python.org>
+ <CAACPsK6+v3m5EvTzzcpvk4OhZotOgErkPChJmBZdsrY_GFsP9w@mail.gmail.com>
+Message-ID: <CANiJEH_YfanGj7DY5PqBLwqGud2w_mJxf8H5TC8_QPz2YMXVBg@mail.gmail.com>
+
+On Thu, Feb 21, 2019 at 9:59 PM Cheryl Sabella <chekat2 at gmail.com> wrote:
+
+> I agree completely. We normally add the "Easy" or "Easy (C)" keywords to
+>> mark these (the latter for issues that involve C code), and these are
+>> collected under the "Easy issues" link at the left hand side of the
+>> tracker.
+>>
+>> Any reason to change from this process?
+>>
+>>
+Yeah, I think some kind of separation between the two would be needed in
+this case. There are some of us newbies, who frequently click the "Easy"
+button, so that we find some issue to tackle. Some kind of marking an issue
+as a "sprint issue" would quickly tell me that the issue is not available
+to take on.
+
+If that's not done, there's the risk that a good number of easy issues
+would be closed until the sprint.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/2320dedb/attachment.html>
+
+From brett at python.org  Thu Feb 21 17:12:08 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 21 Feb 2019 14:12:08 -0800
+Subject: [Python-Dev] Making PyInterpreterState an opaque type
+In-Reply-To: <CAMSv6X166MxPakKWJ7AM5ZJj0oMuo8_v-G2O8ThyA7aGatHv4A@mail.gmail.com>
+References: <CALFfu7B=evjfBOeXvC_Kd-MdPKnPMPPWA0pqmZWt0uuMtPuyaQ@mail.gmail.com>
+ <5C67E2D0.7020906@UGent.be>
+ <CALFfu7C1YK5wLETz0y6KK2hm=3dZe_9C9hx6dDzo4mdrksEt+Q@mail.gmail.com>
+ <5C6B2270.1080203@UGent.be> <e8d27a02-4f73-0631-8bc6-ad05ff8b1a81@python.org>
+ <5C6BDA74.8060800@UGent.be>
+ <CAEfz+TxbVaj_NOjh2fdQTrT85xibgLXsXkgGAduT5WLBuQODAg@mail.gmail.com>
+ <CA+3bQGFAuqWLFBHho6=7=ZzZe4r=yXw2BgiRMExMiuGhPm41_g@mail.gmail.com>
+ <CAMSv6X166MxPakKWJ7AM5ZJj0oMuo8_v-G2O8ThyA7aGatHv4A@mail.gmail.com>
+Message-ID: <CAP1=2W4R4XTDbUsksRn19JyrP3vCGDjqWtrqTw=bfUY2EZpo5w@mail.gmail.com>
+
+On Thu, Feb 21, 2019 at 6:01 AM Armin Rigo <armin.rigo at gmail.com> wrote:
+
+> Hi,
+>
+> On Tue, 19 Feb 2019 at 13:12, Victor Stinner <vstinner at redhat.com> wrote:
+> > Please don't use &PyTuple_GET_ITEM() or _PyTuple_ITEMS(). It prevents
+> > to use a more efficient storage for tuple. Something like:
+> >
+> https://pythoncapi.readthedocs.io/optimization_ideas.html#specialized-list-for-small-integers
+> >
+> > PyPy already has the issue right now.
+>
+> Just to clarify PyPy's point of view (or at least mine):
+>
+> 1. No, it no longer has this issue.  You can misuse
+> ``&PyTuple_GET_ITEM()`` freely with PyPy too.
+>
+> 2. This whole discussion is nice but is of little help to PyPy at this
+> point.  The performance hit comes mostly from emulating reference
+> counting and non-movable objects.  If the API was half the size and
+> did not contain anything with irregular behavior, it would have made
+> our job easier in the past, but now it's done---and it wouldn't have
+> improved the performance of the result.
+>
+
+While it's unfortunate we start this conversation back when PyPy started to
+suffer through this so that we could try to make it easier for them, I
+don't want people to think trying to come up with a simpler FFI API
+eventually wouldn't be beneficial to other implementations (either ones
+that haven't reach Python 3 yet or have not even been written).
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/935ca552/attachment-0001.html>
+
+From steve.dower at python.org  Thu Feb 21 17:26:42 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 21 Feb 2019 14:26:42 -0800
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <CAACPsK6+v3m5EvTzzcpvk4OhZotOgErkPChJmBZdsrY_GFsP9w@mail.gmail.com>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <ade3b167-14a1-2ffd-3c61-820a5b834146@python.org>
+ <CAACPsK6+v3m5EvTzzcpvk4OhZotOgErkPChJmBZdsrY_GFsP9w@mail.gmail.com>
+Message-ID: <cb98bf72-7e4b-7da2-05db-309e7f827c6c@python.org>
+
+On 21Feb2019 1258, Cheryl Sabella wrote:
+>     I agree completely. We normally add the "Easy" or "Easy (C)"
+>     keywords to
+>     mark these (the latter for issues that involve C code), and these are
+>     collected under the "Easy issues" link at the left hand side of the
+>     tracker.
+> 
+>     Any reason to change from this process?
+> 
+> 
+> Thanks for asking about this.? The intent isn't to stop the use of the 
+> 'easy' keyword, but to try to reserve some tickets for May.? If they are 
+> just marked as 'easy', then there could be more of a risk that someone 
+> would work on it before the sprints.? By assigning them to Mariatta, it 
+> will serve the dual purpose of trying to reserve these as well as making 
+> them easier to find later on.? I think the equivalent would be the 
+> ability to add an additional tag to GitHub issues, such as when there's 
+> a 'good first date', 'help wanted' and 'sprint' tag on the same ticket.
+> 
+> But, I also don't want to complicate the current process, so I apologize 
+> if my idea isn't constructive.
+
+I'm just trying to keep things easy to search.
+
+Keywords are the bpo equivalent of GitHub tags, so if we want a 
+"saved_for_sprint" tag then we should add a new keyword. (In my 
+experience, "sprint" tags on GitHub are normally used on PRs to indicate 
+that they were created at a sprint.)
+
+I'm sympathetic to wanting to have tasks for the PyCon sprints, but at 
+the same time it feels exclusionary to "save" them from people who want 
+to volunteer at other times. Having paid to attend PyCon shouldn't be a 
+barrier or a privilege for contributing (though it's certainly a 
+smoother road by having contributors there to assist, which is why other 
+conferences/sprints are keen to have core developers attend as mentors).
+
+I'm 100% in favor of discouraging regular contributors from fixing them 
+- we should be *generating* easy issues by describing how to fix it and 
+then walking away. I'm just not entirely comfortable with trying to also 
+hide them from first time contributors. Either way, I'll keep marking 
+issues as Easy when I think they are good first contributions.
+
+Cheers,
+Steve
+
+From mariatta at python.org  Thu Feb 21 18:18:23 2019
+From: mariatta at python.org (Mariatta)
+Date: Thu, 21 Feb 2019 15:18:23 -0800
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <cb98bf72-7e4b-7da2-05db-309e7f827c6c@python.org>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <ade3b167-14a1-2ffd-3c61-820a5b834146@python.org>
+ <CAACPsK6+v3m5EvTzzcpvk4OhZotOgErkPChJmBZdsrY_GFsP9w@mail.gmail.com>
+ <cb98bf72-7e4b-7da2-05db-309e7f827c6c@python.org>
+Message-ID: <CAGbohnZewMOJ_vMjO6y-LnZ-Y2nWgtGY7+=HOUGkD-iMbeUzUQ@mail.gmail.com>
+
+Cheryl, thanks for starting this thread and for helping to find easy issues
+to be worked on.
+
+I'm sympathetic to wanting to have tasks for the PyCon sprints, but at
+> the same time it feels exclusionary to "save" them from people who want
+> to volunteer at other times. Having paid to attend PyCon shouldn't be a
+> barrier or a privilege for contributing (though it's certainly a
+> smoother road by having contributors there to assist, which is why other
+> conferences/sprints are keen to have core developers attend as mentors).
+
+
+I understand your concern, but I hope people understand that the mentored
+sprint is a little bit different than the regular sprint days.
+The target audience of the mentored sprint are folks who are
+underrepresented minorities, in my personal experience, they are less
+privileged to begin with.
+We want to be inclusive, and therefore we're encouraging those who are not
+from underrepresented group to bring along someone else from
+underrepresented group with them.
+
+The mentored sprint is taking place during the main conference days, and
+looking at the signups, most of the participants have told us they want to
+sprint for 4 hours on Saturday afternoon.
+This means they will be missing out on lots of quality talks happening at
+the same time which they paid for.
+Our goal is really to make contributing more accessible by paring them up
+with mentors, but without straightforward issues to be worked on, they
+can't continue effectively.
+
+The issues that's been earmarked for the mentored sprint are so far
+documentation and typo fixes and not urgent issues.
+I don't believe that we're "stealing away" opportunity to contribute from
+those who weren't able to come to PyCon, but I understand that point of
+view.
+
+In any case, I'm appreciative to those who have helped find issues to be
+worked on the mentored sprint, and I also understand that I can't (and
+won't) stop other people from working on these issues before the sprint at
+PyCon.
+
+While I'm here, I'd like to invite you all to participate in the mentored
+sprint if you can. Help spread the word, or sign up to mentor.
+Any open source project is welcome to sign up! Check the page for more
+details. https://us.pycon.org/2019/hatchery/mentoredsprints/
+
+I'm a little busy with PyCascades until next Monday, but after that I'll be
+happy to answer any questions about the mentored sprint.
+
+
+?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/cf1e1b2a/attachment.html>
+
+From chekat2 at gmail.com  Thu Feb 21 18:22:57 2019
+From: chekat2 at gmail.com (Cheryl Sabella)
+Date: Thu, 21 Feb 2019 18:22:57 -0500
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <cb98bf72-7e4b-7da2-05db-309e7f827c6c@python.org>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <ade3b167-14a1-2ffd-3c61-820a5b834146@python.org>
+ <CAACPsK6+v3m5EvTzzcpvk4OhZotOgErkPChJmBZdsrY_GFsP9w@mail.gmail.com>
+ <cb98bf72-7e4b-7da2-05db-309e7f827c6c@python.org>
+Message-ID: <CAACPsK5+Y9nLB5uK32JNbr9vYSDmkfmwinSXU-kHPhXd0iJD7w@mail.gmail.com>
+
+> I'm 100% in favor of discouraging regular contributors from fixing them
+>
+
+This would be nice too.  Speaking from my experience, it's hard to leave
+the comfort of what looks to be a quick win (by submitting a PR on an easy
+issue) and moving on to something where you're more unsure.  But...
+
+
+> - we should be *generating* easy issues by describing how to fix it and
+> then walking away.
+
+
+What a great idea!  Maybe that could be written up under the triager
+section of the devguide as a way to triage.  An experienced person can do
+the legwork, just short of submitting the PR, and then help mentor a
+newcomer who wants to follow it through.  This might be worth a thread on
+its own.
+
+
+> I'm just not entirely comfortable with trying to also
+> hide them from first time contributors. Either way, I'll keep marking
+> issues as Easy when I think they are good first contributions.
+>
+>
+Thanks!  :-)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/2ea2d28c/attachment.html>
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Fri Feb 22 00:14:01 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Fri, 22 Feb 2019 14:14:01 +0900
+Subject: [Python-Dev] Add minimal information with a new issue?
+In-Reply-To: <E91B06C8-FD6D-4A00-9BBB-E07A1811434E@python.org>
+References: <20190221145340.GA4286@xps>
+ <90812FDD-1B6A-40D3-9E79-C9C8BEF610CD@gmail.com>
+ <E91B06C8-FD6D-4A00-9BBB-E07A1811434E@python.org>
+Message-ID: <23663.34073.970966.97431@turnbull.sk.tsukuba.ac.jp>
+
+Barry Warsaw writes:
+ > On Feb 21, 2019, at 10:34, Raymond Hettinger <raymond.hettinger at gmail.com> wrote:
+ > > 
+ > > I think that anything that raises the cost of filing a bug report
+ > > will work to our detriment. Ideally, we want the barriers to
+ > > reporting to be as low as possible.
+
+A template is probably counterproductive.  A program that fills in the
+most of the template automatically would make the barrier lower than
+it currently is.
+
+ > `python -m reportbug` could make the process even easier (too easy?).
+
+If badly designed it could make the process too easy (ie, fill the
+tracker with reports that triage to "closed as duplicate of #NNNNN").
+
+We know a lot about this process now, though.  For example, Launchpad
+and some other trackers ask you to input some keywords and tries to
+pull up related reports.  The reportbug program could collect internal
+information (with an option it could suck up all the information
+Victor's program collects), ask the reporter a few simple questions,
+formulate the query (including both the generated information and the
+reporter's information), and open a browser window on the tracker.
+
+This would probably make a good GSoC project ....
+
+Steve
+
+-- 
+Associate Professor              Division of Policy and Planning Science
+http://turnbull.sk.tsukuba.ac.jp/     Faculty of Systems and Information
+Email: turnbull at sk.tsukuba.ac.jp                   University of Tsukuba
+Tel: 029-853-5175                 Tennodai 1-1-1, Tsukuba 305-8573 JAPAN
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Fri Feb 22 00:15:35 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Fri, 22 Feb 2019 14:15:35 +0900
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <cb98bf72-7e4b-7da2-05db-309e7f827c6c@python.org>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <ade3b167-14a1-2ffd-3c61-820a5b834146@python.org>
+ <CAACPsK6+v3m5EvTzzcpvk4OhZotOgErkPChJmBZdsrY_GFsP9w@mail.gmail.com>
+ <cb98bf72-7e4b-7da2-05db-309e7f827c6c@python.org>
+Message-ID: <23663.34167.878718.324163@turnbull.sk.tsukuba.ac.jp>
+
+Steve Dower writes:
+
+ > I'm sympathetic to wanting to have tasks for the PyCon sprints, but at 
+ > the same time it feels exclusionary to "save" them from people who want 
+ > to volunteer at other times.
+
+It's already possible to do this sub rosa.  Just get a mentor to
+"claim" the issue, and have a separate page listing them for the
+mentored sprint attendees.  I think it's reasonable for each mentor to
+claim a couple of issues.  Worth a try for a year at multiple sprints,
+no?
+
+If people worry that once it's been done for a year, the mentors will
+claim it in perpetuity, they can lobby the Council to explicitly
+sunset the practice, so that the Council would have to act to extend
+the privilege of reserving issues in this way.
+
+ > I'm 100% in favor of discouraging regular contributors from fixing
+ > them - we should be *generating* easy issues by describing how to
+ > fix it and then walking away.
+
+"Generate", of course!  But creating a bug report clear enough for
+another to reproduce and then fix a problem is far more effort than
+doing it yourself in many, probably most, cases.  Some people are
+already doing this, I'm sure, but to dramatically increase the number
+of such issues, there would need to be strong incentive for
+experienced developers to do the extra work.[1]  One such incentive
+might be to require mentors to tag one (or more) easy issue(s) for
+each one they "claim" for sprints.  ("More" would compensate for the
+possibility that a PR would be generated and applied significantly
+faster.)
+
+The point of Cheryl's proposal is specifically NOT to walk away, but
+to rather provide in-person mentoring at a sprint.  True, this is
+creating a privileged class from people who can be present at PyCon.
+We shouldn't award such privileges lightly.  But ISTM there are two
+kinds of mentoring: the first is "patch piloting" the contribution
+through the contribution process.  The second is helping the
+contributor navigate the existing code and produce new or modified
+code in good core Python style.
+
+It's not clear to me why the first needs to take place at a sprint.
+The contribution process is entirely formal, and there is no
+overwhelming need to privilege a subset of potential contributors for
+"trivial" changes.
+
+If this is a reasonable way to look at it, the "reserved for sprint"
+issues should be difficult enough coding to deserve some mentoring, of
+a kind that is best done in person.  Eg, doc issues (including message
+and error strings) should be excluded from the reservable class.  The
+mentored sprint new contributors should be encouraged to work on some
+trivial issues before the sprint.  ("Required" doesn't make sense to
+me, since there are probably a lot who are new to coding entirely.)
+
+ > I'm just not entirely comfortable with trying to also hide them
+ > from first time contributors.
+
+I too feel that discomfort, but there are a number of good reasons to
+privilege PyCon attendees.  The special "mentored sprints" are
+intentionally diversity-enhancing.  If restricted as I suggest, the
+issues themselves benefit from personal mentoring, and so this will
+both improve education of new contributors and be an efficient use of
+mentor time.  Finally, these contributors have demonstrated both a
+financial commitment and a time commitment to Python, an interest in
+contributing *to Python*, and so are more likely to become consistent
+contributors than, say, GSoC students who just want to demonstrate
+that they understand the PR process to qualify for the $5500.[2]
+
+Finally, if my analysis above is correct, these issues aren't hidden
+in any important way.  The hidden issues are the ones that get fixed
+"en passant" as core devs work on something else.
+
+ > Either way, I'll keep marking issues as Easy when I think they are
+ > good first contributions.
+
+Of course!
+
+
+Footnotes: 
+[1]  Please tell me I'm wrong about Python!  But fixing minor issues
+"en passant" is my experience in every other project I've contributed
+to, including as a non-committing "new contributor" in the first few
+patches.
+
+[2]  Not saying that GSoC students don't want to contribute *to
+Python*, just that their financial incentive goes "the wrong way"
+relative to PyCon attendees.
+
+
+From guido at python.org  Fri Feb 22 01:27:10 2019
+From: guido at python.org (Guido van Rossum)
+Date: Thu, 21 Feb 2019 23:27:10 -0700
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <23663.34167.878718.324163@turnbull.sk.tsukuba.ac.jp>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <ade3b167-14a1-2ffd-3c61-820a5b834146@python.org>
+ <CAACPsK6+v3m5EvTzzcpvk4OhZotOgErkPChJmBZdsrY_GFsP9w@mail.gmail.com>
+ <cb98bf72-7e4b-7da2-05db-309e7f827c6c@python.org>
+ <23663.34167.878718.324163@turnbull.sk.tsukuba.ac.jp>
+Message-ID: <CAP7+vJL5BBiqjAE+R13CvbPg+VF_2a1gEo5a_km9_sgt=vuTtw@mail.gmail.com>
+
+In the mypy project we've definitely experienced the problem with
+"beginner" issues that they would be fixed by disinterested folks who just
+wanted to score some GitHub points, and we stopped doing that. While we've
+not kept track carefully, my impression is that we've not seen the quantity
+of contributions go down, and we've seen fewer one-time contributors.
+There's still the occasional contributor who fixes a doc typo and then is
+never heard from again, but those are easy to accept (but CPython's PR
+process is much more heavy-weight than mypy's.)
+
+On Thu, Feb 21, 2019 at 10:18 PM Stephen J. Turnbull <
+turnbull.stephen.fw at u.tsukuba.ac.jp> wrote:
+
+> Steve Dower writes:
+>
+>  > I'm sympathetic to wanting to have tasks for the PyCon sprints, but at
+>  > the same time it feels exclusionary to "save" them from people who want
+>  > to volunteer at other times.
+>
+> It's already possible to do this sub rosa.  Just get a mentor to
+> "claim" the issue, and have a separate page listing them for the
+> mentored sprint attendees.  I think it's reasonable for each mentor to
+> claim a couple of issues.  Worth a try for a year at multiple sprints,
+> no?
+>
+> If people worry that once it's been done for a year, the mentors will
+> claim it in perpetuity, they can lobby the Council to explicitly
+> sunset the practice, so that the Council would have to act to extend
+> the privilege of reserving issues in this way.
+>
+>  > I'm 100% in favor of discouraging regular contributors from fixing
+>  > them - we should be *generating* easy issues by describing how to
+>  > fix it and then walking away.
+>
+> "Generate", of course!  But creating a bug report clear enough for
+> another to reproduce and then fix a problem is far more effort than
+> doing it yourself in many, probably most, cases.  Some people are
+> already doing this, I'm sure, but to dramatically increase the number
+> of such issues, there would need to be strong incentive for
+> experienced developers to do the extra work.[1]  One such incentive
+> might be to require mentors to tag one (or more) easy issue(s) for
+> each one they "claim" for sprints.  ("More" would compensate for the
+> possibility that a PR would be generated and applied significantly
+> faster.)
+>
+> The point of Cheryl's proposal is specifically NOT to walk away, but
+> to rather provide in-person mentoring at a sprint.  True, this is
+> creating a privileged class from people who can be present at PyCon.
+> We shouldn't award such privileges lightly.  But ISTM there are two
+> kinds of mentoring: the first is "patch piloting" the contribution
+> through the contribution process.  The second is helping the
+> contributor navigate the existing code and produce new or modified
+> code in good core Python style.
+>
+> It's not clear to me why the first needs to take place at a sprint.
+> The contribution process is entirely formal, and there is no
+> overwhelming need to privilege a subset of potential contributors for
+> "trivial" changes.
+>
+> If this is a reasonable way to look at it, the "reserved for sprint"
+> issues should be difficult enough coding to deserve some mentoring, of
+> a kind that is best done in person.  Eg, doc issues (including message
+> and error strings) should be excluded from the reservable class.  The
+> mentored sprint new contributors should be encouraged to work on some
+> trivial issues before the sprint.  ("Required" doesn't make sense to
+> me, since there are probably a lot who are new to coding entirely.)
+>
+>  > I'm just not entirely comfortable with trying to also hide them
+>  > from first time contributors.
+>
+> I too feel that discomfort, but there are a number of good reasons to
+> privilege PyCon attendees.  The special "mentored sprints" are
+> intentionally diversity-enhancing.  If restricted as I suggest, the
+> issues themselves benefit from personal mentoring, and so this will
+> both improve education of new contributors and be an efficient use of
+> mentor time.  Finally, these contributors have demonstrated both a
+> financial commitment and a time commitment to Python, an interest in
+> contributing *to Python*, and so are more likely to become consistent
+> contributors than, say, GSoC students who just want to demonstrate
+> that they understand the PR process to qualify for the $5500.[2]
+>
+> Finally, if my analysis above is correct, these issues aren't hidden
+> in any important way.  The hidden issues are the ones that get fixed
+> "en passant" as core devs work on something else.
+>
+>  > Either way, I'll keep marking issues as Easy when I think they are
+>  > good first contributions.
+>
+> Of course!
+>
+>
+> Footnotes:
+> [1]  Please tell me I'm wrong about Python!  But fixing minor issues
+> "en passant" is my experience in every other project I've contributed
+> to, including as a non-committing "new contributor" in the first few
+> patches.
+>
+> [2]  Not saying that GSoC students don't want to contribute *to
+> Python*, just that their financial incentive goes "the wrong way"
+> relative to PyCon attendees.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190221/34ce0e37/attachment.html>
+
+From storchaka at gmail.com  Fri Feb 22 03:25:39 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 22 Feb 2019 10:25:39 +0200
+Subject: [Python-Dev] int() and math.trunc don't accept objects that
+ only define __index__
+In-Reply-To: <CA+jiYFCY-Fboaz=4+hvN_5LG4o=eHyOxUafGaJV6Yc51mOgtVw@mail.gmail.com>
+References: <CA+jiYFCY-Fboaz=4+hvN_5LG4o=eHyOxUafGaJV6Yc51mOgtVw@mail.gmail.com>
+Message-ID: <q4obm4$1d65$1@blaine.gmane.org>
+
+18.02.19 18:16, R?mi Lapeyre ????:
+> The documentation mentions at 
+> https://docs.python.org/3/reference/datamodel.html#object.__index__
+> the need to always define both __index__ and __int__:
+> 
+>  ? ? Note: In order to have a coherent integer type class, when 
+> __index__() is defined __int__() should also be defined, and both should 
+> return the same value.
+> 
+> Nick Coghlan proposes to make __int__ defaults to __index__ when only 
+> the second
+> is defined and asked to open a discussion on python-dev before making 
+> any change
+> "as the closest equivalent we have to this right now is the "negative" 
+> derivation,
+> where overriding __eq__ without overriding __hash__ implicitly marks the 
+> derived
+> class as unhashable (look for "type->tp_hash = 
+> PyObject_HashNotImplemented;").".
+> 
+> 
+> I think the change proposed makes more sense than the current behavior and
+> volunteer to implement it if it is accepted.
+
+Should we add default implementations of __float__ and __complex__ when 
+either __index__ or __int__ is defined? Currently:
+
+ >>> class A:
+...     def __int__(self): return 42
+...
+ >>> int(A())
+42
+ >>> float(A())
+Traceback (most recent call last):
+   File "<stdin>", line 1, in <module>
+TypeError: float() argument must be a string or a number, not 'A'
+ >>> complex(A())
+Traceback (most recent call last):
+   File "<stdin>", line 1, in <module>
+TypeError: complex() first argument must be a string or a number, not 'A'
+
+Or just document that in order to have a coherent integer type class, 
+when __index__() or __int__() are defined __float__() and __complex__() 
+should also be defined, and all should return equal values.
+
+
