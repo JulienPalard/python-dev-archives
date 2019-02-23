@@ -14548,3 +14548,250 @@ when __index__() or __int__() are defined __float__() and __complex__()
 should also be defined, and all should return equal values.
 
 
+From vstinner at redhat.com  Fri Feb 22 07:07:37 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 22 Feb 2019 13:07:37 +0100
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+Message-ID: <CA+3bQGGB7rsCXTPvgfWyqxkUC5q1KpM4QHxxqnjfvTNE_ckv_Q@mail.gmail.com>
+
+Hi,
+
+Let me share with you (this mailing list) my experience with mentoring
+and what we call "easy issue". First of all, almost all "easy issues"
+are very hard issues: issues open for longer than one year, with many
+comments, and nobody succeeded to come up with a solution (well,
+otherwise the issue would be closed, no? ;-)). Does it mean that there
+is no easy issue? Well, when someone creates a really easy issue, it's
+usually fixed in less than 2 hours(!): either by a core dev who want
+to relax their brain, or by a contributor eager to get more commits
+under their name.
+
+It's not uncommon that even if an issue is marked as easy (easy
+keyword and [EASY] in the title), it's fixed by a core a dev. Or at
+least by a "regular" contributor who wants to get more commits. For a
+regular contributor, I see the point of getting more commits: getting
+more visible. But in my criteria to promote a contributor as a core
+dev, it's not enough. It's not with easy issue that you learn hard
+stuff: trade off between backward compatibility and new features which
+has to break it, write complex test, document properly a change, etc.
+
+Does it mean that we don't need easy issue? No. For someone who really
+starts from the beginning, easy issues are required. You cannot ask a
+newcomer to immediately write the perfect PR at the first attempt with
+a long list of strict requirements: complex tests, handle portability
+issues, etc. You need to build a stair made of *small* steps.
+
+What's the solution? I'm not sure. I decided to stop opening public
+issues for my mentorees and instead give them easy bugs by private
+email. Why? My main concern is the high pressure on an open issue: the
+race to be the first to produce a PR. Recently, I opened a public
+issue anyway but explicitly wrote that it's reserved for my mentoree.
+Someone ignored the message and wrote a PR... It was a first time
+contributor and it was really hard to me to reject the PR :-( (My
+mentoree wrote a better PR with my help, at least a PR closer to what
+I expected, obviously since I helped.)
+
+I prefer to give unlimited time to my mentoree to dig into the code,
+ask questions, write code step by step. I really hate the time
+pressure of the race on open easy issues :-(
+
+Now the question is: how can *you* find an easy issue? Well. In the
+past, my real problem was that I didn't let anyone write the code that
+I would like to write myself. I considered that nobody writes code as
+well as I do... Sorry :-) It took me time to change my mind.
+
+    Lao Tsu said that if you give a hungry man a fish,
+    you feed him for a day,
+    but if you teach him how to fish,
+    you feed him for a lifetim
+
+To better scale horizontally, I have to teach other people what I do,
+to be able to distribute the work.
+
+I am working hard against myself to stop writing all code myself.
+Instead, I'm trying to explain carefully what I would like to do,
+split the work into tasks, and distribute these tasks to my mentorees,
+one by one. But I don't put my mentorees in a competition, each
+mentoree has its own project which doesn't conflict with others.
+
+Doing that takes me a lot of time: create tasks, follow tasks, review
+PRs, etc. To be honest, right now, I'm mostly able to follow correctly
+only one mentoree at the same time. The others are more "on their own"
+(sorry!). As you may know, finding a task doable by mentorees is hard.
+I have a lot of ideas, but many ideas will take years to be
+implemented and are controversial :-)
+
+I don't ask you to completely stop writing code. I ask you to not
+write everything yourself, and sometimes give the simplest issues to
+contributors who are eager to help you.
+
+Victor
+
+From tir.karthi at gmail.com  Fri Feb 22 11:11:26 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Fri, 22 Feb 2019 21:41:26 +0530
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <CA+3bQGGB7rsCXTPvgfWyqxkUC5q1KpM4QHxxqnjfvTNE_ckv_Q@mail.gmail.com>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <CA+3bQGGB7rsCXTPvgfWyqxkUC5q1KpM4QHxxqnjfvTNE_ckv_Q@mail.gmail.com>
+Message-ID: <CAAjsFLSpVV12d686QSf6+wgVYgJ537L+6oF=fNkepFCNTB1XYA@mail.gmail.com>
+
+I would also suggest cleaning up the existing set of easy issues where the
+issues was tagged as easy initially followed by discussion about how the
+though easy has other concerns like backwards compatibility due to which it
+can't be merged. It's getting hard to get more easy issues and what could
+seem as an easy fix might later expand into a discussion that the beginner
+might not have enough context to answer and in that case the easy tag
+should be removed. It's even harder over realizing when to fix it by myself
+or tag it as easy for someone to fix it because if it's fixed by a regular
+contributor then there could be a thought that I myself could have done it
+since triaging itself is a difficult work.
+
+I would also recommend waiting for a core dev or someone to provide some
+feedback or confirmation on even an easy issue's fix since it's easy to
+propose a fix to be later rejected due to various reasons resulting in
+wasted work and disappointment.
+
+PS : Using mailing list for the first time apologies if I have done
+anything wrong.
+
+On Fri, Feb 22, 2019, 5:40 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hi,
+>
+> Let me share with you (this mailing list) my experience with mentoring
+> and what we call "easy issue". First of all, almost all "easy issues"
+> are very hard issues: issues open for longer than one year, with many
+> comments, and nobody succeeded to come up with a solution (well,
+> otherwise the issue would be closed, no? ;-)). Does it mean that there
+> is no easy issue? Well, when someone creates a really easy issue, it's
+> usually fixed in less than 2 hours(!): either by a core dev who want
+> to relax their brain, or by a contributor eager to get more commits
+> under their name.
+>
+> It's not uncommon that even if an issue is marked as easy (easy
+> keyword and [EASY] in the title), it's fixed by a core a dev. Or at
+> least by a "regular" contributor who wants to get more commits. For a
+> regular contributor, I see the point of getting more commits: getting
+> more visible. But in my criteria to promote a contributor as a core
+> dev, it's not enough. It's not with easy issue that you learn hard
+> stuff: trade off between backward compatibility and new features which
+> has to break it, write complex test, document properly a change, etc.
+>
+> Does it mean that we don't need easy issue? No. For someone who really
+> starts from the beginning, easy issues are required. You cannot ask a
+> newcomer to immediately write the perfect PR at the first attempt with
+> a long list of strict requirements: complex tests, handle portability
+> issues, etc. You need to build a stair made of *small* steps.
+>
+> What's the solution? I'm not sure. I decided to stop opening public
+> issues for my mentorees and instead give them easy bugs by private
+> email. Why? My main concern is the high pressure on an open issue: the
+> race to be the first to produce a PR. Recently, I opened a public
+> issue anyway but explicitly wrote that it's reserved for my mentoree.
+> Someone ignored the message and wrote a PR... It was a first time
+> contributor and it was really hard to me to reject the PR :-( (My
+> mentoree wrote a better PR with my help, at least a PR closer to what
+> I expected, obviously since I helped.)
+>
+> I prefer to give unlimited time to my mentoree to dig into the code,
+> ask questions, write code step by step. I really hate the time
+> pressure of the race on open easy issues :-(
+>
+> Now the question is: how can *you* find an easy issue? Well. In the
+> past, my real problem was that I didn't let anyone write the code that
+> I would like to write myself. I considered that nobody writes code as
+> well as I do... Sorry :-) It took me time to change my mind.
+>
+>     Lao Tsu said that if you give a hungry man a fish,
+>     you feed him for a day,
+>     but if you teach him how to fish,
+>     you feed him for a lifetim
+>
+> To better scale horizontally, I have to teach other people what I do,
+> to be able to distribute the work.
+>
+> I am working hard against myself to stop writing all code myself.
+> Instead, I'm trying to explain carefully what I would like to do,
+> split the work into tasks, and distribute these tasks to my mentorees,
+> one by one. But I don't put my mentorees in a competition, each
+> mentoree has its own project which doesn't conflict with others.
+>
+> Doing that takes me a lot of time: create tasks, follow tasks, review
+> PRs, etc. To be honest, right now, I'm mostly able to follow correctly
+> only one mentoree at the same time. The others are more "on their own"
+> (sorry!). As you may know, finding a task doable by mentorees is hard.
+> I have a lot of ideas, but many ideas will take years to be
+> implemented and are controversial :-)
+>
+> I don't ask you to completely stop writing code. I ask you to not
+> write everything yourself, and sometimes give the simplest issues to
+> contributors who are eager to help you.
+>
+> Victor
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/tir.karthi%40gmail.com
+>
+-- 
+
+Regards,
+Karthikeyan S
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190222/31bc3f5b/attachment.html>
+
+From ncoghlan at gmail.com  Fri Feb 22 12:09:36 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sat, 23 Feb 2019 03:09:36 +1000
+Subject: [Python-Dev] int() and math.trunc don't accept objects that
+ only define __index__
+In-Reply-To: <q4obm4$1d65$1@blaine.gmane.org>
+References: <CA+jiYFCY-Fboaz=4+hvN_5LG4o=eHyOxUafGaJV6Yc51mOgtVw@mail.gmail.com>
+ <q4obm4$1d65$1@blaine.gmane.org>
+Message-ID: <CADiSq7ezAk=vbKfi37wRjTAOE+iUB2Ay7eLFSusruaO_stLQXg@mail.gmail.com>
+
+On Fri, 22 Feb 2019 at 18:29, Serhiy Storchaka <storchaka at gmail.com> wrote:
+> Should we add default implementations of __float__ and __complex__ when
+> either __index__ or __int__ is defined? Currently:
+>
+>  >>> class A:
+> ...     def __int__(self): return 42
+> ...
+>  >>> int(A())
+> 42
+>  >>> float(A())
+> Traceback (most recent call last):
+>    File "<stdin>", line 1, in <module>
+> TypeError: float() argument must be a string or a number, not 'A'
+>  >>> complex(A())
+> Traceback (most recent call last):
+>    File "<stdin>", line 1, in <module>
+> TypeError: complex() first argument must be a string or a number, not 'A'
+>
+> Or just document that in order to have a coherent integer type class,
+> when __index__() or __int__() are defined __float__() and __complex__()
+> should also be defined, and all should return equal values.
+
+I think when __index__ is defined, it would be reasonable to have that
+imply the same floating point conversion rules as are applied for
+builtin ints, since the conversion is supposed to be lossless in that
+case (and if it isn't lossless, that's what `__int__` is for).
+However, I don't think the decision is quite as clearcut as it is for
+`__index__` implying `__int__`.
+
+Lossy conversions to int shouldn't imply anything about conversions to
+real numbers or floating point values.
+
+Cheers,
+Nick.
+
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
