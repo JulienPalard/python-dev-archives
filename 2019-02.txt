@@ -14795,3 +14795,172 @@ Nick.
 -- 
 Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
 
+From chekat2 at gmail.com  Sat Feb 23 14:50:59 2019
+From: chekat2 at gmail.com (Cheryl Sabella)
+Date: Sat, 23 Feb 2019 14:50:59 -0500
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <CAAjsFLSpVV12d686QSf6+wgVYgJ537L+6oF=fNkepFCNTB1XYA@mail.gmail.com>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <CA+3bQGGB7rsCXTPvgfWyqxkUC5q1KpM4QHxxqnjfvTNE_ckv_Q@mail.gmail.com>
+ <CAAjsFLSpVV12d686QSf6+wgVYgJ537L+6oF=fNkepFCNTB1XYA@mail.gmail.com>
+Message-ID: <CAACPsK4SqE2knuKrz2e0L4V5cXrr=8Fijd6bTmZtNoHZ04hOkQ@mail.gmail.com>
+
+On Fri, Feb 22, 2019 at 11:11 AM Karthikeyan <tir.karthi at gmail.com> wrote:
+
+> I would also suggest cleaning up the existing set of easy issues where the
+> issues was tagged as easy initially followed by discussion about how the
+> though easy has other concerns like backwards compatibility due to which it
+> can't be merged. It's getting hard to get more easy issues and what could
+> seem as an easy fix might later expand into a discussion that the beginner
+> might not have enough context to answer and in that case the easy tag
+> should be removed. It's even harder over realizing when to fix it by myself
+> or tag it as easy for someone to fix it because if it's fixed by a regular
+> contributor then there could be a thought that I myself could have done it
+> since triaging itself is a difficult work.
+>
+> I agree that many issues need to have the 'easy' tag removed.  There
+really isn't a stage on the tracker for 'in discussion' or 'deadlocked'.  I
+think 'languishing' was the closest status for that.  When I've added
+'easy' to older issues in the past, I try not to do more than one or two a
+day.  That way, the nosy list doesn't get spammed too much and there aren't
+too many issues that float to the first page.  Maybe something similar for
+removing the 'easy' tag?  Only change a few day, but also leave a comment
+summarizing the discussion (if it had been long), or just saying "X core
+dev thinks it should be this way and Y core dev thinks this, so until that
+is resolved, this is no longer an easy issue."  A comment would help
+because you would have done some research, so that communicates to others
+what you found out about the ticket.
+
+I certainly didn't intend for my first week as a core dev to be about
+trying to change the workflow, so apologies in advance if anyone thinks
+this is too drastic.
+
+
+
+> I would also recommend waiting for a core dev or someone to provide some
+> feedback or confirmation on even an easy issue's fix since it's easy to
+> propose a fix to be later rejected due to various reasons resulting in
+> wasted work and disappointment.
+>
+>
+Agreed, but perhaps the most helpful way to do that is to propose the fix
+in a comment on the bug tracker and then, if a core dev or expert says it's
+a good idea, then move ahead with it?  Although, just recently for IDLE, I
+made a suggestion on the tracker and then my code wasn't what Terry
+expected, so sometimes the clearest explanation *is* a code change.  But,
+for any change that someone will spend some time on, then there should
+probably be consensus first.
+
+
+> PS : Using mailing list for the first time apologies if I have done
+> anything wrong.
+>
+> You did great!  This topic was my first post too, so I know exactly what
+you mean.   :-)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190223/e87874c0/attachment.html>
+
+From python+python_dev at discontinuity.net  Sat Feb 23 23:09:03 2019
+From: python+python_dev at discontinuity.net (Davin Potts)
+Date: Sat, 23 Feb 2019 22:09:03 -0600
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <CAFYqXL_xn6+GXjuochevSABMZ3JOdr6T+rx-Ao4UYwZ+QMkKNg@mail.gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+ <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+ <CAFYqXL-XNfAusumYbOADR-=38HWPJ6SOv0bWf4ttG1eKd=GViw@mail.gmail.com>
+ <C7660F80-E05F-47B1-A5BE-B36DC31115DB@gmail.com>
+ <CAFYqXL9bOj42T5RrYzwLsFuSrmpJRLZKSexT=otfdNEnBvvaZw@mail.gmail.com>
+ <CAFYqXL_xn6+GXjuochevSABMZ3JOdr6T+rx-Ao4UYwZ+QMkKNg@mail.gmail.com>
+Message-ID: <CABHLM6sVGOgq-M6puA7en2LcCfGJuyyFje6zb6EH8O0er748FQ@mail.gmail.com>
+
+I have done what I was asked to do:  I added tests and docs in a new
+PR (GH-11816) as of Feb 10.
+
+Since that time, the API has matured thanks to thoughtful feedback
+from a number of active reviewers.  At present, we appear to have
+stabilized around an API and code that deserves to be exercised
+further.  To get that exercise and because there are currently no
+outstanding objections, I am merging the PR to get it into the second
+alpha.  There will undoubtedly be further revisions and adjustments.
+
+
+During this effort, I have received a surprising number of personal
+emails expressing support and encouragement from people, most of whom
+I have never met.  Your kindness has been wonderful.
+
+
+Davin
+
+On Wed, Feb 6, 2019 at 10:58 AM Giampaolo Rodola' <g.rodola at gmail.com> wrote:
+>
+>
+>
+> On Wed, Feb 6, 2019 at 12:51 PM Giampaolo Rodola' <g.rodola at gmail.com> wrote:
+>>
+>>
+>> Unless they are already there (I don't know) it would be good to have a full set of unit-tests for all the register()ed types and test them against SyncManager and SharedMemoryManager. That would give an idea on the real interchangeability of these 2 classes and would also help writing a comprehensive doc.
+>
+>
+> In order to speed up the alpha2 inclusion process I created a PR which implements what said above:
+> https://github.com/python/cpython/pull/11772
+> https://bugs.python.org/issue35917
+> Apparently SharedMemoryManager works out of the box and presents no differences with SyncManager, but the list type is not using ShareableList. When I attempted to register it with "SharedMemoryManager.register('list', list, ShareableList)" I got the following error:
+>
+> Traceback (most recent call last):
+>   File "foo.py", line 137, in test_list
+>     o = self.manager.list()
+>   File "/home/giampaolo/svn/cpython/Lib/multiprocessing/managers.py", line 702, in temp
+>     proxy = proxytype(
+> TypeError: __init__() got an unexpected keyword argument 'manager'
+>
+> I am not sure how to fix that (I'll leave it up to Davin). The tests as-is are independent from PR-11772 so I suppose they can be reviewed/checked-in regardless of the changes which will affect shared_memory.py.
+>
+> --
+> Giampaolo - http://grodola.blogspot.com
+>
+
+From tjreedy at udel.edu  Sun Feb 24 02:34:06 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sun, 24 Feb 2019 02:34:06 -0500
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <CAACPsK4SqE2knuKrz2e0L4V5cXrr=8Fijd6bTmZtNoHZ04hOkQ@mail.gmail.com>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <CA+3bQGGB7rsCXTPvgfWyqxkUC5q1KpM4QHxxqnjfvTNE_ckv_Q@mail.gmail.com>
+ <CAAjsFLSpVV12d686QSf6+wgVYgJ537L+6oF=fNkepFCNTB1XYA@mail.gmail.com>
+ <CAACPsK4SqE2knuKrz2e0L4V5cXrr=8Fijd6bTmZtNoHZ04hOkQ@mail.gmail.com>
+Message-ID: <q4thdf$6vst$1@blaine.gmane.org>
+
+On 2/23/2019 2:50 PM, Cheryl Sabella wrote:
+
+  AM Karthikeyan <tir.karthi at gmail.com> wrote:
+>     I would also recommend waiting for a core dev or someone to provide
+>     some feedback or confirmation on even an easy issue's fix since it's
+>     easy to propose a fix to be later rejected due to various reasons
+>     resulting in wasted work and disappointment.
+> 
+> Agreed, but perhaps the most helpful way to do that is to propose the 
+> fix in a comment on the bug tracker and then, if a core dev or expert 
+> says it's a good idea, then move ahead with it?
+
+I agree with both of you as to what contributors, especially new 
+contributors, *should* do.  But they sometimes race to 'grab' an issue 
+by (prematurely) submitting a PR, sometimes after ignoring coredev 
+comments and disagreements.  I have occasionally said on an issue that a 
+PR was premature.
+
+What really annoys me is if I say on an issue "Maybe we should add this 
+sentence: 'jkjsf j fsjk sjkf sjskjfjs  sflsj sfjsfjljsgjgeij k fjlfjs.' 
+What do others think?" and within an hour someone who is incapable of 
+writing or even properly reviewing the sentence mechanically copies it 
+into a PR.  I see this as intellectual theft and have been tempted to 
+close a couple of PRs as such.
+
+-- 
+Terry Jan Reedy
+
+
