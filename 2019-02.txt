@@ -14964,3 +14964,524 @@ close a couple of PRs as such.
 Terry Jan Reedy
 
 
+From tir.karthi at gmail.com  Sun Feb 24 06:31:32 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Sun, 24 Feb 2019 17:01:32 +0530
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <q4thdf$6vst$1@blaine.gmane.org>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <CA+3bQGGB7rsCXTPvgfWyqxkUC5q1KpM4QHxxqnjfvTNE_ckv_Q@mail.gmail.com>
+ <CAAjsFLSpVV12d686QSf6+wgVYgJ537L+6oF=fNkepFCNTB1XYA@mail.gmail.com>
+ <CAACPsK4SqE2knuKrz2e0L4V5cXrr=8Fijd6bTmZtNoHZ04hOkQ@mail.gmail.com>
+ <q4thdf$6vst$1@blaine.gmane.org>
+Message-ID: <CAAjsFLSt0rjN5=eONCjEvneGSxFaP-w0d2qTsAi87h+1HqU3MQ@mail.gmail.com>
+
+On Sun, Feb 24, 2019 at 1:07 PM Terry Reedy <tjreedy at udel.edu> wrote:
+
+> On 2/23/2019 2:50 PM, Cheryl Sabella wrote:
+>
+>   AM Karthikeyan <tir.karthi at gmail.com> wrote:
+> >     I would also recommend waiting for a core dev or someone to provide
+> >     some feedback or confirmation on even an easy issue's fix since it's
+> >     easy to propose a fix to be later rejected due to various reasons
+> >     resulting in wasted work and disappointment.
+> >
+> > Agreed, but perhaps the most helpful way to do that is to propose the
+> > fix in a comment on the bug tracker and then, if a core dev or expert
+> > says it's a good idea, then move ahead with it?
+>
+> I agree with both of you as to what contributors, especially new
+> contributors, *should* do.  But they sometimes race to 'grab' an issue
+> by (prematurely) submitting a PR, sometimes after ignoring coredev
+> comments and disagreements.  I have occasionally said on an issue that a
+> PR was premature.
+>
+
+I guess it could be due to the initial excitement in contributing to a
+large project. I must admit I too did some mistakes in my initial set of
+PRs along similar lines. I guess it's one of the things both someone
+contributing new and a regular contributor should learn over the course of
+time that there are cases where the solution might seem important from the
+perspective of the contributor in getting code merged but provides less
+value amidst other factors like code maintenance, backwards compatibility,
+etc.
+
+There is also high interest in creating a PR and less on reviewing other
+PRs (1020 open PRs on GitHub) which could be a separate topic on its own.
+There could be some action or motivation on making sure there is a balance
+in the incoming PRs and review bandwidth since there might be a stage where
+there is a lot of interest or efforts in getting new contributors who
+create a PR with less bandwidth to review resulting in potentially making
+them disappointed in having work not reviewed. We should be getting new
+people on board and it's not that I complaining but this is something that
+the steering council could discuss upon regarding reviews and there was a
+recent thread on it [0]
+
+[0]
+https://mail.python.org/pipermail/python-committers/2019-February/006517.html
+
+-- 
+Regards,
+Karthikeyan S
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190224/3bb5c3d0/attachment.html>
+
+From g.rodola at gmail.com  Sun Feb 24 17:00:50 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Sun, 24 Feb 2019 23:00:50 +0100
+Subject: [Python-Dev] Asking for reversion
+In-Reply-To: <CABHLM6sVGOgq-M6puA7en2LcCfGJuyyFje6zb6EH8O0er748FQ@mail.gmail.com>
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+ <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+ <CAFYqXL-XNfAusumYbOADR-=38HWPJ6SOv0bWf4ttG1eKd=GViw@mail.gmail.com>
+ <C7660F80-E05F-47B1-A5BE-B36DC31115DB@gmail.com>
+ <CAFYqXL9bOj42T5RrYzwLsFuSrmpJRLZKSexT=otfdNEnBvvaZw@mail.gmail.com>
+ <CAFYqXL_xn6+GXjuochevSABMZ3JOdr6T+rx-Ao4UYwZ+QMkKNg@mail.gmail.com>
+ <CABHLM6sVGOgq-M6puA7en2LcCfGJuyyFje6zb6EH8O0er748FQ@mail.gmail.com>
+Message-ID: <CAFYqXL_e0Nqw3cnxQtgpr30_BSgPw_=9=MisS8z3h=YvWki77Q@mail.gmail.com>
+
+On Sun, Feb 24, 2019 at 5:09 AM Davin Potts <
+python+python_dev at discontinuity.net> wrote:
+
+> I have done what I was asked to do:  I added tests and docs in a new
+> PR (GH-11816) as of Feb 10.
+>
+> Since that time, the API has matured thanks to thoughtful feedback
+> from a number of active reviewers.  At present, we appear to have
+> stabilized around an API and code that deserves to be exercised
+> further.  To get that exercise and because there are currently no
+> outstanding objections, I am merging the PR to get it into the second
+> alpha.  There will undoubtedly be further revisions and adjustments.
+
+
+Nice job! It wasn't easy to abstract such a low level interface.
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190224/1b9133d6/attachment.html>
+
+From raymond.hettinger at gmail.com  Sun Feb 24 23:54:02 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Sun, 24 Feb 2019 20:54:02 -0800
+Subject: [Python-Dev] Possible performance regression
+Message-ID: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+
+I'll been running benchmarks that have been stable for a while.  But between today and yesterday, there has been an almost across the board performance regression.  
+
+It's possible that this is a measurement error or something unique to my system (my Mac installed the 10.14.3 release today), so I'm hoping other folks can run checks as well.
+
+
+Raymond
+
+
+-- Yesterday ------------------------------------------------------------------------
+
+$ ./python.exe Tools/scripts/var_access_benchmark.py
+Variable and attribute read access:
+   4.0 ns	read_local
+   4.5 ns	read_nonlocal
+  13.1 ns	read_global
+  17.4 ns	read_builtin
+  17.4 ns	read_classvar_from_class
+  15.8 ns	read_classvar_from_instance
+  24.6 ns	read_instancevar
+  19.7 ns	read_instancevar_slots
+  18.5 ns	read_namedtuple
+  26.3 ns	read_boundmethod
+
+Variable and attribute write access:
+   4.6 ns	write_local
+   4.8 ns	write_nonlocal
+  17.5 ns	write_global
+  39.1 ns	write_classvar
+  34.4 ns	write_instancevar
+  25.3 ns	write_instancevar_slots
+
+Data structure read access:
+  17.5 ns	read_list
+  18.4 ns	read_deque
+  19.2 ns	read_dict
+
+Data structure write access:
+  19.0 ns	write_list
+  22.0 ns	write_deque
+  24.4 ns	write_dict
+
+Stack (or queue) operations:
+  55.5 ns	list_append_pop
+  46.3 ns	deque_append_pop
+  46.7 ns	deque_append_popleft
+
+Timing loop overhead:
+   0.3 ns	loop_overhead
+
+
+-- Today ---------------------------------------------------------------------------
+
+$ ./python.exe py Tools/scripts/var_access_benchmark.py
+
+Variable and attribute read access:
+   5.0 ns	read_local
+   5.3 ns	read_nonlocal
+  14.7 ns	read_global
+  18.6 ns	read_builtin
+  19.9 ns	read_classvar_from_class
+  17.7 ns	read_classvar_from_instance
+  26.1 ns	read_instancevar
+  21.0 ns	read_instancevar_slots
+  21.7 ns	read_namedtuple
+  27.8 ns	read_boundmethod
+
+Variable and attribute write access:
+   6.1 ns	write_local
+   7.3 ns	write_nonlocal
+  18.9 ns	write_global
+  40.7 ns	write_classvar
+  36.2 ns	write_instancevar
+  26.1 ns	write_instancevar_slots
+
+Data structure read access:
+  19.1 ns	read_list
+  19.6 ns	read_deque
+  20.6 ns	read_dict
+
+Data structure write access:
+  22.8 ns	write_list
+  23.5 ns	write_deque
+  27.8 ns	write_dict
+
+Stack (or queue) operations:
+  54.8 ns	list_append_pop
+  49.5 ns	deque_append_pop
+  49.4 ns	deque_append_popleft
+
+Timing loop overhead:
+   0.3 ns	loop_overhead
+
+
+
+From ericsnowcurrently at gmail.com  Mon Feb 25 00:04:40 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Sun, 24 Feb 2019 22:04:40 -0700
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+Message-ID: <CALFfu7CT29NLCLD8b2A1s+xUDoZ+k7tJbkfQXN4rjQPzzvGuSg@mail.gmail.com>
+
+I'll take a look tonight.
+
+-eric
+
+On Sun, Feb 24, 2019, 21:54 Raymond Hettinger <raymond.hettinger at gmail.com>
+wrote:
+
+> I'll been running benchmarks that have been stable for a while.  But
+> between today and yesterday, there has been an almost across the board
+> performance regression.
+>
+> It's possible that this is a measurement error or something unique to my
+> system (my Mac installed the 10.14.3 release today), so I'm hoping other
+> folks can run checks as well.
+>
+>
+> Raymond
+>
+>
+> -- Yesterday
+> ------------------------------------------------------------------------
+>
+> $ ./python.exe Tools/scripts/var_access_benchmark.py
+> Variable and attribute read access:
+>    4.0 ns       read_local
+>    4.5 ns       read_nonlocal
+>   13.1 ns       read_global
+>   17.4 ns       read_builtin
+>   17.4 ns       read_classvar_from_class
+>   15.8 ns       read_classvar_from_instance
+>   24.6 ns       read_instancevar
+>   19.7 ns       read_instancevar_slots
+>   18.5 ns       read_namedtuple
+>   26.3 ns       read_boundmethod
+>
+> Variable and attribute write access:
+>    4.6 ns       write_local
+>    4.8 ns       write_nonlocal
+>   17.5 ns       write_global
+>   39.1 ns       write_classvar
+>   34.4 ns       write_instancevar
+>   25.3 ns       write_instancevar_slots
+>
+> Data structure read access:
+>   17.5 ns       read_list
+>   18.4 ns       read_deque
+>   19.2 ns       read_dict
+>
+> Data structure write access:
+>   19.0 ns       write_list
+>   22.0 ns       write_deque
+>   24.4 ns       write_dict
+>
+> Stack (or queue) operations:
+>   55.5 ns       list_append_pop
+>   46.3 ns       deque_append_pop
+>   46.7 ns       deque_append_popleft
+>
+> Timing loop overhead:
+>    0.3 ns       loop_overhead
+>
+>
+> -- Today
+> ---------------------------------------------------------------------------
+>
+> $ ./python.exe py Tools/scripts/var_access_benchmark.py
+>
+> Variable and attribute read access:
+>    5.0 ns       read_local
+>    5.3 ns       read_nonlocal
+>   14.7 ns       read_global
+>   18.6 ns       read_builtin
+>   19.9 ns       read_classvar_from_class
+>   17.7 ns       read_classvar_from_instance
+>   26.1 ns       read_instancevar
+>   21.0 ns       read_instancevar_slots
+>   21.7 ns       read_namedtuple
+>   27.8 ns       read_boundmethod
+>
+> Variable and attribute write access:
+>    6.1 ns       write_local
+>    7.3 ns       write_nonlocal
+>   18.9 ns       write_global
+>   40.7 ns       write_classvar
+>   36.2 ns       write_instancevar
+>   26.1 ns       write_instancevar_slots
+>
+> Data structure read access:
+>   19.1 ns       read_list
+>   19.6 ns       read_deque
+>   20.6 ns       read_dict
+>
+> Data structure write access:
+>   22.8 ns       write_list
+>   23.5 ns       write_deque
+>   27.8 ns       write_dict
+>
+> Stack (or queue) operations:
+>   54.8 ns       list_append_pop
+>   49.5 ns       deque_append_pop
+>   49.4 ns       deque_append_popleft
+>
+> Timing loop overhead:
+>    0.3 ns       loop_overhead
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/ericsnowcurrently%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190224/d0542e0b/attachment.html>
+
+From ericsnowcurrently at gmail.com  Mon Feb 25 01:06:08 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Sun, 24 Feb 2019 23:06:08 -0700
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <CALFfu7CT29NLCLD8b2A1s+xUDoZ+k7tJbkfQXN4rjQPzzvGuSg@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <CALFfu7CT29NLCLD8b2A1s+xUDoZ+k7tJbkfQXN4rjQPzzvGuSg@mail.gmail.com>
+Message-ID: <CALFfu7BQzRB5+f7r7=TBw2AFSLV3FTscEHMSHTSOPq8LAZS8pw@mail.gmail.com>
+
+On Sun, Feb 24, 2019 at 10:04 PM Eric Snow <ericsnowcurrently at gmail.com> wrote:
+> I'll take a look tonight.
+
+I made 2 successive runs of the script (on my laptop) for a commit
+from early Saturday, and 2 runs from a commit this afternoon (close to
+master).  The output is below, with the earlier commit first.  That
+one is a little faster in places and a little slower in others.
+However, I also saw quite a bit of variability in the results for the
+same commit.  So I'm not sure what to make of it.
+
+I'll look into it in more depth tomorrow.  FWIW, I have a few commits
+in the range you described, so I want to make sure I didn't slow
+things down for us. :)
+
+-eric
+
+
+* commit 175421b58cc97a2555e474f479f30a6c5d2250b0 (HEAD)
+| Author: Pablo Galindo <Pablogsal at gmail.com>
+| Date:   Sat Feb 23 03:02:06 2019 +0000
+|
+|     bpo-36016: Add generation option to gc.getobjects() (GH-11909)
+
+$ ./python Tools/scripts/var_access_benchmark.py
+Variable and attribute read access:
+  18.1 ns       read_local
+  19.4 ns       read_nonlocal
+  48.3 ns       read_global
+  52.4 ns       read_builtin
+  55.7 ns       read_classvar_from_class
+  56.1 ns       read_classvar_from_instance
+  78.6 ns       read_instancevar
+  67.6 ns       read_instancevar_slots
+  65.9 ns       read_namedtuple
+ 106.1 ns       read_boundmethod
+
+Variable and attribute write access:
+  25.1 ns       write_local
+  26.9 ns       write_nonlocal
+^[[A
+  78.0 ns       write_global
+ 154.1 ns       write_classvar
+ 132.0 ns       write_instancevar
+  88.2 ns       write_instancevar_slots
+
+Data structure read access:
+  69.6 ns       read_list
+  69.0 ns       read_deque
+  68.4 ns       read_dict
+
+Data structure write access:
+  73.2 ns       write_list
+  79.0 ns       write_deque
+ 103.5 ns       write_dict
+
+Stack (or queue) operations:
+ 348.3 ns       list_append_pop
+ 169.0 ns       deque_append_pop
+ 170.8 ns       deque_append_popleft
+
+Timing loop overhead:
+   1.3 ns       loop_overhead
+$ ./python Tools/scripts/var_access_benchmark.py
+Variable and attribute read access:
+  17.7 ns       read_local
+  19.2 ns       read_nonlocal
+  39.9 ns       read_global
+  50.3 ns       read_builtin
+  54.4 ns       read_classvar_from_class
+  55.8 ns       read_classvar_from_instance
+  80.3 ns       read_instancevar
+  70.7 ns       read_instancevar_slots
+  66.1 ns       read_namedtuple
+ 108.9 ns       read_boundmethod
+
+Variable and attribute write access:
+  25.1 ns       write_local
+  25.6 ns       write_nonlocal
+  70.0 ns       write_global
+ 151.5 ns       write_classvar
+ 133.9 ns       write_instancevar
+  90.7 ns       write_instancevar_slots
+
+Data structure read access:
+ 140.7 ns       read_list
+  89.6 ns       read_deque
+  86.6 ns       read_dict
+
+Data structure write access:
+  97.9 ns       write_list
+ 100.5 ns       write_deque
+ 120.0 ns       write_dict
+
+Stack (or queue) operations:
+ 375.9 ns       list_append_pop
+ 179.3 ns       deque_append_pop
+ 179.4 ns       deque_append_popleft
+
+Timing loop overhead:
+   1.5 ns       loop_overhead
+
+* commit 3b0abb019662e42070f1d6f7e74440afb1808f03 (HEAD)
+| Author: Giampaolo Rodola <g.rodola at gmail.com>
+| Date:   Sun Feb 24 15:46:40 2019 -0800
+|
+|     bpo-33671: allow setting shutil.copyfile() bufsize globally (GH-12016)
+
+$ ./python Tools/scripts/var_access_benchmark.py
+Variable and attribute read access:
+  20.2 ns       read_local
+  20.0 ns       read_nonlocal
+  41.9 ns       read_global
+  52.9 ns       read_builtin
+  56.3 ns       read_classvar_from_class
+  56.9 ns       read_classvar_from_instance
+  80.2 ns       read_instancevar
+  70.6 ns       read_instancevar_slots
+  69.5 ns       read_namedtuple
+ 114.5 ns       read_boundmethod
+
+Variable and attribute write access:
+  23.4 ns       write_local
+  25.0 ns       write_nonlocal
+  74.5 ns       write_global
+ 152.0 ns       write_classvar
+ 131.7 ns       write_instancevar
+  90.1 ns       write_instancevar_slots
+
+Data structure read access:
+  69.9 ns       read_list
+  73.4 ns       read_deque
+  77.8 ns       read_dict
+
+Data structure write access:
+  83.3 ns       write_list
+  94.9 ns       write_deque
+ 120.6 ns       write_dict
+
+Stack (or queue) operations:
+ 383.4 ns       list_append_pop
+ 187.1 ns       deque_append_pop
+ 182.2 ns       deque_append_popleft
+
+Timing loop overhead:
+   1.4 ns       loop_overhead
+$ ./python Tools/scripts/var_access_benchmark.py
+Variable and attribute read access:
+  19.1 ns       read_local
+  20.9 ns       read_nonlocal
+  43.8 ns       read_global
+  57.8 ns       read_builtin
+  58.4 ns       read_classvar_from_class
+  61.3 ns       read_classvar_from_instance
+  84.7 ns       read_instancevar
+  72.9 ns       read_instancevar_slots
+  69.7 ns       read_namedtuple
+ 109.9 ns       read_boundmethod
+
+Variable and attribute write access:
+  23.1 ns       write_local
+  23.7 ns       write_nonlocal
+  72.8 ns       write_global
+ 149.9 ns       write_classvar
+ 133.3 ns       write_instancevar
+  89.4 ns       write_instancevar_slots
+
+Data structure read access:
+  69.0 ns       read_list
+  69.6 ns       read_deque
+  69.1 ns       read_dict
+
+Data structure write access:
+  74.5 ns       write_list
+  80.9 ns       write_deque
+ 105.4 ns       write_dict
+
+Stack (or queue) operations:
+ 338.2 ns       list_append_pop
+ 165.6 ns       deque_append_pop
+ 164.7 ns       deque_append_popleft
+
+Timing loop overhead:
+   1.3 ns       loop_overhead
+
