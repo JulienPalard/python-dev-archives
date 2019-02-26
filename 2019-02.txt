@@ -15485,3 +15485,487 @@ Stack (or queue) operations:
 Timing loop overhead:
    1.3 ns       loop_overhead
 
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Mon Feb 25 03:59:01 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Mon, 25 Feb 2019 17:59:01 +0900
+Subject: [Python-Dev] "Good first issues" on the bug tracker
+In-Reply-To: <CAAjsFLSpVV12d686QSf6+wgVYgJ537L+6oF=fNkepFCNTB1XYA@mail.gmail.com>
+References: <CAACPsK6mQ29OC69wcuo0Y-nSFK+9Hu7O=4=-JziVTrZ6_t4B8A@mail.gmail.com>
+ <CA+3bQGGB7rsCXTPvgfWyqxkUC5q1KpM4QHxxqnjfvTNE_ckv_Q@mail.gmail.com>
+ <CAAjsFLSpVV12d686QSf6+wgVYgJ537L+6oF=fNkepFCNTB1XYA@mail.gmail.com>
+Message-ID: <23667.44629.584875.66275@turnbull.sk.tsukuba.ac.jp>
+
+Karthikeyan writes:
+
+ > I would also recommend waiting for a core dev or someone to provide some
+ > feedback or confirmation on even an easy issue's fix
+
+FWIW, I don't think waiting on core devs is a very good idea, because
+we just don't have enough free core dev time, and I don't think we (or
+any project!) ever will -- if core devs have enough free time to do
+lots of triage and commenting, they're the kind of developer who also
+has plenty of own projects on the back burner.
+
+OTOH, new developers aren't going to know who the core devs are, and
+it's probably true that an issue with comments on it is likely to be
+easier to get your head wrapped around than one without.  (I don't
+know that non-core devs are any more likely to make comments, though.)
+
+ > since it's easy to propose a fix to be later rejected due to
+ > various reasons
+
+This is certainly true, but:
+
+ > resulting in wasted work
+
+I have to disagree.  Learning is hard work, and at least you get to
+spend that effort on Python doing it the way you think is right.  If
+you got it wrong in the opinion of a committer, you learn something,
+because they're usually right (for Python), that's how they get to be
+core developers.
+
+The work that I consider wasted is when I tell the boss that the idea
+sucks and why, they say we're going to do it so STFU and write, and
+then when they see the product they say "Ohhhhhh."
+
+ > and disappointment.
+
+Yes.  It is disappointing when something you think is useful, even
+important, gets tabled just before the feature freeze.  Especially
+when it gets postponed because somebody has decided that something
+unrelated that your code touches that's not broke needs fixing[1] but
+they haven't decided what that means.
+
+My answer to that is to have lots of little projects pending time to
+work on them, even though I'm not a core developer.  FWIW, YMMV as
+they say.
+
+Footnotes: 
+[1]  Good luck parsing that, but I'm sure you know the feeling.
+
+-- 
+Associate Professor              Division of Policy and Planning Science
+http://turnbull.sk.tsukuba.ac.jp/     Faculty of Systems and Information
+Email: turnbull at sk.tsukuba.ac.jp                   University of Tsukuba
+Tel: 029-853-5175                 Tennodai 1-1-1, Tsukuba 305-8573 JAPAN
+
+From raymond.hettinger at gmail.com  Mon Feb 25 04:22:51 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Mon, 25 Feb 2019 01:22:51 -0800
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <CALFfu7BQzRB5+f7r7=TBw2AFSLV3FTscEHMSHTSOPq8LAZS8pw@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <CALFfu7CT29NLCLD8b2A1s+xUDoZ+k7tJbkfQXN4rjQPzzvGuSg@mail.gmail.com>
+ <CALFfu7BQzRB5+f7r7=TBw2AFSLV3FTscEHMSHTSOPq8LAZS8pw@mail.gmail.com>
+Message-ID: <A00182FE-0522-4FCA-B369-F8B149D007AB@gmail.com>
+
+
+> On Feb 24, 2019, at 10:06 PM, Eric Snow <ericsnowcurrently at gmail.com> wrote:
+> 
+> I'll look into it in more depth tomorrow.  FWIW, I have a few commits
+> in the range you described, so I want to make sure I didn't slow
+> things down for us. :)
+
+Thanks for looking into it.
+
+FWIW, I can consistently reproduce the results several times in row.  Here's the bash script I'm using:
+
+#!/bin/bash
+
+make clean
+./configure
+make                                                        # Apple LLVM version 10.0.0 (clang-1000.11.45.5)
+
+for i in `seq 1 3`;
+do
+    git checkout d610116a2e48b55788b62e11f2e6956af06b3de0   # Go back to 2/23
+    make                                                    # Rebuild
+    sleep 30                                                # Let the system get quiet and cool
+    echo '---- baseline ---' >> results.txt                 # Label output
+    ./python.exe Tools/scripts/var_access_benchmark.py >> results.txt   # Run benchmark
+
+    git checkout 16323cb2c3d315e02637cebebdc5ff46be32ecdf   # Go to end-of-day 2/24
+    make                                                    # Rebuild
+    sleep 30                                                # Let the system get quiet and cool
+    echo '---- end of day ---' >> results.txt               # Label output
+    ./python.exe Tools/scripts/var_access_benchmark.py >> results.txt   # Run benchmark
+
+
+> 
+> -eric
+> 
+> 
+> * commit 175421b58cc97a2555e474f479f30a6c5d2250b0 (HEAD)
+> | Author: Pablo Galindo <Pablogsal at gmail.com>
+> | Date:   Sat Feb 23 03:02:06 2019 +0000
+> |
+> |     bpo-36016: Add generation option to gc.getobjects() (GH-11909)
+> 
+> $ ./python Tools/scripts/var_access_benchmark.py
+> Variable and attribute read access:
+>  18.1 ns       read_local
+>  19.4 ns       read_nonlocal
+
+These timings are several times larger than they should be.  Perhaps you're running a debug build?  Or perhaps 32-bit? Or on VM or some such.  Something looks way off because I'm getting 4 and 5 ns on my 2013 Haswell laptop.
+
+
+
+Raymond
+
+
+
+
+
+
+
+
+
+
+From vstinner at redhat.com  Mon Feb 25 04:42:22 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 25 Feb 2019 10:42:22 +0100
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+Message-ID: <CA+3bQGEPWr23X_SVcJf0APH9EkkxmGrEww7AGgAhW5L3CqEqcg@mail.gmail.com>
+
+Hi,
+
+Le lun. 25 f?vr. 2019 ? 05:57, Raymond Hettinger
+<raymond.hettinger at gmail.com> a ?crit :
+> I'll been running benchmarks that have been stable for a while.  But between today and yesterday, there has been an almost across the board performance regression.
+
+How do you run your benchmarks? If you use Linux, are you using CPU isolation?
+
+> It's possible that this is a measurement error or something unique to my system (my Mac installed the 10.14.3 release today), so I'm hoping other folks can run checks as well.
+
+Getting reproducible benchmark results on timing smaller than 1 ms is
+really hard. I wrote some advices to get more stable results:
+https://perf.readthedocs.io/en/latest/run_benchmark.html#how-to-get-reproductible-benchmark-results
+
+> Variable and attribute read access:
+>    4.0 ns       read_local
+
+In my experience, for timing less than 100 ns, *everything* impacts
+the benchmark, and the result is useless without the standard
+deviation.
+
+On such microbenchmarks, the hash function hash a significant impact
+on performance. So you should run your benchmark on multiple different
+*processes* to get multiple different hash functions. Some people
+prefer to use PYTHONHASHSEED=0 (or another value), but I dislike using
+that since it's less representative of performance "on production"
+(with randomized hash function). For example, using 20 processes to
+test 20 randomized hash function is enough to compute the average cost
+of the hash function. More remark was more general, I didn't look at
+the specific case of var_access_benchmark.py. Maybe benchmarks on C
+depend on the hash function.
+
+For example, 4.0 ns +/- 10 ns or 4.0 ns +/- 0.1 ns is completely
+different to decide if "5.0 ns" is slower to faster.
+
+The "perf compare" command of my perf module "determines whether two
+samples differ significantly using a Student?s two-sample, two-tailed
+t-test with alpha equals to 0.95.":
+https://en.wikipedia.org/wiki/Student's_t-test
+
+I don't understand how these things work, I just copied the code from
+the old Python benchmark suite :-)
+
+See also my articles in my journey to stable benchmarks:
+
+* https://vstinner.github.io/journey-to-stable-benchmark-system.html #
+nosy applications / CPU isolation
+* https://vstinner.github.io/journey-to-stable-benchmark-deadcode.html # PGO
+* https://vstinner.github.io/journey-to-stable-benchmark-average.html
+# randomized hash function
+
+There are likely other parameters which impact benchmarks, that's why
+std dev and how the benchmark matter so much.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From solipsis at pitrou.net  Mon Feb 25 05:52:39 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 25 Feb 2019 11:52:39 +0100
+Subject: [Python-Dev] Asking for reversion
+References: <20190203220340.3158b236@fsol> <q3814o$2ben$1@blaine.gmane.org>
+ <CAP7+vJ+nMiqheykevTv4ubKJotp9uMsPKiEQwya70w0n3kK4Gw@mail.gmail.com>
+ <CAP7+vJ+Q=6eCoSwwa91+cShAkjA03Y-r+HpOu2y8sGmgtDcFpw@mail.gmail.com>
+ <q38577$1qlm$2@blaine.gmane.org>
+ <8933B3A4-DE0D-47AD-8A5A-10E7B54023D7@gmail.com>
+ <CABHLM6sxvXGUc+V78X=94K+Gvv3mDnmoLRCzmb_BhFhi=m0P+w@mail.gmail.com>
+ <CAFYqXL-XNfAusumYbOADR-=38HWPJ6SOv0bWf4ttG1eKd=GViw@mail.gmail.com>
+ <C7660F80-E05F-47B1-A5BE-B36DC31115DB@gmail.com>
+ <CAFYqXL9bOj42T5RrYzwLsFuSrmpJRLZKSexT=otfdNEnBvvaZw@mail.gmail.com>
+ <CAFYqXL_xn6+GXjuochevSABMZ3JOdr6T+rx-Ao4UYwZ+QMkKNg@mail.gmail.com>
+ <CABHLM6sVGOgq-M6puA7en2LcCfGJuyyFje6zb6EH8O0er748FQ@mail.gmail.com>
+Message-ID: <20190225115239.5b4ee7b2@fsol>
+
+On Sat, 23 Feb 2019 22:09:03 -0600
+Davin Potts <python+python_dev at discontinuity.net> wrote:
+> I have done what I was asked to do:  I added tests and docs in a new
+> PR (GH-11816) as of Feb 10.
+> 
+> Since that time, the API has matured thanks to thoughtful feedback
+> from a number of active reviewers.  At present, we appear to have
+> stabilized around an API and code that deserves to be exercised
+> further.  To get that exercise and because there are currently no
+> outstanding objections, I am merging the PR to get it into the second
+> alpha.  There will undoubtedly be further revisions and adjustments.
+
+I agree the overall API looks reasonable.  Thanks for doing this in
+time.
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Mon Feb 25 05:54:52 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 25 Feb 2019 11:54:52 +0100
+Subject: [Python-Dev] Possible performance regression
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+Message-ID: <20190225115452.30ed11bb@fsol>
+
+On Sun, 24 Feb 2019 20:54:02 -0800
+Raymond Hettinger <raymond.hettinger at gmail.com> wrote:
+> I'll been running benchmarks that have been stable for a while.  But between today and yesterday, there has been an almost across the board performance regression.  
+
+Have you tried bisecting to find out the offending changeset, if there
+any?
+
+Regards
+
+Antoine.
+
+
+
+From raymond.hettinger at gmail.com  Mon Feb 25 12:31:32 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Mon, 25 Feb 2019 09:31:32 -0800
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <20190225115452.30ed11bb@fsol>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+Message-ID: <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+
+
+> On Feb 25, 2019, at 2:54 AM, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> 
+> Have you tried bisecting to find out the offending changeset, if there
+> any?
+
+I got it down to two checkins before running out of time:
+
+Between
+    git checkout 463572c8beb59fd9d6850440af48a5c5f4c0c0c9  
+
+And:
+    git checkout 3b0abb019662e42070f1d6f7e74440afb1808f03  
+
+So the subinterpreter patch was likely the trigger.
+
+I can reproduce it over and over again on Clang, but not for a GCC-8 build, so it is compiler specific (and possibly macOS specific).
+
+Will look at it more after work this evening.  I posted here to try to solicit independent confirmation.
+
+
+Raymond
+
+From ericsnowcurrently at gmail.com  Mon Feb 25 12:42:17 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Mon, 25 Feb 2019 10:42:17 -0700
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+Message-ID: <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+
+On Mon, Feb 25, 2019 at 10:32 AM Raymond Hettinger
+<raymond.hettinger at gmail.com> wrote:
+> I got it down to two checkins before running out of time:
+>
+> Between
+>     git checkout 463572c8beb59fd9d6850440af48a5c5f4c0c0c9
+>
+> And:
+>     git checkout 3b0abb019662e42070f1d6f7e74440afb1808f03
+>
+> So the subinterpreter patch was likely the trigger.
+>
+> I can reproduce it over and over again on Clang, but not for a GCC-8 build, so it is compiler specific (and possibly macOS specific).
+>
+> Will look at it more after work this evening.  I posted here to try to solicit independent confirmation.
+
+I'll look into it around then too.  See https://bugs.python.org/issue33608.
+
+-eric
+
+From francismb at email.de  Mon Feb 25 12:57:40 2019
+From: francismb at email.de (francismb)
+Date: Mon, 25 Feb 2019 18:57:40 +0100
+Subject: [Python-Dev] OT?: Re:  Possible performance regression
+In-Reply-To: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+Message-ID: <8e236537-93cc-ef77-337e-22ae97a8462b@email.de>
+
+Hi,
+
+just curious on this,
+On 2/25/19 5:54 AM, Raymond Hettinger wrote:
+> I'll been running benchmarks that have been stable for a while.  But between today and yesterday, there has been an almost across the board performance regression.
+>
+> It's possible that this is a measurement error or something unique to my system (my Mac installed the 10.14.3 release today), so I'm hoping other folks can run checks as well.
+aren't the build boots caching/measuring those regressions? or what are
+the current impediments here ?
+
+Thanks in advance!
+--francis
+
+
+From lukasz at langa.pl  Mon Feb 25 15:05:41 2019
+From: lukasz at langa.pl (=?utf-8?Q?=C5=81ukasz_Langa?=)
+Date: Mon, 25 Feb 2019 21:05:41 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for testing
+Message-ID: <8AFF29B7-D3DB-4DE1-BAF7-CAE6F4017378@langa.pl>
+
+I packaged another release. Go get it here:
+https://www.python.org/downloads/release/python-380a2/
+
+Python 3.8.0a2 is the second of four planned alpha releases of Python 3.8,
+the next feature release of Python.  During the alpha phase, Python 3.8
+remains under heavy development: additional features will be added
+and existing features may be modified or deleted.  Please keep in mind
+that this is a preview release and its use is not recommended for
+production environments.  The next preview release, 3.8.0a3, is planned
+for 2019-03-25.
+
+This time around the stable buildbots were a bit less green than they should have. This early in the cycle, I didn't postpone the release and I didn't use the revert hammer. But soon enough, I will. Let's make sure future changes keep the buildbots happy.
+
+- ?
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190225/1c3870f5/attachment.sig>
+
+From larry at hastings.org  Mon Feb 25 18:30:54 2019
+From: larry at hastings.org (Larry Hastings)
+Date: Mon, 25 Feb 2019 15:30:54 -0800
+Subject: [Python-Dev] before I open an issue re: posix.stat and/or
+ os.stat
+In-Reply-To: <d229a52f-3c40-515b-917f-3c9a89d9f6a2@felt.demon.nl>
+References: <d229a52f-3c40-515b-917f-3c9a89d9f6a2@felt.demon.nl>
+Message-ID: <18818b3a-7546-8dc0-428f-49b59b10257e@hastings.org>
+
+
+On 2/21/19 2:26 AM, Michael wrote:
+> Will this continue to be enough space - i.e., is the Dev size going to
+> be enough?
+>
+>  ?+2042? #ifdef MS_WINDOWS
+>  ?+2043????? PyStructSequence_SET_ITEM(v, 2,
+> PyLong_FromUnsignedLong(st->st_dev));
+>  ?+2044? #else
+>  ?+2045????? PyStructSequence_SET_ITEM(v, 2, _PyLong_FromDev(st->st_dev));
+>  ?+2046? #endif
+>
+>  ?+711? #define _PyLong_FromDev PyLong_FromLongLong
+>
+> It seems so - however, Is there something such as PyUnsignedLong and is
+> that large enough for a "long long"? and if it exists, would that make
+> the value positive (for the first test).
+
+Surely you can answer this second question yourself?? You do have full 
+source to the CPython interpreter.
+
+To answer your question: there is no PyUnsignedLong.? Python 2 has a 
+"native int" PyIntObject, which is for most integers you see in a 
+program, and a "long" PyLongObject which is those integers that end in 
+L.? Python 3 only has the PyLongObject, which is used for all integers.
+
+
+The PyLongObject is an "arbitrary-precision integer":
+
+    https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic
+
+and can internally expand as needed to accommodate any size integer, 
+assuming you have enough heap space.? Any "long long", unsigned or not, 
+on any extant AIX platform, would be no problem to represent in a 
+PyLongObject.? You should use PyLong_FromLongLong or 
+PyLong_FromUnsignedLongLong to create your PyLong object and populate 
+the st_dev field of the os.stat() structsequence.
+
+
+//arry/
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190225/0dec3c29/attachment.html>
+
+From ericsnowcurrently at gmail.com  Mon Feb 25 23:23:57 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Mon, 25 Feb 2019 21:23:57 -0700
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+Message-ID: <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+
+On Mon, Feb 25, 2019 at 10:42 AM Eric Snow <ericsnowcurrently at gmail.com> wrote:
+> I'll look into it around then too.  See https://bugs.python.org/issue33608.
+
+I ran the "performance" suite (https://github.com/python/performance),
+which has 57 different benchmarks.  In the results, 9 were marked as
+"significantly" different between the two commits..  2 of the
+benchmarks showed a marginal slowdown and 7 showed a marginal speedup:
+
++-------------------------+--------------+-------------+--------------+-----------------------+
+| Benchmark               | speed.before | speed.after | Change
+| Significance          |
++=========================+==============+=============+==============+=======================+
+| django_template         | 177 ms       | 172 ms      | 1.03x faster
+| Significant (t=3.66)  |
++-------------------------+--------------+-------------+--------------+-----------------------+
+| html5lib                | 126 ms       | 122 ms      | 1.03x faster
+| Significant (t=3.46)  |
++-------------------------+--------------+-------------+--------------+-----------------------+
+| json_dumps              | 17.6 ms      | 17.2 ms     | 1.02x faster
+| Significant (t=2.65)  |
++-------------------------+--------------+-------------+--------------+-----------------------+
+| nbody                   | 157 ms       | 161 ms      | 1.03x slower
+| Significant (t=-3.85) |
++-------------------------+--------------+-------------+--------------+-----------------------+
+| pickle_dict             | 29.5 us      | 30.5 us     | 1.03x slower
+| Significant (t=-6.37) |
++-------------------------+--------------+-------------+--------------+-----------------------+
+| scimark_monte_carlo     | 144 ms       | 139 ms      | 1.04x faster
+| Significant (t=3.61)  |
++-------------------------+--------------+-------------+--------------+-----------------------+
+| scimark_sparse_mat_mult | 5.41 ms      | 5.25 ms     | 1.03x faster
+| Significant (t=4.26)  |
++-------------------------+--------------+-------------+--------------+-----------------------+
+| sqlite_synth            | 3.99 us      | 3.91 us     | 1.02x faster
+| Significant (t=2.49)  |
++-------------------------+--------------+-------------+--------------+-----------------------+
+| unpickle_pure_python    | 497 us       | 481 us      | 1.03x faster
+| Significant (t=5.04)  |
++-------------------------+--------------+-------------+--------------+-----------------------+
+
+  (Issue #33608 has more detail.)
+
+So it looks like commit ef4ac967 is not responsible for a performance
+regression.
+
+-eric
+
