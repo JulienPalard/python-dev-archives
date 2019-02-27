@@ -15969,3 +15969,3158 @@ regression.
 
 -eric
 
+From vstinner at redhat.com  Tue Feb 26 05:51:34 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 26 Feb 2019 11:51:34 +0100
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+Message-ID: <CA+3bQGGbWU7LfFLoHbZiMjsBPEskbxJ5foJiK4qD_DVO3tBk-Q@mail.gmail.com>
+
+Hi,
+
+Le mar. 26 f?vr. 2019 ? 05:27, Eric Snow <ericsnowcurrently at gmail.com> a ?crit :
+> I ran the "performance" suite (https://github.com/python/performance),
+> which has 57 different benchmarks.
+
+Ah yes, by the way: I also ran manually performance on
+speed.python.org yesterday: it added a new dot at Feb 25.
+
+> In the results, 9 were marked as
+> "significantly" different between the two commits..  2 of the
+> benchmarks showed a marginal slowdown and 7 showed a marginal speedup:
+
+I'm not surprised :-) Noise on micro-benchmark is usually "ignored by
+the std dev" (delta included in the std dev).
+
+At speed.python.org, you can see that basically the performances are
+stable since last summer.
+
+I let you have a look at https://speed.python.org/timeline/
+
+> | Benchmark               | speed.before | speed.after | Change
+> | Significance          |
+> +=========================+==============+=============+==============+=======================+
+> | django_template         | 177 ms       | 172 ms      | 1.03x faster
+> | Significant (t=3.66)  |
+> +-------------------------+--------------+-------------+--------------+-----------------------+
+> | html5lib                | 126 ms       | 122 ms      | 1.03x faster
+> | Significant (t=3.46)  |
+> +-------------------------+--------------+-------------+--------------+-----------------------+
+> | json_dumps              | 17.6 ms      | 17.2 ms     | 1.02x faster
+> | Significant (t=2.65)  |
+> +-------------------------+--------------+-------------+--------------+-----------------------+
+> | nbody                   | 157 ms       | 161 ms      | 1.03x slower
+> | Significant (t=-3.85) |
+(...)
+
+Usually, I just ignore changes which are smaller than 5% ;-)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From songofacandy at gmail.com  Tue Feb 26 06:30:08 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Tue, 26 Feb 2019 20:30:08 +0900
+Subject: [Python-Dev] Compact ordered set
+Message-ID: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+
+Hello, folks.
+
+I'm working on compact and ordered set implementation.
+It has internal data structure similar to new dict from Python 3.6.
+
+It is still work in progress.  Comments, tests, and documents
+should be updated.  But it passes existing tests excluding
+test_sys and test_gdb (both tests checks implementation detail)
+https://github.com/methane/cpython/pull/16
+
+Before completing this work, I want to evaluate it.
+Following is my current thoughts about the compact ordered set.
+
+## Preserving insertion order
+
+Order is not fundamental for set.  There are no order in set in the
+math world.
+
+But it is convenient sometime in real world.  For example, it makes
+doctest easy.  When writing set to logs, we can use "grep" command
+if print order is stable.  pyc is stable without PYTHONHASHSEED=0 hack.
+
+Additionally, consistency with dict is desirable.  It removes one pitfall for
+new Python users.  "Remove duplicated items from list" idiom become
+`list(set(duplicated))` from `list(dict.fromkeys(duplicated))`.
+
+
+## Memory efficiency
+
+Hash table has dilemma.  To reduce collision rate,  hash table
+should be sparse.  But it wastes memory.
+
+Since current set is optimized for both of hit and miss cases,
+it is more sparse than dict.  (It is bit surprise that set typically uses
+more memory than same size dict!)
+
+New implementation partially solve this dilemma.  It has sparse
+"index table" which items are small (1byte when table size <= 256,
+2bytes when table size <= 65536), and dense entry table (each item
+has key and hash, which is 16bytes on 64bit system).
+
+I use 1/2 for capacity rate for now.  So new implementation is
+memory efficient when len(s) <= 32768.  But memory efficiency is
+roughly equal to current implementation when 32768 < len(s) <= 2**31,
+and worse than current implementation when len(s) > 2**31.
+
+Here is quick test about memory usage.
+https://gist.github.com/methane/98b7f43fc00a84964f66241695112e91
+
+
+# Performance
+
+pyperformance result:
+
+$ ./python -m perf compare_to master.json oset2.json -G --min-speed=2
+Slower (3):
+- unpickle_list: 8.48 us +- 0.09 us -> 12.8 us +- 0.5 us: 1.52x slower (+52%)
+- unpickle: 29.6 us +- 2.5 us -> 44.1 us +- 2.5 us: 1.49x slower (+49%)
+- regex_dna: 448 ms +- 3 ms -> 462 ms +- 2 ms: 1.03x slower (+3%)
+
+Faster (4):
+- meteor_contest: 189 ms +- 1 ms -> 165 ms +- 1 ms: 1.15x faster (-13%)
+- telco: 15.8 ms +- 0.2 ms -> 15.3 ms +- 0.2 ms: 1.03x faster (-3%)
+- django_template: 266 ms +- 6 ms -> 259 ms +- 3 ms: 1.03x faster (-3%)
+- unpickle_pure_python: 818 us +- 6 us -> 801 us +- 9 us: 1.02x faster (-2%)
+
+Benchmark hidden because not significant (49)
+
+unpickle and unpickle_list shows massive slowdown.  I suspect this slowdown
+is not caused from set change.  Linux perf shows many pagefault is happened
+in pymalloc_malloc.  I think memory usage changes hit weak point of pymalloc
+accidentally.  I will try to investigate it.
+
+On the other hand, meteor_contest shows 13% speedup.  It uses set.
+Other doesn't show significant performance changes.
+
+I need to write more benchmarks for various set workload.
+I expect new set is faster on simple creation, iteration and destruction.
+Especially, sequential iteration and deletion will reduce cache misses.
+(e.g. https://bugs.python.org/issue32846 )
+
+On the other hand, new implementation will be slow on complex
+(heavy random add & del) case.
+
+-----
+
+Any comments are welcome.  And any benchmark for set workloads
+are very welcome.
+
+Regards,
+--
+INADA Naoki  <songofacandy at gmail.com>
+
+From stephane at wirtel.be  Tue Feb 26 07:59:03 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Tue, 26 Feb 2019 13:59:03 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for
+ testing
+In-Reply-To: <8AFF29B7-D3DB-4DE1-BAF7-CAE6F4017378@langa.pl>
+References: <8AFF29B7-D3DB-4DE1-BAF7-CAE6F4017378@langa.pl>
+Message-ID: <20190226125903.GA4712@xps>
+
+Hi ?ukasz,
+
+Thank you for your job.
+
+I have created a Merge Request for the docker image of Barry [1].
+
+I also filled an issue [2] for brotlipy (used by httpbin and requests).
+The problem is with PyInterpreterState.
+
+Via Twitter, I have proposed to the community to fix the issue [2].
+
+[1]: https://gitlab.com/python-devs/ci-images/merge_requests/7
+[2]: https://github.com/python-hyper/brotlipy/issues/147
+
+Thanks again for your job.
+
+Cheers,
+
+St?phane
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From encukou at gmail.com  Tue Feb 26 10:32:59 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Tue, 26 Feb 2019 16:32:59 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+Message-ID: <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+
+On 2/14/19 9:56 AM, Petr Viktorin wrote:
+> On 2/13/19 4:24 PM, Petr Viktorin wrote:
+>> I think it's time for another review.
+> [...]
+>> Please see this PR for details and a suggested change: 
+>> https://github.com/python/peps/pull/893
+> 
+> Summary of the thread so far.
+> 
+> Antoine Pitrou noted that the PEP should acknowledge that there are now 
+> years of
+> established usage of `python` as Python 3 for many conda users, often as 
+> the "main" Python.
+> 
+> Victor Stinner expressed support for "python" being the latest Python 
+> version, citing PHP, Ruby, Perl; containers; mentions of "python" in our 
+> docs.
+> 
+> Steve Dower later proposed concrete points how to make "python" the 
+> default command:
+>  ? * our docs should say "python" consistently
+>  ? * we should recommend that distributors use the same workaround
+>  ? * our docs should describe the recommended workaround in any places 
+> people are likely to first encounter it (tutorial, sys.executable, etc.)
+> 
+> Chris Barker added that "python3" should still be available, even if 
+> "python" is default.
+> 
+> Barry Warsaw gave a +1 to making "python" default, noting that there 
+> were plans to change this when Python 2 is officially deprecated. But 
+> distros need to make decisions about 2020 now.
+> 
+> Chris Barker noted that users won't see any discuntinuity in 2020. 
+> That's just a date support from CPython devs ends.
+> 
+> Victor pointed to discussions on 4.0 vs. 3.10. (I'll ignore discussions 
+> on 4.0 in this summary.)
+> Victor also posted some interesting info and links on Fedora and RHEL.
+> There was a discussion on the PSF survey about how many people use 
+> Python 3. (I'll ignore this sub-thread, it's not really about the 
+> "python" command.)
+> 
+> Steve noted that the Windows Store package of Python 3 provides 
+> "python", but he is still thinking how to make this reasonable/reliable 
+> in the full installer.
+> 
+> Several people think "py" on Unix would be a good thing. Neil 
+> Schemenauer supposes we would encourage people to use it over 
+> "python"/"python2"/"python3", so "python" would be less of an issue.
+> 
+> Neil Schemenauer is not opposed to making "python" configurable or 
+> eventually pointing it to Python 3.
+> 
+> Jason Swails shared experience from running software with a 
+> "#!/usr/bin/env python" shebang on a system that didn't have Python 2 
+> (and followed the PEP, so no "python" either). The workaround was ugly.
+
+There haven't been many new ideas since this summary ? mostly it was 
+explaining and re-hashing what's been mentioned before.
+Matthias Klose pointed out some Debian/Ubuntu points, to which I'll add 
+the situation in other distros I know of.
+
+*Debian* is concerned that python ? python3 will break software
+after an upgrade. Debian appears to not want to ship the unversioned 
+command after py2 removal.
+
+For *Ubuntu*, Matthias is not sure if he wants a python executable at 
+all. He notes that pypi.org recommends pip, and pip still breaks 
+system-installed packages when asked to.
+
+For both Ubuntu 20.04 LTS and Debian bullseye, the goal is that distro 
+packages don't use the unversioned shebang.
+
+*Fedora* packages don't use the unversioned shebang. If it was up to me, 
+the unversioned command would be removed in F31 (released in the first 
+half of 2019) and then pointed to python3 in F32 (second half). But we'd 
+rather happy to follow upstream consensus. (And the PEP, if it reflects 
+the consensus.)
+
+In *RHEL*, the unversioned command is missing by default. Sysadmins can 
+change it, but are advised to use python2/python3 instead. RHEL decision 
+makers don't give the PEP much weight.
+
+*Arch* did the switch to python3 a long time ago (and the resulting fire 
+wasn't all that bright).
+
+With *Homebrew*, `python` points to Homebrew?s Python 2.7.x (if 
+installed) otherwise the macOS system Python. That's exactly according 
+to the PEP. They tried to switch python to python3 before, and got 
+rather nasty backlash citing PEP 394. I assume they will follow the PEP 
+quite strictly from now on.
+
+The *macOS* system Python is out of our hands; Apple ignores upstream 
+recommendations.
+
+
+
+From vstinner at redhat.com  Tue Feb 26 10:37:05 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 26 Feb 2019 16:37:05 +0100
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+Message-ID: <CA+3bQGE9spzqMM6MpDfuhdT5W=UfS-SmCih_akn_iVFFSY0vrQ@mail.gmail.com>
+
+Le mar. 26 f?vr. 2019 ? 12:33, INADA Naoki <songofacandy at gmail.com> a ?crit :
+> - unpickle_list: 8.48 us +- 0.09 us -> 12.8 us +- 0.5 us: 1.52x slower (+52%)> ...
+> ...
+> unpickle and unpickle_list shows massive slowdown.  I suspect this slowdown
+> is not caused from set change.  Linux perf shows many pagefault is happened
+> in pymalloc_malloc.  I think memory usage changes hit weak point of pymalloc
+> accidentally.  I will try to investigate it.
+
+Please contact me to get access to speed.python.org server. *Maybe*
+your process to run benchmarks is not reliable and you are getting
+"noise" in results.
+
+> On the other hand, meteor_contest shows 13% speedup.  It uses set.
+> Other doesn't show significant performance changes.
+
+I recall that some benchmarks are unstable and depend a lot on how you
+run the benchmark, how Python is compiled (ex: PGO or not).
+
+IMHO it's fine if the overall performance result is "no significant
+change", as soon as we reduce the memory footprint.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From christian at python.org  Tue Feb 26 10:40:08 2019
+From: christian at python.org (Christian Heimes)
+Date: Tue, 26 Feb 2019 16:40:08 +0100
+Subject: [Python-Dev] OpenSSL 1.1.1 update for 3.7/3.8
+Message-ID: <q53mko$7cs$1@blaine.gmane.org>
+
+Hi,
+
+today's OpenSSL release of 1.0.2r and 1.1.1b reminded me of OpenSSL's
+release strategy [1]. OpenSSL 1.0.2 will reach EOL on 2019-12-31, 1.1.0
+will reach EOL on 2019-09-11 (one year after release of OpenSSL 1.1.1).
+
+First the good news: There is no need to take any action for 2.7 to 3.6.
+As of today, Python 2.7, 3.5, and 3.6 are using OpenSSL 1.0.2. Python
+3.6.8 (2018-12-24) and 3.5.5 (2018-02-05) were the last regular update
+with binary packages. 3.5.6 is a source-only security release. 3.6.9
+will be the first source-only security release of the 3.6 series. Python
+2.7 will reach EOL just a day after OpenSSL 1.0.2 reaches EOL. IMHO it's
+fine to ship the last 2.7 build with an OpenSSL version that was EOLed
+just 24h earlier.
+
+Python 3.7 and master (3.8) are affected. As of now, both branches use
+OpenSSL 1.1.0 and must be updated to 1.1.1 soonish. Ned has scheduled
+3.7.3 release for 2019-03-25. That's still well within the release
+schedule for 1.1.0. I suggest that we update to 1.1.1 directly after the
+release of Python 3.7.3 and target 3.7.4 as first builds with TLS 1.3
+support. That gives Victor, Steve, and me enough time to sort out the
+remaining issues.
+
+In worst case we could revert the update and postpone the update to
+3.7.5. Or we disable TLS 1.3 support by default in Mac and Windows builds.
+
+Christian
+
+[1] https://www.openssl.org/policies/releasestrat.html
+
+
+From vstinner at redhat.com  Tue Feb 26 10:43:42 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 26 Feb 2019 16:43:42 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for
+ testing
+In-Reply-To: <20190226125903.GA4712@xps>
+References: <8AFF29B7-D3DB-4DE1-BAF7-CAE6F4017378@langa.pl>
+ <20190226125903.GA4712@xps>
+Message-ID: <CA+3bQGGWY7SdQN72F5vBVyGnY=KeM_1=VZCGtHJfhLZCQJ2NRw@mail.gmail.com>
+
+Armin Rigo released https://pypi.org/project/cffi/1.12.2/ which is
+compatible with Python 3.8.0a2.
+
+The issue was related to the PyInterpreterState change:
+https://bugs.python.org/issue35886#msg336501
+
+Note: "[RELEASE] Python 3.8.0a1 is now available for testing" the
+correct version is 3.8.0a2 :-)
+
+Victor
+
+
+Le mar. 26 f?vr. 2019 ? 14:02, Stephane Wirtel <stephane at wirtel.be> a ?crit :
+>
+> Hi ?ukasz,
+>
+> Thank you for your job.
+>
+> I have created a Merge Request for the docker image of Barry [1].
+>
+> I also filled an issue [2] for brotlipy (used by httpbin and requests).
+> The problem is with PyInterpreterState.
+>
+> Via Twitter, I have proposed to the community to fix the issue [2].
+>
+> [1]: https://gitlab.com/python-devs/ci-images/merge_requests/7
+> [2]: https://github.com/python-hyper/brotlipy/issues/147
+>
+> Thanks again for your job.
+>
+> Cheers,
+>
+> St?phane
+>
+> --
+> St?phane Wirtel - https://wirtel.be - @matrixise
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+--
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From aratzml at opendeusto.es  Tue Feb 26 08:12:37 2019
+From: aratzml at opendeusto.es (Aratz Manterola Lasa)
+Date: Tue, 26 Feb 2019 14:12:37 +0100
+Subject: [Python-Dev] New member
+Message-ID: <CAHGMwNMhSqz0XF92QgnpFsjuqP013U5UAf8-3pir8=smnWS6iA@mail.gmail.com>
+
+I do not know if I should be doing this, maybe I have been cheated, but
+this is my introduction:
+Hello, my name is Aratz, I am a Computer Engineering Bachelor's (not, not
+science) student on my 3rd grade. I love Python's gramatic efficiency, but
+most of all, how much I learn thanks to its community.
+I want to learn more, and if it is possible from the best ones. So... I
+ended up here.
+Thanks for your attention.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/1c274a20/attachment.html>
+
+From songofacandy at gmail.com  Tue Feb 26 11:33:28 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Wed, 27 Feb 2019 01:33:28 +0900
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <CA+3bQGE9spzqMM6MpDfuhdT5W=UfS-SmCih_akn_iVFFSY0vrQ@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <CA+3bQGE9spzqMM6MpDfuhdT5W=UfS-SmCih_akn_iVFFSY0vrQ@mail.gmail.com>
+Message-ID: <CAEfz+Twg+zV71uk0XCFiXm5JQbhGvOqA_p6CPARagB67Ne=T1A@mail.gmail.com>
+
+On Wed, Feb 27, 2019 at 12:37 AM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Le mar. 26 f?vr. 2019 ? 12:33, INADA Naoki <songofacandy at gmail.com> a ?crit :
+> > - unpickle_list: 8.48 us +- 0.09 us -> 12.8 us +- 0.5 us: 1.52x slower (+52%)> ...
+> > ...
+> > unpickle and unpickle_list shows massive slowdown.  I suspect this slowdown
+> > is not caused from set change.  Linux perf shows many pagefault is happened
+> > in pymalloc_malloc.  I think memory usage changes hit weak point of pymalloc
+> > accidentally.  I will try to investigate it.
+>
+> Please contact me to get access to speed.python.org server. *Maybe*
+> your process to run benchmarks is not reliable and you are getting
+> "noise" in results.
+
+My company gives me dedicated Linux machine with Core(TM) i7-6700.
+So I think it's not issue of my machine.
+
+perf shows this line caused many page fault.
+https://github.com/python/cpython/blob/c606a9cbd48f69d3f4a09204c781dda9864218b7/Objects/obmalloc.c#L1513
+
+This line is executed when pymalloc can't reuse existing pool and uses new pool.
+So I suspect there is some weak point about pymalloc and adding more hysteresis
+may help it.  But I'm not sure yet.  I'll investigate it later.
+
+If you want to reproduce it, try this commit.
+https://github.com/methane/cpython/pull/16/commits/3178dc96305435c691af83515b2e4725ab6eb826
+
+Ah, another interesting point, this huge slowdown happens only when bm_pickle.py
+is executed through pyperformance.  When run it directly, slowdown is
+not so large.
+So I think this issue is tightly coupled with how pages are mapped.
+
+$ ./python -m performance.benchmarks.bm_pickle --compare-to ./py-master unpickle
+py-master: ..................... 27.7 us +- 1.8 us
+python: ..................... 28.7 us +- 2.5 us
+
+Mean +- std dev: [py-master] 27.7 us +- 1.8 us -> [python] 28.7 us +-
+2.5 us: 1.04x slower (+4%)
+
+
+>
+> > On the other hand, meteor_contest shows 13% speedup.  It uses set.
+> > Other doesn't show significant performance changes.
+>
+> I recall that some benchmarks are unstable and depend a lot on how you
+> run the benchmark, how Python is compiled (ex: PGO or not).
+
+As far as reading bm_meteor_contest.py source, it uses frozenset heavily.
+So I think this is real performance gain.
+
+Anyway, pyperformance is not perfect and doesn't cover all set
+workloads.  I need to write more benchmarks.
+
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+
+From songofacandy at gmail.com  Tue Feb 26 11:59:16 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Wed, 27 Feb 2019 01:59:16 +0900
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+Message-ID: <CAEfz+TwZYp8sfR8yRTFEp4fRwBj8TxUNHR6wuDg_jHQxMWQwJw@mail.gmail.com>
+
+>
+> With *Homebrew*, `python` points to Homebrew?s Python 2.7.x (if
+> installed) otherwise the macOS system Python. That's exactly according
+> to the PEP. They tried to switch python to python3 before, and got
+> rather nasty backlash citing PEP 394. I assume they will follow the PEP
+> quite strictly from now on.
+>
+
+I want to add note here.
+When homebrew switched to python -> python3, node-gyp is broken.
+It is very widely used tool for web developers.
+
+Since Google was very lazy about adding Python 3 to gyp, node-gyp
+can't support Python 3 for a long time.
+
+But this situation is changing.  Google added Python 3 support to gyp.
+node-gyp project is working on Python 3 support for now.
+
+I think keeping PEP 394 as-is until node-gyp officially support Python 3
+would helps many web developers.
+
+
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+
+From raymond.hettinger at gmail.com  Tue Feb 26 12:32:24 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Tue, 26 Feb 2019 09:32:24 -0800
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+Message-ID: <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+
+
+
+> On Feb 26, 2019, at 3:30 AM, INADA Naoki <songofacandy at gmail.com> wrote:
+> 
+> I'm working on compact and ordered set implementation.
+> It has internal data structure similar to new dict from Python 3.6.
+
+> 
+> On Feb 26, 2019, at 3:30 AM, INADA Naoki <songofacandy at gmail.com> wrote:
+> 
+> I'm working on compact and ordered set implementation.
+> It has internal data structure similar to new dict from Python 3.6
+
+I've also looked at this as well.  Some thoughts: 
+
+* Set objects have a different and conflicting optimization that works better for a broad range of use cases.  In particular, there is a linear probing search step that gives excellent cache performance (multiple entries retrieved in a single cache line) and it reduces the cost of finding the next entry to a single increment (entry++). This greatly reduces the cost of collisions and makes it cheaper to verify an item is not in a set. 
+
+* The technique for compaction involves making the key/hash entry array dense and augmenting it with a sparse array of indices.  This necessarily involves adding a layer of indirection for every probe.
+
+* With the cache misses, branching costs, and extra layer of indirection, collisions would stop being cheap, so we would need to work to avoid them altogether. To get anything like the current performance for a collision of the first probe, I suspect we would have to lower the table density down from 60% to 25%.  
+
+* The intersection operation has an important optimization where it loops over the smaller of its two inputs.  To give a guaranteed order that preserves the order of the first input, you would have to forgo this optimization, possibly crippling any existing code that depends on it.
+
+* Maintaining order in the face of deletions adds a new workload to sets that didn't exist before. You risk thrashing the set support a feature that hasn't been asked for and that isn't warranted mathematically (where the notion of sets is unordered).
+
+* It takes a lot of care and planning to avoid fooling yourself with benchmarks on sets.  Anything done with a small tight loop will tend to hide all branch prediction costs and cache miss costs, both of which are significant in real world uses of sets.
+
+* For sets, we care much more about look-up performance than space.  And unlike dicts where we usually expect to find a key, sets are all about checking membership which means they have to be balanced for the case where the key is not in the set.
+
+* Having and preserving order is one of the least important things a set can offer (it does have some value, but it is the least important feature, one that was never contemplated by the original set PEP).
+
+After the success of the compact dict, I can understand an almost irresistible urge to apply the same technique to sets. If it was clear that it was a win, I would have already done it long ago, even before dicts (it was much harder to get buy in to changing the dicts).  Please temper the enthusiasm with rationality and caution.  The existing setobject code has been finely tuned and micro-optimized over the years, giving it excellent performance on workloads we care about.  It would be easy throw all of that away.
+
+
+Raymond
+
+From barry at python.org  Tue Feb 26 12:54:47 2019
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 26 Feb 2019 09:54:47 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+Message-ID: <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+
+> There haven't been many new ideas since this summary ? mostly it was explaining and re-hashing what's been mentioned before.
+
+Thanks for the summary Petr.
+
+Here?s another way to think about the problem.  I know Nick and I have talked about this before, but I don?t think any distros have actually done this, though I?ve been out of that business a while now so correct me if I?m wrong.
+
+I see this question as having several parts, and the conflation of them is part of the reason why the unversioned `python` command is so problematic.  Python is used for:
+
+* OS functionality
+* to run applications that aren?t critical to the OS but are delivered on the OS
+* as the entry point to the interactive interpreter
+* to run applications written and deployed on the OS but completely outside of it
+
+Which `python` are we trying to change?  All of them?
+
+For OS functionality, there should probably be a separate command not conflated with /usr/bin/python.  The OS can make any adjustments it needs, calling it `spython` (as I think Nick once suggested), or whatever.  Nobody but OS maintainers cares what this is called or what version of Python it exposes.
+
+I strongly believe that (eventually) the interactive interpreter command should be /usr/bin/python and that this should point to Python 3, since this provides the best experience for beginners, dabblers, etc.
+
+So what about the other two use cases?  Well, for applications packages within the OS but aren?t critical to it, I think they should always use the versioned shebang, never the unversioned shebang.  Distros can control this, so that transition should be easier.
+
+The tricky part then seems to me what to do for 3rd parties which are using the distro Python in their shebangs?  Nobody sees their code but them, and changing the shebang out from under them could cause their code to break.  But don?t they already take lots of precautions and planning for any OS upgrade?  Changing the shebang for Python 2 would be just one of the things they?d have to worry about in an OS upgrade.
+
+I don?t know whether this analysis is complete or correct, but perhaps it helps inform a way forward on PEP 394.
+
+Cheers,
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/00dca318/attachment.sig>
+
+From nas-python at arctrix.com  Tue Feb 26 14:35:12 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Tue, 26 Feb 2019 13:35:12 -0600
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+Message-ID: <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+
+On 2019-02-25, Eric Snow wrote:
+> So it looks like commit ef4ac967 is not responsible for a performance
+> regression.
+
+I did a bit of exploration myself and that was my conclusion as
+well.  Perhaps others would be interested in how to use "perf" so I
+did a little write up:
+
+https://discuss.python.org/t/profiling-cpython-with-perf/940
+
+To me, it looks like using a register based VM could produce a
+pretty decent speedup.  Research project for someone. ;-)
+
+Regards,
+
+  Neil
+
+From wes.turner at gmail.com  Tue Feb 26 15:31:12 2019
+From: wes.turner at gmail.com (Wes Turner)
+Date: Tue, 26 Feb 2019 15:31:12 -0500
+Subject: [Python-Dev] OpenSSL 1.1.1 update for 3.7/3.8
+In-Reply-To: <q53mko$7cs$1@blaine.gmane.org>
+References: <q53mko$7cs$1@blaine.gmane.org>
+Message-ID: <CACfEFw_OrkGNRWbHxukQ2Jfn9GH93pVGB__Q-wMP6Wj9YkCYzg@mail.gmail.com>
+
+> IMHO it's
+fine to ship the last 2.7 build with an OpenSSL version that was EOLed
+just 24h earlier.
+
+Is this a time / cost issue or a branch policy issue?
+
+If someone was to back port the forthcoming 1.1.1 to 2.7 significantly
+before the EOL date, could that be merged?
+
+There are all sorts of e.g. legacy academic works that'll never be upgraded
+etc etc
+
+On Tuesday, February 26, 2019, Christian Heimes <christian at python.org>
+wrote:
+
+> Hi,
+>
+> today's OpenSSL release of 1.0.2r and 1.1.1b reminded me of OpenSSL's
+> release strategy [1]. OpenSSL 1.0.2 will reach EOL on 2019-12-31, 1.1.0
+> will reach EOL on 2019-09-11 (one year after release of OpenSSL 1.1.1).
+>
+> First the good news: There is no need to take any action for 2.7 to 3.6.
+> As of today, Python 2.7, 3.5, and 3.6 are using OpenSSL 1.0.2. Python
+> 3.6.8 (2018-12-24) and 3.5.5 (2018-02-05) were the last regular update
+> with binary packages. 3.5.6 is a source-only security release. 3.6.9
+> will be the first source-only security release of the 3.6 series. Python
+> 2.7 will reach EOL just a day after OpenSSL 1.0.2 reaches EOL. IMHO it's
+> fine to ship the last 2.7 build with an OpenSSL version that was EOLed
+> just 24h earlier.
+>
+> Python 3.7 and master (3.8) are affected. As of now, both branches use
+> OpenSSL 1.1.0 and must be updated to 1.1.1 soonish. Ned has scheduled
+> 3.7.3 release for 2019-03-25. That's still well within the release
+> schedule for 1.1.0. I suggest that we update to 1.1.1 directly after the
+> release of Python 3.7.3 and target 3.7.4 as first builds with TLS 1.3
+> support. That gives Victor, Steve, and me enough time to sort out the
+> remaining issues.
+>
+> In worst case we could revert the update and postpone the update to
+> 3.7.5. Or we disable TLS 1.3 support by default in Mac and Windows builds.
+>
+> Christian
+>
+> [1] https://www.openssl.org/policies/releasestrat.html
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/
+> wes.turner%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/922e4d36/attachment.html>
+
+From vstinner at redhat.com  Tue Feb 26 15:36:16 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 26 Feb 2019 21:36:16 +0100
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+Message-ID: <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+
+I made an attempt once and it was faster:
+https://faster-cpython.readthedocs.io/registervm.html
+
+But I had bugs and I didn't know how to implement correctly a compiler.
+
+Victor
+
+Le mardi 26 f?vrier 2019, Neil Schemenauer <nas-python at arctrix.com> a
+?crit :
+> On 2019-02-25, Eric Snow wrote:
+>> So it looks like commit ef4ac967 is not responsible for a performance
+>> regression.
+>
+> I did a bit of exploration myself and that was my conclusion as
+> well.  Perhaps others would be interested in how to use "perf" so I
+> did a little write up:
+>
+> https://discuss.python.org/t/profiling-cpython-with-perf/940
+>
+> To me, it looks like using a register based VM could produce a
+> pretty decent speedup.  Research project for someone. ;-)
+>
+> Regards,
+>
+>   Neil
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/42d674c1/attachment.html>
+
+From nas-python at python.ca  Tue Feb 26 15:58:41 2019
+From: nas-python at python.ca (Neil Schemenauer)
+Date: Tue, 26 Feb 2019 14:58:41 -0600
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+Message-ID: <20190226205841.wo6a6bc65igmxpk3@python.ca>
+
+On 2019-02-26, Victor Stinner wrote:
+> I made an attempt once and it was faster:
+> https://faster-cpython.readthedocs.io/registervm.html
+
+Interesting.  I don't think I have seen that before.  Were you aware
+of "Rattlesnake" before you started on that?  It seems your approach
+is similar.  Probably not because I don't think it is easy to find.
+I uploaded a tarfile I had on my PC to my web site:
+
+    http://python.ca/nas/python/rattlesnake20010813/
+
+It seems his name doesn't appear in the readme or source but I think
+Rattlesnake was Skip Montanaro's project.  I suppose my idea of
+unifying the local variables and the registers could have came from
+Rattlesnake.  Very little new in the world. ;-P
+
+Cheers,
+
+  Neil
+
+From raymond.hettinger at gmail.com  Tue Feb 26 16:02:36 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Tue, 26 Feb 2019 13:02:36 -0800
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+Message-ID: <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+
+Quick summary of what I found when I last ran experiments with this idea:
+
+* To get the same lookup performance, the density of index table would need to go down to around 25%. Otherwise, there's no way to make up for the extra indirection and the loss of cache locality.
+
+* There was a small win on iteration performance because its cheaper to loop over a dense array than a sparse array (fewer memory access and elimination of the unpredictable branch).  This is nice because iteration performance matters in some key use cases.
+
+* I gave up on ordering right away.  If we care about performance, keys can be stored in the order added; but no effort should be expended to maintain order if subsequent deletions occur.  Likewise, to keep set-to-set operations efficient (i.e. looping over the smaller input), no order guarantee should be given for those operations.  In general, we can let order happen but should not guarantee it and work to maintain it or slow-down essential operations to make them ordered.
+
+* Compacting does make sets a little smaller but does cost an indirection and incurs a cost for switching index sizes between 1-byte arrays, 2-byte arrays, 4-byte arrays, and 8-byte arrays.  Those don't seem very expensive; however, set lookups are already very cheap when the hash values are known (when they're not, the cost of computing the hash value tends to dominate anything done by the setobject itself).
+
+* I couldn't find any existing application that would notice the benefit of making sets a bit smaller.  Most applications use dictionaries (directly or indirectly) everywhere, so compaction was an overall win.  Sets tend to be used more sparsely (no pun intended) and tend to be only a small part of overall memory usage. I had to consider this when bumping the load factor down to 60%, prioritizing speed over space.
+
+
+Raymond
+
+
+From greg at krypto.org  Tue Feb 26 16:05:17 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Tue, 26 Feb 2019 13:05:17 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CAEfz+TwZYp8sfR8yRTFEp4fRwBj8TxUNHR6wuDg_jHQxMWQwJw@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <CAEfz+TwZYp8sfR8yRTFEp4fRwBj8TxUNHR6wuDg_jHQxMWQwJw@mail.gmail.com>
+Message-ID: <CAGE7PN+euohGRQw069qZ4N=QKKVK++jbZRG1acHPQxunGaReyg@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 8:59 AM INADA Naoki <songofacandy at gmail.com> wrote:
+
+> >
+> > With *Homebrew*, `python` points to Homebrew?s Python 2.7.x (if
+> > installed) otherwise the macOS system Python. That's exactly according
+> > to the PEP. They tried to switch python to python3 before, and got
+> > rather nasty backlash citing PEP 394. I assume they will follow the PEP
+> > quite strictly from now on.
+> >
+>
+> I want to add note here.
+> When homebrew switched to python -> python3, node-gyp is broken.
+> It is very widely used tool for web developers.
+>
+> Since Google was very lazy about adding Python 3 to gyp, node-gyp
+> can't support Python 3 for a long time.
+>
+> But this situation is changing.  Google added Python 3 support to gyp.
+> node-gyp project is working on Python 3 support for now.
+>
+> I think keeping PEP 394 as-is until node-gyp officially support Python 3
+> would helps many web developers.
+>
+
+In practice, does what /usr/bin/python is even matter to node-gyp?  I'd
+*hope* that it would refer to /usr/bin/python2.7... (does anyone use
+something as modern as node.js on a system with python 2 but without
+/usr/bin/python2.7? [i probably don't want to know the answer to that...])
+
+node-gyp's got a great issue number for this:
+https://github.com/nodejs/node-gyp/issues/1337
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/002c335d/attachment.html>
+
+From greg at krypto.org  Tue Feb 26 16:20:30 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Tue, 26 Feb 2019 13:20:30 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+Message-ID: <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 9:55 AM Barry Warsaw <barry at python.org> wrote:
+
+> > There haven't been many new ideas since this summary ? mostly it was
+> explaining and re-hashing what's been mentioned before.
+>
+> Thanks for the summary Petr.
+>
+> Here?s another way to think about the problem.  I know Nick and I have
+> talked about this before, but I don?t think any distros have actually done
+> this, though I?ve been out of that business a while now so correct me if
+> I?m wrong.
+>
+> I see this question as having several parts, and the conflation of them is
+> part of the reason why the unversioned `python` command is so problematic.
+> Python is used for:
+>
+> * OS functionality
+> * to run applications that aren?t critical to the OS but are delivered on
+> the OS
+> * as the entry point to the interactive interpreter
+> * to run applications written and deployed on the OS but completely
+> outside of it
+>
+> Which `python` are we trying to change?  All of them?
+>
+> For OS functionality, there should probably be a separate command not
+> conflated with /usr/bin/python.  The OS can make any adjustments it needs,
+> calling it `spython` (as I think Nick once suggested), or whatever.  Nobody
+> but OS maintainers cares what this is called or what version of Python it
+> exposes.
+>
+> I strongly believe that (eventually) the interactive interpreter command
+> should be /usr/bin/python and that this should point to Python 3, since
+> this provides the best experience for beginners, dabblers, etc.
+>
+> So what about the other two use cases?  Well, for applications packages
+> within the OS but aren?t critical to it, I think they should always use the
+> versioned shebang, never the unversioned shebang.  Distros can control
+> this, so that transition should be easier.
+>
+> The tricky part then seems to me what to do for 3rd parties which are
+> using the distro Python in their shebangs?  Nobody sees their code but
+> them, and changing the shebang out from under them could cause their code
+> to break.  But don?t they already take lots of precautions and planning for
+> any OS upgrade?  Changing the shebang for Python 2 would be just one of the
+> things they?d have to worry about in an OS upgrade.
+>
+
+A feature that *I* find missing from posix-y OSes that support #! lines is
+an ability to restrict what can use a given interpreter.
+
+For an OS distro provided interpreter, being able to restrict its use to
+only OS distro provided software would be ideal (so ideal that people who
+haven't learned the hard distro maintenance lessons may hate me for it).
+
+Such a restriction could be implemented within the interpreter itself. For
+example: Say that only this set of fully qualified path whitelisted .py
+files are allowed to invoke it, with no interactive, stdin, or command line
+"-c" use allowed.  I'm not aware of anyone actually having done that.  It's
+hard to see how to do that in a *maintainable* manner that people using
+many distros wouldn't just naively work around by adding themselves to the
+whitelist rather than providing their own interpreter for their own
+software stack.  It feels more doable without workarounds for something
+like macOS or any other distro wholly controlled and maintained as a single
+set of software rather than a widely varying packages.
+
+Solving that is way outside the scope of PEP 394.  Just food for thought
+that I'd like to leave as an earworm for the future for distro minded
+folks.  I some people to hate this idea.
+
+-gps
+
+
+>
+> I don?t know whether this analysis is complete or correct, but perhaps it
+> helps inform a way forward on PEP 394.
+>
+> Cheers,
+> -Barry
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/01a57c41/attachment-0001.html>
+
+From encukou at gmail.com  Tue Feb 26 16:34:50 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Tue, 26 Feb 2019 22:34:50 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+Message-ID: <57a58939-21a7-286c-09bb-e5a04172d06e@gmail.com>
+
+On 2/26/19 6:54 PM, Barry Warsaw wrote:
+>> There haven't been many new ideas since this summary ? mostly it was explaining and re-hashing what's been mentioned before.
+> 
+> Thanks for the summary Petr.
+> 
+> Here?s another way to think about the problem.  I know Nick and I have talked about this before, but I don?t think any distros have actually done this, though I?ve been out of that business a while now so correct me if I?m wrong.
+> 
+> I see this question as having several parts, and the conflation of them is part of the reason why the unversioned `python` command is so problematic.  Python is used for:
+> 
+> * OS functionality
+> * to run applications that aren?t critical to the OS but are delivered on the OS
+> * as the entry point to the interactive interpreter
+> * to run applications written and deployed on the OS but completely outside of it
+> 
+> Which `python` are we trying to change?  All of them?
+> 
+> For OS functionality, there should probably be a separate command not conflated with /usr/bin/python.  The OS can make any adjustments it needs, calling it `spython` (as I think Nick once suggested), or whatever.  Nobody but OS maintainers cares what this is called or what version of Python it exposes.
+
+Yup. RHEL 8 actually has exactly that. (It's called 
+/usr/libexec/platform-python; please don't use it!)
+Fedora (and most other distros) makes this the same as the interpreter 
+for other packaged software. For Fedora the main reason is that don't 
+want to maintain two full separate Python stacks.
+
+> I strongly believe that (eventually) the interactive interpreter command should be /usr/bin/python and that this should point to Python 3, since this provides the best experience for beginners, dabblers, etc.
+
++1
+
+> So what about the other two use cases?  Well, for applications packages within the OS but aren?t critical to it, I think they should always use the versioned shebang, never the unversioned shebang.  Distros can control this, so that transition should be easier.
+
++1
+
+> The tricky part then seems to me what to do for 3rd parties which are using the distro Python in their shebangs?  Nobody sees their code but them, and changing the shebang out from under them could cause their code to break.  But don?t they already take lots of precautions and planning for any OS upgrade?  Changing the shebang for Python 2 would be just one of the things they?d have to worry about in an OS upgrade.
+
+Also, things will break for them anyway, it's just a matter of time. 
+Python 2 *is* going away, eventually. (Right?)
+I don't think we're doing that many people a favor by keeping 
+/usr/bin/python ? python2 around. Instead, we're *hiding* the problem 
+from them. Too many people think python2 is still the "default".
+
+Making /usr/bin/python be missing for some time, rather than pointing it 
+to python3 now, is the more explicit way to do the transition.
+
+> I don?t know whether this analysis is complete or correct, but perhaps it helps inform a way forward on PEP 394.
+
+I have two very different questions in mind for moving this forward.
+
+Who gets to decide on PEP 394 changes?
+Since so many people on python-dev are in agreement, where do I go for 
+opposing voices?
+
+
+From vstinner at redhat.com  Tue Feb 26 16:34:46 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 26 Feb 2019 22:34:46 +0100
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <CAEfz+Twg+zV71uk0XCFiXm5JQbhGvOqA_p6CPARagB67Ne=T1A@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <CA+3bQGE9spzqMM6MpDfuhdT5W=UfS-SmCih_akn_iVFFSY0vrQ@mail.gmail.com>
+ <CAEfz+Twg+zV71uk0XCFiXm5JQbhGvOqA_p6CPARagB67Ne=T1A@mail.gmail.com>
+Message-ID: <CA+3bQGHaPadhQJ3WqW_sbsywPRGkdYPxfoh9Rm3da0nfZB1dSQ@mail.gmail.com>
+
+Le mar. 26 f?vr. 2019 ? 17:33, INADA Naoki <songofacandy at gmail.com> a ?crit :
+> My company gives me dedicated Linux machine with Core(TM) i7-6700.
+> So I think it's not issue of my machine.
+
+Oh great :-)
+
+> perf shows this line caused many page fault.
+> https://github.com/python/cpython/blob/c606a9cbd48f69d3f4a09204c781dda9864218b7/Objects/obmalloc.c#L1513
+>
+> This line is executed when pymalloc can't reuse existing pool and uses new pool.
+> So I suspect there is some weak point about pymalloc and adding more hysteresis
+> may help it.  But I'm not sure yet.  I'll investigate it later.
+
+You might want to try PYTHONMALLOC=malloc to force the usage of system
+malloc() and so disable pymalloc.
+
+You might also try jemalloc with LD_PRELOAD and PYTHONMALLOC=malloc.
+
+Not sure if it helps :-)
+
+> Ah, another interesting point, this huge slowdown happens only when bm_pickle.py
+> is executed through pyperformance.  When run it directly, slowdown is
+> not so large.
+
+pyperformance runs benchmarks in a virtual environment. I don't know
+if it has any impact on bm_pickle.
+
+Most pyperformance can be run outside a virtual env if required
+modules are installed on the system. (bm_pickle only requires the
+stdlib and perf.)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From raymond.hettinger at gmail.com  Tue Feb 26 16:38:45 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Tue, 26 Feb 2019 13:38:45 -0800
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+Message-ID: <85C60B5A-A3CD-43F4-A38D-887576A01F8E@gmail.com>
+
+
+On Feb 25, 2019, at 8:23 PM, Eric Snow <ericsnowcurrently at gmail.com> wrote:
+> 
+> So it looks like commit ef4ac967 is not responsible for a performance
+> regression.
+
+I did narrow it down to that commit and I can consistently reproduce the timing differences.
+
+That said, I'm only observing the effect when building with the Mac default Clang (Apple LLVM version 10.0.0 (clang-1000.11.45.5).   When building GCC 8.3.0, there is no change in performance.
+
+I conclude this is only an issue for Mac builds.
+
+> I ran the "performance" suite (https://github.com/python/performance),
+> which has 57 different benchmarks. 
+
+Many of those benchmarks don't measure eval-loop performance.  Instead, they exercise json, pickle, sqlite etc.  So, I would expect no change in many of those because they weren't touched.
+
+Victor said he generally doesn't care about 5% regressions.  That makes sense for odd corners of Python.  The reason I was concerned about this one is that it hits the eval-loop and seems to effect every single op code.  The regression applies somewhat broadly (increasing the cost of reading and writing local variables by about 20%).  The effect is somewhat broad based.
+
+That said, it seems to be compiler specific and only affects the Mac builds, so maybe we can decide that we don't care.
+
+
+Raymond
+
+
+From guido at python.org  Tue Feb 26 16:42:29 2019
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 26 Feb 2019 13:42:29 -0800
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <20190226205841.wo6a6bc65igmxpk3@python.ca>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+Message-ID: <CAP7+vJKPa1MO2Z+6P3FMkka1rsm9rY7eQBTN=zcdCdmr1+SQ1A@mail.gmail.com>
+
+Yes, this should totally be attempted. All the stack manipulation opcodes
+could be dropped if we just made (nearly) everything use 3-address codes,
+e.g. ADD would take the names of three registers, left, right and result.
+The compiler would keep track of which registers contain a live object (for
+reference counting) but that can't be much more complicated than checking
+for stack under- and over-flow.
+
+Also, nothing new indeed -- my first computer (a control data cyber
+mainframe) had 3-address code.
+https://en.wikipedia.org/wiki/CDC_6600#Central_Processor_(CP)
+
+On Tue, Feb 26, 2019 at 1:01 PM Neil Schemenauer <nas-python at python.ca>
+wrote:
+
+> On 2019-02-26, Victor Stinner wrote:
+> > I made an attempt once and it was faster:
+> > https://faster-cpython.readthedocs.io/registervm.html
+>
+> Interesting.  I don't think I have seen that before.  Were you aware
+> of "Rattlesnake" before you started on that?  It seems your approach
+> is similar.  Probably not because I don't think it is easy to find.
+> I uploaded a tarfile I had on my PC to my web site:
+>
+>     http://python.ca/nas/python/rattlesnake20010813/
+>
+> It seems his name doesn't appear in the readme or source but I think
+> Rattlesnake was Skip Montanaro's project.  I suppose my idea of
+> unifying the local variables and the registers could have came from
+> Rattlesnake.  Very little new in the world. ;-P
+>
+> Cheers,
+>
+>   Neil
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/2e07af95/attachment.html>
+
+From vstinner at redhat.com  Tue Feb 26 16:42:52 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 26 Feb 2019 22:42:52 +0100
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <20190226205841.wo6a6bc65igmxpk3@python.ca>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+Message-ID: <CA+3bQGEgm-ot6y3ZNwRgCMrEEN82iiRceoixgf3v=wnMoFD0uA@mail.gmail.com>
+
+No, I wasn't aware of this project. My starting point was:
+
+http://static.usenix.org/events/vee05/full_papers/p153-yunhe.pdf
+Yunhe Shi, David Gregg, Andrew Beatty, M. Anton Ertl, 2005
+
+See also my email to python-dev that I sent in 2012:
+https://mail.python.org/pipermail/python-dev/2012-November/122777.html
+
+Ah, my main issue was my implementation is that I started without
+taking care of clearing registers when the stack-based bytecode
+implicitly cleared a reference (decref), like "POP_TOP" operation.
+
+I added "CLEAR_REG" late in the development and it caused me troubles,
+and the "correct" register-based bytecode was less efficient than
+bytecode without CLEAR_REG. But my optimizer was very limited, too
+limited.
+
+Another implementation issue that I had was to understand some
+"implicit usage" of the stack like try/except which do black magic,
+whereas I wanted to make everything explicit for registers. I'm
+talking about things like "POP_BLOCK" and "SETUP_EXCEPT". In my
+implementation, I kept support for stack-based bytecode, and so I had
+some inefficient code and some corner cases.
+
+My approach was to convert stack-based bytecode to register-based
+bytecode on the fly. Having both in the same code allowed to me run
+some benchmarks. Maybe it wasn't the best approach, but I didn't feel
+able to write a real compiler (AST => bytecode).
+
+Victor
+
+Le mar. 26 f?vr. 2019 ? 21:58, Neil Schemenauer <nas-python at python.ca> a ?crit :
+>
+> On 2019-02-26, Victor Stinner wrote:
+> > I made an attempt once and it was faster:
+> > https://faster-cpython.readthedocs.io/registervm.html
+>
+> Interesting.  I don't think I have seen that before.  Were you aware
+> of "Rattlesnake" before you started on that?  It seems your approach
+> is similar.  Probably not because I don't think it is easy to find.
+> I uploaded a tarfile I had on my PC to my web site:
+>
+>     http://python.ca/nas/python/rattlesnake20010813/
+>
+> It seems his name doesn't appear in the readme or source but I think
+> Rattlesnake was Skip Montanaro's project.  I suppose my idea of
+> unifying the local variables and the registers could have came from
+> Rattlesnake.  Very little new in the world. ;-P
+>
+> Cheers,
+>
+>   Neil
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From christian at python.org  Tue Feb 26 16:45:27 2019
+From: christian at python.org (Christian Heimes)
+Date: Tue, 26 Feb 2019 22:45:27 +0100
+Subject: [Python-Dev] OpenSSL 1.1.1 update for 3.7/3.8
+In-Reply-To: <CACfEFw_OrkGNRWbHxukQ2Jfn9GH93pVGB__Q-wMP6Wj9YkCYzg@mail.gmail.com>
+References: <q53mko$7cs$1@blaine.gmane.org>
+ <CACfEFw_OrkGNRWbHxukQ2Jfn9GH93pVGB__Q-wMP6Wj9YkCYzg@mail.gmail.com>
+Message-ID: <129ab7ef-fc1e-4f44-7a1e-e75b89f3def0@python.org>
+
+On 26/02/2019 21.31, Wes Turner wrote:
+>> IMHO it's
+> fine to ship the last 2.7 build with an OpenSSL version that was EOLed
+> just 24h earlier.
+> 
+> Is this a time / cost issue or a branch policy issue?
+> 
+> If someone was to back port the forthcoming 1.1.1 to 2.7 significantly
+> before the EOL date, could that be merged?
+
+My mail is about official binary Python packages for Windows and macOS.
+We stick to an OpenSSL version to guarantee maximum backwards
+compatibility within a minor release. OpenSSL 1.1.1 has TLS 1.3 support
+and prefers TLS 1.3 over TLS 1.2. There is a small change that TLS 1.3
+breaks some assumptions.
+
+Python 2.7 works mostly fine with OpenSSL 1.1.1. There are some minor
+test issues related to TLS 1.3 but nothing serious. Linux distros have
+been shipping Python 2.7 with OpenSSL 1.1.1 for a while.
+
+
+> There are all sorts of e.g. legacy academic works that'll never be
+> upgraded etc etc
+
+That topic is out of scope and has been discussed countless times.
+
+From J.Demeyer at UGent.be  Tue Feb 26 16:53:44 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Tue, 26 Feb 2019 22:53:44 +0100
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <CA+3bQGEgm-ot6y3ZNwRgCMrEEN82iiRceoixgf3v=wnMoFD0uA@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGEgm-ot6y3ZNwRgCMrEEN82iiRceoixgf3v=wnMoFD0uA@mail.gmail.com>
+Message-ID: <5C75B568.8060806@UGent.be>
+
+Let me just say that the code for METH_FASTCALL function/method calls is 
+optimized for a stack layout: a piece of the stack is used directly for 
+calling METH_FASTCALL functions (without any copying any PyObject* 
+pointers). So this would probably be slower with a register-based VM 
+(which doesn't imply that it's a bad idea, it's just a single point to 
+take into account).
+
+From vstinner at redhat.com  Tue Feb 26 16:53:52 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 26 Feb 2019 22:53:52 +0100
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <CA+3bQGEgm-ot6y3ZNwRgCMrEEN82iiRceoixgf3v=wnMoFD0uA@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGEgm-ot6y3ZNwRgCMrEEN82iiRceoixgf3v=wnMoFD0uA@mail.gmail.com>
+Message-ID: <CA+3bQGHnopyzzmuf71nHg4pGgAq-P-BMJFLZ7JLqwekSgPY1UA@mail.gmail.com>
+
+Hum, I read again my old REGISTERVM.txt that I wrote a few years ago.
+
+A little bit more context. In my "registervm" fork I also tried to
+implement further optimizations like moving invariants out of the
+loop. Some optimizations could change the Python semantics, like
+remove "duplicated" LOAD_GLOBAL whereas the global might be modified
+in the middle. I wanted to experiment such optimizations. Maybe it was
+a bad idea to convert stack-based bytecode to register-based bytecode
+and experiment these optimizations at the same time.
+
+Victor
+
+Le mar. 26 f?vr. 2019 ? 22:42, Victor Stinner <vstinner at redhat.com> a ?crit :
+>
+> No, I wasn't aware of this project. My starting point was:
+>
+> http://static.usenix.org/events/vee05/full_papers/p153-yunhe.pdf
+> Yunhe Shi, David Gregg, Andrew Beatty, M. Anton Ertl, 2005
+>
+> See also my email to python-dev that I sent in 2012:
+> https://mail.python.org/pipermail/python-dev/2012-November/122777.html
+>
+> Ah, my main issue was my implementation is that I started without
+> taking care of clearing registers when the stack-based bytecode
+> implicitly cleared a reference (decref), like "POP_TOP" operation.
+>
+> I added "CLEAR_REG" late in the development and it caused me troubles,
+> and the "correct" register-based bytecode was less efficient than
+> bytecode without CLEAR_REG. But my optimizer was very limited, too
+> limited.
+>
+> Another implementation issue that I had was to understand some
+> "implicit usage" of the stack like try/except which do black magic,
+> whereas I wanted to make everything explicit for registers. I'm
+> talking about things like "POP_BLOCK" and "SETUP_EXCEPT". In my
+> implementation, I kept support for stack-based bytecode, and so I had
+> some inefficient code and some corner cases.
+>
+> My approach was to convert stack-based bytecode to register-based
+> bytecode on the fly. Having both in the same code allowed to me run
+> some benchmarks. Maybe it wasn't the best approach, but I didn't feel
+> able to write a real compiler (AST => bytecode).
+>
+> Victor
+>
+> Le mar. 26 f?vr. 2019 ? 21:58, Neil Schemenauer <nas-python at python.ca> a ?crit :
+> >
+> > On 2019-02-26, Victor Stinner wrote:
+> > > I made an attempt once and it was faster:
+> > > https://faster-cpython.readthedocs.io/registervm.html
+> >
+> > Interesting.  I don't think I have seen that before.  Were you aware
+> > of "Rattlesnake" before you started on that?  It seems your approach
+> > is similar.  Probably not because I don't think it is easy to find.
+> > I uploaded a tarfile I had on my PC to my web site:
+> >
+> >     http://python.ca/nas/python/rattlesnake20010813/
+> >
+> > It seems his name doesn't appear in the readme or source but I think
+> > Rattlesnake was Skip Montanaro's project.  I suppose my idea of
+> > unifying the local variables and the registers could have came from
+> > Rattlesnake.  Very little new in the world. ;-P
+> >
+> > Cheers,
+> >
+> >   Neil
+>
+>
+>
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Tue Feb 26 16:59:19 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 26 Feb 2019 22:59:19 +0100
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <85C60B5A-A3CD-43F4-A38D-887576A01F8E@gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <85C60B5A-A3CD-43F4-A38D-887576A01F8E@gmail.com>
+Message-ID: <CA+3bQGHwEo4zpVwk5oAqmPpBx0LFEXrs0fSY356bSLJj_TtaMw@mail.gmail.com>
+
+Le mar. 26 f?vr. 2019 ? 22:45, Raymond Hettinger
+<raymond.hettinger at gmail.com> a ?crit :
+> Victor said he generally doesn't care about 5% regressions.  That makes sense for odd corners of Python.  The reason I was concerned about this one is that it hits the eval-loop and seems to effect every single op code.  The regression applies somewhat broadly (increasing the cost of reading and writing local variables by about 20%).  The effect is somewhat broad based.
+
+I ignore changes smaller than 5% because they are usually what I call
+the "noise" of the benchmark. It means that testing 3 commits give 3
+different timings, even if the commits don't touch anything used in
+the benchmark. There are multiple explanation: PGO compilation in not
+deterministic, some benchmarks are too close to the performance of the
+CPU L1-instruction cache and so are heavily impacted by the "code
+locality" (exact address in memory), and many other things.
+
+Hum, sometimes running the same benchmark on the same code on the same
+hardware with the same strict procedure gives different timings at
+each attempt.
+
+At some point, I decided to give up on these 5% to not loose my mind :-)
+
+Victor
+
+From nas-python at arctrix.com  Tue Feb 26 17:04:18 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Tue, 26 Feb 2019 16:04:18 -0600
+Subject: [Python-Dev] Compile-time resolution of packages [Was: Another
+ update for PEP 394...]
+In-Reply-To: <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+Message-ID: <20190226220418.b36jw33qthdv5i5l@python.ca>
+
+On 2019-02-26, Gregory P. Smith wrote:
+> On Tue, Feb 26, 2019 at 9:55 AM Barry Warsaw <barry at python.org> wrote:
+> For an OS distro provided interpreter, being able to restrict its use to
+> only OS distro provided software would be ideal (so ideal that people who
+> haven't learned the hard distro maintenance lessons may hate me for it).
+
+Interesting idea.  I remember when I was helping develop Debian
+packaging guides for Python software.   I had to fight with people
+to convince them that Debian packages should use 
+
+    #!/usr/bin/pythonX.Y
+
+rather than
+
+    #!/usr/bin/env python
+
+The situtation is much better now but I still sometimes have
+packaged software fail because it picks up my version of
+/usr/local/bin/python.  I don't understand how people can believe
+grabbing /usr/local/bin/python is going to be a way to build a
+reliable system.
+
+> Such a restriction could be implemented within the interpreter itself. For
+> example: Say that only this set of fully qualified path whitelisted .py
+> files are allowed to invoke it, with no interactive, stdin, or command line
+> "-c" use allowed.
+
+I think this is related to an idea I was tinkering with on the
+weekend.  Why shouldn't we do more compile time linkage of Python
+packages?  At least, I think we give people the option to do it.
+Obviously you still need to also support run-time import search
+(interactive REPL, support __import__(unknown_at_compiletime)__).
+
+Here is the sketch of the idea (probably half-baked, as most of my
+ideas are):
+
+- add PYTHONPACKAGES envvar and -p options to 'python'
+
+- the argument for these options would be a colon separated list of
+  Python package archives (crates, bales, bundles?).  The -p option
+  could be a colon separated list or provided multiple times to
+  specify more packages.
+
+- the modules/packages contained in those archives become the
+  preferred bytecode code source when those names are imported.  We
+  look there first.  The crawling around behavor (dynamic import
+  based on sys.path) happens only if a module is not found and could
+  be turned off.
+
+- the linking of the modules could be computed when the code is
+  compiled and the package archive created, rather than when the
+  'import' statement gets executed.  This would provide a number of
+  advantages.  It would be faster.  Code analysis tools could
+  statically determine which modules imported code corresponds too.
+  E.g. if your code calls module.foo, assuming no monkey patching,
+  you know what code 'foo' actually is.
+
+- to get extra fancy, the package archives could be dynamic
+  link libraries containing "frozen modules" like this FB experiment:
+  https://github.com/python/cpython/pull/9320
+  That way, you avoid the unmarshal step and just execute the module
+  bytecode directly.  On startup, Python would dlopen all of the
+  package archives specified by PYTHONPACKAGES.  On init, it would
+  build an index of the package tree and it would have the memory
+  location for the code object for each module.
+
+That would seem like quite a useful thing.  For an application like
+Mercurial, they could build all the modules/packages required into a
+single package archive.  Or, there would be a small number of
+archives (one for standard Python library, one for everything else
+that Mercurial needs).
+
+Now that I write this, it sounds a lot like the debate between
+static linking and dynamic linking.  Golang does static linking and
+people seem to like the single executable distribution.
+
+Regards,
+
+  Neil
+
+From vstinner at redhat.com  Tue Feb 26 17:08:07 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 26 Feb 2019 23:08:07 +0100
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <20190226205841.wo6a6bc65igmxpk3@python.ca>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+Message-ID: <CA+3bQGGfZ6nRkKS==ArkK8FcZe_8xdrV_bmcaoHOWPpWKVzq5w@mail.gmail.com>
+
+Le mar. 26 f?vr. 2019 ? 21:58, Neil Schemenauer <nas-python at python.ca> a ?crit :
+> It seems his name doesn't appear in the readme or source but I think
+> Rattlesnake was Skip Montanaro's project.  I suppose my idea of
+> unifying the local variables and the registers could have came from
+> Rattlesnake.  Very little new in the world. ;-P
+
+In my implementation, constants, local variables and registers live
+all in the same array: frame.f_localsplus. Technically, there isn't
+much difference between a constant, local variable or a register. It's
+just the disassembler which has to worry to display "R3" or "x"
+depending on the register index ;-)
+
+There was a LOAD_CONST_REG instruction in my implementation, but it
+was more to keep a smooth transition from existing LOAD_CONST
+instruction. LOAD_CONST_REG could be avoided to pass directly the
+constant (ex: as a function argument).
+
+For example, I compiled "range(2, n)" as:
+
+LOAD_CONST_REG       R0, 2 (const#2)
+LOAD_GLOBAL_REG      R1, 'range' (name#0)
+CALL_FUNCTION_REG    4, R1, R1, R0, 'n'
+
+Whereas it could be just:
+
+LOAD_GLOBAL_REG      R1, 'range' (name#0)
+CALL_FUNCTION_REG    4, R1, R1, <const #2>, 'n'
+
+Compare it to stack-based bytecode:
+
+LOAD_GLOBAL          0 (range)
+LOAD_CONST           2 (const#2)
+LOAD_FAST            'n'
+CALL_FUNCTION        2 (2 positional, 0 keyword pair)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From greg.ewing at canterbury.ac.nz  Tue Feb 26 17:18:59 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Wed, 27 Feb 2019 11:18:59 +1300
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <5C75B568.8060806@UGent.be>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGEgm-ot6y3ZNwRgCMrEEN82iiRceoixgf3v=wnMoFD0uA@mail.gmail.com>
+ <5C75B568.8060806@UGent.be>
+Message-ID: <5C75BB53.8020304@canterbury.ac.nz>
+
+Jeroen Demeyer wrote:
+> Let me just say that the code for METH_FASTCALL function/method calls is 
+> optimized for a stack layout: a piece of the stack is used directly for 
+> calling METH_FASTCALL functions
+
+We might be able to get some ideas for dealing with this kind of
+thing from register-window architectures such as the SPARC, where
+the registers containing the locals of a calling function become the
+input parameters to a called function.
+
+More generally, it's common to have a calling convention where the
+first N parameters are assumed to reside in a specific range of
+registers. If the compiler is smart enough, it can often arrange
+the evaluation of the parameter expressions so that the results
+end up in the right registers for making the call.
+
+-- 
+Greg
+
+From jjevnik at quantopian.com  Tue Feb 26 17:10:34 2019
+From: jjevnik at quantopian.com (Joe Jevnik)
+Date: Tue, 26 Feb 2019 17:10:34 -0500
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <CA+3bQGHnopyzzmuf71nHg4pGgAq-P-BMJFLZ7JLqwekSgPY1UA@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGEgm-ot6y3ZNwRgCMrEEN82iiRceoixgf3v=wnMoFD0uA@mail.gmail.com>
+ <CA+3bQGHnopyzzmuf71nHg4pGgAq-P-BMJFLZ7JLqwekSgPY1UA@mail.gmail.com>
+Message-ID: <CAFo6DPaxcr9gEb-wKi2nk4KuEM6mJnG99GVhnf-d6wdD8ONrjw@mail.gmail.com>
+
+METH_FASTCALL passing arguments on the stack doesn't necessarily mean it
+will be slow. In x86 there are calling conventions that read all the
+arguments from the stack, but the rest of the machine is register based.
+Python could also look at ABI calling conventions for inspiration, like
+x86-64 where some arguments up to a fixed amount are passed on the stack
+and the rest are passed on the stack.
+
+One thing that I am wondering is would Python want to use a global set of
+registers and a global data stack, or continue to have a new data stack
+(and now registers) per call stack. If Python switched to a global stack
+and global registers we may be able to eliminate a lot of instructions that
+just shuffle data from the caller's stack to the callee's stack.
+
+On Tue, Feb 26, 2019 at 4:55 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hum, I read again my old REGISTERVM.txt that I wrote a few years ago.
+>
+> A little bit more context. In my "registervm" fork I also tried to
+> implement further optimizations like moving invariants out of the
+> loop. Some optimizations could change the Python semantics, like
+> remove "duplicated" LOAD_GLOBAL whereas the global might be modified
+> in the middle. I wanted to experiment such optimizations. Maybe it was
+> a bad idea to convert stack-based bytecode to register-based bytecode
+> and experiment these optimizations at the same time.
+>
+> Victor
+>
+> Le mar. 26 f?vr. 2019 ? 22:42, Victor Stinner <vstinner at redhat.com> a
+> ?crit :
+> >
+> > No, I wasn't aware of this project. My starting point was:
+> >
+> > http://static.usenix.org/events/vee05/full_papers/p153-yunhe.pdf
+> > Yunhe Shi, David Gregg, Andrew Beatty, M. Anton Ertl, 2005
+> >
+> > See also my email to python-dev that I sent in 2012:
+> > https://mail.python.org/pipermail/python-dev/2012-November/122777.html
+> >
+> > Ah, my main issue was my implementation is that I started without
+> > taking care of clearing registers when the stack-based bytecode
+> > implicitly cleared a reference (decref), like "POP_TOP" operation.
+> >
+> > I added "CLEAR_REG" late in the development and it caused me troubles,
+> > and the "correct" register-based bytecode was less efficient than
+> > bytecode without CLEAR_REG. But my optimizer was very limited, too
+> > limited.
+> >
+> > Another implementation issue that I had was to understand some
+> > "implicit usage" of the stack like try/except which do black magic,
+> > whereas I wanted to make everything explicit for registers. I'm
+> > talking about things like "POP_BLOCK" and "SETUP_EXCEPT". In my
+> > implementation, I kept support for stack-based bytecode, and so I had
+> > some inefficient code and some corner cases.
+> >
+> > My approach was to convert stack-based bytecode to register-based
+> > bytecode on the fly. Having both in the same code allowed to me run
+> > some benchmarks. Maybe it wasn't the best approach, but I didn't feel
+> > able to write a real compiler (AST => bytecode).
+> >
+> > Victor
+> >
+> > Le mar. 26 f?vr. 2019 ? 21:58, Neil Schemenauer <nas-python at python.ca>
+> a ?crit :
+> > >
+> > > On 2019-02-26, Victor Stinner wrote:
+> > > > I made an attempt once and it was faster:
+> > > > https://faster-cpython.readthedocs.io/registervm.html
+> > >
+> > > Interesting.  I don't think I have seen that before.  Were you aware
+> > > of "Rattlesnake" before you started on that?  It seems your approach
+> > > is similar.  Probably not because I don't think it is easy to find.
+> > > I uploaded a tarfile I had on my PC to my web site:
+> > >
+> > >     http://python.ca/nas/python/rattlesnake20010813/
+> > >
+> > > It seems his name doesn't appear in the readme or source but I think
+> > > Rattlesnake was Skip Montanaro's project.  I suppose my idea of
+> > > unifying the local variables and the registers could have came from
+> > > Rattlesnake.  Very little new in the world. ;-P
+> > >
+> > > Cheers,
+> > >
+> > >   Neil
+> >
+> >
+> >
+> > --
+> > Night gathers, and now my watch begins. It shall not end until my death.
+>
+>
+>
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/joe%40quantopian.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/fa57a053/attachment.html>
+
+From vstinner at redhat.com  Tue Feb 26 17:27:58 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 26 Feb 2019 23:27:58 +0100
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+Message-ID: <CA+3bQGE410QOzYmxPCOdXPH88chAZSo-f76VLm+2V7w88AeumQ@mail.gmail.com>
+
+Le mar. 26 f?vr. 2019 ? 22:24, Gregory P. Smith <greg at krypto.org> a ?crit :
+> A feature that I find missing from posix-y OSes that support #! lines is an ability to restrict what can use a given interpreter.
+
+Fedora runs system tools (like "/usr/bin/semanage", tool to manager
+SELinux) with "python3 -Es":
+
+$ head /usr/sbin/semanage
+#! /usr/bin/python3 -Es
+
+-E: ignore PYTHON* environment variables (such as PYTHONPATH)
+-s: don't add user site directory to sys.path
+
+Is it what you mean?
+
+
+> Such a restriction could be implemented within the interpreter itself. For example: Say that only this set of fully qualified path whitelisted .py files are allowed to invoke it, with no interactive, stdin, or command line "-c" use allowed.  I'm not aware of anyone actually having done that.  It's hard to see how to do that in a maintainable manner that people using many distros wouldn't just naively work around by adding themselves to the whitelist rather than providing their own interpreter for their own software stack.  It feels more doable without workarounds for something like macOS or any other distro wholly controlled and maintained as a single set of software rather than a widely varying packages.
+
+Technically, Python initialization is highly customizable: see
+_PyCoreConfig in Include/coreconfig.h.
+
+But we lack a public API for that :-)
+https://www.python.org/dev/peps/pep-0432/ is a work-in-progress.
+
+With a proper public API, building your own interpreter would take a
+few lines of C to give you fine control on what Python can do or not.
+
+Extract of Programs/_freeze_importlib.c (give you an idea of what can be done):
+---
+    _PyCoreConfig config = _PyCoreConfig_INIT;
+    config.user_site_directory = 0;
+    config.site_import = 0;
+    config.use_environment = 0;
+    config.program_name = L"./_freeze_importlib";
+    /* Don't install importlib, since it could execute outdated bytecode. */
+    config._install_importlib = 0;
+    config._frozen = 1;
+
+    _PyInitError err = _Py_InitializeFromConfig(&config);
+---
+
+As Petr wrote below, RHEL 8 has a private /usr/libexec/platform-python
+which is the Python used to run system tools (written in Python). But
+this Python isn't customized. I'm not sure that there is a strong need
+to customize Python default configuration for this interpreter.
+
+Note: Sorry to hijack again this thread with unrelated discussions :-(
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From nas-python at python.ca  Tue Feb 26 17:28:14 2019
+From: nas-python at python.ca (Neil Schemenauer)
+Date: Tue, 26 Feb 2019 16:28:14 -0600
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <85C60B5A-A3CD-43F4-A38D-887576A01F8E@gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <85C60B5A-A3CD-43F4-A38D-887576A01F8E@gmail.com>
+Message-ID: <20190226222814.ggzf6q3nk36bfzwx@python.ca>
+
+On 2019-02-26, Raymond Hettinger wrote:
+> That said, I'm only observing the effect when building with the
+> Mac default Clang (Apple LLVM version 10.0.0 (clang-1000.11.45.5).
+> When building GCC 8.3.0, there is no change in performance.
+
+My guess is that the code in _PyEval_EvalFrameDefault() got changed
+enough that Clang started emitting a bit different machine code.  If
+the conditional jumps are a bit different, I understand that could
+have a significant difference on performance.
+
+Are you compiling with --enable-optimizations (i.e. PGO)?  In my
+experience, that is needed to get meaningful results.  Victor also
+mentions that on his "how-to-get-stable-benchmarks" page.  Building
+with PGO is really (really) slow so I supect you are not doing it
+when bisecting.  You can speed it up greatly by using a simpler
+command for PROFILE_TASK in Makefile.pre.in.  E.g.
+
+    PROFILE_TASK=$(srcdir)/my_benchmark.py
+
+Now that you have narrowed it down to a single commit, it would be
+worth doing the comparison with PGO builds (assuming Clang supports
+that).
+
+> That said, it seems to be compiler specific and only affects the
+> Mac builds, so maybe we can decide that we don't care.
+
+I think the key question is if the ceval loop got a bit slower due
+to logic changes or if Clang just happened to generate a bit worse
+code due to source code details.  A PGO build could help answer
+that.  I suppose trying to compare machine code is going to produce
+too large of a diff.
+
+Could you try hoisting the eval_breaker expression, as suggested by
+Antoine:
+
+    https://discuss.python.org/t/profiling-cpython-with-perf/940/2
+
+If you think a slowdown affects most opcodes, I think the DISPATCH
+change looks like the only cause.  Maybe I missed something though.
+
+Also, maybe there would be some value in marking key branches as
+likely/unlikely if it helps Clang generate better machine code.
+Then, even if you compile without PGO (as many people do), you still
+get the better machine code.
+
+Regards,
+
+  Neil
+
+From steve.dower at python.org  Tue Feb 26 17:29:18 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 26 Feb 2019 14:29:18 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+Message-ID: <32efee43-34cf-9850-09e0-01b258cc2d22@python.org>
+
+On 2/26/2019 1:20 PM, Gregory P. Smith wrote:
+> For an OS distro provided interpreter, being able to restrict its use to 
+> only OS distro provided software would be ideal (so ideal that people 
+> who haven't learned the hard distro maintenance lessons may hate me for it).
+> 
+> Such a restriction could be implemented within the interpreter itself. 
+> For example: Say that only this set of fully qualified path whitelisted 
+> .py files are allowed to invoke it, with no interactive, stdin, or 
+> command line "-c" use allowed.? I'm not aware of anyone actually having 
+> done that.? It's hard to see how to do that in a /maintainable/ manner 
+> that people using many distros wouldn't just naively work around by 
+> adding themselves to the whitelist rather than providing their own 
+> interpreter for their own software stack.? It feels more doable without 
+> workarounds for something like macOS or any other distro wholly 
+> controlled and maintained as a single set of software rather than a 
+> widely varying packages.
+> 
+> Solving that is way outside the scope of PEP 394.? Just food for thought 
+> that I'd like to leave as an earworm for the future for distro minded 
+> folks.? I some people to hate this idea.
+
+I haven't caught up on this thread yet, but this sounds a lot like the 
+"Restricting the entry point" section of 
+https://www.python.org/dev/peps/pep-0551/ (which is still a draft, so if 
+anyone wants to help make it more like what they want, I'm happy to have 
+contributors).
+
+So I'm in favour of making this easy (since I'm already having to deal 
+with it being difficult ;) ), as it's extremely valuable for 
+security-conscious deployments as well as the distro package cases 
+mentioned by Gregory.
+
+Cheers,
+Steve
+
+
+From greg.ewing at canterbury.ac.nz  Tue Feb 26 17:31:34 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Wed, 27 Feb 2019 11:31:34 +1300
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <CAFo6DPaxcr9gEb-wKi2nk4KuEM6mJnG99GVhnf-d6wdD8ONrjw@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGEgm-ot6y3ZNwRgCMrEEN82iiRceoixgf3v=wnMoFD0uA@mail.gmail.com>
+ <CA+3bQGHnopyzzmuf71nHg4pGgAq-P-BMJFLZ7JLqwekSgPY1UA@mail.gmail.com>
+ <CAFo6DPaxcr9gEb-wKi2nk4KuEM6mJnG99GVhnf-d6wdD8ONrjw@mail.gmail.com>
+Message-ID: <5C75BE46.50905@canterbury.ac.nz>
+
+Joe Jevnik via Python-Dev wrote:
+> If Python switched to a global 
+> stack and global registers we may be able to eliminate a lot of 
+> instructions that just shuffle data from the caller's stack to the 
+> callee's stack.
+
+That would make implementing generators more complicated.
+
+-- 
+Greg
+
+
+From greg.ewing at canterbury.ac.nz  Tue Feb 26 17:32:33 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Wed, 27 Feb 2019 11:32:33 +1300
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <CA+3bQGGfZ6nRkKS==ArkK8FcZe_8xdrV_bmcaoHOWPpWKVzq5w@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGGfZ6nRkKS==ArkK8FcZe_8xdrV_bmcaoHOWPpWKVzq5w@mail.gmail.com>
+Message-ID: <5C75BE81.4060209@canterbury.ac.nz>
+
+Victor Stinner wrote:
+> LOAD_CONST_REG       R0, 2 (const#2)
+> LOAD_GLOBAL_REG      R1, 'range' (name#0)
+> CALL_FUNCTION_REG    4, R1, R1, R0, 'n'
+
+Out of curiosity, why is the function being passed twice here?
+
+-- 
+Greg
+
+From chris.barker at noaa.gov  Tue Feb 26 17:43:24 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Tue, 26 Feb 2019 14:43:24 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+Message-ID: <CALGmxEJie-mMTpweo-YcLwy1d-kJRzeA7wsTjVGr3SXnmJpk2g@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 9:58 AM Barry Warsaw <barry at python.org> wrote:
+
+> I see this question as having several parts, and the conflation of them is
+> part of the reason why the unversioned `python` command is so problematic.
+> Python is used for:
+>
+> * OS functionality
+> * to run applications that aren?t critical to the OS but are delivered on
+> the OS
+> * as the entry point to the interactive interpreter
+> * to run applications written and deployed on the OS but completely
+> outside of it
+>
+> For OS functionality, there should probably be a separate command not
+> conflated with /usr/bin/python.  The OS can make any adjustments it needs,
+> calling it `spython` (as I think Nick once suggested), or whatever.  Nobody
+> but OS maintainers cares what this is called or what version of Python it
+> exposes.
+>
+
+I'm not sure that's necessary at all -- the OS should simply use an
+unambiguous path!
+
+I was a RedHat user way back when when in the midst of the python1.5 => 2.0
+transition.
+
+RedHat had a bunch of system scripts that had (I think):
+
+#!/usr/bin/env python
+
+In them (or maybe /usr/bin/python, but I'm pretty sure it was the env
+version). In any case, when you installed python2 (to local) your system
+scripts would ll break (even if they were python2 compatible, there wasn't
+a lot of difference, but RedHat also depended on extra packages...)
+
+So what we had to do was install python 2, remove the "python" command that
+came with it, and use "python2" in all our scripts.
+
+This was simply broken, and it was RedHat's fault. If they had used:
+
+/usr/bin/python1.5
+
+in their shebang lines, there would have been no problem. And users could
+still use the system python1.5 if they wanted, or install an update, or
+whatever.
+
+My pint is:
+
+Any OS that ships OS scripts that expect "python" to be a specific version
+(or worse, a specific install) is broken.
+
+Some distros are going to ignore the PEP anyway, so there is no harm (and
+some good) in specifying in teh PEP the way we think it SHOULD be done, and
+then see what happens -- we don't need to make the PEP match current
+practice.
+
+-CHB
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/faf9fcd5/attachment.html>
+
+From skip.montanaro at gmail.com  Tue Feb 26 18:01:20 2019
+From: skip.montanaro at gmail.com (Skip Montanaro)
+Date: Tue, 26 Feb 2019 17:01:20 -0600
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <20190226205841.wo6a6bc65igmxpk3@python.ca>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+Message-ID: <CANc-5UwXFP0KN9GLy3V-rWUi1i2SGFpEN8afNEFcjRkaCP7ktw@mail.gmail.com>
+
+> I uploaded a tarfile I had on my PC to my web site:
+>
+>     http://python.ca/nas/python/rattlesnake20010813/
+>
+> It seems his name doesn't appear in the readme or source but I think
+> Rattlesnake was Skip Montanaro's project.  I suppose my idea of
+> unifying the local variables and the registers could have came from
+> Rattlesnake.  Very little new in the world. ;-P
+
+Lot of water under the bridge since then. I would have to poke around
+a bit, but I think "from module import *" stumped me long enough that
+I got distracted by some other shiny thing.
+
+S
+
+From vstinner at redhat.com  Tue Feb 26 18:05:41 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 27 Feb 2019 00:05:41 +0100
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <5C75BE81.4060209@canterbury.ac.nz>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGGfZ6nRkKS==ArkK8FcZe_8xdrV_bmcaoHOWPpWKVzq5w@mail.gmail.com>
+ <5C75BE81.4060209@canterbury.ac.nz>
+Message-ID: <CA+3bQGEOc53H3VwnAj6Dy1o+txoc244AFnZJKTcWvQDJCg4G3w@mail.gmail.com>
+
+Le mar. 26 f?vr. 2019 ? 23:40, Greg Ewing
+<greg.ewing at canterbury.ac.nz> a ?crit :
+> Victor Stinner wrote:
+> > LOAD_CONST_REG       R0, 2 (const#2)
+> > LOAD_GLOBAL_REG      R1, 'range' (name#0)
+> > CALL_FUNCTION_REG    4, R1, R1, R0, 'n'
+>
+> Out of curiosity, why is the function being passed twice here?
+
+Ah, I should have explained that :-) The first argument of
+CALL_FUNCTION_REG is the name of the register used to store the
+result.
+
+The compiler begins with using static single assignment form (SSA) but
+then uses a register allocator to reduce the number of used registers.
+Usually, at the end you have less than 5 registers for a whole
+function.
+
+Since R1 was only used to store the function before the call and isn't
+used after, the R1 register can be re-used.
+
+Using a different register may require an explicit "CLEAR_REG R1"
+(decref the reference to the builtin range function) which is less
+efficient.
+
+Note: The CALL_FUNCTION instruction using the stack implicitly put the
+result into the stack (and "pop" function arguments from the stack).
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Tue Feb 26 18:17:33 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 27 Feb 2019 00:17:33 +0100
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <20190226222814.ggzf6q3nk36bfzwx@python.ca>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <85C60B5A-A3CD-43F4-A38D-887576A01F8E@gmail.com>
+ <20190226222814.ggzf6q3nk36bfzwx@python.ca>
+Message-ID: <CA+3bQGG3gYbmcYSixuCPM4QnDNrD9PgREENQUnEQPbjt1EVLpQ@mail.gmail.com>
+
+Hi,
+
+PGO compilation is very slow. I tried very hard to avoid it.
+
+I started to annotate the C code with various GCC attributes like
+"inline", "always_inline", "hot", etc.. I also experimented
+likely/unlikely Linux macros which use __builtin_expect(). At the
+end... my efforts were worthless. I still had *major* issue (benchmark
+*suddenly* 68% slower! WTF?) with code locality and I decided to give
+up. You can still find some macros like _Py_HOT_FUNCTION and
+_Py_NO_INLINE in Python ;-) (_Py_NO_INLINE is used to reduce stack
+memory usage, that's a different story.)
+
+My sad story with code placement:
+https://vstinner.github.io/analysis-python-performance-issue.html
+
+tl; dr Use PGO.
+
+--
+
+Since that time, I removed call_method from pyperformance to fix the
+root issue: don't waste your time on micro-benchmarks ;-) ... But I
+kept these micro-benchmarks in a different project:
+https://github.com/vstinner/pymicrobench
+
+For some specific needs (take a decision on a specific optimizaton),
+sometimes micro-benchmarks are still useful ;-)
+
+Victor
+
+Le mar. 26 f?vr. 2019 ? 23:31, Neil Schemenauer <nas-python at python.ca> a ?crit :
+>
+> On 2019-02-26, Raymond Hettinger wrote:
+> > That said, I'm only observing the effect when building with the
+> > Mac default Clang (Apple LLVM version 10.0.0 (clang-1000.11.45.5).
+> > When building GCC 8.3.0, there is no change in performance.
+>
+> My guess is that the code in _PyEval_EvalFrameDefault() got changed
+> enough that Clang started emitting a bit different machine code.  If
+> the conditional jumps are a bit different, I understand that could
+> have a significant difference on performance.
+>
+> Are you compiling with --enable-optimizations (i.e. PGO)?  In my
+> experience, that is needed to get meaningful results.  Victor also
+> mentions that on his "how-to-get-stable-benchmarks" page.  Building
+> with PGO is really (really) slow so I supect you are not doing it
+> when bisecting.  You can speed it up greatly by using a simpler
+> command for PROFILE_TASK in Makefile.pre.in.  E.g.
+>
+>     PROFILE_TASK=$(srcdir)/my_benchmark.py
+>
+> Now that you have narrowed it down to a single commit, it would be
+> worth doing the comparison with PGO builds (assuming Clang supports
+> that).
+>
+> > That said, it seems to be compiler specific and only affects the
+> > Mac builds, so maybe we can decide that we don't care.
+>
+> I think the key question is if the ceval loop got a bit slower due
+> to logic changes or if Clang just happened to generate a bit worse
+> code due to source code details.  A PGO build could help answer
+> that.  I suppose trying to compare machine code is going to produce
+> too large of a diff.
+>
+> Could you try hoisting the eval_breaker expression, as suggested by
+> Antoine:
+>
+>     https://discuss.python.org/t/profiling-cpython-with-perf/940/2
+>
+> If you think a slowdown affects most opcodes, I think the DISPATCH
+> change looks like the only cause.  Maybe I missed something though.
+>
+> Also, maybe there would be some value in marking key branches as
+> likely/unlikely if it helps Clang generate better machine code.
+> Then, even if you compile without PGO (as many people do), you still
+> get the better machine code.
+>
+> Regards,
+>
+>   Neil
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From barry at python.org  Tue Feb 26 18:21:35 2019
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 26 Feb 2019 15:21:35 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <57a58939-21a7-286c-09bb-e5a04172d06e@gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <57a58939-21a7-286c-09bb-e5a04172d06e@gmail.com>
+Message-ID: <EFCB1F83-F408-48F4-86C6-2C38877504C1@python.org>
+
+On Feb 26, 2019, at 13:34, Petr Viktorin <encukou at gmail.com> wrote:
+
+> I have two very different questions in mind for moving this forward.
+> 
+> Who gets to decide on PEP 394 changes?
+
+Honestly, I think it?s the active distro maintainers who need to make this decision.  They have the pulse of their own communities and users, and can make the best decisions and compromises for their constituents.  I personally am not part of that any more, so I have no problem having no say (despite still having opinions :).
+
+> Since so many people on python-dev are in agreement, where do I go for opposing voices?
+
+Well, why look for more dissent?  If you can align Homebrew, Fedora-et-al, Debian-et-al, and we already know what Arch has done, and the PEP authors are in agreement, isn't that enough to JFDI?  It couldn?t hurt to reach out to a few other distros, but do you think they will have substantially different opinions than what you?ve gathered already?
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/714c2811/attachment.sig>
+
+From vstinner at redhat.com  Tue Feb 26 18:26:03 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 27 Feb 2019 00:26:03 +0100
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <CA+3bQGG3gYbmcYSixuCPM4QnDNrD9PgREENQUnEQPbjt1EVLpQ@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <85C60B5A-A3CD-43F4-A38D-887576A01F8E@gmail.com>
+ <20190226222814.ggzf6q3nk36bfzwx@python.ca>
+ <CA+3bQGG3gYbmcYSixuCPM4QnDNrD9PgREENQUnEQPbjt1EVLpQ@mail.gmail.com>
+Message-ID: <CA+3bQGF335XO5xE+6KXk2R9ENcT51KYcxPnmjKXm7_rOdf_2TQ@mail.gmail.com>
+
+Le mer. 27 f?vr. 2019 ? 00:17, Victor Stinner <vstinner at redhat.com> a ?crit :
+> My sad story with code placement:
+> https://vstinner.github.io/analysis-python-performance-issue.html
+>
+> tl; dr Use PGO.
+
+Hum wait, this article isn't complete. You have to see the follow-up:
+https://bugs.python.org/issue28618#msg286662
+
+"""
+Victor: "FYI I wrote an article about this issue:
+https://haypo.github.io/analysis-python-performance-issue.html Sadly,
+it seems like I was just lucky when adding __attribute__((hot)) fixed
+the issue, because call_method is slow again!"
+
+I upgraded speed-python server (running benchmarks) to Ubuntu 16.04
+LTS to support PGO compilation. I removed all old benchmark results
+and ran again benchmarks with LTO+PGO. It seems like benchmark results
+are much better now.
+
+I'm not sure anymore that _Py_HOT_FUNCTION is really useful to get
+stable benchmarks, but it may help code placement a little bit. I
+don't think that it hurts, so I suggest to keep it. Since benchmarks
+were still unstable with _Py_HOT_FUNCTION, I'm not interested to
+continue to tag more functions with _Py_HOT_FUNCTION. I will now focus
+on LTO+PGO for stable benchmarks, and ignore small performance
+difference when PGO is not used.
+
+I close this issue now.
+"""
+
+Now I recall that I tried hard to avoid PGO: the server used by
+speed.python.org to run benchmarks didn't support PGO.
+
+I fixed the issue by upgrading Ubuntu :-) Now speed.python.org uses
+PGO. I stopped to stop to manually help the compiler with code
+placement.
+
+Victor
+
+From barry at python.org  Tue Feb 26 18:34:30 2019
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 26 Feb 2019 15:34:30 -0800
+Subject: [Python-Dev] Compile-time resolution of packages [Was: Another
+ update for PEP 394...]
+In-Reply-To: <20190226220418.b36jw33qthdv5i5l@python.ca>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+ <20190226220418.b36jw33qthdv5i5l@python.ca>
+Message-ID: <13E7CBC6-7AE3-4DDB-AFAE-052E3A611BB5@python.org>
+
+On Feb 26, 2019, at 14:04, Neil Schemenauer <nas-python at arctrix.com> wrote:
+> 
+> Interesting idea.  I remember when I was helping develop Debian
+> packaging guides for Python software.   I had to fight with people
+> to convince them that Debian packages should use
+> 
+>    #!/usr/bin/pythonX.Y
+> 
+> rather than
+> 
+>    #!/usr/bin/env python
+
+Indeed.  I used to fight that battle quite a bit, although at least in my circles that lesson has by now been learned.  `/usr/bin/env python` is great for development and terrible for deployment.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/f478fbdd/attachment-0001.sig>
+
+From barry at python.org  Tue Feb 26 18:38:03 2019
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 26 Feb 2019 15:38:03 -0800
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+Message-ID: <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+
+On Feb 26, 2019, at 13:02, Raymond Hettinger <raymond.hettinger at gmail.com> wrote:
+
+> * I gave up on ordering right away.  If we care about performance, keys can be stored in the order added; but no effort should be expended to maintain order if subsequent deletions occur.  Likewise, to keep set-to-set operations efficient (i.e. looping over the smaller input), no order guarantee should be given for those operations.  In general, we can let order happen but should not guarantee it and work to maintain it or slow-down essential operations to make them ordered.
+
+One thing that concerns me would be if the ordering for sets is different than dictionaries.  Well, it kind of is already, but it?s easier to say ?dict preserve insertion order, sets are unordered?, than to say they are both ordered but with different guarantees.  The behavior differences between dicts and sets is already surprising to many users, so we should be careful not to make the situation worse.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/73c7195c/attachment.sig>
+
+From wes.turner at gmail.com  Tue Feb 26 18:40:36 2019
+From: wes.turner at gmail.com (Wes Turner)
+Date: Tue, 26 Feb 2019 18:40:36 -0500
+Subject: [Python-Dev] OpenSSL 1.1.1 update for 3.7/3.8
+In-Reply-To: <129ab7ef-fc1e-4f44-7a1e-e75b89f3def0@python.org>
+References: <q53mko$7cs$1@blaine.gmane.org>
+ <CACfEFw_OrkGNRWbHxukQ2Jfn9GH93pVGB__Q-wMP6Wj9YkCYzg@mail.gmail.com>
+ <129ab7ef-fc1e-4f44-7a1e-e75b89f3def0@python.org>
+Message-ID: <CACfEFw87MFUJ+TfkBWpMVSLOQetsNPjCm3XQEONdHmcnyYai3w@mail.gmail.com>
+
+Thanks, as always
+
+On Tue, Feb 26, 2019 at 4:45 PM Christian Heimes <christian at python.org>
+wrote:
+
+> On 26/02/2019 21.31, Wes Turner wrote:
+> >> IMHO it's
+> > fine to ship the last 2.7 build with an OpenSSL version that was EOLed
+> > just 24h earlier.
+> >
+> > Is this a time / cost issue or a branch policy issue?
+> >
+> > If someone was to back port the forthcoming 1.1.1 to 2.7 significantly
+> > before the EOL date, could that be merged?
+>
+> My mail is about official binary Python packages for Windows and macOS.
+> We stick to an OpenSSL version to guarantee maximum backwards
+> compatibility within a minor release. OpenSSL 1.1.1 has TLS 1.3 support
+> and prefers TLS 1.3 over TLS 1.2. There is a small change that TLS 1.3
+> breaks some assumptions.
+>
+> Python 2.7 works mostly fine with OpenSSL 1.1.1. There are some minor
+> test issues related to TLS 1.3 but nothing serious. Linux distros have
+> been shipping Python 2.7 with OpenSSL 1.1.1 for a while.
+>
+>
+> > There are all sorts of e.g. legacy academic works that'll never be
+> > upgraded etc etc
+>
+> That topic is out of scope and has been discussed countless times.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/550c41ba/attachment.html>
+
+From nas-python at arctrix.com  Tue Feb 26 18:53:50 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Tue, 26 Feb 2019 17:53:50 -0600
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <5C75BE46.50905@canterbury.ac.nz>
+References: <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGEgm-ot6y3ZNwRgCMrEEN82iiRceoixgf3v=wnMoFD0uA@mail.gmail.com>
+ <CA+3bQGHnopyzzmuf71nHg4pGgAq-P-BMJFLZ7JLqwekSgPY1UA@mail.gmail.com>
+ <CAFo6DPaxcr9gEb-wKi2nk4KuEM6mJnG99GVhnf-d6wdD8ONrjw@mail.gmail.com>
+ <5C75BE46.50905@canterbury.ac.nz>
+Message-ID: <20190226235350.5c7unf6j7o5f7jwm@python.ca>
+
+On 2019-02-27, Greg Ewing wrote:
+> Joe Jevnik via Python-Dev wrote:
+> > If Python switched to a global stack and global registers we may be able
+> > to eliminate a lot of instructions that just shuffle data from the
+> > caller's stack to the callee's stack.
+> 
+> That would make implementing generators more complicated.
+
+Right.  I wonder though, could we avoid allocating the Python frame
+object until we actually need it?  Two situations when you need a
+heap allocated frame come to mind immediately: generators that are
+suspended and frames as part of a traceback.  I guess
+sys._getframe() is another.  Any more?
+
+I'm thinking that perhaps for regular Python functions and regular
+calls, you could defer creating the full PyFrame object and put the
+locals, stack, etc on the C stack.  That would make calling Python
+functions a lot similar to the machine calling convention and
+presumably could be much faster.  If you do need the frame object,
+copy over the data from the C stack into the frame structure.
+
+I'm sure there are all kinds of reasons why this idea is not easy to
+implement or not possible.  It seems somewhat possible though.  I
+wonder how IronPython works in this respect?  Apparently it doesn't
+support sys._getframe().
+
+Regards,
+
+  Neil
+
+From chris.barker at noaa.gov  Tue Feb 26 19:03:12 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Tue, 26 Feb 2019 16:03:12 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CAP7h-xb1SmaouhgnobQyvyPPchopBAw1RnbJeH==F4Au15+m3g@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+ <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+ <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+ <CAP7h-xb1SmaouhgnobQyvyPPchopBAw1RnbJeH==F4Au15+m3g@mail.gmail.com>
+Message-ID: <CALGmxELmBEXRKMMRBtKvozf82uqNBLpTwTyuUyCeUfPhsczFJQ@mail.gmail.com>
+
+This thread petered out, seemingly with a consensus that we should update
+the docs -- is anyone doing that?
+
+But anyway, I'd like to offer a counterpoint:
+
+>From the OP, it is clear that:
+
+* Folks have a need for timedeltas to be converted to numbers values, with
+units other than seconds (milliseconds, at least).
+* If left to their own devices, they may well do it wrong (Or at least not
+as right as they should.
+
+So: it would be good to provide a correct, simple,  intuitive, and
+discoverable way to do that.
+
+timedelta.total_seconds()
+
+Provides that for seconds, but there is no equivalent for other units.
+
+a_time_delta / timedelta(microseconds=1)
+
+Is now possible in py3, and has been proposed as the canonical way to
+convert to specific time units.
+
+However, while it does provide a correct[1] way to do it, it is:
+
+- not very simple
+- not very intuitive.
+- not the least bit discoverable
+
+Each of these in turn:
+
+simple:
+=====
+
+compare
+
+duration = a_timedelta.total_seconds()
+
+to
+
+duration = a_timedelta / datetime.timedelta(seconds=1)
+
+Keep in mind that the timedelta object may have been generated by another
+module somehow, so the coder that gets it and wants to turn it into a
+number of seconds (or milliseconds, or ...) needs to import datetime and
+reference the timedelta object. And if they are converting to a plain
+number, it's probably because they don't want to be working with timedeltas
+at all anyway. So no, not so simple.
+
+intuitive:
+======
+
+A casual user reading the first will very likely know what it means -- a
+casual user reading the second line will need to think about it carefully,
+and probably have to go read the datetime docs, or at least do some
+experiments to make sure it does what they think it does. Granted, a
+comment:
+
+duration = a_timedelta / datetime.timedelta(seconds=1)  # convert to seconds
+
+would help a lot, but if you need a comment to explain a line of code this
+simple, then it's not intuitive.
+
+A couple more data points:
+
+-- I am a physical scientist, I work with unitted quantities all the time
+(both in code and in other contexts). It never dawned on me to use this
+approach to convert to seconds or milliseconds, or ... Granted, I still
+rely on python2 for a fair bit of my work, but still, I had to scratch my
+head when it was proposed on this thread.
+
+-- There are a number of physical unit libraries in Python, and as far as I
+know, none of them let you do this to create a unitless value in a
+particular unit. "pint" for example:
+
+https://pint.readthedocs.io/en/latest/
+
+In pint, you can create objects with units, including time:
+
+In [50]: timespan = 2 * ureg.day
+
+In [51]: print(timespan)
+
+2 day
+
+But if you divide a value of days by a value in seconds, you don't get a
+unitless seconds per day:
+
+In [54]: unitless = timespan / (1 * ureg.second)
+
+In [55]: print(unitless)
+
+2.0 day / second
+
+Though pint does know it is dimensionless:
+
+In [56]: unitless.dimensionless
+
+Out[56]: True
+
+And you can reduce it to a dimensionless object:
+
+In [57]: unitless.to_reduced_units()
+
+Out[57]: 172800.0 <Unit('dimensionless')>
+
+And there is your seconds value.
+
+But the "right" way to get a given pint object of time into particular
+units is to convert, and then, if you want a plain number, get the
+magnitude:
+
+In [53]: print(timespan.to('second').magnitude)
+
+172800.0
+
+So no -- dividing a datetime by another datetime with the value you want is
+not intuitive: not to a physical scientist, not to a user of other physical
+quantities libraries -- is it intuitive to anyone other than someone that
+was involved in python datetime development??
+
+Discoverable:
+==========
+
+It is clearly not discoverable -- the OP didn't find it, and no one other
+than Alexander found it on this thread (I'm pretty sure). That could be
+made much better with docs, but we all know no one reads docs -- I'm
+willing to bet that even if we better document it, folks will still be
+writing utility functions like the OP posted.
+
+And  (this is also a doc issue) -- I wanted to know what the options were
+for units we could specify to the datetime constructor, so I used the nifty
+iPython ?, and got:
+
+In [59]: timedelta?
+
+Init signature: timedelta(self, /, *args, **kwargs)
+Docstring:      Difference between two datetime values.
+
+
+Gosh, that's helpful! (we really need to fix that regardless of this
+thread). And someone earlier mentioned "weeks" without realizing that is
+was already supported:
+
+In [60]: timedelta(weeks=1)
+
+Out[60]: datetime.timedelta(days=7)
+
+So we have a real discoverability problem -- we really need to fix that.
+
+On the other hand, if we add a few convenience methods, we will have a way
+for folks to do this that is:
+
+correct
+simple
+intuitive
+discoverable
+
+And we really don't need to add many. Looking at the docs ('cause the
+docstring is useless), I see that the timedelta takes:
+
+datetime.timedelta(days=0, seconds=0, microseconds=0, milliseconds=0,
+minutes=0, hours=0, weeks=0)
+
+So at most, we could have:
+
+.total_microseconds()
+.total_seconds()
+.total_minutes()
+.total_hours()
+.total_days()
+.total_weeks()
+
+Yes, I know that that's more code to write, maintain and document, but
+really, it will not take long to write, will take less work to document
+than the doc improvements we need anyway, and hardly any extra maintenance
+burden.
+
+(and the utility of weeks and minutes is questionable)
+
+BTW, why are these methods, rather than properties?
+
+Another option, is, of course, to add a:
+
+.to_unit() method that takes the above as strings. -- but unless we ar
+going to support a bunch more units than those six, I'd rather see the
+methods. And what would those others be? fortnights?
+
+I've made my case -- and maybe we won't do this. But let's please at least
+update the docstring of timedleta!
+
+-CHB
+
+
+[1] is it the best possible for microseconds? it returns a float, which can
+only carry 15 or so digits, which is "only" 300 or so years. So microsecond
+precision is lost for timedeltas representing longer than that -- does that
+matter ???
+
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/f9b7d90e/attachment.html>
+
+From chris.barker at noaa.gov  Tue Feb 26 19:07:03 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Tue, 26 Feb 2019 16:07:03 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <EFCB1F83-F408-48F4-86C6-2C38877504C1@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <57a58939-21a7-286c-09bb-e5a04172d06e@gmail.com>
+ <EFCB1F83-F408-48F4-86C6-2C38877504C1@python.org>
+Message-ID: <CALGmxEJ5GZpFea3T4h+udvcOLiz3y81SSxyjJUO-QXHM9J6n6w@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 3:25 PM Barry Warsaw <barry at python.org> wrote:
+
+> > Who gets to decide on PEP 394 changes?
+>
+> Honestly, I think it?s the active distro maintainers who need to make this
+> decision.  They have the pulse of their own communities and users, and can
+> make the best decisions and compromises for their constituents.  I
+> personally am not part of that any more, so I have no problem having no say
+> (despite still having opinions :).
+>
+
+The PEP is what the Python community recommends. The distro maintainers can
+(and will) do whatever they want. IF we are going to let the distros drive
+it, then there is no point to a the PEP.
+
+Well, why look for more dissent?  If you can align Homebrew, Fedora-et-al,
+> Debian-et-al, and we already know what Arch has done, and the PEP authors
+> are in agreement, isn't that enough to JFDI?
+
+
+more than enough :-)
+
+-CHB
+
+ -----
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/376dc401/attachment.html>
+
+From dinoviehland at gmail.com  Tue Feb 26 19:56:14 2019
+From: dinoviehland at gmail.com (Dino Viehland)
+Date: Tue, 26 Feb 2019 16:56:14 -0800
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <20190226235350.5c7unf6j7o5f7jwm@python.ca>
+References: <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGEgm-ot6y3ZNwRgCMrEEN82iiRceoixgf3v=wnMoFD0uA@mail.gmail.com>
+ <CA+3bQGHnopyzzmuf71nHg4pGgAq-P-BMJFLZ7JLqwekSgPY1UA@mail.gmail.com>
+ <CAFo6DPaxcr9gEb-wKi2nk4KuEM6mJnG99GVhnf-d6wdD8ONrjw@mail.gmail.com>
+ <5C75BE46.50905@canterbury.ac.nz> <20190226235350.5c7unf6j7o5f7jwm@python.ca>
+Message-ID: <CA+fnyjg-RLmj+Ymm=Si4Nrk_KatwbG2=yrnXYOZDMursXiPxhg@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 3:56 PM Neil Schemenauer <nas-python at arctrix.com>
+wrote:
+
+> Right.  I wonder though, could we avoid allocating the Python frame
+> object until we actually need it?  Two situations when you need a
+> heap allocated frame come to mind immediately: generators that are
+> suspended and frames as part of a traceback.  I guess
+> sys._getframe() is another.  Any more?
+>
+>
+I've been thinking about that as well...  I think in some ways the easy
+part of
+this is actually the easy part of this is the reification of the frame it's
+self.  You
+can have a PyFrameObject which is just declared on the stack and add a new
+field to it which captures the address of the PyFrameObject* f (e.g.
+PyFrameObject **f_stackaddr).  When you need to move to aheap allocated
+one you copy everything over as you say and update *f_stackaddr to point
+at the new heap address.
+
+It seems a little bit annoying with the various levels of indirection from
+the
+frame getting created in PyEval_EvalCodeEx and flowing down into
+_PyEval_EvalFrameDefault - so there may need to be some breakage there for
+certain low-level tools.  I'm also a little bit worried about things which
+go looking
+at PyThreadState and might make nasty assumptions about the frames already
+being heap allocated.
+
+FYI IronPython does support sys._getframe(), you just need to run it with a
+special flag (and there are various levels - e.g. -X:Frames and
+-X:FullFrames,
+the latter which guarantees your locals are in the frame too).  IronPython
+is more
+challenged here in that it always generates "safe" code from a CLR
+perspective
+and tracking the address of stack-allocated frame objects is therefore
+challenging (although maybe more possible now then before with various C#
+ref
+improvements).
+
+I'm not sure exactly how much this approach would get though...  It seems
+like
+the frame caches are pretty effective, and a lot of the cost of them is
+initializing
+them / decref'ing the things which are still alive in them.  But it doesn't
+seem a
+like a super complicated change to try out...  It's actually something I'd
+at least
+like to try prototyping at some point.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190226/8e39ff59/attachment-0001.html>
+
+From raymond.hettinger at gmail.com  Tue Feb 26 21:32:38 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Tue, 26 Feb 2019 18:32:38 -0800
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <20190226222814.ggzf6q3nk36bfzwx@python.ca>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <85C60B5A-A3CD-43F4-A38D-887576A01F8E@gmail.com>
+ <20190226222814.ggzf6q3nk36bfzwx@python.ca>
+Message-ID: <F69B4FA7-3587-4659-A031-BBE8C352B03A@gmail.com>
+
+On Feb 26, 2019, at 2:28 PM, Neil Schemenauer <nas-python at python.ca> wrote:
+> 
+> Are you compiling with --enable-optimizations (i.e. PGO)?  In my
+> experience, that is needed to get meaningful results.
+
+I'm not and I would worry that PGO would give less stable comparisons because it is highly sensitive to changes its training set as well as the actual CPython implementation (two moving targets instead of one).  That said, it doesn't really matter to the world how I build *my* Python.  We're trying to keep performant the ones that people actually use.  For the Mac, I think there are only four that matter:
+
+1) The one we distribute on the python.org 
+    website at https://www.python.org/ftp/python/3.8.0/python-3.8.0a2-macosx10.9.pkg
+
+2) The one installed by homebrew
+
+3) The way folks typically roll their own:
+	$ ./configure && make               (or some variant of make install)
+
+4) The one shipped by Apple and put in /usr/bin
+
+Of the four, the ones I've been timing are #1 and #3.
+
+I'm happy to drop this.  I was looking for independent confirmation and didn't get it. We can't move forward unless some else also observes a consistently measurable regression for a benchmark they care about on a build that they care about.  If I'm the only who notices then it really doesn't matter.  Also, it was reassuring to not see the same effect on a GCC-8 build.
+
+Since the effect seems to be compiler specific, it may be that we knocked it out of a local minimum and that performance will return the next time someone touches the eval-loop.
+
+
+Raymond  
+
+
+
+
+
+
+
+
+
+From tjreedy at udel.edu  Tue Feb 26 22:15:17 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Tue, 26 Feb 2019 22:15:17 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CALGmxELmBEXRKMMRBtKvozf82uqNBLpTwTyuUyCeUfPhsczFJQ@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+ <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+ <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+ <CAP7h-xb1SmaouhgnobQyvyPPchopBAw1RnbJeH==F4Au15+m3g@mail.gmail.com>
+ <CALGmxELmBEXRKMMRBtKvozf82uqNBLpTwTyuUyCeUfPhsczFJQ@mail.gmail.com>
+Message-ID: <q54vc7$2n8$1@blaine.gmane.org>
+
+On 2/26/2019 7:03 PM, Chris Barker via Python-Dev wrote:
+
+> So: it would be good to provide a correct, simple,? intuitive, and 
+> discoverable way to do that.
+> 
+> timedelta.total_seconds()
+
+To me, total_x implies that there is a summation of multiple timedeltas, 
+and there is not.  So not intuitive to me.  (Neither us current obscure 
+option).  It is also not obvious is answer is rounded to nearest second 
+or not.
+
+> 
+> So at most, we could have:
+> 
+> .total_microseconds()
+> .total_seconds()
+> .total_minutes()
+> .total_hours()
+> .total_days()
+> .total_weeks()
+
+I am also not enthusiastic about multiple methods doing essentially the 
+same thing.  I might prefer one method, .convert? with an argument 
+specifying the conversion unit, 'microseconds', 'seconds', ... . I think 
+this is in python-ideas territory.
+
+
+
+-- 
+Terry Jan Reedy
+
+
+
+From greg.ewing at canterbury.ac.nz  Wed Feb 27 00:09:57 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Wed, 27 Feb 2019 18:09:57 +1300
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <CA+3bQGEOc53H3VwnAj6Dy1o+txoc244AFnZJKTcWvQDJCg4G3w@mail.gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGGfZ6nRkKS==ArkK8FcZe_8xdrV_bmcaoHOWPpWKVzq5w@mail.gmail.com>
+ <5C75BE81.4060209@canterbury.ac.nz>
+ <CA+3bQGEOc53H3VwnAj6Dy1o+txoc244AFnZJKTcWvQDJCg4G3w@mail.gmail.com>
+Message-ID: <5C761BA5.4050702@canterbury.ac.nz>
+
+Victor Stinner wrote:
+> Using a different register may require an explicit "CLEAR_REG R1"
+> (decref the reference to the builtin range function) which is less
+> efficient.
+
+Maybe the source operand fields of the bytecodes could
+have a flag indicating whether to clear the register
+after use.
+
+-- 
+Greg
+
+From fred at fdrake.net  Wed Feb 27 00:57:08 2019
+From: fred at fdrake.net (Fred Drake)
+Date: Wed, 27 Feb 2019 00:57:08 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <q54vc7$2n8$1@blaine.gmane.org>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+ <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+ <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+ <CAP7h-xb1SmaouhgnobQyvyPPchopBAw1RnbJeH==F4Au15+m3g@mail.gmail.com>
+ <CALGmxELmBEXRKMMRBtKvozf82uqNBLpTwTyuUyCeUfPhsczFJQ@mail.gmail.com>
+ <q54vc7$2n8$1@blaine.gmane.org>
+Message-ID: <CAFT4OTG_obVBoO3x5K5zOvWUuSmWMEVUbMy87t-avAtf_Z1KhA@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 10:20 PM Terry Reedy <tjreedy at udel.edu> wrote:
+> To me, total_x implies that there is a summation of multiple timedeltas,
+> and there is not.
+
+Do you believe this is a particularly dominant perception?  I don't,
+but specific backgrounds probably play into this heavily.
+
+I'd expect to total a bunch of timedelta values using sum([d0, d1, ..., dn]).
+
+Given we already have total_seconds(), it's not clear avoiding
+additional methods is meaningful, unless we're going to deprecate
+total_seconds().  Not really a win in my book.
+
+I'd rather stick with the existing pattern, if anything even needs to
+be done.  I'm quite happy to use d.total_seconds() * 1000000 as long
+as the accuracy is sufficient.  Someone with more floating point
+expertise can probably think of a reason that's not good enough, in
+which case... an appropriate method wouldn't be poorly named as
+total_microseconds.
+
+> I might prefer one method, .convert? with an argument
+> specifying the conversion unit, 'microseconds', 'seconds', ... .
+
+Using a function that takes a units indicator (as
+d.convert(units='microseconds')) seems like a poor choice; most uses
+will hard-code exactly one value for the units, rather than passing in
+a variable.  Getting a more specific name seems reasonable.
+
+> It is also not obvious is answer is rounded to nearest second
+> or not.
+
+No, but that's a problem we have now with total_seconds().  Best
+handled by maintaining the pattern and documenting the behavior.
+While fractional microseconds aren't a thing with timedelta values now
+(and probably not in any near future), it seems good to keep these
+floats so things stay consistent if we can ever get better clocks.
+:-)
+
+
+  -Fred
+
+-- 
+Fred L. Drake, Jr.    <fred at fdrake.net>
+"A storm broke loose in my mind."  --Albert Einstein
+
+From liu.denton at gmail.com  Wed Feb 27 01:40:56 2019
+From: liu.denton at gmail.com (Denton Liu)
+Date: Tue, 26 Feb 2019 22:40:56 -0800
+Subject: [Python-Dev] [bpo-35155] Requesting a review
+In-Reply-To: <20190212101455.GA29427@archbookpro.localdomain>
+References: <20190212101455.GA29427@archbookpro.localdomain>
+Message-ID: <20190227064056.GA2611@archbookpro.localdomain>
+
+On Tue, Feb 12, 2019 at 02:14:55AM -0800, Denton Liu wrote:
+> Hello all,
+> 
+> A couple months back, I reported bpo-35155[1] and I submitted a PR for
+> consideration[2]. After a couple of reviews, it seems like progress has
+> stalled. Would it be possible for someone to review this?
+> 
+> Thanks,
+> 
+> Denton
+> 
+> [1]: https://bugs.python.org/issue35155
+> [2]: https://github.com/python/cpython/pull/10313
+
+Thanks for the comments and help on the PR!
+
+It seems like progress on this change has stalled again. If there aren't
+anymore comments, I believe that this PR is ready to be merged.
+
+Thanks,
+
+Denton
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Wed Feb 27 02:51:55 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Wed, 27 Feb 2019 16:51:55 +0900
+Subject: [Python-Dev] Possible performance regression
+In-Reply-To: <F69B4FA7-3587-4659-A031-BBE8C352B03A@gmail.com>
+References: <074113AA-3CC2-40EB-956A-26FC26852D9C@gmail.com>
+ <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <85C60B5A-A3CD-43F4-A38D-887576A01F8E@gmail.com>
+ <20190226222814.ggzf6q3nk36bfzwx@python.ca>
+ <F69B4FA7-3587-4659-A031-BBE8C352B03A@gmail.com>
+Message-ID: <23670.16795.261480.762802@turnbull.sk.tsukuba.ac.jp>
+
+Raymond Hettinger writes:
+
+ > We're trying to keep performant the ones that people actually use.
+ > For the Mac, I think there are only four that matter:
+ > 
+ > 1) The one we distribute on the python.org 
+ >     website at https://www.python.org/ftp/python/3.8.0/python-3.8.0a2-macosx10.9.pkg
+ > 
+ > 2) The one installed by homebrew
+ > 
+ > 3) The way folks typically roll their own:
+ > 	$ ./configure && make               (or some variant of make install)
+ > 
+ > 4) The one shipped by Apple and put in /usr/bin
+
+I don't see the relevance of (4) since we're talking about the
+bleeding edge AFAICT.  Not clear about Homebrew -- since I've been
+experimenting with it recently I use the bottled versions, which
+aren't bleeding edge.
+
+If prebuilt packages matter, I would add MacPorts (or substitute it
+for (4) since nothing seems to get Apple's attention) and Anaconda
+(which is what I recommend to my students).  But I haven't looked at
+MacPorts' recent download stats, and maybe I'm just the odd one out.
+
+Steve
+
+
+-- 
+Associate Professor              Division of Policy and Planning Science
+http://turnbull.sk.tsukuba.ac.jp/     Faculty of Systems and Information
+Email: turnbull at sk.tsukuba.ac.jp                   University of Tsukuba
+Tel: 029-853-5175                 Tennodai 1-1-1, Tsukuba 305-8573 JAPAN
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Wed Feb 27 02:52:14 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Wed, 27 Feb 2019 16:52:14 +0900
+Subject: [Python-Dev] Compile-time resolution of packages [Was: Another
+ update for PEP 394...]
+In-Reply-To: <13E7CBC6-7AE3-4DDB-AFAE-052E3A611BB5@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+ <20190226220418.b36jw33qthdv5i5l@python.ca>
+ <13E7CBC6-7AE3-4DDB-AFAE-052E3A611BB5@python.org>
+Message-ID: <23670.16814.299522.808358@turnbull.sk.tsukuba.ac.jp>
+
+Barry Warsaw writes:
+
+ >`/usr/bin/env python` is great for development and terrible for deployment. 
+
+Developers of `six` and `2to3`, you mean?<duck_/>
+
+Steve
+
