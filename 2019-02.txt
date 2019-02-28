@@ -19124,3 +19124,1823 @@ Developers of `six` and `2to3`, you mean?<duck_/>
 
 Steve
 
+From songofacandy at gmail.com  Wed Feb 27 03:59:57 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Wed, 27 Feb 2019 17:59:57 +0900
+Subject: [Python-Dev] mmap & munmap loop (Was:  Compact ordered set
+In-Reply-To: <CA+3bQGHaPadhQJ3WqW_sbsywPRGkdYPxfoh9Rm3da0nfZB1dSQ@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <CA+3bQGE9spzqMM6MpDfuhdT5W=UfS-SmCih_akn_iVFFSY0vrQ@mail.gmail.com>
+ <CAEfz+Twg+zV71uk0XCFiXm5JQbhGvOqA_p6CPARagB67Ne=T1A@mail.gmail.com>
+ <CA+3bQGHaPadhQJ3WqW_sbsywPRGkdYPxfoh9Rm3da0nfZB1dSQ@mail.gmail.com>
+Message-ID: <CAEfz+TztN+tzhE85JR=QCT32Vc-uU3S_3VQyOcebbc_R5iq=OA@mail.gmail.com>
+
+>
+> > Ah, another interesting point, this huge slowdown happens only when
+bm_pickle.py
+> > is executed through pyperformance.  When run it directly, slowdown is
+> > not so large.
+>
+> pyperformance runs benchmarks in a virtual environment. I don't know
+> if it has any impact on bm_pickle.
+>
+> Most pyperformance can be run outside a virtual env if required
+> modules are installed on the system. (bm_pickle only requires the
+> stdlib and perf.)
+>
+
+Bingo!
+
+Without venv:
+
+unpickle: Mean +- std dev: 26.9 us +- 0.0 us
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 28.78    0.000438           0      1440           read
+ 27.33    0.000416           1       440        25 stat
+  9.72    0.000148           1       144           mmap
+...
+  0.79    0.000012           1        11           munmap
+
+With venv:
+
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 57.12    0.099023           2     61471           munmap
+ 41.87    0.072580           1     61618           mmap
+  0.23    0.000395           1       465        27 stat
+
+unpickle and unpickle_list creates massive same-sized objects, then all
+objects are
+removed.  If all pools in the arena is freed, munmap is called.
+
+I think we should save some arenas to reuse.  On recent Linux,
+we may be able to use MADV_FREE instead of munmap.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/b0c5b6d7/attachment.html>
+
+From steve at holdenweb.com  Wed Feb 27 04:32:25 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Wed, 27 Feb 2019 09:32:25 +0000
+Subject: [Python-Dev] Compile-time resolution of packages [Was: Another
+ update for PEP 394...]
+In-Reply-To: <20190226220418.b36jw33qthdv5i5l@python.ca>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+ <20190226220418.b36jw33qthdv5i5l@python.ca>
+Message-ID: <CAMofdRAZ-7nRZUGA+xWvDu=BbirvYi98fw-59qCdTWDzmD_N5w@mail.gmail.com>
+
+While these are interesting ideas, wouldn't it be better to leave this kind
+of packaging to snap and similar utilities that bundle the language support
+and libraries to allow simple isolated installation.
+
+Kind regards
+Steve Holden
+
+
+On Tue, Feb 26, 2019 at 10:05 PM Neil Schemenauer <nas-python at arctrix.com>
+wrote:
+
+> On 2019-02-26, Gregory P. Smith wrote:
+> > On Tue, Feb 26, 2019 at 9:55 AM Barry Warsaw <barry at python.org> wrote:
+> > For an OS distro provided interpreter, being able to restrict its use to
+> > only OS distro provided software would be ideal (so ideal that people who
+> > haven't learned the hard distro maintenance lessons may hate me for it).
+>
+> Interesting idea.  I remember when I was helping develop Debian
+> packaging guides for Python software.   I had to fight with people
+> to convince them that Debian packages should use
+>
+>     #!/usr/bin/pythonX.Y
+>
+> rather than
+>
+>     #!/usr/bin/env python
+>
+> The situtation is much better now but I still sometimes have
+> packaged software fail because it picks up my version of
+> /usr/local/bin/python.  I don't understand how people can believe
+> grabbing /usr/local/bin/python is going to be a way to build a
+> reliable system.
+>
+> > Such a restriction could be implemented within the interpreter itself.
+> For
+> > example: Say that only this set of fully qualified path whitelisted .py
+> > files are allowed to invoke it, with no interactive, stdin, or command
+> line
+> > "-c" use allowed.
+>
+> I think this is related to an idea I was tinkering with on the
+> weekend.  Why shouldn't we do more compile time linkage of Python
+> packages?  At least, I think we give people the option to do it.
+> Obviously you still need to also support run-time import search
+> (interactive REPL, support __import__(unknown_at_compiletime)__).
+>
+> Here is the sketch of the idea (probably half-baked, as most of my
+> ideas are):
+>
+> - add PYTHONPACKAGES envvar and -p options to 'python'
+>
+> - the argument for these options would be a colon separated list of
+>   Python package archives (crates, bales, bundles?).  The -p option
+>   could be a colon separated list or provided multiple times to
+>   specify more packages.
+>
+> - the modules/packages contained in those archives become the
+>   preferred bytecode code source when those names are imported.  We
+>   look there first.  The crawling around behavor (dynamic import
+>   based on sys.path) happens only if a module is not found and could
+>   be turned off.
+>
+> - the linking of the modules could be computed when the code is
+>   compiled and the package archive created, rather than when the
+>   'import' statement gets executed.  This would provide a number of
+>   advantages.  It would be faster.  Code analysis tools could
+>   statically determine which modules imported code corresponds too.
+>   E.g. if your code calls module.foo, assuming no monkey patching,
+>   you know what code 'foo' actually is.
+>
+> - to get extra fancy, the package archives could be dynamic
+>   link libraries containing "frozen modules" like this FB experiment:
+>   https://github.com/python/cpython/pull/9320
+>   That way, you avoid the unmarshal step and just execute the module
+>   bytecode directly.  On startup, Python would dlopen all of the
+>   package archives specified by PYTHONPACKAGES.  On init, it would
+>   build an index of the package tree and it would have the memory
+>   location for the code object for each module.
+>
+> That would seem like quite a useful thing.  For an application like
+> Mercurial, they could build all the modules/packages required into a
+> single package archive.  Or, there would be a small number of
+> archives (one for standard Python library, one for everything else
+> that Mercurial needs).
+>
+> Now that I write this, it sounds a lot like the debate between
+> static linking and dynamic linking.  Golang does static linking and
+> people seem to like the single executable distribution.
+>
+> Regards,
+>
+>   Neil
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/6ba16d06/attachment-0001.html>
+
+From vstinner at redhat.com  Wed Feb 27 05:32:35 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 27 Feb 2019 11:32:35 +0100
+Subject: [Python-Dev] mmap & munmap loop (Was:  Compact ordered set
+In-Reply-To: <CAEfz+TztN+tzhE85JR=QCT32Vc-uU3S_3VQyOcebbc_R5iq=OA@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <CA+3bQGE9spzqMM6MpDfuhdT5W=UfS-SmCih_akn_iVFFSY0vrQ@mail.gmail.com>
+ <CAEfz+Twg+zV71uk0XCFiXm5JQbhGvOqA_p6CPARagB67Ne=T1A@mail.gmail.com>
+ <CA+3bQGHaPadhQJ3WqW_sbsywPRGkdYPxfoh9Rm3da0nfZB1dSQ@mail.gmail.com>
+ <CAEfz+TztN+tzhE85JR=QCT32Vc-uU3S_3VQyOcebbc_R5iq=OA@mail.gmail.com>
+Message-ID: <CA+3bQGEU5w-87S7t9hK1Tn=9KMQ1h5g_yaJL75rnvvQ5NO_5Zg@mail.gmail.com>
+
+Any idea why Python calls mmap+munmap more even in a venv?
+
+Victor
+
+Le mer. 27 f?vr. 2019 ? 10:00, INADA Naoki <songofacandy at gmail.com> a ?crit :
+>
+> >
+> > > Ah, another interesting point, this huge slowdown happens only when bm_pickle.py
+> > > is executed through pyperformance.  When run it directly, slowdown is
+> > > not so large.
+> >
+> > pyperformance runs benchmarks in a virtual environment. I don't know
+> > if it has any impact on bm_pickle.
+> >
+> > Most pyperformance can be run outside a virtual env if required
+> > modules are installed on the system. (bm_pickle only requires the
+> > stdlib and perf.)
+> >
+>
+> Bingo!
+>
+> Without venv:
+>
+> unpickle: Mean +- std dev: 26.9 us +- 0.0 us
+> % time     seconds  usecs/call     calls    errors syscall
+> ------ ----------- ----------- --------- --------- ----------------
+>  28.78    0.000438           0      1440           read
+>  27.33    0.000416           1       440        25 stat
+>   9.72    0.000148           1       144           mmap
+> ...
+>   0.79    0.000012           1        11           munmap
+>
+> With venv:
+>
+> % time     seconds  usecs/call     calls    errors syscall
+> ------ ----------- ----------- --------- --------- ----------------
+>  57.12    0.099023           2     61471           munmap
+>  41.87    0.072580           1     61618           mmap
+>   0.23    0.000395           1       465        27 stat
+>
+> unpickle and unpickle_list creates massive same-sized objects, then all objects are
+> removed.  If all pools in the arena is freed, munmap is called.
+>
+> I think we should save some arenas to reuse.  On recent Linux,
+> we may be able to use MADV_FREE instead of munmap.
+>
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Wed Feb 27 05:50:59 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 27 Feb 2019 11:50:59 +0100
+Subject: [Python-Dev] mmap & munmap loop (Was:  Compact ordered set
+In-Reply-To: <CA+3bQGEU5w-87S7t9hK1Tn=9KMQ1h5g_yaJL75rnvvQ5NO_5Zg@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <CA+3bQGE9spzqMM6MpDfuhdT5W=UfS-SmCih_akn_iVFFSY0vrQ@mail.gmail.com>
+ <CAEfz+Twg+zV71uk0XCFiXm5JQbhGvOqA_p6CPARagB67Ne=T1A@mail.gmail.com>
+ <CA+3bQGHaPadhQJ3WqW_sbsywPRGkdYPxfoh9Rm3da0nfZB1dSQ@mail.gmail.com>
+ <CAEfz+TztN+tzhE85JR=QCT32Vc-uU3S_3VQyOcebbc_R5iq=OA@mail.gmail.com>
+ <CA+3bQGEU5w-87S7t9hK1Tn=9KMQ1h5g_yaJL75rnvvQ5NO_5Zg@mail.gmail.com>
+Message-ID: <CA+3bQGF7sBJDD7C46E2Ot60ONWQGgdUotBCrZwVvw=vgQ88zaA@mail.gmail.com>
+
+Sorry, I didn't get a coffee yet: more *often* in a venv.
+
+Le mer. 27 f?vr. 2019 ? 11:32, Victor Stinner <vstinner at redhat.com> a ?crit :
+>
+> Any idea why Python calls mmap+munmap more even in a venv?
+>
+> Victor
+>
+> Le mer. 27 f?vr. 2019 ? 10:00, INADA Naoki <songofacandy at gmail.com> a ?crit :
+> >
+> > >
+> > > > Ah, another interesting point, this huge slowdown happens only when bm_pickle.py
+> > > > is executed through pyperformance.  When run it directly, slowdown is
+> > > > not so large.
+> > >
+> > > pyperformance runs benchmarks in a virtual environment. I don't know
+> > > if it has any impact on bm_pickle.
+> > >
+> > > Most pyperformance can be run outside a virtual env if required
+> > > modules are installed on the system. (bm_pickle only requires the
+> > > stdlib and perf.)
+> > >
+> >
+> > Bingo!
+> >
+> > Without venv:
+> >
+> > unpickle: Mean +- std dev: 26.9 us +- 0.0 us
+> > % time     seconds  usecs/call     calls    errors syscall
+> > ------ ----------- ----------- --------- --------- ----------------
+> >  28.78    0.000438           0      1440           read
+> >  27.33    0.000416           1       440        25 stat
+> >   9.72    0.000148           1       144           mmap
+> > ...
+> >   0.79    0.000012           1        11           munmap
+> >
+> > With venv:
+> >
+> > % time     seconds  usecs/call     calls    errors syscall
+> > ------ ----------- ----------- --------- --------- ----------------
+> >  57.12    0.099023           2     61471           munmap
+> >  41.87    0.072580           1     61618           mmap
+> >   0.23    0.000395           1       465        27 stat
+> >
+> > unpickle and unpickle_list creates massive same-sized objects, then all objects are
+> > removed.  If all pools in the arena is freed, munmap is called.
+> >
+> > I think we should save some arenas to reuse.  On recent Linux,
+> > we may be able to use MADV_FREE instead of munmap.
+> >
+>
+>
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From songofacandy at gmail.com  Wed Feb 27 06:35:58 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Wed, 27 Feb 2019 20:35:58 +0900
+Subject: [Python-Dev] mmap & munmap loop (Was:  Compact ordered set
+In-Reply-To: <CA+3bQGF7sBJDD7C46E2Ot60ONWQGgdUotBCrZwVvw=vgQ88zaA@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <CA+3bQGE9spzqMM6MpDfuhdT5W=UfS-SmCih_akn_iVFFSY0vrQ@mail.gmail.com>
+ <CAEfz+Twg+zV71uk0XCFiXm5JQbhGvOqA_p6CPARagB67Ne=T1A@mail.gmail.com>
+ <CA+3bQGHaPadhQJ3WqW_sbsywPRGkdYPxfoh9Rm3da0nfZB1dSQ@mail.gmail.com>
+ <CAEfz+TztN+tzhE85JR=QCT32Vc-uU3S_3VQyOcebbc_R5iq=OA@mail.gmail.com>
+ <CA+3bQGEU5w-87S7t9hK1Tn=9KMQ1h5g_yaJL75rnvvQ5NO_5Zg@mail.gmail.com>
+ <CA+3bQGF7sBJDD7C46E2Ot60ONWQGgdUotBCrZwVvw=vgQ88zaA@mail.gmail.com>
+Message-ID: <CAEfz+Txyb+v9+JXGb=9DG-Xh3cemNsYOR05g4wxw1trAaBO1ug@mail.gmail.com>
+
+It happened very accidentally.  Since venv is used,
+many paths in the interpreter is changed.  So how memory
+is used are changed.
+
+Let's reproduce the accident.
+
+$ cat m2.py
+import pickle, sys
+
+LIST = pickle.dumps([[0]*10 for _ in range(10)], pickle.HIGHEST_PROTOCOL)
+
+N = 1000
+z = [[0]*10 for _ in range(N)]
+
+if '-c' in sys.argv:
+    sys._debugmallocstats()
+    sys.exit()
+
+for _ in range(100000):
+    pickle.loads(LIST)
+
+$ /usr/bin/time python3 m2.py
+0.42user 0.00system 0:00.43elapsed 99%CPU (0avgtext+0avgdata
+9100maxresident)k
+0inputs+0outputs (0major+1139minor)pagefaults 0swaps
+
+There are only 1139 faults.  It is less than 100000.
+
+$ /usr/bin/time python3 m2.py -c
+...
+14 unused pools * 4096 bytes       =               57,344
+...
+
+adjust N im m2.py until it shows "0 unused pools".
+In my case, N=1390.
+
+$ /usr/bin/time python3 m2.py
+0.51user 0.33system 0:00.85elapsed 99%CPU (0avgtext+0avgdata
+9140maxresident)k
+0inputs+0outputs (0major+201149minor)pagefaults 0swaps
+
+200000 faults!
+It seems two page fault / loop.  (2 pools are used and returned).
+
+
+On Wed, Feb 27, 2019 at 7:51 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Sorry, I didn't get a coffee yet: more *often* in a venv.
+>
+> Le mer. 27 f?vr. 2019 ? 11:32, Victor Stinner <vstinner at redhat.com> a
+> ?crit :
+> >
+> > Any idea why Python calls mmap+munmap more even in a venv?
+> >
+> > Victor
+> >
+> > Le mer. 27 f?vr. 2019 ? 10:00, INADA Naoki <songofacandy at gmail.com> a
+> ?crit :
+> > >
+> > > >
+> > > > > Ah, another interesting point, this huge slowdown happens only
+> when bm_pickle.py
+> > > > > is executed through pyperformance.  When run it directly, slowdown
+> is
+> > > > > not so large.
+> > > >
+> > > > pyperformance runs benchmarks in a virtual environment. I don't know
+> > > > if it has any impact on bm_pickle.
+> > > >
+> > > > Most pyperformance can be run outside a virtual env if required
+> > > > modules are installed on the system. (bm_pickle only requires the
+> > > > stdlib and perf.)
+> > > >
+> > >
+> > > Bingo!
+> > >
+> > > Without venv:
+> > >
+> > > unpickle: Mean +- std dev: 26.9 us +- 0.0 us
+> > > % time     seconds  usecs/call     calls    errors syscall
+> > > ------ ----------- ----------- --------- --------- ----------------
+> > >  28.78    0.000438           0      1440           read
+> > >  27.33    0.000416           1       440        25 stat
+> > >   9.72    0.000148           1       144           mmap
+> > > ...
+> > >   0.79    0.000012           1        11           munmap
+> > >
+> > > With venv:
+> > >
+> > > % time     seconds  usecs/call     calls    errors syscall
+> > > ------ ----------- ----------- --------- --------- ----------------
+> > >  57.12    0.099023           2     61471           munmap
+> > >  41.87    0.072580           1     61618           mmap
+> > >   0.23    0.000395           1       465        27 stat
+> > >
+> > > unpickle and unpickle_list creates massive same-sized objects, then
+> all objects are
+> > > removed.  If all pools in the arena is freed, munmap is called.
+> > >
+> > > I think we should save some arenas to reuse.  On recent Linux,
+> > > we may be able to use MADV_FREE instead of munmap.
+> > >
+> >
+> >
+> > --
+> > Night gathers, and now my watch begins. It shall not end until my death.
+>
+>
+>
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+>
+
+
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/a2af3f79/attachment.html>
+
+From vstinner at redhat.com  Wed Feb 27 07:59:16 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 27 Feb 2019 13:59:16 +0100
+Subject: [Python-Dev] mmap & munmap loop (Was:  Compact ordered set
+In-Reply-To: <CAEfz+Txyb+v9+JXGb=9DG-Xh3cemNsYOR05g4wxw1trAaBO1ug@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <CA+3bQGE9spzqMM6MpDfuhdT5W=UfS-SmCih_akn_iVFFSY0vrQ@mail.gmail.com>
+ <CAEfz+Twg+zV71uk0XCFiXm5JQbhGvOqA_p6CPARagB67Ne=T1A@mail.gmail.com>
+ <CA+3bQGHaPadhQJ3WqW_sbsywPRGkdYPxfoh9Rm3da0nfZB1dSQ@mail.gmail.com>
+ <CAEfz+TztN+tzhE85JR=QCT32Vc-uU3S_3VQyOcebbc_R5iq=OA@mail.gmail.com>
+ <CA+3bQGEU5w-87S7t9hK1Tn=9KMQ1h5g_yaJL75rnvvQ5NO_5Zg@mail.gmail.com>
+ <CA+3bQGF7sBJDD7C46E2Ot60ONWQGgdUotBCrZwVvw=vgQ88zaA@mail.gmail.com>
+ <CAEfz+Txyb+v9+JXGb=9DG-Xh3cemNsYOR05g4wxw1trAaBO1ug@mail.gmail.com>
+Message-ID: <CA+3bQGHK6JXOdP-PjsGu7npaQMaL0RnwHKAdKSOegYLDLuHJ3A@mail.gmail.com>
+
+Maybe pickle is inefficient in its memory management and causes a lot
+of memory fragmentation?
+
+It's hard to write an efficient memory allocator :-( My notes on memory:
+
+* "Excessive peak memory consumption by the Python parser"
+   https://bugs.python.org/issue26415
+* https://pythondev.readthedocs.io/memory.html
+* https://vstinner.readthedocs.io/heap_fragmentation.html
+
+Sometimes I would like to be able to use a separated memory allocator
+for one function, to not pollute the global allocator and so avoid
+"punching holes" in global memory pools or in the heap memory. The
+problem is to track the lifetime of objects. If the allocated objects
+live longer than the function, PyObject_Free() should be able to find
+the alllocator used by the memory block. pymalloc is already able to
+check if its manages a memory block using its address. If it's not
+allocated by pymalloc, PyObject_Free() falls back to libc free().
+
+The Python parser already uses PyArena which is a custom memory
+allocator. It uses PyMem_Malloc() to allocate memory. In Python 3.7,
+PyMem_Malloc() uses pymalloc:
+https://docs.python.org/dev/c-api/memory.html#default-memory-allocators
+
+Victor
+
+Le mer. 27 f?vr. 2019 ? 12:36, INADA Naoki <songofacandy at gmail.com> a ?crit :
+>
+> It happened very accidentally.  Since venv is used,
+> many paths in the interpreter is changed.  So how memory
+> is used are changed.
+>
+> Let's reproduce the accident.
+>
+> $ cat m2.py
+> import pickle, sys
+>
+> LIST = pickle.dumps([[0]*10 for _ in range(10)], pickle.HIGHEST_PROTOCOL)
+>
+> N = 1000
+> z = [[0]*10 for _ in range(N)]
+>
+> if '-c' in sys.argv:
+>     sys._debugmallocstats()
+>     sys.exit()
+>
+> for _ in range(100000):
+>     pickle.loads(LIST)
+>
+> $ /usr/bin/time python3 m2.py
+> 0.42user 0.00system 0:00.43elapsed 99%CPU (0avgtext+0avgdata 9100maxresident)k
+> 0inputs+0outputs (0major+1139minor)pagefaults 0swaps
+>
+> There are only 1139 faults.  It is less than 100000.
+>
+> $ /usr/bin/time python3 m2.py -c
+> ...
+> 14 unused pools * 4096 bytes       =               57,344
+> ...
+>
+> adjust N im m2.py until it shows "0 unused pools".
+> In my case, N=1390.
+>
+> $ /usr/bin/time python3 m2.py
+> 0.51user 0.33system 0:00.85elapsed 99%CPU (0avgtext+0avgdata 9140maxresident)k
+> 0inputs+0outputs (0major+201149minor)pagefaults 0swaps
+>
+> 200000 faults!
+> It seems two page fault / loop.  (2 pools are used and returned).
+>
+>
+> On Wed, Feb 27, 2019 at 7:51 PM Victor Stinner <vstinner at redhat.com> wrote:
+>>
+>> Sorry, I didn't get a coffee yet: more *often* in a venv.
+>>
+>> Le mer. 27 f?vr. 2019 ? 11:32, Victor Stinner <vstinner at redhat.com> a ?crit :
+>> >
+>> > Any idea why Python calls mmap+munmap more even in a venv?
+>> >
+>> > Victor
+>> >
+>> > Le mer. 27 f?vr. 2019 ? 10:00, INADA Naoki <songofacandy at gmail.com> a ?crit :
+>> > >
+>> > > >
+>> > > > > Ah, another interesting point, this huge slowdown happens only when bm_pickle.py
+>> > > > > is executed through pyperformance.  When run it directly, slowdown is
+>> > > > > not so large.
+>> > > >
+>> > > > pyperformance runs benchmarks in a virtual environment. I don't know
+>> > > > if it has any impact on bm_pickle.
+>> > > >
+>> > > > Most pyperformance can be run outside a virtual env if required
+>> > > > modules are installed on the system. (bm_pickle only requires the
+>> > > > stdlib and perf.)
+>> > > >
+>> > >
+>> > > Bingo!
+>> > >
+>> > > Without venv:
+>> > >
+>> > > unpickle: Mean +- std dev: 26.9 us +- 0.0 us
+>> > > % time     seconds  usecs/call     calls    errors syscall
+>> > > ------ ----------- ----------- --------- --------- ----------------
+>> > >  28.78    0.000438           0      1440           read
+>> > >  27.33    0.000416           1       440        25 stat
+>> > >   9.72    0.000148           1       144           mmap
+>> > > ...
+>> > >   0.79    0.000012           1        11           munmap
+>> > >
+>> > > With venv:
+>> > >
+>> > > % time     seconds  usecs/call     calls    errors syscall
+>> > > ------ ----------- ----------- --------- --------- ----------------
+>> > >  57.12    0.099023           2     61471           munmap
+>> > >  41.87    0.072580           1     61618           mmap
+>> > >   0.23    0.000395           1       465        27 stat
+>> > >
+>> > > unpickle and unpickle_list creates massive same-sized objects, then all objects are
+>> > > removed.  If all pools in the arena is freed, munmap is called.
+>> > >
+>> > > I think we should save some arenas to reuse.  On recent Linux,
+>> > > we may be able to use MADV_FREE instead of munmap.
+>> > >
+>> >
+>> >
+>> > --
+>> > Night gathers, and now my watch begins. It shall not end until my death.
+>>
+>>
+>>
+>> --
+>> Night gathers, and now my watch begins. It shall not end until my death.
+>
+>
+>
+> --
+> INADA Naoki  <songofacandy at gmail.com>
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From lukasz at langa.pl  Wed Feb 27 08:22:51 2019
+From: lukasz at langa.pl (=?utf-8?Q?=C5=81ukasz_Langa?=)
+Date: Wed, 27 Feb 2019 14:22:51 +0100
+Subject: [Python-Dev] Announcing: signups are open for the 2019 Python
+ Language Summit
+Message-ID: <DB43E0A7-81A2-4576-B92B-2A9CFE6E6865@langa.pl>
+
+The Python Language Summit is an event for the developers of Python
+implementations (CPython, PyPy, Jython, and so on) to share information,
+discuss our shared problems, and ? hopefully ? solve them.
+
+These issues might be related to the language itself, the standard
+library, the development process, status of Python 3.8 (or plans for
+3.9), the documentation, packaging, the website, et cetera. The Summit
+focuses on discussion more than on presentations.
+
+If you?d like to attend **and actively participate** in the discussions
+during the Language Summit, please fill in this form by March 21st 2019:
+
+https://goo.gl/forms/pexfOGDjpV0BWMer2
+
+We will be evaluating all applications and confirm your attendance by
+April 15th. Note: **your attendance is not confirmed** until you heard
+back from us.  You don't need to be registered for PyCon in order to
+attend the summit.
+
+One of the goals of the Language Summit is to speed up the discussions
+and decision making process. Communication over Discourse (or mailing
+lists!) is generally more time consuming. As part of efforts to make
+this event more open and less mysterious, we are not requiring
+invitations by core developers anymore.
+
+However, please understand that we will have to be selective as space
+and time are limited. In particular, we are prioritizing active core
+contributors, as well as those who we believe will be able to improve
+the quality of the discussions at the event and bring a more diverse
+perspective to core Python developers.
+
+As for other changes this year, A. Jesse Jiryu Davis will be covering
+the event and will post a detailed write up on the official blog of the
+PSF shortly after the conference.
+
+We hope to see you at the Summit!
+- Mariatta and ?ukasz
+
+PS. If you have any questions, the Users section of our Discourse
+instance (https://discuss.python.org/c/users) is the best place to ask.
+For private communication, write to mariatta at python.org and/or
+lukasz at python.org.
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/0d383607/attachment.sig>
+
+From songofacandy at gmail.com  Wed Feb 27 08:29:48 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Wed, 27 Feb 2019 22:29:48 +0900
+Subject: [Python-Dev] mmap & munmap loop (Was:  Compact ordered set
+In-Reply-To: <CA+3bQGHK6JXOdP-PjsGu7npaQMaL0RnwHKAdKSOegYLDLuHJ3A@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <CA+3bQGE9spzqMM6MpDfuhdT5W=UfS-SmCih_akn_iVFFSY0vrQ@mail.gmail.com>
+ <CAEfz+Twg+zV71uk0XCFiXm5JQbhGvOqA_p6CPARagB67Ne=T1A@mail.gmail.com>
+ <CA+3bQGHaPadhQJ3WqW_sbsywPRGkdYPxfoh9Rm3da0nfZB1dSQ@mail.gmail.com>
+ <CAEfz+TztN+tzhE85JR=QCT32Vc-uU3S_3VQyOcebbc_R5iq=OA@mail.gmail.com>
+ <CA+3bQGEU5w-87S7t9hK1Tn=9KMQ1h5g_yaJL75rnvvQ5NO_5Zg@mail.gmail.com>
+ <CA+3bQGF7sBJDD7C46E2Ot60ONWQGgdUotBCrZwVvw=vgQ88zaA@mail.gmail.com>
+ <CAEfz+Txyb+v9+JXGb=9DG-Xh3cemNsYOR05g4wxw1trAaBO1ug@mail.gmail.com>
+ <CA+3bQGHK6JXOdP-PjsGu7npaQMaL0RnwHKAdKSOegYLDLuHJ3A@mail.gmail.com>
+Message-ID: <CAEfz+TxkS2-LV84BTmRJK2gbyfQr=7Gz-UHC8EgQ=0yH4FchXw@mail.gmail.com>
+
+On Wed, Feb 27, 2019 at 9:59 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Maybe pickle is inefficient in its memory management and causes a lot
+> of memory fragmentation?
+>
+
+No, it is not relating to pickle efficiency and memory fragmentation.
+This problem is happened because pymalloc doesn't have no hysteresis
+between map & unmap arenas.
+Any workload creating some objects and release them soon may affected
+by this problem.
+
+When there are no free pool, pymalloc use  mmap to create new arena (256KB).
+pymalloc allocates new pools (= pages) from the arena.  It cause minor
+fault.
+Linux allocates real memory to the page and RSS is increased.
+
+Then, when all objects newly created in the pool are destroyed, all pools
+in the
+arena are free.  pymalloc calls munmap() soon.
+
+unpickle can be affected by this problem than pure Python because:
+
+* unpickle is creating Python objects quickly.  fault overhead is
+relatively large.
+* Python code may creates junk memory block (e.g. cached frame object,
+freeslot, etc)
+  but C pickle code doesn't creates such junks.  So newly allocated pools
+are
+  freed very easily.
+
+I think this issue can be avoided easily.  When arena is empty but the arena
+is head of usable_arenas, don't call munmap for it.
+I confirmed m2.py can't reproduce the issue with this patch.
+
+diff --git a/Objects/obmalloc.c b/Objects/obmalloc.c
+index 1c2a32050f..a19b3aca06 100644
+--- a/Objects/obmalloc.c
++++ b/Objects/obmalloc.c
+@@ -1672,7 +1672,7 @@ pymalloc_free(void *ctx, void *p)
+      *    nfreepools.
+      * 4. Else there's nothing more to do.
+      */
+-    if (nf == ao->ntotalpools) {
++    if (nf == ao->ntotalpools && ao != usable_arenas) {
+         /* Case 1.  First unlink ao from usable_arenas.
+          */
+         assert(ao->prevarena == NULL ||
+
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/8585061b/attachment-0001.html>
+
+From lukasz at langa.pl  Wed Feb 27 08:37:04 2019
+From: lukasz at langa.pl (=?utf-8?Q?=C5=81ukasz_Langa?=)
+Date: Wed, 27 Feb 2019 14:37:04 +0100
+Subject: [Python-Dev] [python-committers] Announcing: signups are open
+ for the 2019 Python Language Summit
+In-Reply-To: <DB43E0A7-81A2-4576-B92B-2A9CFE6E6865@langa.pl>
+References: <DB43E0A7-81A2-4576-B92B-2A9CFE6E6865@langa.pl>
+Message-ID: <6EA254C2-B893-48D8-9FE7-7BF73012E392@langa.pl>
+
+
+> On 27 Feb 2019, at 14:22, ?ukasz Langa <lukasz at langa.pl> wrote:
+> 
+> The Python Language Summit is an event for the developers of Python
+> implementations (CPython, PyPy, Jython, and so on) to share information,
+> discuss our shared problems, and ? hopefully ? solve them.
+
+Oh, you'd also like to know *when* and *where* it is? Fine.
+
+- When: Wednesday, May 1st 2019
+- Where: 0Huntington Convention Center in Cleveland, Ohio
+
+Sorry for missing this in the original e-mail,
+?
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/b923854c/attachment.sig>
+
+From paul at ganssle.io  Wed Feb 27 10:11:54 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Wed, 27 Feb 2019 10:11:54 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CALGmxELmBEXRKMMRBtKvozf82uqNBLpTwTyuUyCeUfPhsczFJQ@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+ <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+ <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+ <CAP7h-xb1SmaouhgnobQyvyPPchopBAw1RnbJeH==F4Au15+m3g@mail.gmail.com>
+ <CALGmxELmBEXRKMMRBtKvozf82uqNBLpTwTyuUyCeUfPhsczFJQ@mail.gmail.com>
+Message-ID: <84325333-8889-24a5-f6e2-abb72611f58d@ganssle.io>
+
+
+On 2/26/19 7:03 PM, Chris Barker via Python-Dev wrote:
+> This thread petered out, seemingly with a consensus that we should
+> update the docs -- is anyone doing that?
+>
+I don't think anyone is, I've filed a BPO bug for it:
+https://bugs.python.org/issue3613
+
+>
+> -- I am a physical scientist, I work with unitted quantities all the
+> time (both in code and in other contexts). It never dawned on me to
+> use this approach to convert to seconds or milliseconds, or ...
+> Granted, I still rely on python2 for a fair bit of my work, but still,
+> I had to scratch my head when it was proposed on this thread.
+>
+As another data point, I also have a background in the physical
+sciences, and I actually do find it quite intuitive. The first time I
+saw this idiom I took it to heart immediately and only stopped using it
+because many of the libraries I maintain still support Python 2.
+
+It seemed pretty obvious that I had a `timedelta` object that represents
+times, and dividing it by a base value would give me the number of times
+the "unit" timedelta fits into the "value" timedelta. Seeing the code
+`timedelta(days=7) / timedelta(days=1)`, I think most people could
+confidently say that that should return 7, there's really no ambiguity
+about it.
+
+
+> -- There are a number of physical unit libraries in Python, and as far
+> as I know, none of them let you do this to create a unitless value in
+> a particular unit. "pint" for example:
+>
+> https://pint.readthedocs.io/en/latest/
+>
+> ...
+>
+> And you can reduce it to a dimensionless object:
+>
+> In [57]: unitless.to_reduced_units()? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ?
+> ? ? ? ? ??
+> Out[57]: 172800.0 <Unit('dimensionless')>
+>
+I think the analogy with pint's unit-handling behavior is not completely
+appropriate, because `timedelta` values are not in /specific/ units at
+all, they are just in abstract duration units. It makes sense to
+consider "seconds / day" as a specific dimensionless unit in the same
+sense that "percent" and "ppb" make sense as specific dimensionless
+units, and so that would be the natural behavior I would expect for
+unit-handling code.
+
+For timedelta, we don't have it as a value in specific units, so it's
+not clear what the "ratio unit" would be. What we're looking at with
+timedelta division is really more "how many <unit>s are there in this
+duration".
+
+
+> So no -- dividing a datetime by another datetime with the value you
+> want is not intuitive: not to a physical scientist, not to a user of
+> other physical quantities libraries -- is it intuitive to anyone other
+> than someone that was involved in python datetime development??
+>
+
+Just to clarify, I am involved in Python datetime development now, but I
+have only been involved in Python OSS for the last 4-5 years. I remember
+finding it intuitive when I (likely working as a physicist at the time)
+first saw it used.
+
+> Discoverable:
+> ==========
+>
+I agree that it is not discoverable (which is unfortunate), but you
+could say the same thing of /all/ operators. There's no tab-completion
+that will tell you that `3.4 / 1` is a valid operation or that (3,) +
+(4,) will work, but we don't generally recommend adding methods for
+those things.
+
+I do think the discoverability is hindered by the existence of the
+total_seconds method, because the fact that total_seconds exists makes
+you think that it is the correct way to get the number of seconds that a
+timedelta represents, and that you should be looking for other analogous
+methods as the "correct" way to do this, when in fact we have a simpler,
+less ambiguous (for example, it's not obvious whether the methods would
+truncate or not, whereas __truediv__ and __floordiv__ gives the division
+operation pretty clear semantics) and more general way to do things.
+
+I think it's too late to /remove/ `total_seconds()`, but I don't think
+we should be compounding the problem by bloating the API with a bunch of
+other methods, per my earlier arguments.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/df9c6872/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/df9c6872/attachment.sig>
+
+From steve at holdenweb.com  Wed Feb 27 14:14:10 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Wed, 27 Feb 2019 19:14:10 +0000
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <84325333-8889-24a5-f6e2-abb72611f58d@ganssle.io>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+ <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+ <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+ <CAP7h-xb1SmaouhgnobQyvyPPchopBAw1RnbJeH==F4Au15+m3g@mail.gmail.com>
+ <CALGmxELmBEXRKMMRBtKvozf82uqNBLpTwTyuUyCeUfPhsczFJQ@mail.gmail.com>
+ <84325333-8889-24a5-f6e2-abb72611f58d@ganssle.io>
+Message-ID: <CAMofdRC1fBUk5rVSH5g6Sd9C_837n6yRFV9S+XYyH36cJkQECA@mail.gmail.com>
+
+We should also consider that before long datetimes are frequently stored to
+nanosecond resolution (two fields where this is significant are finance and
+physics, and the latter would probably appreciate femtosedonds as well). So
+maybe an external library that layers on top of datetime might be
+preferable?
+
+Kind regards
+Steve Holden
+
+
+On Wed, Feb 27, 2019 at 3:13 PM Paul Ganssle <paul at ganssle.io> wrote:
+
+>
+> On 2/26/19 7:03 PM, Chris Barker via Python-Dev wrote:
+>
+> This thread petered out, seemingly with a consensus that we should update
+> the docs -- is anyone doing that?
+>
+> I don't think anyone is, I've filed a BPO bug for it:
+> https://bugs.python.org/issue3613
+>
+>
+> -- I am a physical scientist, I work with unitted quantities all the time
+> (both in code and in other contexts). It never dawned on me to use this
+> approach to convert to seconds or milliseconds, or ... Granted, I still
+> rely on python2 for a fair bit of my work, but still, I had to scratch my
+> head when it was proposed on this thread.
+>
+> As another data point, I also have a background in the physical sciences,
+> and I actually do find it quite intuitive. The first time I saw this idiom
+> I took it to heart immediately and only stopped using it because many of
+> the libraries I maintain still support Python 2.
+>
+> It seemed pretty obvious that I had a `timedelta` object that represents
+> times, and dividing it by a base value would give me the number of times
+> the "unit" timedelta fits into the "value" timedelta. Seeing the code
+> `timedelta(days=7) / timedelta(days=1)`, I think most people could
+> confidently say that that should return 7, there's really no ambiguity
+> about it.
+>
+>
+> -- There are a number of physical unit libraries in Python, and as far as
+> I know, none of them let you do this to create a unitless value in a
+> particular unit. "pint" for example:
+>
+> https://pint.readthedocs.io/en/latest/
+>
+> ...
+>
+> And you can reduce it to a dimensionless object:
+>
+> In [57]: unitless.to_reduced_units()
+>
+> Out[57]: 172800.0 <Unit('dimensionless')>
+>
+> I think the analogy with pint's unit-handling behavior is not completely
+> appropriate, because `timedelta` values are not in *specific* units at
+> all, they are just in abstract duration units. It makes sense to consider
+> "seconds / day" as a specific dimensionless unit in the same sense that
+> "percent" and "ppb" make sense as specific dimensionless units, and so that
+> would be the natural behavior I would expect for unit-handling code.
+>
+> For timedelta, we don't have it as a value in specific units, so it's not
+> clear what the "ratio unit" would be. What we're looking at with timedelta
+> division is really more "how many <unit>s are there in this duration".
+>
+>
+> So no -- dividing a datetime by another datetime with the value you want
+> is not intuitive: not to a physical scientist, not to a user of other
+> physical quantities libraries -- is it intuitive to anyone other than
+> someone that was involved in python datetime development??
+>
+>
+> Just to clarify, I am involved in Python datetime development now, but I
+> have only been involved in Python OSS for the last 4-5 years. I remember
+> finding it intuitive when I (likely working as a physicist at the time)
+> first saw it used.
+>
+> Discoverable:
+> ==========
+>
+> I agree that it is not discoverable (which is unfortunate), but you could
+> say the same thing of *all* operators. There's no tab-completion that
+> will tell you that `3.4 / 1` is a valid operation or that (3,) + (4,) will
+> work, but we don't generally recommend adding methods for those things.
+>
+> I do think the discoverability is hindered by the existence of the
+> total_seconds method, because the fact that total_seconds exists makes you
+> think that it is the correct way to get the number of seconds that a
+> timedelta represents, and that you should be looking for other analogous
+> methods as the "correct" way to do this, when in fact we have a simpler,
+> less ambiguous (for example, it's not obvious whether the methods would
+> truncate or not, whereas __truediv__ and __floordiv__ gives the division
+> operation pretty clear semantics) and more general way to do things.
+>
+> I think it's too late to *remove* `total_seconds()`, but I don't think we
+> should be compounding the problem by bloating the API with a bunch of other
+> methods, per my earlier arguments.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/8ba9b0f4/attachment.html>
+
+From greg at krypto.org  Wed Feb 27 16:12:52 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 27 Feb 2019 13:12:52 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <CA+3bQGE410QOzYmxPCOdXPH88chAZSo-f76VLm+2V7w88AeumQ@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+ <CA+3bQGE410QOzYmxPCOdXPH88chAZSo-f76VLm+2V7w88AeumQ@mail.gmail.com>
+Message-ID: <CAGE7PNKS9YZ5qaw8mBvem-2V=yBB=BZsRuGa45XJ-GSzqpgSMg@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 2:28 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Le mar. 26 f?vr. 2019 ? 22:24, Gregory P. Smith <greg at krypto.org> a ?crit
+> :
+> > A feature that I find missing from posix-y OSes that support #! lines is
+> an ability to restrict what can use a given interpreter.
+>
+> Fedora runs system tools (like "/usr/bin/semanage", tool to manager
+> SELinux) with "python3 -Es":
+>
+> $ head /usr/sbin/semanage
+> #! /usr/bin/python3 -Es
+>
+> -E: ignore PYTHON* environment variables (such as PYTHONPATH)
+> -s: don't add user site directory to sys.path
+>
+> Is it what you mean?
+
+
+Not quite.  I meant that python interpreter would need to decide
+/usr/sbin/semanage is allowed to use it as an interpreter.
+
+-gps
+
+
+>
+> > Such a restriction could be implemented within the interpreter itself.
+> For example: Say that only this set of fully qualified path whitelisted .py
+> files are allowed to invoke it, with no interactive, stdin, or command line
+> "-c" use allowed.  I'm not aware of anyone actually having done that.  It's
+> hard to see how to do that in a maintainable manner that people using many
+> distros wouldn't just naively work around by adding themselves to the
+> whitelist rather than providing their own interpreter for their own
+> software stack.  It feels more doable without workarounds for something
+> like macOS or any other distro wholly controlled and maintained as a single
+> set of software rather than a widely varying packages.
+>
+> Technically, Python initialization is highly customizable: see
+> _PyCoreConfig in Include/coreconfig.h.
+>
+> But we lack a public API for that :-)
+> https://www.python.org/dev/peps/pep-0432/ is a work-in-progress.
+>
+> With a proper public API, building your own interpreter would take a
+> few lines of C to give you fine control on what Python can do or not.
+>
+> Extract of Programs/_freeze_importlib.c (give you an idea of what can be
+> done):
+> ---
+>     _PyCoreConfig config = _PyCoreConfig_INIT;
+>     config.user_site_directory = 0;
+>     config.site_import = 0;
+>     config.use_environment = 0;
+>     config.program_name = L"./_freeze_importlib";
+>     /* Don't install importlib, since it could execute outdated bytecode.
+> */
+>     config._install_importlib = 0;
+>     config._frozen = 1;
+>
+>     _PyInitError err = _Py_InitializeFromConfig(&config);
+> ---
+>
+> As Petr wrote below, RHEL 8 has a private /usr/libexec/platform-python
+> which is the Python used to run system tools (written in Python). But
+> this Python isn't customized. I'm not sure that there is a strong need
+> to customize Python default configuration for this interpreter.
+>
+> Note: Sorry to hijack again this thread with unrelated discussions :-(
+>
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/9f5066ed/attachment.html>
+
+From greg at krypto.org  Wed Feb 27 16:20:17 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 27 Feb 2019 13:20:17 -0800
+Subject: [Python-Dev] Another update for PEP 394 -- The "python" Command
+ on Unix-Like Systems
+In-Reply-To: <32efee43-34cf-9850-09e0-01b258cc2d22@python.org>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+ <32efee43-34cf-9850-09e0-01b258cc2d22@python.org>
+Message-ID: <CAGE7PNLQJo8LRhQqDymBNa=0+buYxRCLCoVQQf7qdh9Wbdc-3Q@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 2:31 PM Steve Dower <steve.dower at python.org> wrote:
+
+> On 2/26/2019 1:20 PM, Gregory P. Smith wrote:
+> > For an OS distro provided interpreter, being able to restrict its use to
+> > only OS distro provided software would be ideal (so ideal that people
+> > who haven't learned the hard distro maintenance lessons may hate me for
+> it).
+> >
+> > Such a restriction could be implemented within the interpreter itself.
+> > For example: Say that only this set of fully qualified path whitelisted
+> > .py files are allowed to invoke it, with no interactive, stdin, or
+> > command line "-c" use allowed.  I'm not aware of anyone actually having
+> > done that.  It's hard to see how to do that in a /maintainable/ manner
+> > that people using many distros wouldn't just naively work around by
+> > adding themselves to the whitelist rather than providing their own
+> > interpreter for their own software stack.  It feels more doable without
+> > workarounds for something like macOS or any other distro wholly
+> > controlled and maintained as a single set of software rather than a
+> > widely varying packages.
+> >
+> > Solving that is way outside the scope of PEP 394.  Just food for thought
+> > that I'd like to leave as an earworm for the future for distro minded
+> > folks.  I some people to hate this idea.
+>
+> I haven't caught up on this thread yet, but this sounds a lot like the
+> "Restricting the entry point" section of
+> https://www.python.org/dev/peps/pep-0551/ (which is still a draft, so if
+> anyone wants to help make it more like what they want, I'm happy to have
+> contributors).
+>
+> So I'm in favour of making this easy (since I'm already having to deal
+> with it being difficult ;) ), as it's extremely valuable for
+> security-conscious deployments as well as the distro package cases
+> mentioned by Gregory.
+>
+
+Similar. What I'm talking about has nothing to do with _security_
+(pep-0551's focus) and only to do with installed interpreter
+maintainability.  But an implementation of the concept of deciding what is
+allowed to use an entry point in what manner might be the same.  :)
+
+As for 551, I'm not a fan of pretending you can aid security by restricting
+use of an interpreter; when an adversary has the ability to trigger an exec
+of new process with args or input of its desire, their opponent lost the
+game several moves ago.  Defense in depth minded people may disagree and
+still desire the feature.
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/de162c2e/attachment.html>
+
+From chris.barker at noaa.gov  Wed Feb 27 16:54:45 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Wed, 27 Feb 2019 13:54:45 -0800
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+ <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+Message-ID: <CALGmxEJ7uTFNpP7v0bvUP6pbOWAir6UNLU-4FsJQ_BLbGWpGHA@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 3:43 PM Barry Warsaw <barry at python.org> wrote:
+
+>  The behavior differences between dicts and sets is already surprising to
+> many users, so we should be careful not to make the situation worse.
+>
+
+It's a nice to have, but other than the fact that we all used to use a dict
+when we really wanted a set before set existed, I'm not sure the connection
+is there to a layperson.
+
+A mapping and a set type really don't have much to do with each other other
+than implementation -- anyone that isn't familiar with python C code, or
+hash tables in general, wouldn't likely have any expectation of them having
+anything to do with each other.
+
+-CHB
+
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/935c4baf/attachment.html>
+
+From barry at python.org  Wed Feb 27 17:15:53 2019
+From: barry at python.org (Barry Warsaw)
+Date: Wed, 27 Feb 2019 14:15:53 -0800
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <CALGmxEJ7uTFNpP7v0bvUP6pbOWAir6UNLU-4FsJQ_BLbGWpGHA@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+ <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+ <CALGmxEJ7uTFNpP7v0bvUP6pbOWAir6UNLU-4FsJQ_BLbGWpGHA@mail.gmail.com>
+Message-ID: <38772BFF-2B07-467B-90D9-5806B6CE7D67@python.org>
+
+On Feb 27, 2019, at 13:54, Chris Barker via Python-Dev <python-dev at python.org> wrote:
+> 
+> A mapping and a set type really don't have much to do with each other other than implementation -- anyone that isn't familiar with python C code, or hash tables in general, wouldn't likely have any expectation of them having anything to do with each other.
+
+I?m just relaying a data point.  Some Python folks I?ve worked with do make the connection between dicts and sets, and have questions about the ordering guarantees of then (and how they relate).
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/3dbc2432/attachment.sig>
+
+From tahafut at gmail.com  Wed Feb 27 17:23:30 2019
+From: tahafut at gmail.com (Henry Chen)
+Date: Wed, 27 Feb 2019 14:23:30 -0800
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <38772BFF-2B07-467B-90D9-5806B6CE7D67@python.org>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+ <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+ <CALGmxEJ7uTFNpP7v0bvUP6pbOWAir6UNLU-4FsJQ_BLbGWpGHA@mail.gmail.com>
+ <38772BFF-2B07-467B-90D9-5806B6CE7D67@python.org>
+Message-ID: <CAPAfSuno33-4Shcf-WR9j=ZLGfE8NA6=Y+yE2NN+CLeUg6X81g@mail.gmail.com>
+
+If sets were ordered, then what ought pop() return - first, last, or
+nevertheless an arbitrary element? I lean toward arbitrary because in
+existing code, set.pop often implies that which particular element is
+immaterial.
+
+On Wed, Feb 27, 2019 at 2:18 PM Barry Warsaw <barry at python.org> wrote:
+
+> On Feb 27, 2019, at 13:54, Chris Barker via Python-Dev <
+> python-dev at python.org> wrote:
+> >
+> > A mapping and a set type really don't have much to do with each other
+> other than implementation -- anyone that isn't familiar with python C code,
+> or hash tables in general, wouldn't likely have any expectation of them
+> having anything to do with each other.
+>
+> I?m just relaying a data point.  Some Python folks I?ve worked with do
+> make the connection between dicts and sets, and have questions about the
+> ordering guarantees of then (and how they relate).
+>
+> -Barry
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/tahafut%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/3f89e115/attachment-0001.html>
+
+From chris.barker at noaa.gov  Wed Feb 27 17:28:50 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Wed, 27 Feb 2019 14:28:50 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <q54vc7$2n8$1@blaine.gmane.org>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+ <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+ <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+ <CAP7h-xb1SmaouhgnobQyvyPPchopBAw1RnbJeH==F4Au15+m3g@mail.gmail.com>
+ <CALGmxELmBEXRKMMRBtKvozf82uqNBLpTwTyuUyCeUfPhsczFJQ@mail.gmail.com>
+ <q54vc7$2n8$1@blaine.gmane.org>
+Message-ID: <CALGmxELRn3QXQpjC=trAosyzPDc4-ChGxaXtrtistDP6pUH5Ww@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 7:22 PM Terry Reedy <tjreedy at udel.edu> wrote:
+
+> > timedelta.total_seconds()
+>
+> To me, total_x implies that there is a summation of multiple timedeltas,
+> and there is not.  So not intuitive to me.
+
+
+THAT was a discussion for when it was added -- I can't say it's my favorite
+name either. But at least a quick glance at the docstring will address
+that. Hmm -- that one could use a little enhancement, too:
+
+In [3]: td.total_seconds?
+Docstring: Total seconds in the duration.
+
+But at least it COULD be made clear in a docstring :-)
+
+> (Neither us current obscure
+> option).  It is also not obvious is answer is rounded to nearest second
+> or not.
+>
+
+also could be made clear in a docstring -- the full docs say:
+
+"""
+timedelta.total_seconds()
+Return the total number of seconds contained in the duration. Equivalent to
+td / timedelta(seconds=1).
+
+Note that for very large time intervals (greater than 270 years on most
+platforms) this method will lose microsecond accuracy.
+"""
+
+That last point indicates that it is not rounded -- and a quick check will
+note that it returns a float -- but those docs could be improved to make it
+clear that a float is returned. (i.e. that is WHY it loses microsecond
+accuracy). But anyway, you are nevert going to know all the intricacies of
+a method by its name -- you need to know about the rounding and all if you
+are trying to decide if you are going to us the method, but if you read it,
+you probably have a pretty good idea what it does.
+
+Anyway -- "I don't really like the name much" is really the answer to a
+different question
+
+(I don't like it either, but it's what's there)
+
+> So at most, we could have:
+> >
+> > .total_microseconds()
+> > .total_seconds()
+> > .total_minutes()
+> > .total_hours()
+> > .total_days()
+> > .total_weeks()
+>
+> I am also not enthusiastic about multiple methods doing essentially the
+> same thing.  I might prefer one method, .convert? with an argument
+> specifying the conversion unit, 'microseconds', 'seconds', ... .
+
+
+yup -- that's been proposed, and is still on the table as far as I'm
+concerned.
+
+Though I'm not sure I like "convert", but would rather, say "in_unit" or
+"to_unit". But any of these would address the intuitive and discoverability
+issue -- very few folks would have any trouble guessing what any of:
+
+a_datetime.convert("hours")
+a_datetime.to_unit("hours")
+a_datetime.total_hours()
+
+mean -- at least generally, even if they con't know if they are getting a
+float or an integer result.
+
+And as for discoverable, any of these as methods on a dt object would
+probably be checked out if you were looking for such a thing.
+
+
+> I think this is in python-ideas territory.
+>
+
+I'd rather not :-)   --  have you SEEN the length of the thread on how long
+the line limiet should be in PEP8.
+
+Frankly, I think the arguments have been made, and the options on the table
+-- if this were a PEP, it would be time for a pronouncement -- or at least
+one of:
+
+- not going to happen
+or
+- maybe happen but we need to iron out the details
+
+I've lost track of where we are with the governance model, so is there a
+way to get a clear idea for whether it's time to drop this?
+
+BTW, I don't think this is worth a PEP, but if I get a go-ahead, and it
+needs to be written up, I'd be willing to do so.
+
+-CHB
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/5cd60618/attachment.html>
+
+From chris.barker at noaa.gov  Wed Feb 27 17:52:05 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Wed, 27 Feb 2019 14:52:05 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <84325333-8889-24a5-f6e2-abb72611f58d@ganssle.io>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <7475b4be-800c-2477-e793-df1ce6cef114@btinternet.com>
+ <CALGmxE+_tC3LimrsMS4ROzYqQ24nJTnSyQRLBGd8kEzukEVQqA@mail.gmail.com>
+ <4ca1c28b-d906-beea-875f-224ebb77cd0a@ganssle.io>
+ <CAP7h-xb1SmaouhgnobQyvyPPchopBAw1RnbJeH==F4Au15+m3g@mail.gmail.com>
+ <CALGmxELmBEXRKMMRBtKvozf82uqNBLpTwTyuUyCeUfPhsczFJQ@mail.gmail.com>
+ <84325333-8889-24a5-f6e2-abb72611f58d@ganssle.io>
+Message-ID: <CALGmxEKiCMoobp-YQ=gD_UpC+ZtWKc+AAUBCuqyAacgL0s=x0A@mail.gmail.com>
+
+On Wed, Feb 27, 2019 at 7:15 AM Paul Ganssle <paul at ganssle.io> wrote:
+
+> As another data point, I also have a background in the physical sciences,
+> and I actually do find it quite intuitive. The first time I saw this idiom
+> I took it to heart immediately and only stopped using it because many of
+> the libraries I maintain still support Python 2.
+>
+we know have two contrasting data points -- it's settled!
+
+But I'd like to know -- I too will probably remember and use this idiom now
+that I know it (if not take it to heart ...) -- but would you hvae figured
+it out on your own?
+
+
+>  Seeing the code `timedelta(days=7) / timedelta(days=1)`, I think most
+> people could confidently say that that should return 7, there's really no
+> ambiguity about it.
+>
+in that example absolutely -- but this is the one I'm worried about:
+
+an_arbitrary_dateitme_returned_from_a_lib_you_didn't_write /
+datetime.timedelta(days=7)
+
+not so obvious.
+
+> I think the analogy with pint's unit-handling behavior is not completely
+> appropriate, because `timedelta` values are not in *specific* units at
+> all, they are just in abstract duration units.
+>
+agreed -- but it is a use-case that is worth looking into -- folks will
+either have no experience with units, or with a lib like that one (there
+are more, and I think they all handle it a similar way)
+
+And if you have a pint object representing time that you do not know the
+units of, the way to get it into the units you want is to call teh to()
+method:
+
+a_time_in_arbitrary_units.to('second')
+
+That is an obvious and familiar API.
+
+
+> I agree that it is not discoverable (which is unfortunate), but you could
+> say the same thing of *all* operators.
+>
+
+sure, but most operators are really widely used.
+
+
+> There's no tab-completion that will tell you that `3.4 / 1` is a valid
+> operation
+>
+
+well, THAT one had better be obvious :-)
+
+
+> or that (3,) + (4,) will work, but we don't generally recommend adding
+> methods for those things.
+>
+
+and that IS a source of confusion, but at least for the built-in types (and
+ones that conform to the primary ABCs), people are going to learn it pretty
+early.
+
+But conversion of a datetime object into particular units is a pretty
+specialized operation.
+
+Also, in most (all?) cases with builtin (and most of the standard library)
+the math operators return the same type (or a conceptional same type: int /
+int => float -- all numbers)
+
+
+> I do think the discoverability is hindered by the existence of the
+> total_seconds method, because the fact that total_seconds exists makes you
+> think that it is the correct way to get the number of seconds that a
+> timedelta represents, and that you should be looking for other analogous
+> methods as the "correct" way to do this,
+>
+
+well, yes. I for one, was very happy to have found it when I did :-) -- of
+course that was py2, when it WAS the only easy way to do it.
+
+
+> when in fact we have a simpler, less ambiguous (for example, it's not
+> obvious whether the methods would truncate or not, whereas __truediv__ and
+> __floordiv__ gives the division operation pretty clear semantics)
+>
+
+I don't think so, I was actually a touch surprised that:
+
+a_timedelta / timedelta(microseconds=1)
+
+yielded a float that may have lost precision, when the timedetla type
+stores ms precision, and python ints can handle any size int.
+
+it seems __floordiv__ does preserve precision. Which is kinda ironic --
+after all, it's called "ture division" and "floor division", not "float
+division" and "integer division"
+
+My point being -- if you care about the details, you're going to have to
+dig deeper no matter what method is used.
+
+I think it's too late to *remove* `total_seconds()`, but I don't think we
+> should be compounding the problem by bloating the API with a bunch of other
+> methods, per my earlier arguments.
+>
+
+I'm not a big fan of bloated APIs -- but this is not a lot of methods, with
+a clear naming pattern, on an API without a huge number of methods (seven
+non-dunder attributes by my count) already.
+
+>From a practicality beats purity standpoint -- a few new methods (or a
+single conversion method) is less pure and "correct", but also a lot more
+usable.
+
+-CHB
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/aa2a3b59/attachment.html>
+
+From chris.barker at noaa.gov  Wed Feb 27 17:56:06 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Wed, 27 Feb 2019 14:56:06 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+Message-ID: <CALGmxEJUaHxd=nnJFUjgnXxxiUtvvJa=mRaQBPV6nuxTuuEv_A@mail.gmail.com>
+
+Did we ever hear back from the OP as to whether they were using py2 or 3?
+
+If they were unable to find timedelta division in py3 -- that's a pretty
+good case that we need something else.
+
+
+The OP:
+"""
+On Wed, Feb 13, 2019 at 9:10 PM Richard Belleville via Python-Dev <
+python-dev at python.org> wrote:
+
+> In a recent code review, the following snippet was called out as
+> reinventing the
+> wheel:
+>
+> _MICROSECONDS_PER_SECOND = 1000000
+>
+>
+> def _timedelta_to_microseconds(delta):
+>   return int(delta.total_seconds() * _MICROSECONDS_PER_SECOND)
+>
+>
+> The reviewer thought that there must already exist a standard library
+> function
+> that fulfills this functionality. After we had both satisfied ourselves
+> that we
+> hadn't simply missed something in the documentation, we decided that we had
+> better raise the issue with a wider audience.
+>
+"""
+
+-CHB
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/a6eb82f8/attachment.html>
+
+From rbellevi at google.com  Wed Feb 27 18:04:45 2019
+From: rbellevi at google.com (Richard Belleville)
+Date: Wed, 27 Feb 2019 15:04:45 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CALGmxEJUaHxd=nnJFUjgnXxxiUtvvJa=mRaQBPV6nuxTuuEv_A@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <CALGmxEJUaHxd=nnJFUjgnXxxiUtvvJa=mRaQBPV6nuxTuuEv_A@mail.gmail.com>
+Message-ID: <CAOew_sHT_cpUkNuM=6fhVZqS_9S6o=mG4bEnHruPc1sy-m4O5g@mail.gmail.com>
+
+Sorry for the slow response.
+
+Timedelta division is quite a nice solution to the problem. However, since
+we're maintaining a python version agnostic library at least until 2020, we
+need a solution that works in python 2 as well.
+
+For the moment, we've left the code as in the original snippet.
+
+Richard Belleville
+
+On Wed, Feb 27, 2019 at 2:56 PM Chris Barker <chris.barker at noaa.gov> wrote:
+
+> Did we ever hear back from the OP as to whether they were using py2 or 3?
+>
+> If they were unable to find timedelta division in py3 -- that's a pretty
+> good case that we need something else.
+>
+>
+> The OP:
+> """
+> On Wed, Feb 13, 2019 at 9:10 PM Richard Belleville via Python-Dev <
+> python-dev at python.org> wrote:
+>
+>> In a recent code review, the following snippet was called out as
+>> reinventing the
+>> wheel:
+>>
+>> _MICROSECONDS_PER_SECOND = 1000000
+>>
+>>
+>> def _timedelta_to_microseconds(delta):
+>>   return int(delta.total_seconds() * _MICROSECONDS_PER_SECOND)
+>>
+>>
+>> The reviewer thought that there must already exist a standard library
+>> function
+>> that fulfills this functionality. After we had both satisfied ourselves
+>> that we
+>> hadn't simply missed something in the documentation, we decided that we
+>> had
+>> better raise the issue with a wider audience.
+>>
+> """
+>
+> -CHB
+>
+> --
+>
+> Christopher Barker, Ph.D.
+> Oceanographer
+>
+> Emergency Response Division
+> NOAA/NOS/OR&R            (206) 526-6959   voice
+> 7600 Sand Point Way NE   (206) 526-6329   fax
+> Seattle, WA  98115       (206) 526-6317   main reception
+>
+> Chris.Barker at noaa.gov
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/3b150560/attachment.html>
+
+From chris.barker at noaa.gov  Wed Feb 27 18:18:20 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Wed, 27 Feb 2019 15:18:20 -0800
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CAOew_sHT_cpUkNuM=6fhVZqS_9S6o=mG4bEnHruPc1sy-m4O5g@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <CALGmxEJUaHxd=nnJFUjgnXxxiUtvvJa=mRaQBPV6nuxTuuEv_A@mail.gmail.com>
+ <CAOew_sHT_cpUkNuM=6fhVZqS_9S6o=mG4bEnHruPc1sy-m4O5g@mail.gmail.com>
+Message-ID: <CALGmxELqX=Za691cJaiz4zp1T4pR5dVSGTVCQWmj=_dywRdbvg@mail.gmail.com>
+
+On Wed, Feb 27, 2019 at 3:04 PM Richard Belleville <rbellevi at google.com>
+wrote:
+
+> Timedelta division is quite a nice solution to the problem. However, since
+> we're maintaining a python version agnostic library at least until 2020, we
+> need a solution that works in python 2 as well.
+>
+
+So you were limited to a py2 solution.
+
+But di you poke around in py3 before posting?
+
+(you should have, python-dev is really about active development, i.e.
+python 3 -- but that's not the point here)
+
+
+> For the moment, we've left the code as in the original snippet.
+>
+
+If you care about microsecond precision for large timeseltas, you may want
+to improve that.
+
+I *think* this is the "correct" way to do it:
+
+def timedelta_to_microseconds(td):
+    return td.microseconds + td.seconds * 1000 + td.days * 86400000
+
+(hardly tested)
+
+-CHB
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/f12e9d24/attachment.html>
+
+From a.badger at gmail.com  Wed Feb 27 20:12:08 2019
+From: a.badger at gmail.com (Toshio Kuratomi)
+Date: Wed, 27 Feb 2019 17:12:08 -0800
+Subject: [Python-Dev] Compile-time resolution of packages [Was: Another
+ update for PEP 394...]
+In-Reply-To: <20190226220418.b36jw33qthdv5i5l@python.ca>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+ <20190226220418.b36jw33qthdv5i5l@python.ca>
+Message-ID: <CABVPEKqPoOycqrwVjfCZo3J+4bgF-o1i3WB7nM5P+a3zZ0UkbQ@mail.gmail.com>
+
+On Tue, Feb 26, 2019 at 2:07 PM Neil Schemenauer <nas-python at arctrix.com>
+wrote:
+
+> On 2019-02-26, Gregory P. Smith wrote:
+> > On Tue, Feb 26, 2019 at 9:55 AM Barry Warsaw <barry at python.org> wrote:
+> > For an OS distro provided interpreter, being able to restrict its use to
+> > only OS distro provided software would be ideal (so ideal that people who
+> > haven't learned the hard distro maintenance lessons may hate me for it).
+>
+> This idea has some definite problems.  I think enforcing it via convention
+is about as much as would be good to do.  Anything more and you make it
+hard for people who really need to use the vendor provided interpreter from
+being able to do so.
+
+Why might someone need to use the distro provided interpreter?
+
+* Vendor provides some python modules in their system packages which are
+not installable from pip (possibly even a proprietary extension module, so
+not even buildable from source or copyable from the system location) which
+the end user needs to use to do something to their system.
+* End user writes a python module which is a plugin to a system tool which
+has to be installed into the system python to from which that system tool
+runs.  The user then wants to write a script which uses the system tool
+with the plugin in order to do something to their system outside of the
+system tool (perhaps the system tool is GUI-driven and the user wants to
+automate a part of it via the python module).  They need their script to
+use the system python so that they are using the same code as the system
+tool itself would use.
+
+There's probably other scenarios where the benefits of locking the user out
+of the system python outweigh the benefits but these are the ones that I've
+run across lately.
+
+-Toshio
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/a77836e6/attachment-0001.html>
+
+From larry at hastings.org  Wed Feb 27 20:52:03 2019
+From: larry at hastings.org (Larry Hastings)
+Date: Wed, 27 Feb 2019 17:52:03 -0800
+Subject: [Python-Dev] Proposed dates for Python 3.4.10 and Python 3.5.7
+In-Reply-To: <ad821da8-a8f3-0ff8-6366-b24c0209d3c3@hastings.org>
+References: <ad821da8-a8f3-0ff8-6366-b24c0209d3c3@hastings.org>
+Message-ID: <fcc0df98-5deb-64db-ab93-a3ad55b62fa8@hastings.org>
+
+
+My thanks to Miro and (especially!) Victor for quickly putting together 
+those lovely PRs.? I've now merged everything outstanding for 3.4 and 
+3.5 except this:
+
+    https://github.com/python/cpython/pull/10994
+
+It's a backport of LibreSSL 2.7.0 support for 3.5.? This is something I 
+believe Christian Heimes wanted.? As it stands, the issue needs a 
+reviewer; I've contacted Christian but received no reply.? I'm happy to 
+merge the PR as long as some security-aware core dev approves it.
+
+FWIW, there doesn't appear to be a backport of this patch for 3.4.? I 
+don't know if 3.4 should get this backport or not, and there's no 
+discussion of 3.4 on the bpo issue:
+
+    https://bugs.python.org/issue33127
+
+Anyway, I'm hoping either to merge or reject this PR before Saturday, so 
+there's no huge rush.? Still I'd appreciate it if someone could at least 
+tag themselves as a reviewer in the next day or so.
+
+
+Putting 3.4 to bed,
+
+
+//arry/
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/07828f38/attachment.html>
+
