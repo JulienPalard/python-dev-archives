@@ -20944,3 +20944,1110 @@ Putting 3.4 to bed,
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190227/07828f38/attachment.html>
 
+From songofacandy at gmail.com  Thu Feb 28 03:51:03 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Thu, 28 Feb 2019 17:51:03 +0900
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CALGmxELqX=Za691cJaiz4zp1T4pR5dVSGTVCQWmj=_dywRdbvg@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <CALGmxEJUaHxd=nnJFUjgnXxxiUtvvJa=mRaQBPV6nuxTuuEv_A@mail.gmail.com>
+ <CAOew_sHT_cpUkNuM=6fhVZqS_9S6o=mG4bEnHruPc1sy-m4O5g@mail.gmail.com>
+ <CALGmxELqX=Za691cJaiz4zp1T4pR5dVSGTVCQWmj=_dywRdbvg@mail.gmail.com>
+Message-ID: <CAEfz+Tz4otvWc-CR7ojLA294+tNU6grkt2TBiBw2xSV9DUfs+A@mail.gmail.com>
+
+>
+> I *think* this is the "correct" way to do it:
+>
+> def timedelta_to_microseconds(td):
+>     return td.microseconds + td.seconds * 1000 + td.days * 86400000
+>
+> (hardly tested)
+>
+> -CHB
+>
+
+1000?  milli? micro?
+
+
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/cbc0baaf/attachment.html>
+
+From songofacandy at gmail.com  Thu Feb 28 04:38:21 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Thu, 28 Feb 2019 18:38:21 +0900
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <CAPAfSuno33-4Shcf-WR9j=ZLGfE8NA6=Y+yE2NN+CLeUg6X81g@mail.gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+ <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+ <CALGmxEJ7uTFNpP7v0bvUP6pbOWAir6UNLU-4FsJQ_BLbGWpGHA@mail.gmail.com>
+ <38772BFF-2B07-467B-90D9-5806B6CE7D67@python.org>
+ <CAPAfSuno33-4Shcf-WR9j=ZLGfE8NA6=Y+yE2NN+CLeUg6X81g@mail.gmail.com>
+Message-ID: <CAEfz+TwwM1iqVVvUv_62_xdAOazwrvjyt1jtUmdPSiotXnReVA@mail.gmail.com>
+
+On Thu, Feb 28, 2019 at 7:23 AM Henry Chen <tahafut at gmail.com> wrote:
+
+> If sets were ordered, then what ought pop() return - first, last, or
+> nevertheless an arbitrary element? I lean toward arbitrary because in
+> existing code, set.pop often implies that which particular element is
+> immaterial.
+>
+>
+dict.popitem() pops last inserted pair.  So set.pop() must remove last
+element.
+
+https://docs.python.org/3/library/stdtypes.html#dict.popitem
+
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/9d67afe6/attachment.html>
+
+From steve at pearwood.info  Thu Feb 28 06:43:04 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 28 Feb 2019 22:43:04 +1100
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <38772BFF-2B07-467B-90D9-5806B6CE7D67@python.org>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+ <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+ <CALGmxEJ7uTFNpP7v0bvUP6pbOWAir6UNLU-4FsJQ_BLbGWpGHA@mail.gmail.com>
+ <38772BFF-2B07-467B-90D9-5806B6CE7D67@python.org>
+Message-ID: <20190228114303.GD4465@ando.pearwood.info>
+
+On Wed, Feb 27, 2019 at 02:15:53PM -0800, Barry Warsaw wrote:
+
+> I?m just relaying a data point.  Some Python folks I?ve worked with do 
+> make the connection between dicts and sets, and have questions about 
+> the ordering guarantees of then (and how they relate).
+
+Sets and dicts are not related by inheritence (except that they're both 
+subclasses of ``object``, but so is everything else). They don't share 
+an implementation. They don't provide the same API. They don't do the 
+same thing, except in the most general sense that they are both 
+collections.
+
+What connection are these folks making?
+
+If they're old-timers, or read some Python history, they might remember 
+back in the ancient days when sets were implemented on top of dicts, or 
+even before then, when we didn't have a set type at all and used dicts 
+in an ad-hoc way.
+
+But apart from that long-obsolete historical connection, I think the 
+two types are unrelated and the behaviour of one has little or no 
+implications for the behaviour of the other.
+
+"Cars have windows that you can open. Submarines should have the same. 
+They're both vehicles, right?"
+
+
+-- 
+Steven
+
+From solipsis at pitrou.net  Thu Feb 28 06:56:55 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 28 Feb 2019 12:56:55 +0100
+Subject: [Python-Dev] Compact ordered set
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+ <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+ <CALGmxEJ7uTFNpP7v0bvUP6pbOWAir6UNLU-4FsJQ_BLbGWpGHA@mail.gmail.com>
+ <38772BFF-2B07-467B-90D9-5806B6CE7D67@python.org>
+ <20190228114303.GD4465@ando.pearwood.info>
+Message-ID: <20190228125655.71733861@fsol>
+
+On Thu, 28 Feb 2019 22:43:04 +1100
+Steven D'Aprano <steve at pearwood.info> wrote:
+> On Wed, Feb 27, 2019 at 02:15:53PM -0800, Barry Warsaw wrote:
+> 
+> > I?m just relaying a data point.  Some Python folks I?ve worked with do 
+> > make the connection between dicts and sets, and have questions about 
+> > the ordering guarantees of then (and how they relate).  
+> 
+> Sets and dicts are not related by inheritence (except that they're both 
+> subclasses of ``object``, but so is everything else). They don't share 
+> an implementation. They don't provide the same API. They don't do the 
+> same thing, except in the most general sense that they are both 
+> collections.
+> 
+> What connection are these folks making?
+
+Some of them may be coming from C++, where the respective
+characteristics of set and map (or unordered_set and
+unordered_multimap) are closely related.  I'm sure other languages
+show similar analogies.
+
+On a more abstract level, set and dict are both content-addressed
+collections parametered on hash and equality functions.  For
+algorithmically-minded people it makes sense to see a close connection
+between them.
+
+Regards
+
+Antoine.
+
+
+
+From python-dev at masklinn.net  Thu Feb 28 07:08:53 2019
+From: python-dev at masklinn.net (Xavier Morel)
+Date: Thu, 28 Feb 2019 13:08:53 +0100
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <20190228125655.71733861@fsol>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+ <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+ <CALGmxEJ7uTFNpP7v0bvUP6pbOWAir6UNLU-4FsJQ_BLbGWpGHA@mail.gmail.com>
+ <38772BFF-2B07-467B-90D9-5806B6CE7D67@python.org>
+ <20190228114303.GD4465@ando.pearwood.info> <20190228125655.71733861@fsol>
+Message-ID: <1F024176-F4B3-4F59-8841-B2971E2CBD0B@masklinn.net>
+
+
+> On 2019-02-28, at 12:56 , Antoine Pitrou <solipsis at pitrou.net> wrote:
+> 
+> On Thu, 28 Feb 2019 22:43:04 +1100
+> Steven D'Aprano <steve at pearwood.info> wrote:
+>> On Wed, Feb 27, 2019 at 02:15:53PM -0800, Barry Warsaw wrote:
+>> 
+>>> I?m just relaying a data point.  Some Python folks I?ve worked with do 
+>>> make the connection between dicts and sets, and have questions about 
+>>> the ordering guarantees of then (and how they relate).  
+>> 
+>> Sets and dicts are not related by inheritence (except that they're both 
+>> subclasses of ``object``, but so is everything else). They don't share 
+>> an implementation. They don't provide the same API. They don't do the 
+>> same thing, except in the most general sense that they are both 
+>> collections.
+>> 
+>> What connection are these folks making?
+> 
+> Some of them may be coming from C++, where the respective
+> characteristics of set and map (or unordered_set and
+> unordered_multimap) are closely related.  I'm sure other languages
+> show similar analogies.
+
+Indeed e.g. Rust's hashset is a trivial wrapper around a hashmap (with
+no value): https://doc.rust-
+lang.org/src/std/collections/hash/set.rs.html#121-123, its btreeset has
+the exact same relationship to btreemap: https://doc.rust-
+lang.org/src/alloc/collections/btree/set.rs.html#72-74
+
+> On a more abstract level, set and dict are both content-addressed
+> collections parametered on hash and equality functions.  For
+> algorithmically-minded people it makes sense to see a close connection
+> between them.
+
+I can't speak for anyone else but before seeing this thread I actually
+assumed (without any evidence or having checked obviously) that the set
+builtin was built on top of dict or that they were built on the same
+base and that the changes to dict's implementation in 3.6 (ordering,
+space, ?) had affected  sets in the same way.
+
+That seems intuitively straightforward, even more so with dict.keys()
+being a set.
+
+From rosuav at gmail.com  Thu Feb 28 07:18:31 2019
+From: rosuav at gmail.com (Chris Angelico)
+Date: Thu, 28 Feb 2019 23:18:31 +1100
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <20190228125655.71733861@fsol>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+ <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+ <CALGmxEJ7uTFNpP7v0bvUP6pbOWAir6UNLU-4FsJQ_BLbGWpGHA@mail.gmail.com>
+ <38772BFF-2B07-467B-90D9-5806B6CE7D67@python.org>
+ <20190228114303.GD4465@ando.pearwood.info>
+ <20190228125655.71733861@fsol>
+Message-ID: <CAPTjJmod1DtxE98H94PwiXOn0BEzwOrR+iKJV_qmGwf9wWq4bw@mail.gmail.com>
+
+On Thu, Feb 28, 2019 at 10:58 PM Antoine Pitrou <solipsis at pitrou.net> wrote:
+> Some of them may be coming from C++, where the respective
+> characteristics of set and map (or unordered_set and
+> unordered_multimap) are closely related.  I'm sure other languages
+> show similar analogies.
+>
+> On a more abstract level, set and dict are both content-addressed
+> collections parametered on hash and equality functions.  For
+> algorithmically-minded people it makes sense to see a close connection
+> between them.
+
+Looking from the opposite direction, sets and dicts can be used to
+solve a lot of the same problems. Want to detect cycles? Stuff things
+you see into a set. If the thing is in the set, you've already seen
+it. What if you want to track WHERE the cycle came from? Then stuff
+things you see into a dict, mapping them to some kind of trace
+information. Again, if the thing's in the collection, you've already
+seen it, but now, since it's a dict, you can pull up some more info.
+And collections.Counter can be used kinda like a multiset, but it's
+definitely a dictionary. I think the similarities are more pragmatic
+than pure, but that doesn't mean they aren't real.
+
+ChrisA
+
+From songofacandy at gmail.com  Thu Feb 28 07:59:22 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Thu, 28 Feb 2019 21:59:22 +0900
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+Message-ID: <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+
+No stats for last week?
+
+On Sat, Feb 9, 2019 at 3:11 AM Python tracker <status at bugs.python.org>
+wrote:
+
+>
+> ACTIVITY SUMMARY (2019-02-01 - 2019-02-08)
+> Python tracker at https://bugs.python.org/
+>
+> To view or respond to any of the issues listed below, click on the issue.
+> Do NOT respond to this message.
+>
+> Issues counts and deltas:
+>   open    6998 (+13)
+>   closed 40696 (+47)
+>   total  47694 (+60)
+>
+> Open issues with patches: 2783
+>
+> --
+INADA Naoki  <songofacandy at gmail.com>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/2172f264/attachment.html>
+
+From jcgoble3 at gmail.com  Thu Feb 28 08:07:53 2019
+From: jcgoble3 at gmail.com (Jonathan Goble)
+Date: Thu, 28 Feb 2019 08:07:53 -0500
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+Message-ID: <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+
+On Thu, Feb 28, 2019, 8:02 AM INADA Naoki <songofacandy at gmail.com> wrote:
+
+> No stats for last week?
+>
+
+Been missing for two weeks actually. I did not receive a summary on either
+the 15th or 22nd.
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/44b0267e/attachment.html>
+
+From kadler at us.ibm.com  Thu Feb 28 00:48:02 2019
+From: kadler at us.ibm.com (Kevin Adler)
+Date: Thu, 28 Feb 2019 05:48:02 +0000
+Subject: [Python-Dev] Can I get a review for PR 10437?
+Message-ID: <OFAB8136D0.438A4E05-ON002583AF.001F8186-002583AF.001FDD16@notes.na.collabserv.com>
+
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/7b634ddd/attachment.html>
+
+From brett at python.org  Thu Feb 28 12:33:20 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 28 Feb 2019 09:33:20 -0800
+Subject: [Python-Dev] Can I get a review for PR 10437?
+In-Reply-To: <OFAB8136D0.438A4E05-ON002583AF.001F8186-002583AF.001FDD16@notes.na.collabserv.com>
+References: <OFAB8136D0.438A4E05-ON002583AF.001F8186-002583AF.001FDD16@notes.na.collabserv.com>
+Message-ID: <CAP1=2W6-HGFv0E4bOTg87eZQ7dTbXL91Wn9LDoP-U4qt9CwTBQ@mail.gmail.com>
+
+While more reviewers never hurt, Victor has left at least one comment on
+the PR.
+
+On Thu, Feb 28, 2019 at 7:59 AM Kevin Adler <kadler at us.ibm.com> wrote:
+
+> This PR has been open for nearly 3 months without any comment. Can I
+> please get someone to review it?
+>
+> PR link: https://github.com/python/cpython/pull/10437
+> Bug report: https://bugs.python.org/issue35198
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/cc685daa/attachment.html>
+
+From greg at krypto.org  Thu Feb 28 12:56:55 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Thu, 28 Feb 2019 09:56:55 -0800
+Subject: [Python-Dev] Compile-time resolution of packages [Was: Another
+ update for PEP 394...]
+In-Reply-To: <CABVPEKqPoOycqrwVjfCZo3J+4bgF-o1i3WB7nM5P+a3zZ0UkbQ@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+ <20190226220418.b36jw33qthdv5i5l@python.ca>
+ <CABVPEKqPoOycqrwVjfCZo3J+4bgF-o1i3WB7nM5P+a3zZ0UkbQ@mail.gmail.com>
+Message-ID: <CAGE7PNL3L_jrxMk0CKr2b0RQX6R3u9N7XyO+CeC8w2Y0cTuoxg@mail.gmail.com>
+
+On Wed, Feb 27, 2019 at 5:12 PM Toshio Kuratomi <a.badger at gmail.com> wrote:
+
+>
+> On Tue, Feb 26, 2019 at 2:07 PM Neil Schemenauer <nas-python at arctrix.com>
+> wrote:
+>
+>> On 2019-02-26, Gregory P. Smith wrote:
+>> > On Tue, Feb 26, 2019 at 9:55 AM Barry Warsaw <barry at python.org> wrote:
+>> > For an OS distro provided interpreter, being able to restrict its use to
+>> > only OS distro provided software would be ideal (so ideal that people
+>> who
+>> > haven't learned the hard distro maintenance lessons may hate me for it).
+>>
+>> This idea has some definite problems.  I think enforcing it via
+> convention is about as much as would be good to do.  Anything more and you
+> make it hard for people who really need to use the vendor provided
+> interpreter from being able to do so.
+>
+> Why might someone need to use the distro provided interpreter?
+>
+> * Vendor provides some python modules in their system packages which are
+> not installable from pip (possibly even a proprietary extension module, so
+> not even buildable from source or copyable from the system location) which
+> the end user needs to use to do something to their system.
+> * End user writes a python module which is a plugin to a system tool which
+> has to be installed into the system python to from which that system tool
+> runs.  The user then wants to write a script which uses the system tool
+> with the plugin in order to do something to their system outside of the
+> system tool (perhaps the system tool is GUI-driven and the user wants to
+> automate a part of it via the python module).  They need their script to
+> use the system python so that they are using the same code as the system
+> tool itself would use.
+>
+> There's probably other scenarios where the benefits of locking the user
+> out of the system python outweigh the benefits but these are the ones that
+> I've run across lately.
+>
+>
+Agreed.  The convention approach as someone said RHEL 8 has apparently done
+with an os distro reserved interpreter (yay) is likely good enough for most
+situations.
+
+I'd go a *little* further than that and suggest such an os distro reserved
+interpreter attempt to prevent installation of packages (ie: remove
+pip/ensurepip/distutils) via any other means than the OS package manager
+(rpms, debs).  Obviously that can't actually prevent someone from figuring
+out how to run getpip or manually installing trees of packages within its
+sys.path, but it acts as a deterrent suggesting that this interpreter is
+not intended for arbitrary software installation.
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/1aa7fb8d/attachment.html>
+
+From alexander.belopolsky at gmail.com  Thu Feb 28 13:55:37 2019
+From: alexander.belopolsky at gmail.com (Alexander Belopolsky)
+Date: Thu, 28 Feb 2019 13:55:37 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CADiSq7ee-1MNbNQrcYQUjW921517=AvB_gT20VdMKfq3UzEGOw@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <1cfc2984-216c-fdc7-7ea2-692662d93971@ganssle.io>
+ <CAP7h-xavkxsqF60M_aR0641M21D+oeVj90f7=h671+8Y5TUyeA@mail.gmail.com>
+ <CADiSq7ee-1MNbNQrcYQUjW921517=AvB_gT20VdMKfq3UzEGOw@mail.gmail.com>
+Message-ID: <CAP7h-xbsvSWHv7CPAXDCW8stAEBkC3BVq9vDdyj-LC305UQY6g@mail.gmail.com>
+
+> while "some_var / some_other_var" could be doing anything.
+
+"At an elementary level the division of two natural numbers is ? among
+other possible interpretations ? the process of calculating the number of
+times one number is contained within another one."
+
+-- <https://en.wikipedia.org/wiki/Division_(mathematics)>
+
+The process of figuring out how many seconds fit into a given interval is
+called division by a second.
+
+I am afraid people who get confused by timedelta / timedelta division know
+too much about Python where / can indeed mean anything including e.g.
+joining filesystem paths.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/41ef3ddb/attachment.html>
+
+From wes.turner at gmail.com  Thu Feb 28 14:52:33 2019
+From: wes.turner at gmail.com (Wes Turner)
+Date: Thu, 28 Feb 2019 14:52:33 -0500
+Subject: [Python-Dev] datetime.timedelta total_microseconds
+In-Reply-To: <CAP7h-xbsvSWHv7CPAXDCW8stAEBkC3BVq9vDdyj-LC305UQY6g@mail.gmail.com>
+References: <CAOew_sG9nG+bOGB4gt2DSwuxP8SgZW13WznwNf-Y5DhabnZZjQ@mail.gmail.com>
+ <1cfc2984-216c-fdc7-7ea2-692662d93971@ganssle.io>
+ <CAP7h-xavkxsqF60M_aR0641M21D+oeVj90f7=h671+8Y5TUyeA@mail.gmail.com>
+ <CADiSq7ee-1MNbNQrcYQUjW921517=AvB_gT20VdMKfq3UzEGOw@mail.gmail.com>
+ <CAP7h-xbsvSWHv7CPAXDCW8stAEBkC3BVq9vDdyj-LC305UQY6g@mail.gmail.com>
+Message-ID: <CACfEFw_eFtAzF=UPqou72K+Lj7bPHyRpOjAbftYZuuXJ5KVwuw@mail.gmail.com>
+
+You could specify the return value type annotations in the docstring of a
+convert()/to_unit() method, or for each to_unit() method. Are they all
+floats?
+
+div and floordiv are not going away. Without reading the docs, I, too,
+wouldn't have guessed that division by the desired unit is the correct way.
+
+In terms of performance, a convert()/to_unit() method must do either a hash
+lookup or multiple comparisons to present a more useful exception  than
+that returned by initializing timedelta with something like nanoseconds=.
+
+FWIW, astropy.time.TimeDelta supports sub-nanosecond precision and has a
+.to() method for changing units/quantities.
+http://docs.astropy.org/en/stable/time/#time-deltas
+
+> The TimeDelta class is derived from the Time class and shares many of its
+properties. One difference is that the time scale has to be one for which
+one day is exactly 86400 seconds. Hence, the scale cannot be UTC.
+>
+> The available time formats are:
+>
+> Format     Class
+> sec            TimeDeltaSec
+> jd              TimeDeltaJD
+> datetime  TimeDeltaDatetime
+
+http://docs.astropy.org/en/stable/api/astropy.time.TimeDelta.html#astropy.time.TimeDelta
+
+http://docs.astropy.org/en/stable/_modules/astropy/time/core.html#TimeDelta.to
+
+
+On Thursday, February 28, 2019, Alexander Belopolsky <
+alexander.belopolsky at gmail.com> wrote:
+
+> > while "some_var / some_other_var" could be doing anything.
+>
+> "At an elementary level the division of two natural numbers is ? among
+> other possible interpretations ? the process of calculating the number of
+> times one number is contained within another one."
+>
+> -- <https://en.wikipedia.org/wiki/Division_(mathematics)>
+>
+> The process of figuring out how many seconds fit into a given interval is
+> called division by a second.
+>
+> I am afraid people who get confused by timedelta / timedelta division know
+> too much about Python where / can indeed mean anything including e.g.
+> joining filesystem paths.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/82838ab3/attachment.html>
+
+From greg.ewing at canterbury.ac.nz  Thu Feb 28 16:30:14 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Fri, 01 Mar 2019 10:30:14 +1300
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <20190228125655.71733861@fsol>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+ <BB08E208-D402-45BD-ABAB-6BEF3B2A0D33@python.org>
+ <CALGmxEJ7uTFNpP7v0bvUP6pbOWAir6UNLU-4FsJQ_BLbGWpGHA@mail.gmail.com>
+ <38772BFF-2B07-467B-90D9-5806B6CE7D67@python.org>
+ <20190228114303.GD4465@ando.pearwood.info> <20190228125655.71733861@fsol>
+Message-ID: <5C7852E6.80106@canterbury.ac.nz>
+
+Antoine Pitrou wrote:
+
+> On a more abstract level, set and dict are both content-addressed
+> collections parametered on hash and equality functions.
+
+Indeed. It's been said that a set is like "half a dict", and
+this is why sets were implemented using dicts in the old days.
+It's kind of an obvious thing to do.
+
+You can argue about how far the analogy should be taken, but
+you can't blame people for noticing the similarity.
+
+-- 
+Greg
+
+From tjreedy at udel.edu  Thu Feb 28 17:09:01 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Thu, 28 Feb 2019 17:09:01 -0500
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+Message-ID: <q59m60$1i0v$1@blaine.gmane.org>
+
+On 2/28/2019 8:07 AM, Jonathan Goble wrote:
+> On Thu, Feb 28, 2019, 8:02 AM INADA Naoki <songofacandy at gmail.com 
+> <mailto:songofacandy at gmail.com>> wrote:
+> 
+>     No stats for last week?
+> 
+> 
+> Been missing for two weeks actually. I did not receive a summary on 
+> either the 15th or 22nd.
+
+Ditto for me.  I get pydev via gmane.  Anyone missing the same issues 
+get pydev directly by email?
+
+
+-- 
+Terry Jan Reedy
+
+
+From jcgoble3 at gmail.com  Thu Feb 28 17:18:16 2019
+From: jcgoble3 at gmail.com (Jonathan Goble)
+Date: Thu, 28 Feb 2019 17:18:16 -0500
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <q59m60$1i0v$1@blaine.gmane.org>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+Message-ID: <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+
+On Thu, Feb 28, 2019, 5:11 PM Terry Reedy <tjreedy at udel.edu> wrote:
+
+> On 2/28/2019 8:07 AM, Jonathan Goble wrote:
+> > On Thu, Feb 28, 2019, 8:02 AM INADA Naoki <songofacandy at gmail.com
+> > <mailto:songofacandy at gmail.com>> wrote:
+> >
+> >     No stats for last week?
+> >
+> >
+> > Been missing for two weeks actually. I did not receive a summary on
+> > either the 15th or 22nd.
+>
+> Ditto for me.  I get pydev via gmane.  Anyone missing the same issues
+> get pydev directly by email?
+>
+
+I get direct emails only and stated my observation above. :-)
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/1ea3fef2/attachment.html>
+
+From v+python at g.nevcal.com  Thu Feb 28 17:38:32 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Thu, 28 Feb 2019 14:38:32 -0800
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+ <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+Message-ID: <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+
+On 2/28/2019 2:18 PM, Jonathan Goble wrote:
+> On Thu, Feb 28, 2019, 5:11 PM Terry Reedy <tjreedy at udel.edu 
+> <mailto:tjreedy at udel.edu>> wrote:
+>
+>     On 2/28/2019 8:07 AM, Jonathan Goble wrote:
+>     > On Thu, Feb 28, 2019, 8:02 AM INADA Naoki
+>     <songofacandy at gmail.com <mailto:songofacandy at gmail.com>
+>     > <mailto:songofacandy at gmail.com <mailto:songofacandy at gmail.com>>>
+>     wrote:
+>     >
+>     >? ? ?No stats for last week?
+>     >
+>     >
+>     > Been missing for two weeks actually. I did not receive a summary on
+>     > either the 15th or 22nd.
+>
+>     Ditto for me.? I get pydev via gmane.? Anyone missing the same issues
+>     get pydev directly by email?
+>
+>
+> I get direct emails only and stated my observation above. :-)
+
+I confirm and concur with Jonathan's observation, by searching my email 
+archive for this group list. So it is not just something about his 
+particular email address... except we both do use Google Mail services.? 
+I do check my Google SPAM box for the account, and it wasn't there 
+either, by recollection (I don't archive the SPAM, but delete it ASAP).
+
+Can someone not using a Google email address also confirm?
+
+Glenn
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/db8df71c/attachment.html>
+
+From tjreedy at udel.edu  Thu Feb 28 17:52:53 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Thu, 28 Feb 2019 17:52:53 -0500
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+ <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+ <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+Message-ID: <q59oo7$71ib$1@blaine.gmane.org>
+
+On 2/28/2019 5:38 PM, Glenn Linderman wrote:
+> On 2/28/2019 2:18 PM, Jonathan Goble wrote:
+>> On Thu, Feb 28, 2019, 5:11 PM Terry Reedy <tjreedy at udel.edu 
+>> <mailto:tjreedy at udel.edu>> wrote:
+>>
+>>     On 2/28/2019 8:07 AM, Jonathan Goble wrote:
+>>     > On Thu, Feb 28, 2019, 8:02 AM INADA Naoki
+>>     <songofacandy at gmail.com <mailto:songofacandy at gmail.com>
+>>     > <mailto:songofacandy at gmail.com <mailto:songofacandy at gmail.com>>>
+>>     wrote:
+>>     >
+>>     >? ? ?No stats for last week?
+>>     >
+>>     >
+>>     > Been missing for two weeks actually. I did not receive a summary on
+>>     > either the 15th or 22nd.
+>>
+>>     Ditto for me.? I get pydev via gmane.? Anyone missing the same issues
+>>     get pydev directly by email?
+>>
+>>
+>> I get direct emails only and stated my observation above. :-)
+> 
+> I confirm and concur with Jonathan's observation, by searching my email 
+> archive for this group list. So it is not just something about his 
+> particular email address... except we both do use Google Mail services.  
+> I do check my Google SPAM box for the account, and it wasn't there 
+> either, by recollection (I don't archive the SPAM, but delete it ASAP).
+> 
+> Can someone not using a Google email address also confirm?
+
+I effectively did when I said I access via gmane -- as a newsgroup via 
+NNTP.  I am sure that the mail server sends directly to news.gmane.org 
+rather than through google.
+
+
+-- 
+Terry Jan Reedy
+
+
+
+From v+python at g.nevcal.com  Thu Feb 28 18:54:46 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Thu, 28 Feb 2019 15:54:46 -0800
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <q59oo7$71ib$1@blaine.gmane.org>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+ <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+ <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+ <q59oo7$71ib$1@blaine.gmane.org>
+Message-ID: <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+
+On 2/28/2019 2:52 PM, Terry Reedy wrote:
+> On 2/28/2019 5:38 PM, Glenn Linderman wrote:
+>> On 2/28/2019 2:18 PM, Jonathan Goble wrote:
+>>> On Thu, Feb 28, 2019, 5:11 PM Terry Reedy <tjreedy at udel.edu 
+>>> <mailto:tjreedy at udel.edu>> wrote:
+>>>
+>>> ??? On 2/28/2019 8:07 AM, Jonathan Goble wrote:
+>>> ??? > On Thu, Feb 28, 2019, 8:02 AM INADA Naoki
+>>> ??? <songofacandy at gmail.com <mailto:songofacandy at gmail.com>
+>>> ??? > <mailto:songofacandy at gmail.com <mailto:songofacandy at gmail.com>>>
+>>> ??? wrote:
+>>> ??? >
+>>> ??? >? ? ?No stats for last week?
+>>> ??? >
+>>> ??? >
+>>> ??? > Been missing for two weeks actually. I did not receive a 
+>>> summary on
+>>> ??? > either the 15th or 22nd.
+>>>
+>>> ??? Ditto for me.? I get pydev via gmane.? Anyone missing the same 
+>>> issues
+>>> ??? get pydev directly by email?
+>>>
+>>>
+>>> I get direct emails only and stated my observation above. :-)
+>>
+>> I confirm and concur with Jonathan's observation, by searching my 
+>> email archive for this group list. So it is not just something about 
+>> his particular email address... except we both do use Google Mail 
+>> services.? I do check my Google SPAM box for the account, and it 
+>> wasn't there either, by recollection (I don't archive the SPAM, but 
+>> delete it ASAP).
+>>
+>> Can someone not using a Google email address also confirm?
+>
+> I effectively did when I said I access via gmane -- as a newsgroup via 
+> NNTP.? I am sure that the mail server sends directly to news.gmane.org 
+> rather than through google.
+
+That's a whole different protocol. I don't know all the configurations 
+for the server that sends the Summary messages, or how it is handled, 
+but you confirm it didn't get to gnane via NNTP, and Jonathan and I 
+confirm it didn't get to Google email servers, but neither one really 
+confirms that it didn't get to other email servers. Google email is 
+definitely different than other email servers.
+
+There seems to be enough evidence that something went wrong somewhere, 
+though, and whoever maintains that process should start investigating, 
+but it would still be nice to get confirmation from a non-Google email 
+recipient whether they did or did not get the Summary messages.
+
+I wonder if there is a way to manually send them, and if the missing two 
+weeks of activity can be reported... once the sending problem is 
+understood and resolved.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/6f8a9b08/attachment.html>
+
+From jcgoble3 at gmail.com  Thu Feb 28 19:07:14 2019
+From: jcgoble3 at gmail.com (Jonathan Goble)
+Date: Thu, 28 Feb 2019 19:07:14 -0500
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+ <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+ <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+ <q59oo7$71ib$1@blaine.gmane.org>
+ <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+Message-ID: <CAK256p33fY4oaVmbitP_z4sNTogr4_ezmMrgeLXguaJbyQHzng@mail.gmail.com>
+
+On Thu, Feb 28, 2019 at 6:57 PM Glenn Linderman <v+python at g.nevcal.com>
+wrote:
+
+> On 2/28/2019 2:52 PM, Terry Reedy wrote:
+>
+> On 2/28/2019 5:38 PM, Glenn Linderman wrote:
+>
+> On 2/28/2019 2:18 PM, Jonathan Goble wrote:
+>
+> On Thu, Feb 28, 2019, 5:11 PM Terry Reedy <tjreedy at udel.edu
+> <mailto:tjreedy at udel.edu> <tjreedy at udel.edu>> wrote:
+>
+>     On 2/28/2019 8:07 AM, Jonathan Goble wrote:
+>     > On Thu, Feb 28, 2019, 8:02 AM INADA Naoki
+>     <songofacandy at gmail.com <mailto:songofacandy at gmail.com>
+> <songofacandy at gmail.com>
+>     > <mailto:songofacandy at gmail.com <songofacandy at gmail.com>
+> <mailto:songofacandy at gmail.com> <songofacandy at gmail.com>>>
+>     wrote:
+>     >
+>     >     No stats for last week?
+>     >
+>     >
+>     > Been missing for two weeks actually. I did not receive a summary on
+>     > either the 15th or 22nd.
+>
+>     Ditto for me.  I get pydev via gmane.  Anyone missing the same issues
+>     get pydev directly by email?
+>
+>
+> I get direct emails only and stated my observation above. :-)
+>
+>
+> I confirm and concur with Jonathan's observation, by searching my email
+> archive for this group list. So it is not just something about his
+> particular email address... except we both do use Google Mail services.  I
+> do check my Google SPAM box for the account, and it wasn't there either, by
+> recollection (I don't archive the SPAM, but delete it ASAP).
+>
+> Can someone not using a Google email address also confirm?
+>
+>
+> I effectively did when I said I access via gmane -- as a newsgroup via
+> NNTP.  I am sure that the mail server sends directly to news.gmane.org
+> rather than through google.
+>
+>
+> That's a whole different protocol. I don't know all the configurations for
+> the server that sends the Summary messages, or how it is handled, but you
+> confirm it didn't get to gnane via NNTP, and Jonathan and I confirm it
+> didn't get to Google email servers, but neither one really confirms that it
+> didn't get to other email servers. Google email is definitely different
+> than other email servers.
+>
+> There seems to be enough evidence that something went wrong somewhere,
+> though, and whoever maintains that process should start investigating, but
+> it would still be nice to get confirmation from a non-Google email
+> recipient whether they did or did not get the Summary messages.
+>
+> I wonder if there is a way to manually send them, and if the missing two
+> weeks of activity can be reported... once the sending problem is understood
+> and resolved.
+>
+
+It's also possible that the fault is not in sending (we have evidence here
+that two entirely different protocols have not received it, and they are
+also not in the archives [1]), but in the generation of the report. Could
+there have been a subtle change to the bpo tracker itself, or something
+else along those lines, that is causing the script to fail silently before
+it ever reaches the point of attempting to send? Or perhaps a disk ran out
+of space somewhere?
+
+[1] https://mail.python.org/pipermail/python-dev/2019-February/date.html
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/6a4cbfe2/attachment.html>
+
+From songofacandy at gmail.com  Thu Feb 28 19:21:26 2019
+From: songofacandy at gmail.com (INADA Naoki)
+Date: Fri, 1 Mar 2019 09:21:26 +0900
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <CAK256p33fY4oaVmbitP_z4sNTogr4_ezmMrgeLXguaJbyQHzng@mail.gmail.com>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+ <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+ <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+ <q59oo7$71ib$1@blaine.gmane.org>
+ <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+ <CAK256p33fY4oaVmbitP_z4sNTogr4_ezmMrgeLXguaJbyQHzng@mail.gmail.com>
+Message-ID: <CAEfz+Tx_msQZm8ewP_UJf-NT2Y-=gc=P5oCTRaDm11ZrokGyjg@mail.gmail.com>
+
+>
+> It's also possible that the fault is not in sending (we have evidence here that two entirely different protocols have not received it, and they are also not in the archives [1]), but in the generation of the report. Could there have been a subtle change to the bpo tracker itself, or something else along those lines, that is causing the script to fail silently before it ever reaches the point of attempting to send? Or perhaps a disk ran out of space somewhere?
+>
+> [1] https://mail.python.org/pipermail/python-dev/2019-February/date.html
+
+I suspect so.  See "Open issues deltas (weekly)" graph in this page.
+It is ended by 2/8.
+
+https://bugs.python.org/issue?@template=stats
+
+-- 
+INADA Naoki  <songofacandy at gmail.com>
+
+From nas-python at arctrix.com  Thu Feb 28 20:08:55 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Thu, 28 Feb 2019 19:08:55 -0600
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for
+ testing
+In-Reply-To: <20190226125903.GA4712@xps>
+References: <8AFF29B7-D3DB-4DE1-BAF7-CAE6F4017378@langa.pl>
+ <20190226125903.GA4712@xps>
+Message-ID: <20190301010855.vilysc3oy7i3zqs2@python.ca>
+
+On 2019-02-26, Stephane Wirtel wrote:
+> I also filled an issue [2] for brotlipy (used by httpbin and requests).
+> The problem is with PyInterpreterState.
+
+I tried compiling psycopg2 today and it has a similar problem:
+
+    psycopg/psycopgmodule.c: In function ?psyco_is_main_interp?:
+    psycopg/psycopgmodule.c:689:18: error: dereferencing pointer to incomplete type ?PyInterpreterState? {aka ?struct _is?}
+         while (interp->next)
+
+That code is inside a function:
+
+    /* Return nonzero if the current one is the main interpreter */
+    static int
+    psyco_is_main_interp(void)
+    ...
+
+I believe the correct fix is to use PEP 3121 per-interpreter module
+state.  I created a new issue:
+
+    https://github.com/psycopg/psycopg2/issues/854
+
+I think the fix is not trival as the psycopgmodule.c source code has
+change a fair bit to use the PEP 3121 APIs.
+
+Regards,
+
+  Neil
+
+From python at mrabarnett.plus.com  Thu Feb 28 20:09:05 2019
+From: python at mrabarnett.plus.com (MRAB)
+Date: Fri, 1 Mar 2019 01:09:05 +0000
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+ <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+ <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+ <q59oo7$71ib$1@blaine.gmane.org>
+ <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+Message-ID: <6b050f81-f727-f26e-32ed-120be0beb330@mrabarnett.plus.com>
+
+On 2019-02-28 23:54, Glenn Linderman wrote:
+> On 2/28/2019 2:52 PM, Terry Reedy wrote:
+>> On 2/28/2019 5:38 PM, Glenn Linderman wrote:
+>>> On 2/28/2019 2:18 PM, Jonathan Goble wrote:
+>>>> On Thu, Feb 28, 2019, 5:11 PM Terry Reedy <tjreedy at udel.edu 
+>>>> <mailto:tjreedy at udel.edu>> wrote:
+>>>>
+>>>> ??? On 2/28/2019 8:07 AM, Jonathan Goble wrote:
+>>>> ??? > On Thu, Feb 28, 2019, 8:02 AM INADA Naoki
+>>>> ??? <songofacandy at gmail.com <mailto:songofacandy at gmail.com>
+>>>> ??? > <mailto:songofacandy at gmail.com <mailto:songofacandy at gmail.com>>>
+>>>> ??? wrote:
+>>>> ??? >
+>>>> ??? >? ? ?No stats for last week?
+>>>> ??? >
+>>>> ??? >
+>>>> ??? > Been missing for two weeks actually. I did not receive a 
+>>>> summary on
+>>>> ??? > either the 15th or 22nd.
+>>>>
+>>>> ??? Ditto for me.? I get pydev via gmane.? Anyone missing the same 
+>>>> issues
+>>>> ??? get pydev directly by email?
+>>>>
+>>>>
+>>>> I get direct emails only and stated my observation above. :-)
+>>>
+>>> I confirm and concur with Jonathan's observation, by searching my 
+>>> email archive for this group list. So it is not just something about 
+>>> his particular email address... except we both do use Google Mail 
+>>> services.? I do check my Google SPAM box for the account, and it 
+>>> wasn't there either, by recollection (I don't archive the SPAM, but 
+>>> delete it ASAP).
+>>>
+>>> Can someone not using a Google email address also confirm?
+>>
+>> I effectively did when I said I access via gmane -- as a newsgroup via 
+>> NNTP.? I am sure that the mail server sends directly to news.gmane.org 
+>> rather than through google.
+> 
+> That's a whole different protocol. I don't know all the configurations 
+> for the server that sends the Summary messages, or how it is handled, 
+> but you confirm it didn't get to gnane via NNTP, and Jonathan and I 
+> confirm it didn't get to Google email servers, but neither one really 
+> confirms that it didn't get to other email servers. Google email is 
+> definitely different than other email servers.
+> 
+> There seems to be enough evidence that something went wrong somewhere, 
+> though, and whoever maintains that process should start investigating, 
+> but it would still be nice to get confirmation from a non-Google email 
+> recipient whether they did or did not get the Summary messages.
+> 
+> I wonder if there is a way to manually send them, and if the missing two 
+> weeks of activity can be reported... once the sending problem is 
+> understood and resolved.
+> 
+I subscribed at https://mail.python.org/mailman/listinfo/python-dev and 
+I don't use Google for email. I didn't receive them either.
+
+From vstinner at redhat.com  Thu Feb 28 20:35:20 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 1 Mar 2019 02:35:20 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a1 is now available for
+ testing
+In-Reply-To: <20190301010855.vilysc3oy7i3zqs2@python.ca>
+References: <8AFF29B7-D3DB-4DE1-BAF7-CAE6F4017378@langa.pl>
+ <20190226125903.GA4712@xps> <20190301010855.vilysc3oy7i3zqs2@python.ca>
+Message-ID: <CA+3bQGEM8KajE+vDJHxQxfyH-gVHhysu8DiyH3MFtu=MPLRZDg@mail.gmail.com>
+
+Hi,
+
+Le ven. 1 mars 2019 ? 02:12, Neil Schemenauer <nas-python at arctrix.com> a ?crit :
+> I believe the correct fix is to use PEP 3121 per-interpreter module
+> state.  I created a new issue:
+>
+>     https://github.com/psycopg/psycopg2/issues/854
+>
+> I think the fix is not trival as the psycopgmodule.c source code has
+> change a fair bit to use the PEP 3121 APIs.
+
+The problem is this function:
+
+
+/* Return nonzero if the current one is the main interpreter */
+static int
+psyco_is_main_interp(void)
+{
+    static PyInterpreterState *main_interp = NULL;  /* Cached reference */
+    PyInterpreterState *interp;
+
+    if (main_interp) {
+        return (main_interp == PyThreadState_Get()->interp);
+    }
+
+    /* No cached value: cache the proper value and try again. */
+    interp = PyInterpreterState_Head();
+    while (interp->next)
+        interp = interp->next;
+
+    main_interp = interp;
+    assert (main_interp);
+    return psyco_is_main_interp();
+}
+
+https://github.com/psycopg/psycopg2/blob/599432552aae4941c2b282e9251330f1357b2a45/psycopg/utils.c#L407
+
+I'm not sure that this code is safe. In CPython, iterating on
+interp->next is protected by a lock:
+
+    HEAD_LOCK();
+    ...
+    HEAD_UNLOCK();
+
+We already expose the main interpreter since Python 3.7:
+PyInterpreterState_Main(). psycopg can be modified to use directly
+this function rather than playing black magic with CPython internals.
+
+IMHO it's a good thing that the compilation failed: that such bug is found :-)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From tjreedy at udel.edu  Thu Feb 28 23:59:22 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Thu, 28 Feb 2019 23:59:22 -0500
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+ <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+ <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+ <q59oo7$71ib$1@blaine.gmane.org>
+ <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+Message-ID: <q5ae7e$603g$1@blaine.gmane.org>
+
+On 2/28/2019 6:54 PM, Glenn Linderman wrote:
+
+> There seems to be enough evidence that something went wrong somewhere, 
+> though, and whoever maintains that process should start investigating, 
+> but it would still be nice to get confirmation from a non-Google email 
+> recipient whether they did or did not get the Summary messages.
+> 
+> I wonder if there is a way to manually send them, and if the missing two 
+> weeks of activity can be reported... once the sending problem is 
+> understood and resolved.
+
+I posted a note to the core-workflow list, but I don't know if anyone 
+with power or knowledge still reads it.
+
+To get a listing, go to the tracker search page, put
+2019-02-09 to 2019-03-01
+in the date box, and change status to don't care.  At the moment, this 
+returns 204 issues.
+
+-- 
+Terry Jan Reedy
+
+
