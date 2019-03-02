@@ -1,0 +1,754 @@
+From ezio.melotti at gmail.com  Fri Mar  1 02:05:55 2019
+From: ezio.melotti at gmail.com (Ezio Melotti)
+Date: Fri, 1 Mar 2019 08:05:55 +0100
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <q5ae7e$603g$1@blaine.gmane.org>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+ <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+ <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+ <q59oo7$71ib$1@blaine.gmane.org>
+ <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+ <q5ae7e$603g$1@blaine.gmane.org>
+Message-ID: <CACBhJdGqHTJCrZfGDtEnwBMs5JXTpjyNa04qiR5sOf4yb9OzbQ@mail.gmail.com>
+
+On Fri, Mar 1, 2019 at 5:59 AM Terry Reedy <tjreedy at udel.edu> wrote:
+>
+> On 2/28/2019 6:54 PM, Glenn Linderman wrote:
+>
+> > There seems to be enough evidence that something went wrong somewhere,
+> > though, and whoever maintains that process should start investigating,
+> > but it would still be nice to get confirmation from a non-Google email
+> > recipient whether they did or did not get the Summary messages.
+> >
+> > I wonder if there is a way to manually send them, and if the missing two
+> > weeks of activity can be reported... once the sending problem is
+> > understood and resolved.
+>
+> I posted a note to the core-workflow list, but I don't know if anyone
+> with power or knowledge still reads it.
+>
+
+The tracker got migrated recently, and that's the most likely cause of
+the missing reports.
+We'll look into it and get them back :)
+
+> To get a listing, go to the tracker search page, put
+> 2019-02-09 to 2019-03-01
+> in the date box, and change status to don't care.  At the moment, this
+> returns 204 issues.
+>
+> --
+> Terry Jan Reedy
+>
+
+From encukou at gmail.com  Fri Mar  1 05:41:03 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Fri, 1 Mar 2019 11:41:03 +0100
+Subject: [Python-Dev] Compile-time resolution of packages [Was: Another
+ update for PEP 394...]
+In-Reply-To: <CAGE7PNL3L_jrxMk0CKr2b0RQX6R3u9N7XyO+CeC8w2Y0cTuoxg@mail.gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+ <20190226220418.b36jw33qthdv5i5l@python.ca>
+ <CABVPEKqPoOycqrwVjfCZo3J+4bgF-o1i3WB7nM5P+a3zZ0UkbQ@mail.gmail.com>
+ <CAGE7PNL3L_jrxMk0CKr2b0RQX6R3u9N7XyO+CeC8w2Y0cTuoxg@mail.gmail.com>
+Message-ID: <37ff84c0-7b7d-485f-e061-9f9b8f96fdb4@gmail.com>
+
+On 2/28/19 6:56 PM, Gregory P. Smith wrote:
+> 
+> On Wed, Feb 27, 2019 at 5:12 PM Toshio Kuratomi <a.badger at gmail.com 
+> <mailto:a.badger at gmail.com>> wrote:
+> 
+> 
+>     On Tue, Feb 26, 2019 at 2:07 PM Neil Schemenauer
+>     <nas-python at arctrix.com <mailto:nas-python at arctrix.com>> wrote:
+> 
+>         On 2019-02-26, Gregory P. Smith wrote:
+>          > On Tue, Feb 26, 2019 at 9:55 AM Barry Warsaw
+>         <barry at python.org <mailto:barry at python.org>> wrote:
+>          > For an OS distro provided interpreter, being able to restrict
+>         its use to
+>          > only OS distro provided software would be ideal (so ideal
+>         that people who
+>          > haven't learned the hard distro maintenance lessons may hate
+>         me for it).
+> 
+>     This idea has some definite problems.? I think enforcing it via
+>     convention is about as much as would be good to do.? Anything more
+>     and you make it hard for people who really need to use the vendor
+>     provided interpreter from being able to do so.
+> 
+>     Why might someone need to use the distro provided interpreter?
+> 
+>     * Vendor provides some python modules in their system packages which
+>     are not installable from pip (possibly even a proprietary extension
+>     module, so not even buildable from source or copyable from the
+>     system location) which the end user needs to use to do something to
+>     their system.
+>     * End user writes a python module which is a plugin to a system tool
+>     which has to be installed into the system python to from which that
+>     system tool runs.? The user then wants to write a script which uses
+>     the system tool with the plugin in order to do something to their
+>     system outside of the system tool (perhaps the system tool is
+>     GUI-driven and the user wants to automate a part of it via the
+>     python module).? They need their script to use the system python so
+>     that they are using the same code as the system tool itself would use.
+> 
+>     There's probably other scenarios where the benefits of locking the
+>     user out of the system python outweigh the benefits but these are
+>     the ones that I've run across lately.
+> 
+> 
+> Agreed.? The convention approach as someone said RHEL 8 has apparently 
+> done with an os distro reserved interpreter (yay) is likely good enough 
+> for most situations.
+> 
+> I'd go a /little/ further than that and suggest such an os distro 
+> reserved interpreter attempt to prevent installation of packages (ie: 
+> remove pip/ensurepip/distutils) via any other means than the OS package 
+> manager (rpms, debs).? Obviously that can't actually prevent someone 
+> from figuring out how to run getpip or manually installing trees of 
+> packages within its sys.path, but it acts as a deterrent suggesting that 
+> this interpreter is not intended for arbitrary software installation.
+
+Currently, in RHEL/Fedora:
+- "sudo pip" installs to /usr/local/, RPM packages install to /usr/
+- with "-I", the interpreter does not look into /usr/local/.
+AFAIK, Debian/Ubuntu have something very similar, and were first to do it.
+
+What remains to tie this together is making "platform-python" always run 
+with -I. This is PEP 432's "system-python" use case / design goal.
+(The RHEL/Fedora platform-python was initially called system-python. We 
+renamed to it so it doesn't clash with the PEP. It's the same use case, 
+but we don't want to assign semantics to the name prematurely. 
+Cutrrently, system-python is waiting for the larger-scale restructuring, 
+and hopefully wider/longer discussion.)
+
+
+From aixtools at felt.demon.nl  Fri Mar  1 08:51:40 2019
+From: aixtools at felt.demon.nl (Michael Felt)
+Date: Fri, 1 Mar 2019 14:51:40 +0100
+Subject: [Python-Dev] before I open an issue re: posix.stat and/or
+ os.stat
+In-Reply-To: <d229a52f-3c40-515b-917f-3c9a89d9f6a2@felt.demon.nl>
+References: <d229a52f-3c40-515b-917f-3c9a89d9f6a2@felt.demon.nl>
+Message-ID: <ECA5961E-5CED-4C8A-AF7E-5D311137C9DD@felt.demon.nl>
+
+Shortening the original mail to something shorter.
+
+The reason I am starting here, in -dev, rather than as an issue directly, is because I would like some direction/recommendation from concerned individuals before I take a "outsider" approach. Too often I have learned that I guessed wrong how the Python community "sees the world".
+> On 2/21/2019 11:26 AM, Michael wrote:
+> It seems so - however, Is there something such as PyUnsignedLong and is
+> that large enough for a "long long"? and if it exists, would that make
+> the value positive (for the first test).
+> 
+> posix.major and os.major will need to mask away the MSB and
+> posix.makedev and os.makedev will need to add it back.
+> 
+> OR - do I need to make the PyStat values "the same" in both 32-bit and
+> 64-bit?
+I think I already have the answer to this - follow the platform (as far as size goes).
+
+On 32-bit max(1) == 256 (2^^8) and on 64-bit 65536 (2^^16).
+
+However, I am still puzzeled re: the idiosyncratic MSB addition - that the value for 
+st.st_dev
+
+on AIX 64-bit has always (as far back as I could look at least) had the MSB set so that, as a signed number st.st_dev is always negative. And MSB is not part of the major device number. It's just there.
+
+So, it has been a few days since I studied this (waiting for reactions) - but is the return suppossed to always be a value returned by the posixmodule.c (if so, can strip the MSB bit and make everything positive - even for st.st_dev (but that would break under a direct comparision with a C program that does not strip the MSB).
+
+Currently, the macros on AIX for 64-bit are broken, so I cannot guess how they will decide to implement major() and mkdevice() as far as striping (and adding) the MSB when "constructing" the st_dev number from two "regular" major and minor numbers.
+
+Parked for now,
+
+Best wishes,
+
+Michael
+> 
+> Puzzled on what you think is the correct approach.
+> 
+> Michael
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190301/36629631/attachment.html>
+
+From willingc at gmail.com  Fri Mar  1 01:48:52 2019
+From: willingc at gmail.com (Carol Willing)
+Date: Thu, 28 Feb 2019 22:48:52 -0800
+Subject: [Python-Dev] Update from the Python Steering Council about CPython
+ Development
+Message-ID: <2AACF155-36B1-4D80-A2C1-A948561C45E4@getmailspring.com>
+
+The Python Steering Council is pleased to provide an update to the Python community about Steering Council activity and CPython development. We've created a GitHub repo for Steering Council updates and helpful documents: https://github.com/python/steering-council
+
+Here's the latest update written after our meeting on February 26th:
+https://github.com/python/steering-council/blob/master/updates/2019-02-26_steering-council-update.md (https://link.getmailspring.com/link/2AACF155-36B1-4D80-A2C1-A948561C45E4 at getmailspring.com/0?redirect=https%3A%2F%2Fgithub.com%2Fpython%2Fsteering-council%2Fblob%2Fmaster%2Fupdates%2F2019-02-26_steering-council-update.md&recipient=cHl0aG9uLWRldkBweXRob24ub3Jn)
+We'll be posting updates after each steering council meeting which will be roughly twice a month.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190228/db1930b4/attachment.html>
+
+From status at bugs.python.org  Fri Mar  1 13:08:03 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri,  1 Mar 2019 18:08:03 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190301180803.B9E9652B1B3@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-02-22 - 2019-03-01)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7012 (+13)
+  closed 40898 (+64)
+  total  47910 (+77)
+
+Open issues with patches: 2791 
+
+
+Issues opened (44)
+==================
+
+#35459: Use PyDict_GetItemWithError() instead of PyDict_GetItem()
+https://bugs.python.org/issue35459  reopened by vstinner
+
+#35931: pdb: "debug print(" crashes with SyntaxError
+https://bugs.python.org/issue35931  reopened by blueyed
+
+#36084: Threading: add builtin TID attribute to Thread objects
+https://bugs.python.org/issue36084  opened by jaketesler
+
+#36085: Enable better DLL resolution
+https://bugs.python.org/issue36085  opened by steve.dower
+
+#36086: Split IDLE into separate feature in Windows installer
+https://bugs.python.org/issue36086  opened by kimsey0
+
+#36091: clean up async generator from types module
+https://bugs.python.org/issue36091  opened by scotchka
+
+#36092: unittest.mock's patch.object and patch.dict are not supported 
+https://bugs.python.org/issue36092  opened by xtreak
+
+#36093: UnicodeEncodeError raise from smtplib.verify() method
+https://bugs.python.org/issue36093  opened by Windson Yang
+
+#36094: When using an SMTP SSL connection,, get ValueError.
+https://bugs.python.org/issue36094  opened by tyrone-zhao
+
+#36095: Better NaN sorting.
+https://bugs.python.org/issue36095  opened by brandtbucher
+
+#36097: Use only public C-API in _xxsubinterpreters module.
+https://bugs.python.org/issue36097  opened by eric.snow
+
+#36098: asyncio: ssl client-server with "slow" read
+https://bugs.python.org/issue36098  opened by MultiSosnooley
+
+#36099: Clarify the difference between mu and xbar in the statistics d
+https://bugs.python.org/issue36099  opened by steven.daprano
+
+#36100: Document the differences between str.isdigit, isdecimal and is
+https://bugs.python.org/issue36100  opened by StyXman
+
+#36103: Increase shutil.COPY_BUFSIZE
+https://bugs.python.org/issue36103  opened by inada.naoki
+
+#36107: aarch64 python3 buffer overflow with stack protector on rpi3 (
+https://bugs.python.org/issue36107  opened by Natanael Copa
+
+#36108: Avoid failing the build on race condition in clean
+https://bugs.python.org/issue36108  opened by steve.dower
+
+#36114: test_multiprocessing_spawn changes the execution environment
+https://bugs.python.org/issue36114  opened by pablogsal
+
+#36116: test_multiprocessing_spawn fails on AMD64 Windows8 3.x
+https://bugs.python.org/issue36116  opened by pablogsal
+
+#36121: csv: Non global alternative to csv.field_size_limit
+https://bugs.python.org/issue36121  opened by Carlos Ramos
+
+#36124: Provide convenient C API for storing per-interpreter state
+https://bugs.python.org/issue36124  opened by ncoghlan
+
+#36127: Argument Clinic: inline parsing code for functions with keywor
+https://bugs.python.org/issue36127  opened by serhiy.storchaka
+
+#36128: ResourceReader for FileLoader inconsistently handles path sepa
+https://bugs.python.org/issue36128  opened by indygreg
+
+#36129: io documentation unclear about flush() and close() semantics f
+https://bugs.python.org/issue36129  opened by indygreg
+
+#36130: Pdb(skip=[...]) + module without __name__ => TypeError
+https://bugs.python.org/issue36130  opened by Anthony Sottile
+
+#36132: Python cannot access hci_channel field in sockaddr_hci
+https://bugs.python.org/issue36132  opened by bsder
+
+#36133: ThreadPoolExecutor and ProcessPoolExecutor, dynamic worker cou
+https://bugs.python.org/issue36133  opened by Fabian Dill
+
+#36136: Windows: python._pth sets isolated mode late during Python ini
+https://bugs.python.org/issue36136  opened by vstinner
+
+#36137: SSL verification fails for some sites inside windows docker co
+https://bugs.python.org/issue36137  opened by Mika Fischer
+
+#36138: Improve documentation about converting datetime.timedelta to s
+https://bugs.python.org/issue36138  opened by p-ganssle
+
+#36139: release GIL on mmap dealloc
+https://bugs.python.org/issue36139  opened by davide.rizzo
+
+#36140: An incorrect check in _msi.c's msidb_getsummaryinformation()
+https://bugs.python.org/issue36140  opened by ZackerySpytz
+
+#36141: configure: error: could not find pthreads on your system durin
+https://bugs.python.org/issue36141  opened by muhzi
+
+#36142: Add a new _PyPreConfig step to Python initialization to setup 
+https://bugs.python.org/issue36142  opened by vstinner
+
+#36143: Auto-generate Lib/keyword.py
+https://bugs.python.org/issue36143  opened by gvanrossum
+
+#36144: Dictionary addition.
+https://bugs.python.org/issue36144  opened by brandtbucher
+
+#36145: android arm cross compilation fails, config issue
+https://bugs.python.org/issue36145  opened by muhzi
+
+#36147: [2.7] Coverity scan: Modules/_ctypes/cfield.c , Variable "resu
+https://bugs.python.org/issue36147  opened by cstratak
+
+#36149: use of uninitialised memory in cPickle.
+https://bugs.python.org/issue36149  opened by twouters
+
+#36153: Freeze support documentation is misleading.
+https://bugs.python.org/issue36153  opened by Sridhar Iyer
+
+#36154: Python quit unexpectedly error
+https://bugs.python.org/issue36154  opened by kellena
+
+#36157: Document PyInterpreterState_Main().
+https://bugs.python.org/issue36157  opened by eric.snow
+
+#36158: Regex search behaves differently in list comprehension
+https://bugs.python.org/issue36158  opened by Matthew Drago
+
+#36159: Modify Formatter Class to handle arbitrary objects
+https://bugs.python.org/issue36159  opened by Ross Biro
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36159: Modify Formatter Class to handle arbitrary objects
+https://bugs.python.org/issue36159
+
+#36157: Document PyInterpreterState_Main().
+https://bugs.python.org/issue36157
+
+#36149: use of uninitialised memory in cPickle.
+https://bugs.python.org/issue36149
+
+#36140: An incorrect check in _msi.c's msidb_getsummaryinformation()
+https://bugs.python.org/issue36140
+
+#36138: Improve documentation about converting datetime.timedelta to s
+https://bugs.python.org/issue36138
+
+#36136: Windows: python._pth sets isolated mode late during Python ini
+https://bugs.python.org/issue36136
+
+#36133: ThreadPoolExecutor and ProcessPoolExecutor, dynamic worker cou
+https://bugs.python.org/issue36133
+
+#36130: Pdb(skip=[...]) + module without __name__ => TypeError
+https://bugs.python.org/issue36130
+
+#36108: Avoid failing the build on race condition in clean
+https://bugs.python.org/issue36108
+
+#36097: Use only public C-API in _xxsubinterpreters module.
+https://bugs.python.org/issue36097
+
+#36092: unittest.mock's patch.object and patch.dict are not supported 
+https://bugs.python.org/issue36092
+
+#36084: Threading: add builtin TID attribute to Thread objects
+https://bugs.python.org/issue36084
+
+#36081: Cannot set LDFLAGS containing $
+https://bugs.python.org/issue36081
+
+#36079: pdb on setuptools "ValueError: underlying buffer has been deta
+https://bugs.python.org/issue36079
+
+#36076: ssl.get_server_certificate should use SNI
+https://bugs.python.org/issue36076
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36149: use of uninitialised memory in cPickle.
+https://bugs.python.org/issue36149
+
+#36147: [2.7] Coverity scan: Modules/_ctypes/cfield.c , Variable "resu
+https://bugs.python.org/issue36147
+
+#36144: Dictionary addition.
+https://bugs.python.org/issue36144
+
+#36142: Add a new _PyPreConfig step to Python initialization to setup 
+https://bugs.python.org/issue36142
+
+#36140: An incorrect check in _msi.c's msidb_getsummaryinformation()
+https://bugs.python.org/issue36140
+
+#36139: release GIL on mmap dealloc
+https://bugs.python.org/issue36139
+
+#36130: Pdb(skip=[...]) + module without __name__ => TypeError
+https://bugs.python.org/issue36130
+
+#36127: Argument Clinic: inline parsing code for functions with keywor
+https://bugs.python.org/issue36127
+
+#36121: csv: Non global alternative to csv.field_size_limit
+https://bugs.python.org/issue36121
+
+#36103: Increase shutil.COPY_BUFSIZE
+https://bugs.python.org/issue36103
+
+#36097: Use only public C-API in _xxsubinterpreters module.
+https://bugs.python.org/issue36097
+
+#36095: Better NaN sorting.
+https://bugs.python.org/issue36095
+
+#36094: When using an SMTP SSL connection,, get ValueError.
+https://bugs.python.org/issue36094
+
+#36091: clean up async generator from types module
+https://bugs.python.org/issue36091
+
+#36086: Split IDLE into separate feature in Windows installer
+https://bugs.python.org/issue36086
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#33944: Deprecate and remove pth files
+https://bugs.python.org/issue33944  21 msgs
+
+#36030: add internal API function to create tuple without items array 
+https://bugs.python.org/issue36030  12 msgs
+
+#36100: Document the differences between str.isdigit, isdecimal and is
+https://bugs.python.org/issue36100  11 msgs
+
+#36144: Dictionary addition.
+https://bugs.python.org/issue36144  11 msgs
+
+#36085: Enable better DLL resolution
+https://bugs.python.org/issue36085  10 msgs
+
+#36095: Better NaN sorting.
+https://bugs.python.org/issue36095  10 msgs
+
+#35975: Put back the ability to parse files where async/await aren't k
+https://bugs.python.org/issue35975   9 msgs
+
+#33608: [subinterpreters] Add a cross-interpreter-safe mechanism to in
+https://bugs.python.org/issue33608   8 msgs
+
+#35813: shared memory construct to avoid need for serialization betwee
+https://bugs.python.org/issue35813   8 msgs
+
+#36103: Increase shutil.COPY_BUFSIZE
+https://bugs.python.org/issue36103   8 msgs
+
+
+
+Issues closed (62)
+==================
+
+#8747: Autoconf tests in python not portably correct
+https://bugs.python.org/issue8747  closed by ngie
+
+#10308: Modules/getpath.c bugs
+https://bugs.python.org/issue10308  closed by vstinner
+
+#13497: Fix for broken nice test on non-broken platforms with pedantic
+https://bugs.python.org/issue13497  closed by benjamin.peterson
+
+#22123: Provide a direct function for types.SimpleNamespace()
+https://bugs.python.org/issue22123  closed by rhettinger
+
+#24235: ABCs don't fail metaclass instantiation
+https://bugs.python.org/issue24235  closed by cheryl.sabella
+
+#24310: Idle documentation -- what to do if you do not see an undersco
+https://bugs.python.org/issue24310  closed by terry.reedy
+
+#24643: VS 2015 pyconfig.h #define timezone _timezone conflicts with t
+https://bugs.python.org/issue24643  closed by steve.dower
+
+#24740: make patchcheck doesn't detect changes if commit is done first
+https://bugs.python.org/issue24740  closed by terry.reedy
+
+#27313: test case failures in test_widgets.ComboboxTest.of test_ttk_gu
+https://bugs.python.org/issue27313  closed by ned.deily
+
+#28450: Misleading/inaccurate documentation about unknown escape seque
+https://bugs.python.org/issue28450  closed by serhiy.storchaka
+
+#29397: linux/random.h present but cannot be compiled
+https://bugs.python.org/issue29397  closed by christian.heimes
+
+#29659: Expose the `length` arg from shutil.copyfileobj for public use
+https://bugs.python.org/issue29659  closed by inada.naoki
+
+#31652: make install fails: no module _ctypes
+https://bugs.python.org/issue31652  closed by inada.naoki
+
+#31916: ensurepip not honoring value of $(DESTDIR) - pip not installed
+https://bugs.python.org/issue31916  closed by cheryl.sabella
+
+#34211: Cygwin build broken due to use of &PyType_Type in static decla
+https://bugs.python.org/issue34211  closed by inada.naoki
+
+#34623: _elementtree.c doesn't call XML_SetHashSalt()
+https://bugs.python.org/issue34623  closed by larry
+
+#35178: Typo/trivial mistake in warnings.py (may be related to 2.x to 
+https://bugs.python.org/issue35178  closed by vstinner
+
+#35512: patch.dict resolves in_dict eagerly (should be late resolved)
+https://bugs.python.org/issue35512  closed by xtreak
+
+#35652: Add use_srcentry parameter to shutil.copytree() II
+https://bugs.python.org/issue35652  closed by giampaolo.rodola
+
+#35724: Check for main interpreter when checking for "main" thread (fo
+https://bugs.python.org/issue35724  closed by eric.snow
+
+#35802: os.stat / os.lstat always present, but code checks hastattr(os
+https://bugs.python.org/issue35802  closed by Anthony Sottile
+
+#35886: Move PyInterpreterState into Include/internal/pycore_pystate.h
+https://bugs.python.org/issue35886  closed by eric.snow
+
+#36016: Allow gc.getobjects to return the objects tracked by a specifi
+https://bugs.python.org/issue36016  closed by inada.naoki
+
+#36018: Add a Normal Distribution class to the statistics module
+https://bugs.python.org/issue36018  closed by rhettinger
+
+#36048: Deprecate implicit truncating when convert Python numbers to C
+https://bugs.python.org/issue36048  closed by serhiy.storchaka
+
+#36066: Add `empty` block to `for` and `while` loops.
+https://bugs.python.org/issue36066  closed by terry.reedy
+
+#36072: str.translate() behaves differently for ASCII-only and other s
+https://bugs.python.org/issue36072  closed by terry.reedy
+
+#36083: Misformated manpage: --check-hash-based-pycs ??default??|??alw
+https://bugs.python.org/issue36083  closed by benjamin.peterson
+
+#36087: ThreadPoolExecutor max_workers none issue
+https://bugs.python.org/issue36087  closed by asvetlov
+
+#36088: zipfile cannot handle zip in zip
+https://bugs.python.org/issue36088  closed by serhiy.storchaka
+
+#36089: Formatting/Spelling errors in SimpleHTTPServer docs
+https://bugs.python.org/issue36089  closed by serhiy.storchaka
+
+#36090: spelling error in PEP219 introduction
+https://bugs.python.org/issue36090  closed by nanjekyejoannah
+
+#36096: IDLE: Refactor class variables to instance variables in colori
+https://bugs.python.org/issue36096  closed by terry.reedy
+
+#36101: remove non-ascii characters in docstring
+https://bugs.python.org/issue36101  closed by inada.naoki
+
+#36102: TestSharedMemory fails on AMD64 FreeBSD CURRENT Shared 3.x
+https://bugs.python.org/issue36102  closed by davin
+
+#36104: test_httplib and test_nntplib fail on ARMv7 Ubuntu
+https://bugs.python.org/issue36104  closed by vstinner
+
+#36105: Windows: use GetNativeSystemInfo instead of GetSystemInfo
+https://bugs.python.org/issue36105  closed by steve.dower
+
+#36106: resolve sinpi() name clash with libm
+https://bugs.python.org/issue36106  closed by serhiy.storchaka
+
+#36109: test_descr: test_vicious_descriptor_nonsense() fails randomly
+https://bugs.python.org/issue36109  closed by pablogsal
+
+#36110: test_descr: test_vicious_descriptor_nonsense() fails randomly
+https://bugs.python.org/issue36110  closed by pablogsal
+
+#36111: Non-zero `offset`s are no longer acceptable with SEEK_END/SEEK
+https://bugs.python.org/issue36111  closed by inada.naoki
+
+#36112: os.path.realpath on windows and substed drives
+https://bugs.python.org/issue36112  closed by eryksun
+
+#36113: Problem With SciPy Computation of sigma
+https://bugs.python.org/issue36113  closed by berker.peksag
+
+#36115: test_ctypes leaks references and memory blocks
+https://bugs.python.org/issue36115  closed by miss-islington
+
+#36117: Allow rich comparisons for real-valued complex objects.
+https://bugs.python.org/issue36117  closed by serhiy.storchaka
+
+#36118: Cannot correctly concatenate nested list that contains more th
+https://bugs.python.org/issue36118  closed by josh.r
+
+#36119: Can't add/append in set/list inside shared dict
+https://bugs.python.org/issue36119  closed by josh.r
+
+#36120: Regression - Concurrent Futures
+https://bugs.python.org/issue36120  closed by cheryl.sabella
+
+#36122: Second run of 2to3 continues to modify output
+https://bugs.python.org/issue36122  closed by bers
+
+#36123: Race condition in test_socket
+https://bugs.python.org/issue36123  closed by nanjekyejoannah
+
+#36125: Cannot cross-compile to more featureful but same tune
+https://bugs.python.org/issue36125  closed by ned.deily
+
+#36126: Reference count leakage in structseq_repr
+https://bugs.python.org/issue36126  closed by serhiy.storchaka
+
+#36131: test.test_urllib2net.TimeoutTest ftp related tests fail due to
+https://bugs.python.org/issue36131  closed by vstinner
+
+#36134: test failure : test_re; recipe for target 'test' failed
+https://bugs.python.org/issue36134  closed by serhiy.storchaka
+
+#36135: altinstall error Makefile:1140: recipe for target 'altinstall'
+https://bugs.python.org/issue36135  closed by matrixise
+
+#36146: Refactor setup.py
+https://bugs.python.org/issue36146  closed by vstinner
+
+#36148: smtplib.SMTP.sendmail: mta status codes only accessible by loc
+https://bugs.python.org/issue36148  closed by r.david.murray
+
+#36150: Possible assertion failures due to _ctypes.c's PyCData_reduce(
+https://bugs.python.org/issue36150  closed by christian.heimes
+
+#36151: Incorrect answer when calculating 11/3
+https://bugs.python.org/issue36151  closed by zach.ware
+
+#36152: IDLE: Remove close_when_done from colorizer close()
+https://bugs.python.org/issue36152  closed by cheryl.sabella
+
+#36155: ./python -m test -m test_gc fails
+https://bugs.python.org/issue36155  closed by pablogsal
+
+#36156: different method, but id function return same value.
+https://bugs.python.org/issue36156  closed by inada.naoki
+
+From barry at python.org  Fri Mar  1 18:25:29 2019
+From: barry at python.org (Barry Warsaw)
+Date: Fri, 1 Mar 2019 15:25:29 -0800
+Subject: [Python-Dev] Compile-time resolution of packages [Was: Another
+ update for PEP 394...]
+In-Reply-To: <37ff84c0-7b7d-485f-e061-9f9b8f96fdb4@gmail.com>
+References: <9e69c6dc-07cd-2265-b4b8-b9f7e9f81b00@gmail.com>
+ <a096f664-3000-272a-ae5f-7713c936aa2c@gmail.com>
+ <37ba6931-faa0-0c9c-b9e5-067eb123e313@gmail.com>
+ <58F34E40-11B8-4F36-AF7E-C9022D4F48DF@python.org>
+ <CAGE7PNK0o1tG84q06VUttGOBNkd2g3ftmsUA1U3NscjcGFGRQg@mail.gmail.com>
+ <20190226220418.b36jw33qthdv5i5l@python.ca>
+ <CABVPEKqPoOycqrwVjfCZo3J+4bgF-o1i3WB7nM5P+a3zZ0UkbQ@mail.gmail.com>
+ <CAGE7PNL3L_jrxMk0CKr2b0RQX6R3u9N7XyO+CeC8w2Y0cTuoxg@mail.gmail.com>
+ <37ff84c0-7b7d-485f-e061-9f9b8f96fdb4@gmail.com>
+Message-ID: <CB9C97A6-FD4F-43BA-89F1-137538E9A9E7@python.org>
+
+On Mar 1, 2019, at 02:41, Petr Viktorin <encukou at gmail.com> wrote:
+
+> Currently, in RHEL/Fedora:
+> - "sudo pip" installs to /usr/local/, RPM packages install to /usr/
+> - with "-I", the interpreter does not look into /usr/local/.
+> AFAIK, Debian/Ubuntu have something very similar, and were first to do it.
+
+Debuntu?s pip installs to the user path by default, and you have to do something explicit to install into the system Python.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190301/484e048e/attachment.sig>
+
+From larry at hastings.org  Sat Mar  2 01:05:16 2019
+From: larry at hastings.org (Larry Hastings)
+Date: Fri, 1 Mar 2019 22:05:16 -0800
+Subject: [Python-Dev] Last-minute request: please backport bpo-33329 fix to
+ 3.4 and 3.5
+Message-ID: <eca9d6f2-14a3-0a17-2730-8d74cbb8fa84@hastings.org>
+
+
+This bug in bpo-33329:
+
+    https://bugs.python.org/issue33329
+
+was fixed for 3.6+, but it also affects 3.4 and 3.5.? The bug is that 
+with newer versions of glibc--which I'm pretty sure has shipped on all 
+major Linux distros by now--the test suite may send signals that are 
+invalid somehow.? As a result the test suite... blocks forever?? I 
+think?? Anyway the observed resulting behavior is that there are three 
+regression tests in each branch that seemingly never complete.? I 
+started the 3.4 regression test suite /nine hours ago/ and it still 
+claims to be running--and the 3.5 test suite isn't far behind.? 
+Technically, no, it's not a security bug.? But I simply can't ship 3.4 
+and 3.5 in this sorry state.
+
+Obviously it'd be best if the folks involved with the original PRs 
+(Antoine?) took over.? I'm sending this to a wider audience just because 
+I'd hoped to tag the next RCs for 3.4 and 3.5 this weekend, and the 
+original participants in this fix may not be available, and I'm hoping I 
+won't have to slip the schedule.
+
+
+Thanks for your time,
+
+
+//arry/
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190301/7c584aca/attachment.html>
+
