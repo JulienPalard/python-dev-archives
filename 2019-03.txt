@@ -770,3 +770,333 @@ Benjamin
 2.7 release manager
 (on behalf of all Python 2.7's contributors)
 
+From larry at hastings.org  Mon Mar  4 04:23:33 2019
+From: larry at hastings.org (Larry Hastings)
+Date: Mon, 4 Mar 2019 01:23:33 -0800
+Subject: [Python-Dev] [RELEASED] Python 3.4.10rc1 and Python 3.5.7rc1 are
+ now available
+Message-ID: <a3d8c67e-584c-db8e-134f-66cf922f73ea@hastings.org>
+
+
+On behalf of the Python development community, I'm chuffed to announce 
+the availability of Python 3.4.10rc1 and Python 3.5.7rc1.
+
+Both Python 3.4 and 3.5 are in "security fixes only" mode.? Both 
+versions only accept security fixes, not conventional bug fixes, and 
+both releases are source-only.
+
+The "final" releases on both these branches should be out in about two 
+weeks.? Of particular note: that release of Python 3.4, Python 3.4.10 
+final, will be the final release ever in the Python 3.4 series.? After 
+3.4.10, the branch will be closed for good and I'll retire as Python 3.4 
+Release Manager.? I'll still be the Python 3.5 Release Manager until 3.5 
+similarly concludes, approximately eighteen months from now.
+
+You can find Python 3.4.10rc1 here:
+
+    https://www.python.org/downloads/release/python-3410rc1/
+
+
+And you can find Python 3.5.7rc1 here:
+
+    https://www.python.org/downloads/release/python-357rc1/
+
+
+Best wishes,
+
+
+
+//arry/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190304/491ea9e7/attachment.html>
+
+From j.orponen at 4teamwork.ch  Mon Mar  4 05:29:43 2019
+From: j.orponen at 4teamwork.ch (Joni Orponen)
+Date: Mon, 4 Mar 2019 11:29:43 +0100
+Subject: [Python-Dev] Last-minute request: please backport bpo-33329 fix
+ to 3.4 and 3.5
+In-Reply-To: <eca9d6f2-14a3-0a17-2730-8d74cbb8fa84@hastings.org>
+References: <eca9d6f2-14a3-0a17-2730-8d74cbb8fa84@hastings.org>
+Message-ID: <CA+LW3i3jX06H5XbPSnFxcLmL+fQX9Z9yFPMUjhrceR6cKcceSw@mail.gmail.com>
+
+On Sat, Mar 2, 2019 at 7:08 AM Larry Hastings <larry at hastings.org> wrote:
+
+>
+> This bug in bpo-33329:
+>
+> https://bugs.python.org/issue33329
+>
+> was fixed for 3.6+, but it also affects 3.4 and 3.5.  The bug is that with
+> newer versions of glibc--which I'm pretty sure has shipped on all major
+> Linux distros by now--the test suite may send signals that are invalid
+> somehow.  As a result the test suite... blocks forever?  I think?  Anyway
+> the observed resulting behavior is that there are three regression tests in
+> each branch that seemingly never complete.  I started the 3.4 regression
+> test suite *nine hours ago* and it still claims to be running--and the
+> 3.5 test suite isn't far behind.  Technically, no, it's not a security
+> bug.  But I simply can't ship 3.4 and 3.5 in this sorry state.
+>
+
+This is also potentially affecting PGO builds of 2.7 on Debian Buster with
+GCC. Somehow building with Clang is fine.
+
+Does the configure time choice of compiler make a difference here for 3.4
+and 3.5?
+
+-- 
+Joni Orponen
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190304/bb923943/attachment.html>
+
+From aixtools at felt.demon.nl  Mon Mar  4 06:46:35 2019
+From: aixtools at felt.demon.nl (Michael)
+Date: Mon, 4 Mar 2019 12:46:35 +0100
+Subject: [Python-Dev] [RELEASE] Python 2.7.16
+In-Reply-To: <5cb021d0-bf2f-45aa-98f1-5f4bb77fb4a6@www.fastmail.com>
+References: <5cb021d0-bf2f-45aa-98f1-5f4bb77fb4a6@www.fastmail.com>
+Message-ID: <6010f9bf-5a18-43fd-dd04-1b28cbe39d9e@felt.demon.nl>
+
+On 04/03/2019 04:30, Benjamin Peterson wrote:
+> Hello all,
+> I'm pleased to announce the immediate availability of Python 2.7.16 for download at https://www.python.org/downloads/release/python-2716/.
+
+Congratulations!
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 488 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190304/1d24cba5/attachment.sig>
+
+From vstinner at redhat.com  Mon Mar  4 10:37:00 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 4 Mar 2019 16:37:00 +0100
+Subject: [Python-Dev] [python-committers] [RELEASED] Python 3.4.10rc1
+ and Python 3.5.7rc1 are now available
+In-Reply-To: <a3d8c67e-584c-db8e-134f-66cf922f73ea@hastings.org>
+References: <a3d8c67e-584c-db8e-134f-66cf922f73ea@hastings.org>
+Message-ID: <CA+3bQGGFsfQxezqrWwwPwXHWooXXWxkzcehTv4td7-5_-tkKfA@mail.gmail.com>
+
+FYI I check and I confirm that all known security vulnerabilities
+listed in the link below are fixed in these releases:
+https://python-security.readthedocs.io/vulnerabilities.html
+
+Victor
+
+Le lun. 4 mars 2019 ? 10:24, Larry Hastings <larry at hastings.org> a ?crit :
+>
+>
+> On behalf of the Python development community, I'm chuffed to announce the availability of Python 3.4.10rc1 and Python 3.5.7rc1.
+>
+> Both Python 3.4 and 3.5 are in "security fixes only" mode.  Both versions only accept security fixes, not conventional bug fixes, and both releases are source-only.
+>
+> The "final" releases on both these branches should be out in about two weeks.  Of particular note: that release of Python 3.4, Python 3.4.10 final, will be the final release ever in the Python 3.4 series.  After 3.4.10, the branch will be closed for good and I'll retire as Python 3.4 Release Manager.  I'll still be the Python 3.5 Release Manager until 3.5 similarly concludes, approximately eighteen months from now.
+>
+> You can find Python 3.4.10rc1 here:
+>
+> https://www.python.org/downloads/release/python-3410rc1/
+>
+>
+> And you can find Python 3.5.7rc1 here:
+>
+> https://www.python.org/downloads/release/python-357rc1/
+>
+>
+> Best wishes,
+>
+>
+>
+> /arry
+> _______________________________________________
+> python-committers mailing list
+> python-committers at python.org
+> https://mail.python.org/mailman/listinfo/python-committers
+> Code of Conduct: https://www.python.org/psf/codeofconduct/
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From storchaka at gmail.com  Mon Mar  4 12:37:17 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Mon, 4 Mar 2019 19:37:17 +0200
+Subject: [Python-Dev] Addendum to PEP 530
+Message-ID: <q5jnog$3trj$1@blaine.gmane.org>
+
+PEP 530 introduced support for asynchronous comprehensions.
+
+Comprehensions are implemented as local functions. To make a function 
+asynchronous you should to add "async" before "def", and after that you 
+can use "async for", "async with" and "await" in a function. But you can 
+to do this with comprehensions, since these functions are implicit.
+
+PEP 530 allows to make these function asynchronous by just using 
+asynchronous syntax inside. "async with" can not be used in 
+comprehensions, but using "async for" or "await" makes the comprehension 
+asynchronous.
+
+What PEP 530 missed is that asynchronous comprehensions itself are 
+asynchronous constructions which can be used only in asynchronous functions.
+
+Issue33346 [1] makes an asynchronous comprehension inside a 
+comprehension making the outer comprehension asynchronous as well as 
+using explicit "async for" or "await". See details on the issue.
+
+Yury, the author of PEP 530, likes this idea, and there is a ready 
+implementation. But making the decision was deferred until a new 
+government be stated. Now, after the Steering Council has been elected, 
+can it make the decision?
+
+[1] https://bugs.python.org/issue33346
+
+
+From brett at python.org  Mon Mar  4 15:06:55 2019
+From: brett at python.org (Brett Cannon)
+Date: Mon, 4 Mar 2019 12:06:55 -0800
+Subject: [Python-Dev] Addendum to PEP 530
+In-Reply-To: <q5jnog$3trj$1@blaine.gmane.org>
+References: <q5jnog$3trj$1@blaine.gmane.org>
+Message-ID: <CAP1=2W5CNF4GJ=b=cKc2XO3jqhrAf2Rh47h3FJX56RU3zbvtVg@mail.gmail.com>
+
+Open an issue at https://github.com/python/steering-council/issues if you
+want the steering council to consider something.
+
+On Mon, Mar 4, 2019 at 9:38 AM Serhiy Storchaka <storchaka at gmail.com> wrote:
+
+> PEP 530 introduced support for asynchronous comprehensions.
+>
+> Comprehensions are implemented as local functions. To make a function
+> asynchronous you should to add "async" before "def", and after that you
+> can use "async for", "async with" and "await" in a function. But you can
+> to do this with comprehensions, since these functions are implicit.
+>
+> PEP 530 allows to make these function asynchronous by just using
+> asynchronous syntax inside. "async with" can not be used in
+> comprehensions, but using "async for" or "await" makes the comprehension
+> asynchronous.
+>
+> What PEP 530 missed is that asynchronous comprehensions itself are
+> asynchronous constructions which can be used only in asynchronous
+> functions.
+>
+> Issue33346 [1] makes an asynchronous comprehension inside a
+> comprehension making the outer comprehension asynchronous as well as
+> using explicit "async for" or "await". See details on the issue.
+>
+> Yury, the author of PEP 530, likes this idea, and there is a ready
+> implementation. But making the decision was deferred until a new
+> government be stated. Now, after the Steering Council has been elected,
+> can it make the decision?
+>
+> [1] https://bugs.python.org/issue33346
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190304/844a49e9/attachment.html>
+
+From tjreedy at udel.edu  Mon Mar  4 19:31:50 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Mon, 4 Mar 2019 19:31:50 -0500
+Subject: [Python-Dev] [RELEASE] Python 2.7.16
+In-Reply-To: <5cb021d0-bf2f-45aa-98f1-5f4bb77fb4a6@www.fastmail.com>
+References: <5cb021d0-bf2f-45aa-98f1-5f4bb77fb4a6@www.fastmail.com>
+Message-ID: <q5kg1n$3cnc$1@blaine.gmane.org>
+
+On 3/3/2019 10:30 PM, Benjamin Peterson wrote:
+
+> I'm pleased to announce the immediate availability of Python 2.7.16 for download at https://www.python.org/downloads/release/python-2716/.
+
+On Windows 10, this is an 'unrecognized app' and Windows Defender 
+SmartScreen, now default, refuses to run it. "Windows protected your PC" 
+until one clicks 'more info' to get 'Run anyway'.  This is new since the 
+.rc1 release.  We should either make 2.7 a 'known' app* or say something 
+on the download page about clicking 'more info'.  I don't know the 
+status of python.org 3.x downloads.
+
+Since Steve Dower put 3.7 on the Windows store, PSF must now be a known 
+publisher.  Perhaps he can help make 2.7 'known'.
+
+-- 
+Terry Jan Reedy
+
+
+From brett at snarky.ca  Mon Mar  4 20:43:59 2019
+From: brett at snarky.ca (Brett Cannon)
+Date: Mon, 4 Mar 2019 17:43:59 -0800
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+Message-ID: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+
+The steering council has implemented a new idea called sponsors to the PEP
+process (added in
+https://github.com/python/peps/commit/c58d32c33bd06eb386d3f33963a1434510528f68).
+The thinking is that to help make sure PEPs from non-core developers
+receive appropriate guidance through the PEP process, a core developer
+needs to sign on to be a sponsor of the PEP. Being a sponsor does *not*
+preclude the core dev from eventually becoming a co-author or BDFL-delegate
+later on (but obviously not both), but the expectation is the sponsor is
+supportive of the idea (because if a single core dev won't sign on to help
+then what chance does the PEP have of being accepted?).
+
+If this doesn't turn out well we can obviously revert this, but hopefully
+this will make things smoother for those who are new to the PEP process.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190304/166b6a50/attachment.html>
+
+From hasan.diwan at gmail.com  Mon Mar  4 23:57:46 2019
+From: hasan.diwan at gmail.com (Hasan Diwan)
+Date: Mon, 4 Mar 2019 20:57:46 -0800
+Subject: [Python-Dev] [RELEASE] Python 2.7.16
+In-Reply-To: <q5kg1n$3cnc$1@blaine.gmane.org>
+References: <5cb021d0-bf2f-45aa-98f1-5f4bb77fb4a6@www.fastmail.com>
+ <q5kg1n$3cnc$1@blaine.gmane.org>
+Message-ID: <CAP+bYWCnJirLfv-2VUXt5Kwo_O67zBUus50vRqBzj_hNCT0QsQ@mail.gmail.com>
+
+On Mon, 4 Mar 2019 at 16:33, Terry Reedy <tjreedy at udel.edu> wrote:
+
+> On 3/3/2019 10:30 PM, Benjamin Peterson wrote:
+>
+> > I'm pleased to announce the immediate availability of Python 2.7.16 for
+> download at https://www.python.org/downloads/release/python-2716/.
+>
+
+Congrats team! -- H
+-- 
+OpenPGP:
+https://sks-keyservers.net/pks/lookup?op=get&search=0xFEBAD7FFD041BBA1
+If you wish to request my time, please do so using
+*bit.ly/hd1AppointmentRequest
+<http://bit.ly/hd1AppointmentRequest>*.
+Si vous voudrais faire connnaisance, allez a *bit.ly/hd1AppointmentRequest
+<http://bit.ly/hd1AppointmentRequest>*.
+
+<https://sks-keyservers.net/pks/lookup?op=get&search=0xFEBAD7FFD041BBA1>Sent
+from my mobile device
+Envoye de mon portable
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190304/f004d6d9/attachment.html>
+
+From J.Demeyer at UGent.be  Tue Mar  5 01:11:57 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Tue, 5 Mar 2019 07:11:57 +0100
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+Message-ID: <5C7E132D.20004@UGent.be>
+
+Does this apply to existing draft PEPs or only new ones?
+
