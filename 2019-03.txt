@@ -1100,3 +1100,1780 @@ Message-ID: <5C7E132D.20004@UGent.be>
 
 Does this apply to existing draft PEPs or only new ones?
 
+From mhroncok at redhat.com  Tue Mar  5 06:17:48 2019
+From: mhroncok at redhat.com (=?UTF-8?Q?Miro_Hron=c4=8dok?=)
+Date: Tue, 5 Mar 2019 12:17:48 +0100
+Subject: [Python-Dev] [RELEASE] Python 2.7.16
+In-Reply-To: <5cb021d0-bf2f-45aa-98f1-5f4bb77fb4a6@www.fastmail.com>
+References: <5cb021d0-bf2f-45aa-98f1-5f4bb77fb4a6@www.fastmail.com>
+Message-ID: <12acd71f-c18b-ea72-1e43-df4c76aa7812@redhat.com>
+
+On 04. 03. 19 4:30, Benjamin Peterson wrote:
+> Hello all,
+> I'm pleased to announce the immediate availability of Python 2.7.16 for download at https://www.python.org/downloads/release/python-2716/.
+> 
+> The only change since the release candidate was a fix for the IDLE icon on macOS. See https://bugs.python.org/issue32129. Refer to the changelog for a full list of changes: https://raw.githubusercontent.com/python/cpython/v2.7.16/Misc/NEWS.d/2.7.16rc1.rst
+
+
+https://www.python.org/downloads/release/python-2716/ links changelog to 
+https://raw.githubusercontent.com/python/cpython/v2.7.16/Misc/NEWS.d/2.7.16.rst 
+but that only has 1 change (I suppose against rc1).
+
+Is there a better link, or should I read those two combined?
+
+https://raw.githubusercontent.com/python/cpython/v2.7.16/Misc/NEWS.d/2.7.16rc1.rst
+https://raw.githubusercontent.com/python/cpython/v2.7.16/Misc/NEWS.d/2.7.16.rst
+
+-- 
+Miro Hron?ok
+--
+Phone: +420777974800
+IRC: mhroncok
+
+From vstinner at redhat.com  Tue Mar  5 06:35:59 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 5 Mar 2019 12:35:59 +0100
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+Message-ID: <CA+3bQGFhgPymJSrsAqAkkeLv0kDWFQuhiVushuz__kD4jQp5wQ@mail.gmail.com>
+
+Hi,
+
+Le mar. 5 mars 2019 ? 02:53, Brett Cannon <brett at snarky.ca> a ?crit :
+> The steering council has implemented a new idea called sponsors to the PEP process (...). The thinking is that to help make sure PEPs from non-core developers receive appropriate guidance through the PEP process (...)
+
+Hum, this isn't fully new, some PEPs already got a "PEP champion" (old
+name), no?
+
+A recent example is PEP 572 who has been "championed" by Guido van
+Rossum, then by Tim Peters. In this specific case, they became
+co-authors :-)
+
+> ... eventually becoming a co-author or BDFL-delegate later
+
+Nitpick: since Python has no more BDFL, maybe the expression should
+becocme "PEP-delegate"? ;-)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From cspealma at redhat.com  Tue Mar  5 08:05:31 2019
+From: cspealma at redhat.com (Calvin Spealman)
+Date: Tue, 5 Mar 2019 08:05:31 -0500
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+Message-ID: <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+
+> because if a single core dev won't sign on to help then what chance does
+the PEP have of being accepted?
+
+If this is the justification, then I feel like it is a barrier that could
+be disassembled, rather than one people need to be granted permission to
+climb over.
+
+I am named on one PEP with two others (PEP 3135) and none of us were core
+developers, I think? I don't want that barrier added to newcomers, and I
+don't disagree there is a pre-existing barrier, but I can't help but feel
+this is not the best solution to it.
+
+I'm worried this creates a gatekeeping perception that will scare away
+contributors.
+
+On Mon, Mar 4, 2019 at 8:53 PM Brett Cannon <brett at snarky.ca> wrote:
+
+> The steering council has implemented a new idea called sponsors to the PEP
+> process (added in
+> https://github.com/python/peps/commit/c58d32c33bd06eb386d3f33963a1434510528f68).
+> The thinking is that to help make sure PEPs from non-core developers
+> receive appropriate guidance through the PEP process, a core developer
+> needs to sign on to be a sponsor of the PEP. Being a sponsor does *not*
+> preclude the core dev from eventually becoming a co-author or BDFL-delegate
+> later on (but obviously not both), but the expectation is the sponsor is
+> supportive of the idea (because if a single core dev won't sign on to help
+> then what chance does the PEP have of being accepted?).
+>
+> If this doesn't turn out well we can obviously revert this, but hopefully
+> this will make things smoother for those who are new to the PEP process.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/cspealma%40redhat.com
+>
+
+
+-- 
+
+CALVIN SPEALMAN
+
+SENIOR QUALITY ENGINEER
+
+cspealma at redhat.com  M: +1.336.210.5107
+<https://red.ht/sig>
+TRIED. TESTED. TRUSTED. <https://redhat.com/trusted>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190305/1ba078ba/attachment.html>
+
+From J.Demeyer at UGent.be  Tue Mar  5 08:24:43 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Tue, 5 Mar 2019 14:24:43 +0100
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+Message-ID: <5C7E789B.9010007@UGent.be>
+
+On 2019-03-05 14:05, Calvin Spealman wrote:
+> I'm worried this creates a gatekeeping perception that will scare away
+> contributors.
+
++1
+
+I also expressed this worry at https://github.com/python/peps/pull/903
+
+You could keep the positive part of the sponsoring idea (somebody acting 
+as mentor) but drop the negative part (make it a hard requirement to 
+find a sponsor supporting the proposal before the proposal can even 
+become a draft PEP).
+
+From jheiv at jheiv.com  Tue Mar  5 09:20:15 2019
+From: jheiv at jheiv.com (James Edwards)
+Date: Tue, 5 Mar 2019 09:20:15 -0500
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <5C7E789B.9010007@UGent.be>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+ <5C7E789B.9010007@UGent.be>
+Message-ID: <CANbgQ_GNqk19iOpotgGT_mNFUFNBEHoNoEm9tVpV1rZOnLw1kQ@mail.gmail.com>
+
+I have to say, this is sort of surprising for what seems like the first
+official action of the steering committee.  Are there really *that many *PEPs
+that a team that is now, what, 5x the size of the BFDL model is worried
+that they'll be able to keep up?  As a long-time lurker, this hardly seems
+to be the case.  Despite the seemingly-well-intentioned rationale, this
+seems like an ominous sign.
+
+On Tue, Mar 5, 2019 at 8:33 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> On 2019-03-05 14:05, Calvin Spealman wrote:
+> > I'm worried this creates a gatekeeping perception that will scare away
+> > contributors.
+>
+> +1
+>
+> I also expressed this worry at https://github.com/python/peps/pull/903
+>
+> You could keep the positive part of the sponsoring idea (somebody acting
+> as mentor) but drop the negative part (make it a hard requirement to
+> find a sponsor supporting the proposal before the proposal can even
+> become a draft PEP).
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/jheiv%40jheiv.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190305/0eb0f80b/attachment.html>
+
+From status at bugs.python.org  Tue Mar  5 11:25:07 2019
+From: status at bugs.python.org (Python tracker)
+Date: Tue,  5 Mar 2019 16:25:07 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190305162507.B883A52B1CF@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-02-08 - 2019-02-15)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7009 (+11)
+  closed 40747 (+51)
+  total  47756 (+62)
+
+Open issues with patches: 2814 
+
+
+Issues opened (42)
+==================
+
+#25737: array is not a Sequence
+https://bugs.python.org/issue25737  reopened by josh.r
+
+#35944: Python 3.7 install error
+https://bugs.python.org/issue35944  opened by lasonjack
+
+#35945: Cannot distinguish between subtask cancellation and running ta
+https://bugs.python.org/issue35945  opened by jnwatson
+
+#35946: Ambiguous documentation for assert_called_with()
+https://bugs.python.org/issue35946  opened by chimaerase
+
+#35947: Update libffi_msvc to current version of libffi
+https://bugs.python.org/issue35947  opened by Paul Monson
+
+#35949: Move PyThreadState into Include/internal/pycore_pystate.h
+https://bugs.python.org/issue35949  opened by eric.snow
+
+#35950: io.BufferedReader.writabe is False, but io.BufferedReader.trun
+https://bugs.python.org/issue35950  opened by steverpalmer
+
+#35951: os.renames() creates directories if original name doesn't exis
+https://bugs.python.org/issue35951  opened by chris.jerdonek
+
+#35952: test.pythoninfo prints a stack trace and exits with 1 when the
+https://bugs.python.org/issue35952  opened by xdegaye
+
+#35953: crosscompilation fails with clang on android
+https://bugs.python.org/issue35953  opened by muhzi
+
+#35954: Incoherent type conversion in configparser
+https://bugs.python.org/issue35954  opened by Adeokkuw
+
+#35955: difflib reports incorrect location of mismatch
+https://bugs.python.org/issue35955  opened by jaraco
+
+#35956: Sort documentation could be improved for complex sorting
+https://bugs.python.org/issue35956  opened by FabriceSalvaire
+
+#35957: Indentation explanation is unclear
+https://bugs.python.org/issue35957  opened by J??r??me LAURENS
+
+#35959: math.prod(range(10)) caues segfault
+https://bugs.python.org/issue35959  opened by xtreak
+
+#35962: Slight error in words in [ 2.4.1. String and Bytes literals ]
+https://bugs.python.org/issue35962  opened by Magnien Sebastien
+
+#35964: shutil.make_archive (xxx, tar, root_dir) is adding './' entry 
+https://bugs.python.org/issue35964  opened by HFM
+
+#35967: Better platform.processor support
+https://bugs.python.org/issue35967  opened by jaraco
+
+#35969: Interpreter crashes with "can't initialize init_sys_streams" w
+https://bugs.python.org/issue35969  opened by p-ganssle
+
+#35970: no help flag in base64 util
+https://bugs.python.org/issue35970  opened by rkuska
+
+#35971: Documentation should warn about code injection from current wo
+https://bugs.python.org/issue35971  opened by Gabriel Corona
+
+#35974: os.DirEntry.inode() returns invalid value within Docker contai
+https://bugs.python.org/issue35974  opened by decaz
+
+#35975: Put back the ability to parse files where async/await aren't k
+https://bugs.python.org/issue35975  opened by gvanrossum
+
+#35978: test_venv fails in Travis with GCC
+https://bugs.python.org/issue35978  opened by xtreak
+
+#35981: shutil make_archive create wrong file when base name contains 
+https://bugs.python.org/issue35981  opened by highwind
+
+#35982: Create unit-tests for os.renames()
+https://bugs.python.org/issue35982  opened by nanjekyejoannah
+
+#35983: tp_dealloc trashcan shouldn't be called for subclasses
+https://bugs.python.org/issue35983  opened by jdemeyer
+
+#35984: test__xxsubinterpreters leaked [3, 4, 3] memory blocks, sum=1
+https://bugs.python.org/issue35984  opened by pablogsal
+
+#35989: ipaddress.IPv4Network allows prefix > 32
+https://bugs.python.org/issue35989  opened by John Florian
+
+#35990: ipaddress.IPv4Interface won't accept 2-tuple (address, mask)
+https://bugs.python.org/issue35990  opened by John Florian
+
+#35992: Metaclasses interfere with __class_getitem__
+https://bugs.python.org/issue35992  opened by donovick
+
+#35993: incorrect use of released memory in Python/pystate.c line 284
+https://bugs.python.org/issue35993  opened by wjq-security
+
+#35995: logging.handlers.SMTPHandler
+https://bugs.python.org/issue35995  opened by lidayan
+
+#35996: Optional modulus argument for new math.prod() function
+https://bugs.python.org/issue35996  opened by lschoe
+
+#35997: ImportError: dlopen failed: cannot locate symbol "PyBool_Type"
+https://bugs.python.org/issue35997  opened by muhzi
+
+#35998: test_asyncio: test_start_tls_server_1() TimeoutError on Fedora
+https://bugs.python.org/issue35998  opened by matrixise
+
+#35999: multpirocessing.Process alive after SIGTERM on parent
+https://bugs.python.org/issue35999  opened by lids
+
+#36000: __debug__ is a keyword but not a keyword
+https://bugs.python.org/issue36000  opened by bup
+
+#36001: LIBFFI_INCLUDEDIR is not detected when set into a profile nor 
+https://bugs.python.org/issue36001  opened by neil pop
+
+#36002: configure --enable-optimizations with clang fails to detect ll
+https://bugs.python.org/issue36002  opened by mjpieters
+
+#36003: set better defaults for TCPServer options
+https://bugs.python.org/issue36003  opened by giampaolo.rodola
+
+#36004: Add datetime.fromisocalendar
+https://bugs.python.org/issue36004  opened by p-ganssle
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36002: configure --enable-optimizations with clang fails to detect ll
+https://bugs.python.org/issue36002
+
+#36001: LIBFFI_INCLUDEDIR is not detected when set into a profile nor 
+https://bugs.python.org/issue36001
+
+#35999: multpirocessing.Process alive after SIGTERM on parent
+https://bugs.python.org/issue35999
+
+#35990: ipaddress.IPv4Interface won't accept 2-tuple (address, mask)
+https://bugs.python.org/issue35990
+
+#35974: os.DirEntry.inode() returns invalid value within Docker contai
+https://bugs.python.org/issue35974
+
+#35970: no help flag in base64 util
+https://bugs.python.org/issue35970
+
+#35964: shutil.make_archive (xxx, tar, root_dir) is adding './' entry 
+https://bugs.python.org/issue35964
+
+#35952: test.pythoninfo prints a stack trace and exits with 1 when the
+https://bugs.python.org/issue35952
+
+#35950: io.BufferedReader.writabe is False, but io.BufferedReader.trun
+https://bugs.python.org/issue35950
+
+#35947: Update libffi_msvc to current version of libffi
+https://bugs.python.org/issue35947
+
+#35939: Remove urllib.parse._splittype from mimetypes.guess_type
+https://bugs.python.org/issue35939
+
+#35930: Raising an exception raised in a "future" instance will create
+https://bugs.python.org/issue35930
+
+#35926: Need openssl 1.1.1 support on Windows for ARM and ARM64
+https://bugs.python.org/issue35926
+
+#35924: curses segfault resizing window
+https://bugs.python.org/issue35924
+
+#35919: multiprocessing: shared manager Pool fails with AttributeError
+https://bugs.python.org/issue35919
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36004: Add datetime.fromisocalendar
+https://bugs.python.org/issue36004
+
+#36003: set better defaults for TCPServer options
+https://bugs.python.org/issue36003
+
+#35989: ipaddress.IPv4Network allows prefix > 32
+https://bugs.python.org/issue35989
+
+#35983: tp_dealloc trashcan shouldn't be called for subclasses
+https://bugs.python.org/issue35983
+
+#35982: Create unit-tests for os.renames()
+https://bugs.python.org/issue35982
+
+#35975: Put back the ability to parse files where async/await aren't k
+https://bugs.python.org/issue35975
+
+#35969: Interpreter crashes with "can't initialize init_sys_streams" w
+https://bugs.python.org/issue35969
+
+#35959: math.prod(range(10)) caues segfault
+https://bugs.python.org/issue35959
+
+#35954: Incoherent type conversion in configparser
+https://bugs.python.org/issue35954
+
+#35951: os.renames() creates directories if original name doesn't exis
+https://bugs.python.org/issue35951
+
+#35947: Update libffi_msvc to current version of libffi
+https://bugs.python.org/issue35947
+
+#35946: Ambiguous documentation for assert_called_with()
+https://bugs.python.org/issue35946
+
+#35941: ssl.enum_certificates() regression
+https://bugs.python.org/issue35941
+
+#35936: Give modulefinder some much-needed updates.
+https://bugs.python.org/issue35936
+
+#35933: python doc does not say that the state kwarg in Pickler.save_r
+https://bugs.python.org/issue35933
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#35969: Interpreter crashes with "can't initialize init_sys_streams" w
+https://bugs.python.org/issue35969  14 msgs
+
+#35955: difflib reports incorrect location of mismatch
+https://bugs.python.org/issue35955  12 msgs
+
+#35813: shared memory construct to avoid need for serialization betwee
+https://bugs.python.org/issue35813  10 msgs
+
+#35959: math.prod(range(10)) caues segfault
+https://bugs.python.org/issue35959   9 msgs
+
+#35995: logging.handlers.SMTPHandler
+https://bugs.python.org/issue35995   9 msgs
+
+#35155: Clarify Protocol Handlers in urllib.request Docs
+https://bugs.python.org/issue35155   8 msgs
+
+#35810: Object Initialization does not incref Heap-allocated Types
+https://bugs.python.org/issue35810   8 msgs
+
+#35982: Create unit-tests for os.renames()
+https://bugs.python.org/issue35982   8 msgs
+
+#35984: test__xxsubinterpreters leaked [3, 4, 3] memory blocks, sum=1
+https://bugs.python.org/issue35984   8 msgs
+
+#1054041: Python doesn't exit with proper resultcode on SIGINT
+https://bugs.python.org/issue1054041   8 msgs
+
+
+
+Issues closed (51)
+==================
+
+#7850: platform.system() should be "macosx" instead of "Darwin" on OS
+https://bugs.python.org/issue7850  closed by ronaldoussoren
+
+#12374: Execution model should explain compile vs definition vs execut
+https://bugs.python.org/issue12374  closed by ncoghlan
+
+#21107: Add pgen.vcxproj to allow regenerating grammar files on Window
+https://bugs.python.org/issue21107  closed by zach.ware
+
+#22062: Fix pathlib.Path.(r)glob doc glitches.
+https://bugs.python.org/issue22062  closed by petr.viktorin
+
+#28627: [alpine] shutil.copytree fail to copy a direcotry with broken 
+https://bugs.python.org/issue28627  closed by benjamin.peterson
+
+#28673: pyro4 with more than 15 threads often crashes 2.7.12
+https://bugs.python.org/issue28673  closed by inada.naoki
+
+#30410: Documentation for sys.stdout encoding does not reflect the new
+https://bugs.python.org/issue30410  closed by Mariatta
+
+#31940: copystat on symlinks fails for alpine -- faulty lchmod impleme
+https://bugs.python.org/issue31940  closed by benjamin.peterson
+
+#32417: fromutc does not respect datetime subclasses
+https://bugs.python.org/issue32417  closed by p-ganssle
+
+#34433: cancel all other pending child futures
+https://bugs.python.org/issue34433  closed by yselivanov
+
+#35055: Error when we try to download the epub archive
+https://bugs.python.org/issue35055  closed by mdk
+
+#35321: None _frozen_importlib.__spec__.origin attribute
+https://bugs.python.org/issue35321  closed by maggyero
+
+#35364: Datetime ???fromtimestamp()??? ignores inheritance if timezone
+https://bugs.python.org/issue35364  closed by p-ganssle
+
+#35378: multiprocessing.Pool.imaps iterators do not maintain alive the
+https://bugs.python.org/issue35378  closed by pablogsal
+
+#35460: Add PyDict_GetItemStringWithError
+https://bugs.python.org/issue35460  closed by ronaldoussoren
+
+#35505: Test test_imaplib fail in test_imap4_host_default_value
+https://bugs.python.org/issue35505  closed by vstinner
+
+#35633: test_eintr fails on AIX since fcntl functions were modified
+https://bugs.python.org/issue35633  closed by Mariatta
+
+#35688: "pip install --user numpy" fails on Python from the Windows St
+https://bugs.python.org/issue35688  closed by mattip
+
+#35706: Make it easier to use a venv with an embedded Python interpret
+https://bugs.python.org/issue35706  closed by steve.dower
+
+#35766: Merge typed_ast back into CPython
+https://bugs.python.org/issue35766  closed by gvanrossum
+
+#35796: time.localtime returns error for negative values
+https://bugs.python.org/issue35796  closed by ammar2
+
+#35833: IDLE: revise doc for control chars sent to Shell
+https://bugs.python.org/issue35833  closed by terry.reedy
+
+#35846: Incomplete documentation for re.sub
+https://bugs.python.org/issue35846  closed by serhiy.storchaka
+
+#35875: Crash by Pandas - algos.cp36-win_amd64.pyd  join.cp36-win_amd6
+https://bugs.python.org/issue35875  closed by eryksun
+
+#35878: ast.c: end_col_offset may be used uninitialized in this functi
+https://bugs.python.org/issue35878  closed by levkivskyi
+
+#35887: Doc string for updating the frozen version of importlib in _bo
+https://bugs.python.org/issue35887  closed by brett.cannon
+
+#35903: Build of posixshmem.c should probe for required OS functions
+https://bugs.python.org/issue35903  closed by nascheme
+
+#35918: multiprocessing's SyncManager.dict.has_key() method is broken
+https://bugs.python.org/issue35918  closed by josh.r
+
+#35934: Add socket.create_server() utility function
+https://bugs.python.org/issue35934  closed by giampaolo.rodola
+
+#35940: multiprocessing manager tests fail in the Refleaks buildbots
+https://bugs.python.org/issue35940  closed by pablogsal
+
+#35948: update version of libffi in cpython-sources-dep
+https://bugs.python.org/issue35948  closed by steve.dower
+
+#35958: io.IOBase subclasses don't play nice with abc.abstractmethod
+https://bugs.python.org/issue35958  closed by josh.r
+
+#35960: dataclasses.field does not preserve empty metadata object
+https://bugs.python.org/issue35960  closed by eric.smith
+
+#35961: test_slice: gc_decref: Assertion "gc_get_refs(g) > 0" failed: 
+https://bugs.python.org/issue35961  closed by vstinner
+
+#35963: Python/symtable.c: warning: enumeration value ???FunctionType_
+https://bugs.python.org/issue35963  closed by gvanrossum
+
+#35965: Behavior for unittest.assertRaisesRegex differs depending on w
+https://bugs.python.org/issue35965  closed by xtreak
+
+#35966: Didn't raise "StopIteration" Error when I use "yield" in the f
+https://bugs.python.org/issue35966  closed by SilentGhost
+
+#35968: lib2to3 cannot parse rf''
+https://bugs.python.org/issue35968  closed by ned.deily
+
+#35972: _xxsubinterpreters: channel_send() may truncate ints on 32-bit
+https://bugs.python.org/issue35972  closed by eric.snow
+
+#35973: `growable_int_array type_ignores` in parsetok.c is not always 
+https://bugs.python.org/issue35973  closed by gvanrossum
+
+#35976: Enable Windows projects to build with platform ARM32
+https://bugs.python.org/issue35976  closed by steve.dower
+
+#35977: test_slice crashed on s390x Debian 3.x: gc_decref: Assertion "
+https://bugs.python.org/issue35977  closed by vstinner
+
+#35979: Incorrect __text_signature__ for the __get__ slot wrapper
+https://bugs.python.org/issue35979  closed by SilentGhost
+
+#35980: Py3 BIF random.choices() is O(N**2) but I've written O(N) code
+https://bugs.python.org/issue35980  closed by mark.dickinson
+
+#35985: Folding tries to slice from 0 to float("+inf") when maxlength 
+https://bugs.python.org/issue35985  closed by Lukas J
+
+#35986: print() documentation typo?
+https://bugs.python.org/issue35986  closed by cheryl.sabella
+
+#35987: Mypy and Asyncio import cannot be skipped
+https://bugs.python.org/issue35987  closed by levkivskyi
+
+#35988: Python interpreter segfault
+https://bugs.python.org/issue35988  closed by josh.r
+
+#35991: potential double free in Modules/_randommodule.c line 295 and 
+https://bugs.python.org/issue35991  closed by benjamin.peterson
+
+#35994: In WalkTests of test_os.py, sub2_tree missed the dir "SUB21" i
+https://bugs.python.org/issue35994  closed by zach.ware
+
+#36005: [2.7] test_ssl failures on ARMv7 Ubuntu 2.7 with OpenSSL 1.1.1
+https://bugs.python.org/issue36005  closed by gregory.p.smith
+
+From status at bugs.python.org  Tue Mar  5 11:30:58 2019
+From: status at bugs.python.org (Python tracker)
+Date: Tue,  5 Mar 2019 16:30:58 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190305163058.EA55852B1CF@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-02-15 - 2019-02-22)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    6999 (-10)
+  closed 40834 (+87)
+  total  47833 (+77)
+
+Open issues with patches: 2795 
+
+
+Issues opened (45)
+==================
+
+#36008: [good first issue] Update documentation for 3.8
+https://bugs.python.org/issue36008  opened by cheryl.sabella
+
+#36010: Please provide a .zip Windows release of Python that is not cr
+https://bugs.python.org/issue36010  opened by jt
+
+#36011: ssl - tls verify on Windows fails
+https://bugs.python.org/issue36011  opened by chris-k
+
+#36015: streamhandler cannot represent streams with an integer as name
+https://bugs.python.org/issue36015  opened by Riccardo Magliocchetti
+
+#36016: Allow gc.getobjects to return the objects tracked by a specifi
+https://bugs.python.org/issue36016  opened by pablogsal
+
+#36017: test_grp
+https://bugs.python.org/issue36017  opened by mjbrands
+
+#36018: Add a Normal Distribution class to the statistics module
+https://bugs.python.org/issue36018  opened by rhettinger
+
+#36019: test_urllib fail in s390x buildbots: http://www.example.com/
+https://bugs.python.org/issue36019  opened by pablogsal
+
+#36020: HAVE_SNPRINTF and MSVC std::snprintf support
+https://bugs.python.org/issue36020  opened by palotasb-conti
+
+#36021: [Security][Windows] webbrowser: WindowsDefault uses os.startfi
+https://bugs.python.org/issue36021  opened by vstinner
+
+#36022: [Security] logging.config should not use eval()
+https://bugs.python.org/issue36022  opened by vstinner
+
+#36023: Improve configparser.ConfigParser repr
+https://bugs.python.org/issue36023  opened by remi.lapeyre
+
+#36025: Breaking change in PyDate_FromTimeStamp API
+https://bugs.python.org/issue36025  opened by p-ganssle
+
+#36026: Different error message when sys.settrace is used
+https://bugs.python.org/issue36026  opened by SylvainDe
+
+#36027: Support negative exponents in pow() where a modulus is specifi
+https://bugs.python.org/issue36027  opened by rhettinger
+
+#36029: Use title-case HTTP header fields
+https://bugs.python.org/issue36029  opened by maggyero
+
+#36030: add internal API function to create tuple without items array 
+https://bugs.python.org/issue36030  opened by sir-sigurd
+
+#36033: logging.makeLogRecord should update "rv" using a dict defined 
+https://bugs.python.org/issue36033  opened by ralonsoh
+
+#36034: Suprise halt caused by -Werror=implicit-function-declaration i
+https://bugs.python.org/issue36034  opened by Michael.Felt
+
+#36035: pathlib.Path().rglob() breaks with broken symlinks
+https://bugs.python.org/issue36035  opened by J??rg Stucke
+
+#36036: Add method to get user defined command line arguments in unitt
+https://bugs.python.org/issue36036  opened by remi.lapeyre
+
+#36041: email: folding of quoted string in display_name violates RFC
+https://bugs.python.org/issue36041  opened by aaryn.startmail
+
+#36042: Setting __init_subclass__ and __class_getitem__ methods are in
+https://bugs.python.org/issue36042  opened by BTaskaya
+
+#36043: FileCookieJar constructor don't accept PathLike
+https://bugs.python.org/issue36043  opened by kapsh
+
+#36044: PROFILE_TASK for PGO build is not a good workload
+https://bugs.python.org/issue36044  opened by nascheme
+
+#36045: builtins.help function is not much help with async functions
+https://bugs.python.org/issue36045  opened by Dan Rose
+
+#36046: support dropping privileges when running subprocesses
+https://bugs.python.org/issue36046  opened by patrick.mclean
+
+#36048: Deprecate implicit truncating when convert Python numbers to C
+https://bugs.python.org/issue36048  opened by serhiy.storchaka
+
+#36050: Why does http.client.HTTPResponse._safe_read use MAXAMOUNT
+https://bugs.python.org/issue36050  opened by bmerry
+
+#36051: Drop the GIL during large bytes.join operations?
+https://bugs.python.org/issue36051  opened by bmerry
+
+#36053: pkgutil.walk_packages jumps out from given path if there is pa
+https://bugs.python.org/issue36053  opened by karkucik
+
+#36054: Way to detect CPU count inside docker container
+https://bugs.python.org/issue36054  opened by keirlawson
+
+#36058: Improve file decoding before re.search
+https://bugs.python.org/issue36058  opened by terry.reedy
+
+#36064: docs: urllib.request.Request not accepting iterables data type
+https://bugs.python.org/issue36064  opened by sylye
+
+#36066: Add `empty` block to `for` and `while` loops.
+https://bugs.python.org/issue36066  opened by wlohu
+
+#36067: subprocess terminate() "invalid handle" error when process is 
+https://bugs.python.org/issue36067  opened by giampaolo.rodola
+
+#36071: Add support for Windows ARM32 in ctypes/libffi
+https://bugs.python.org/issue36071  opened by Paul Monson
+
+#36072: str.translate() behaves differently for ASCII-only and other s
+https://bugs.python.org/issue36072  opened by sir-sigurd
+
+#36073: sqlite crashes with converters mutating cursor
+https://bugs.python.org/issue36073  opened by sir-sigurd
+
+#36075: python 2to3 conversion tool is generating file with extra line
+https://bugs.python.org/issue36075  opened by sabakauser
+
+#36076: ssl.get_server_certificate should use SNI
+https://bugs.python.org/issue36076  opened by enki
+
+#36077: Inheritance dataclasses fields and default init statement
+https://bugs.python.org/issue36077  opened by ???????????? ????????????
+
+#36078: argparse: positional with type=int, default=SUPPRESS raise Val
+https://bugs.python.org/issue36078  opened by n8falke
+
+#36079: pdb on setuptools "ValueError: underlying buffer has been deta
+https://bugs.python.org/issue36079  opened by Gerrit.Holl
+
+#36081: Cannot set LDFLAGS containing $
+https://bugs.python.org/issue36081  opened by Dakon
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36079: pdb on setuptools "ValueError: underlying buffer has been deta
+https://bugs.python.org/issue36079
+
+#36076: ssl.get_server_certificate should use SNI
+https://bugs.python.org/issue36076
+
+#36073: sqlite crashes with converters mutating cursor
+https://bugs.python.org/issue36073
+
+#36071: Add support for Windows ARM32 in ctypes/libffi
+https://bugs.python.org/issue36071
+
+#36058: Improve file decoding before re.search
+https://bugs.python.org/issue36058
+
+#36053: pkgutil.walk_packages jumps out from given path if there is pa
+https://bugs.python.org/issue36053
+
+#36051: Drop the GIL during large bytes.join operations?
+https://bugs.python.org/issue36051
+
+#36036: Add method to get user defined command line arguments in unitt
+https://bugs.python.org/issue36036
+
+#36017: test_grp
+https://bugs.python.org/issue36017
+
+#36002: configure --enable-optimizations with clang fails to detect ll
+https://bugs.python.org/issue36002
+
+#36001: LIBFFI_INCLUDEDIR is not detected when set into a profile nor 
+https://bugs.python.org/issue36001
+
+#35999: multpirocessing.Process alive after SIGTERM on parent
+https://bugs.python.org/issue35999
+
+#35990: ipaddress.IPv4Interface won't accept 2-tuple (address, mask)
+https://bugs.python.org/issue35990
+
+#35974: os.DirEntry.inode() returns invalid value within Docker contai
+https://bugs.python.org/issue35974
+
+#35970: no help flag in base64 util
+https://bugs.python.org/issue35970
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36073: sqlite crashes with converters mutating cursor
+https://bugs.python.org/issue36073
+
+#36071: Add support for Windows ARM32 in ctypes/libffi
+https://bugs.python.org/issue36071
+
+#36064: docs: urllib.request.Request not accepting iterables data type
+https://bugs.python.org/issue36064
+
+#36053: pkgutil.walk_packages jumps out from given path if there is pa
+https://bugs.python.org/issue36053
+
+#36046: support dropping privileges when running subprocesses
+https://bugs.python.org/issue36046
+
+#36045: builtins.help function is not much help with async functions
+https://bugs.python.org/issue36045
+
+#36042: Setting __init_subclass__ and __class_getitem__ methods are in
+https://bugs.python.org/issue36042
+
+#36041: email: folding of quoted string in display_name violates RFC
+https://bugs.python.org/issue36041
+
+#36036: Add method to get user defined command line arguments in unitt
+https://bugs.python.org/issue36036
+
+#36035: pathlib.Path().rglob() breaks with broken symlinks
+https://bugs.python.org/issue36035
+
+#36030: add internal API function to create tuple without items array 
+https://bugs.python.org/issue36030
+
+#36029: Use title-case HTTP header fields
+https://bugs.python.org/issue36029
+
+#36026: Different error message when sys.settrace is used
+https://bugs.python.org/issue36026
+
+#36025: Breaking change in PyDate_FromTimeStamp API
+https://bugs.python.org/issue36025
+
+#36021: [Security][Windows] webbrowser: WindowsDefault uses os.startfi
+https://bugs.python.org/issue36021
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#36021: [Security][Windows] webbrowser: WindowsDefault uses os.startfi
+https://bugs.python.org/issue36021  23 msgs
+
+#36010: Please provide a .zip Windows release of Python that is not cr
+https://bugs.python.org/issue36010  22 msgs
+
+#35813: shared memory construct to avoid need for serialization betwee
+https://bugs.python.org/issue35813  17 msgs
+
+#36027: Support negative exponents in pow() where a modulus is specifi
+https://bugs.python.org/issue36027  13 msgs
+
+#36064: docs: urllib.request.Request not accepting iterables data type
+https://bugs.python.org/issue36064  13 msgs
+
+#35892: Fix awkwardness of statistics.mode() for multimodal datasets
+https://bugs.python.org/issue35892  12 msgs
+
+#36019: test_urllib fail in s390x buildbots: http://www.example.com/
+https://bugs.python.org/issue36019  12 msgs
+
+#35925: test_httplib test_nntplib test_ssl fail on ARMv7 Debian buster
+https://bugs.python.org/issue35925  10 msgs
+
+#36020: HAVE_SNPRINTF and MSVC std::snprintf support
+https://bugs.python.org/issue36020  10 msgs
+
+#36026: Different error message when sys.settrace is used
+https://bugs.python.org/issue36026  10 msgs
+
+
+
+Issues closed (84)
+==================
+
+#1104: msilib.SummaryInfo.GetProperty() truncates the string by one c
+https://bugs.python.org/issue1104  closed by steve.dower
+
+#12822: NewGIL should use CLOCK_MONOTONIC if possible.
+https://bugs.python.org/issue12822  closed by inada.naoki
+
+#13659: Add a help() viewer for IDLE's Shell.
+https://bugs.python.org/issue13659  closed by terry.reedy
+
+#14929: IDLE crashes on *Edit / Find in files ...* command
+https://bugs.python.org/issue14929  closed by terry.reedy
+
+#15248: Better explain "TypeError: 'tuple' object is not callable"
+https://bugs.python.org/issue15248  closed by serhiy.storchaka
+
+#20687: Change in expectedFailure breaks testtools
+https://bugs.python.org/issue20687  closed by cheryl.sabella
+
+#22704: Review extension enable options
+https://bugs.python.org/issue22704  closed by terry.reedy
+
+#23077: PEP 1: Allow Provisional status for PEPs
+https://bugs.python.org/issue23077  closed by cheryl.sabella
+
+#23428: Use the monotonic clock for thread conditions on POSIX platfor
+https://bugs.python.org/issue23428  closed by inada.naoki
+
+#26787: test_distutils fails when configured --with-lto
+https://bugs.python.org/issue26787  closed by inada.naoki
+
+#27632: build on AIX fails when builddir != srcdir, more than bad path
+https://bugs.python.org/issue27632  closed by Michael.Felt
+
+#28235: In xml.etree.ElementTree docs there is no parser argument in f
+https://bugs.python.org/issue28235  closed by cheryl.sabella
+
+#28328: statistics.geometric_mean has no tests. Defer to 3.7?
+https://bugs.python.org/issue28328  closed by inada.naoki
+
+#29278: Python 3.6 build fails with parallel make
+https://bugs.python.org/issue29278  closed by inada.naoki
+
+#30449: Improve __slots__ datamodel documentation
+https://bugs.python.org/issue30449  closed by cheryl.sabella
+
+#31982: 8.3. collections ??? Container datatypes
+https://bugs.python.org/issue31982  closed by rhettinger
+
+#32108: configparser bug: section is emptied if you assign a section t
+https://bugs.python.org/issue32108  closed by cheryl.sabella
+
+#32657: Mutable Objects in SMTP send_message Signature
+https://bugs.python.org/issue32657  closed by inada.naoki
+
+#32808: subprocess.check_output opens an unwanted command line window 
+https://bugs.python.org/issue32808  closed by cheryl.sabella
+
+#33961: Inconsistency in exceptions for dataclasses.dataclass document
+https://bugs.python.org/issue33961  closed by inada.naoki
+
+#33989: ms.key_compare is not initialized in all paths of list_sort_im
+https://bugs.python.org/issue33989  closed by serhiy.storchaka
+
+#34203: documentation: recommend Python 3 over 2 in faq
+https://bugs.python.org/issue34203  closed by abcdef
+
+#34294: re module: wrong capturing groups
+https://bugs.python.org/issue34294  closed by serhiy.storchaka
+
+#34315: Regex not evalauated correctly
+https://bugs.python.org/issue34315  closed by serhiy.storchaka
+
+#34572: C unpickling bypasses import thread safety
+https://bugs.python.org/issue34572  closed by pitrou
+
+#34720: Fix test_importlib.test_bad_traverse for AIX
+https://bugs.python.org/issue34720  closed by ncoghlan
+
+#34757: Placeholder for discussion on Combined patches for AIX - to re
+https://bugs.python.org/issue34757  closed by Michael.Felt
+
+#34785: pty.spawn -- auto-termination after child process is dead (a z
+https://bugs.python.org/issue34785  closed by martin.panter
+
+#34817: Ellipsis docs has extra dot in the markdown that makes it look
+https://bugs.python.org/issue34817  closed by xtreak
+
+#34981: Unable to install Python from web-based installer and executab
+https://bugs.python.org/issue34981  closed by inada.naoki
+
+#35126: Mistake in FAQ about converting number to string.
+https://bugs.python.org/issue35126  closed by cheryl.sabella
+
+#35153: Allow to set headers in xmlrpc.client.ServerProxy
+https://bugs.python.org/issue35153  closed by vstinner
+
+#35186: distutils.command.upload uses deprecated platform.dist with bd
+https://bugs.python.org/issue35186  closed by p-ganssle
+
+#35307: Command line help example  is missing "--prompt" option
+https://bugs.python.org/issue35307  closed by cheryl.sabella
+
+#35500: Align expected and actual calls on mock.assert_called_with err
+https://bugs.python.org/issue35500  closed by taleinat
+
+#35584: Wrong statement about ^ in howto/regex.rst
+https://bugs.python.org/issue35584  closed by rhettinger
+
+#35689: IDLE: Docstrings and test for colorizer
+https://bugs.python.org/issue35689  closed by terry.reedy
+
+#35704: On AIX, test_unpack_archive_xztar fails with default MAXDATA s
+https://bugs.python.org/issue35704  closed by ncoghlan
+
+#35798: duplicate SyntaxWarning: "is" with a literal
+https://bugs.python.org/issue35798  closed by serhiy.storchaka
+
+#35812: Don't log an exception from the main coroutine in asyncio.run(
+https://bugs.python.org/issue35812  closed by asvetlov
+
+#35822: _queue _queuemodule.c is missing inside the Setup file
+https://bugs.python.org/issue35822  closed by inada.naoki
+
+#35826: Typo in example for async with statement with condition
+https://bugs.python.org/issue35826  closed by mhchia
+
+#35852: Fixed tests regenerating using CRLF when running it on Windows
+https://bugs.python.org/issue35852  closed by addons_zz
+
+#35867: NameError is not caught at Task execution
+https://bugs.python.org/issue35867  closed by pablogsal
+
+#35904: Add statistics.fmean(seq)
+https://bugs.python.org/issue35904  closed by rhettinger
+
+#35915: re.search extreme slowness (looks like hang/livelock), searchi
+https://bugs.python.org/issue35915  closed by serhiy.storchaka
+
+#35942: posixmodule.c:path_converter() returns an invalid exception me
+https://bugs.python.org/issue35942  closed by pablogsal
+
+#35945: Cannot distinguish between subtask cancellation and running ta
+https://bugs.python.org/issue35945  closed by jnwatson
+
+#35956: Sort documentation could be improved for complex sorting
+https://bugs.python.org/issue35956  closed by rhettinger
+
+#35984: test__xxsubinterpreters leaked [3, 4, 3] memory blocks, sum=1
+https://bugs.python.org/issue35984  closed by eric.snow
+
+#35992: Metaclasses interfere with __class_getitem__
+https://bugs.python.org/issue35992  closed by levkivskyi
+
+#35993: incorrect use of released memory in Python/pystate.c line 284
+https://bugs.python.org/issue35993  closed by vstinner
+
+#36006: [good first issue] Align version changed for truncate in io mo
+https://bugs.python.org/issue36006  closed by Mariatta
+
+#36007: python3.8 a1 - docs build requires sphinx 1.7 but uses a 1.8 f
+https://bugs.python.org/issue36007  closed by Mariatta
+
+#36009: weakref.ReferenceType is not a valid typing type
+https://bugs.python.org/issue36009  closed by levkivskyi
+
+#36012: Investigate slow writes to class variables
+https://bugs.python.org/issue36012  closed by rhettinger
+
+#36013: test_signal fails in AMD64 Debian PGO 3.x
+https://bugs.python.org/issue36013  closed by gregory.p.smith
+
+#36014: test_help_with_metavar broken
+https://bugs.python.org/issue36014  closed by wabba
+
+#36024: ctypes: test_ctypes test_callbacks() crash on AArch64 with SEL
+https://bugs.python.org/issue36024  closed by vstinner
+
+#36028: Integer Division discrepancy with float
+https://bugs.python.org/issue36028  closed by mark.dickinson
+
+#36031: add internal API function to effectively convert just created 
+https://bugs.python.org/issue36031  closed by vstinner
+
+#36032: Wrong output in tutorial (3.1.2. Strings)
+https://bugs.python.org/issue36032  closed by serhiy.storchaka
+
+#36037: test_ssl fails on RHEL8 strict OpenSSL configuration
+https://bugs.python.org/issue36037  closed by vstinner
+
+#36038: ^ used in inaccurate example in regex-howto
+https://bugs.python.org/issue36038  closed by mdk
+
+#36039: Replace append loops with list comprehensions
+https://bugs.python.org/issue36039  closed by rhettinger
+
+#36040: Python\ast.c(3875): warning C4244: 'initializing': conversion 
+https://bugs.python.org/issue36040  closed by pablogsal
+
+#36047: socket file handle does not support stream write
+https://bugs.python.org/issue36047  closed by matrixise
+
+#36049: No __repr__() for queue.PriorityQueue and queue.LifoQueue
+https://bugs.python.org/issue36049  closed by rhettinger
+
+#36052: Assignment operator allows to assign to __debug__
+https://bugs.python.org/issue36052  closed by pablogsal
+
+#36055: Division using math.pow and math.log approximation fails
+https://bugs.python.org/issue36055  closed by mark.dickinson
+
+#36056: importlib does not support pathlib
+https://bugs.python.org/issue36056  closed by berker.peksag
+
+#36057: Add docs and tests for ordering in Counter.  [no behavior chan
+https://bugs.python.org/issue36057  closed by rhettinger
+
+#36059: Update docs for OrderedDict to reflect that regular dicts are 
+https://bugs.python.org/issue36059  closed by rhettinger
+
+#36060: Document how collections.ChainMap() determines iteration order
+https://bugs.python.org/issue36060  closed by rhettinger
+
+#36061: zipfile does not handle arcnames with non-ascii characters on 
+https://bugs.python.org/issue36061  closed by inada.naoki
+
+#36062: move index normalization from list_slice() to PyList_GetSlice(
+https://bugs.python.org/issue36062  closed by serhiy.storchaka
+
+#36063: replace PyTuple_SetItem() with PyTuple_SET_ITEM() in long_divm
+https://bugs.python.org/issue36063  closed by serhiy.storchaka
+
+#36065: Add unified C API for accessing bytes and bytearray
+https://bugs.python.org/issue36065  closed by serhiy.storchaka
+
+#36068: Make _tuplegetter objects serializable
+https://bugs.python.org/issue36068  closed by rhettinger
+
+#36069: asyncio: create_connection cannot handle IPv6 link-local addre
+https://bugs.python.org/issue36069  closed by Leonardo M??rlein
+
+#36070: Enclosing scope not visible from within list comprehension
+https://bugs.python.org/issue36070  closed by serhiy.storchaka
+
+#36074: Result of `asyncio.Server.sockets` after `Server.close()` is n
+https://bugs.python.org/issue36074  closed by mdk
+
+#36080: Ensurepip fails to install pip into a nested virtual environme
+https://bugs.python.org/issue36080  closed by Sammy Gillespie
+
+#36082: The built-in round() function giving a wrong output
+https://bugs.python.org/issue36082  closed by SilentGhost
+
+From steve.dower at python.org  Tue Mar  5 11:55:41 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 5 Mar 2019 08:55:41 -0800
+Subject: [Python-Dev] [RELEASE] Python 2.7.16
+In-Reply-To: <q5kg1n$3cnc$1@blaine.gmane.org>
+References: <5cb021d0-bf2f-45aa-98f1-5f4bb77fb4a6@www.fastmail.com>
+ <q5kg1n$3cnc$1@blaine.gmane.org>
+Message-ID: <b7acd184-fd29-f1f2-642f-5073d51f3436@python.org>
+
+On 04Mar2019 1631, Terry Reedy wrote:
+> On 3/3/2019 10:30 PM, Benjamin Peterson wrote:
+> 
+>> I'm pleased to announce the immediate availability of Python 2.7.16 
+>> for download at https://www.python.org/downloads/release/python-2716/.
+> 
+> On Windows 10, this is an 'unrecognized app' and Windows Defender 
+> SmartScreen, now default, refuses to run it. "Windows protected your PC" 
+> until one clicks 'more info' to get 'Run anyway'.? This is new since the 
+> .rc1 release.? We should either make 2.7 a 'known' app* or say something 
+> on the download page about clicking 'more info'.? I don't know the 
+> status of python.org 3.x downloads.
+> 
+> Since Steve Dower put 3.7 on the Windows store, PSF must now be a known 
+> publisher.? Perhaps he can help make 2.7 'known'.
+
+SmartScreen should recognize it now that it's been downloaded a few 
+times without reporting, but the real problem is that it hasn't been 
+signed properly. (I don't have any validation set up for Python 2 on this.)
+
+I'll try and sign the version on my build machine by hand and upload it 
+again this week, and maybe add a validation step to interrupt the upload 
+if it's not signed, but anything Python 2 is a very low priority for me 
+(sorry Benjamin :) ).
+
+Cheers,
+Steve
+
+From ezio.melotti at gmail.com  Tue Mar  5 11:57:24 2019
+From: ezio.melotti at gmail.com (Ezio Melotti)
+Date: Tue, 5 Mar 2019 17:57:24 +0100
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <CACBhJdGqHTJCrZfGDtEnwBMs5JXTpjyNa04qiR5sOf4yb9OzbQ@mail.gmail.com>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+ <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+ <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+ <q59oo7$71ib$1@blaine.gmane.org>
+ <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+ <q5ae7e$603g$1@blaine.gmane.org>
+ <CACBhJdGqHTJCrZfGDtEnwBMs5JXTpjyNa04qiR5sOf4yb9OzbQ@mail.gmail.com>
+Message-ID: <CACBhJdFi0xLrwFuC6Fiqz=V9nM67ku5=2c7WGGSPt-ptKE1dAA@mail.gmail.com>
+
+On Fri, Mar 1, 2019 at 8:05 AM Ezio Melotti <ezio.melotti at gmail.com> wrote:
+>
+> On Fri, Mar 1, 2019 at 5:59 AM Terry Reedy <tjreedy at udel.edu> wrote:
+> >
+> > On 2/28/2019 6:54 PM, Glenn Linderman wrote:
+> >
+> > > There seems to be enough evidence that something went wrong somewhere,
+> > > though, and whoever maintains that process should start investigating,
+> > > but it would still be nice to get confirmation from a non-Google email
+> > > recipient whether they did or did not get the Summary messages.
+> > >
+> > > I wonder if there is a way to manually send them, and if the missing two
+> > > weeks of activity can be reported... once the sending problem is
+> > > understood and resolved.
+> >
+> > I posted a note to the core-workflow list, but I don't know if anyone
+> > with power or knowledge still reads it.
+> >
+>
+> The tracker got migrated recently, and that's the most likely cause of
+> the missing reports.
+> We'll look into it and get them back :)
+>
+
+Ernest promptly fixed the issue so last week report was sent out correctly.
+I just generated and sent out the two reports that were missing and
+updated the tracker stats at
+https://bugs.python.org/issue?@template=stats
+Note that some values in the report might be a bit off (for example,
+the list of issues waiting for review doesn't include issues that were
+closed after the selected period, and the patch count includes issues
+created before or during the selected period even if a patch was
+uploaded after the selected period).
+The issues counts and deltas at the top of the summary should be correct.
+Let me know if you notice any other problem (and thanks Ned for
+bringing this to my attention!).
+
+Best Regards,
+Ezio Melotti
+
+> > To get a listing, go to the tracker search page, put
+> > 2019-02-09 to 2019-03-01
+> > in the date box, and change status to don't care.  At the moment, this
+> > returns 204 issues.
+> >
+> > --
+> > Terry Jan Reedy
+> >
+
+From steve.dower at python.org  Tue Mar  5 12:14:11 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 5 Mar 2019 09:14:11 -0800
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <CANbgQ_GNqk19iOpotgGT_mNFUFNBEHoNoEm9tVpV1rZOnLw1kQ@mail.gmail.com>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+ <5C7E789B.9010007@UGent.be>
+ <CANbgQ_GNqk19iOpotgGT_mNFUFNBEHoNoEm9tVpV1rZOnLw1kQ@mail.gmail.com>
+Message-ID: <65a0900d-36f3-32f0-1cd0-e4403368f855@python.org>
+
+On 05Mar2019 0620, James Edwards wrote:
+> I have to say, this is sort of surprising for what seems like the first 
+> official action of the steering?committee.? Are there really /that many 
+> /PEPs that a team that is now, what, 5x the size of the BFDL model is 
+> worried that they'll be able to keep up?? As a long-time lurker, this 
+> hardly seems to be the case.? Despite the seemingly-well-intentioned 
+> rationale, this seems like an ominous sign.
+
+FWIW, I'm 100% on board with this idea (and feel free to continue 
+stealing ideas from PEP 8013 ;) ). However, the presentation of it 
+certainly didn't emphasize the good rationale for the decision.
+
+In short, the five person steering council is not the equivalent of 5x 
+BDFL. If they want to delegate early decision making to the core team as 
+a whole, they can, and that's what they've done here.
+
+For non-core developers, and particularly first-time contributors, the 
+PEP process typically starts at python-ideas. (Even core devs probably 
+ought to start there, though part of being accepted as a core developer 
+means we trust your judgement in selecting the correct venue for 
+discussion, so if security-sig, datetime-sig, capi-sig, core-workflow, 
+or just python-dev is more appropriate, feel free to start there.)
+
+To "get out" of python-ideas, someone needs to suggest where it goes 
+next. Most of the time, this is python-dev. However, if you don't have 
+*a single* core developer on board from python-ideas, chances are the 
+whole team is going to reject the proposal.
+
+In the past, an idea would be shut down by just one negative vote 
+(Guido's). In this future, an idea is promoted by just one positive vote 
+(any core developer's). It's actually much easier for an "outsider" to 
+get their idea in front of the whole core team than before. And 
+python-ideas has core developers and regular contributors who have 
+self-selected to "triage" ideas and help move them along. If the 
+triagers don't like your idea, it's probably not a good idea :)
+
+Asking for proclamation from the council/delegate is literally saying 
+"this proposal is ready". As a contributor (first time or 100th time), 
+if you think your proposal is ready without *anyone else* agreeing with 
+you, then *we* think you have a humility problem and we'd like you to go 
+work on that.
+
+It's not a big ask to have one of the lower level mailing lists look at 
+your proposal before the council has to make an official decision. You 
+should *want* the mailing lists to look at your proposal. I certainly 
+do, because every time they do my proposals get better, and I get better 
+at writing proposals. This is a situation where everyone wins.
+
+Cheers,
+Steve
+
+From brett at python.org  Tue Mar  5 14:30:18 2019
+From: brett at python.org (Brett Cannon)
+Date: Tue, 5 Mar 2019 11:30:18 -0800
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <5C7E132D.20004@UGent.be>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <5C7E132D.20004@UGent.be>
+Message-ID: <CAP1=2W7pYv_ujxzvTZ52bRz3qvh0PGrBq28RjvPzfiV8wFfR6A@mail.gmail.com>
+
+On Mon, Mar 4, 2019 at 10:13 PM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> Does this apply to existing draft PEPs or only new ones?
+>
+
+Only new ones; this is not retroactive.
+
+-Brett
+
+
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190305/777fd7db/attachment.html>
+
+From brett at python.org  Tue Mar  5 14:41:18 2019
+From: brett at python.org (Brett Cannon)
+Date: Tue, 5 Mar 2019 11:41:18 -0800
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <5C7E789B.9010007@UGent.be>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+ <5C7E789B.9010007@UGent.be>
+Message-ID: <CAP1=2W73Tk5C_tHKLjQK3Oi1q80ir0Bd9ZFO3VQJP4xgba9PBA@mail.gmail.com>
+
+On Tue, Mar 5, 2019 at 5:33 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> On 2019-03-05 14:05, Calvin Spealman wrote:
+> > I'm worried this creates a gatekeeping perception that will scare away
+> > contributors.
+>
+
+It might, but if people are not prepared properly for the PEP process then
+it's best to spare them and everyone else the time sink.
+
+
+>
+> +1
+>
+> I also expressed this worry at https://github.com/python/peps/pull/903
+>
+> You could keep the positive part of the sponsoring idea (somebody acting
+> as mentor) but drop the negative part (make it a hard requirement to
+> find a sponsor supporting the proposal before the proposal can even
+> become a draft PEP).
+>
+
+The hard requirement is on purpose. This is not a suggestion for a reason
+as PEPs are not a cheap, cost-free thing for both authors and those
+participating in the discussion. They take up a ton of time and if people
+are not properly equipped to be successful then it just leads to a massive
+loss of time that could be been better used by everyone involved.
+
+Please also realize that the top 4 PEP authors are on the steering council,
+and some of the longest active core devs and PEP editors are on the
+council, so this isn't coming from people that lack experience and exposure
+to all facets of the PEP process.
+
+As I said in my announcement email, if this turns out to be a bad decision
+then we can change the process back/again, but please do realize this is
+not coming out of thin air just because we like fiddling with the PEP
+process.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190305/1881c105/attachment.html>
+
+From brett at snarky.ca  Tue Mar  5 14:31:08 2019
+From: brett at snarky.ca (Brett Cannon)
+Date: Tue, 5 Mar 2019 11:31:08 -0800
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <CA+3bQGFhgPymJSrsAqAkkeLv0kDWFQuhiVushuz__kD4jQp5wQ@mail.gmail.com>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <CA+3bQGFhgPymJSrsAqAkkeLv0kDWFQuhiVushuz__kD4jQp5wQ@mail.gmail.com>
+Message-ID: <CAP1=2W7bohs32ViRO4jfY8kVSHiFGiEoW8vqnExYbcsLHYYxUg@mail.gmail.com>
+
+On Tue, Mar 5, 2019 at 3:36 AM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hi,
+>
+> Le mar. 5 mars 2019 ? 02:53, Brett Cannon <brett at snarky.ca> a ?crit :
+> > The steering council has implemented a new idea called sponsors to the
+> PEP process (...). The thinking is that to help make sure PEPs from
+> non-core developers receive appropriate guidance through the PEP process
+> (...)
+>
+> Hum, this isn't fully new, some PEPs already got a "PEP champion" (old
+> name), no?
+>
+
+Sure. You can consider this just making it a more formal thing then.
+
+-Brett
+
+
+>
+> A recent example is PEP 572 who has been "championed" by Guido van
+> Rossum, then by Tim Peters. In this specific case, they became
+> co-authors :-)
+>
+> > ... eventually becoming a co-author or BDFL-delegate later
+>
+> Nitpick: since Python has no more BDFL, maybe the expression should
+> becocme "PEP-delegate"? ;-)
+>
+
+That's covered in PEP 1 as to why the name has been kept so far.
+
+-Brett
+
+
+>
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190305/8488e36c/attachment.html>
+
+From J.Demeyer at UGent.be  Tue Mar  5 14:58:43 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Tue, 5 Mar 2019 20:58:43 +0100
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <65a0900d-36f3-32f0-1cd0-e4403368f855@python.org>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+ <5C7E789B.9010007@UGent.be>
+ <CANbgQ_GNqk19iOpotgGT_mNFUFNBEHoNoEm9tVpV1rZOnLw1kQ@mail.gmail.com>
+ <65a0900d-36f3-32f0-1cd0-e4403368f855@python.org>
+Message-ID: <5C7ED4F3.10302@UGent.be>
+
+On 2019-03-05 18:14, Steve Dower wrote:
+> However, if you don't have
+> *a single* core developer on board from python-ideas, chances are the
+> whole team is going to reject the proposal.
+
+Sure, I couldn't agree more. But this is something that a PEP mentor 
+(instead of sponsor) also could deal with. Any potential mentor would 
+quickly dismiss the PEP as having no chance and that would work just fine.
+
+The problem with the "sponsor" idea is that the sponsor must come from 
+the group of core devs supporting the PEP. What if all core devs 
+supporting it don't have time to act as sponsor or just don't care enough?
+
+On the other hand, if there is some support for an idea, then anybody 
+should be able to mentor even if the mentor doesn't personally support 
+the idea. I guess the mentor shouldn't be opposed either, but there is a 
+large gray zone of -0/+0 in between where mentors could come from.
+
+
+Jeroen.
+
+From brett at python.org  Tue Mar  5 15:39:40 2019
+From: brett at python.org (Brett Cannon)
+Date: Tue, 5 Mar 2019 12:39:40 -0800
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <5C7ED4F3.10302@UGent.be>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+ <5C7E789B.9010007@UGent.be>
+ <CANbgQ_GNqk19iOpotgGT_mNFUFNBEHoNoEm9tVpV1rZOnLw1kQ@mail.gmail.com>
+ <65a0900d-36f3-32f0-1cd0-e4403368f855@python.org> <5C7ED4F3.10302@UGent.be>
+Message-ID: <CAP1=2W4RKiQBUokR9xforwBMQA9=1qhXA_a3_99x6hUjhnS68w@mail.gmail.com>
+
+On Tue, Mar 5, 2019 at 11:59 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> On 2019-03-05 18:14, Steve Dower wrote:
+> > However, if you don't have
+> > *a single* core developer on board from python-ideas, chances are the
+> > whole team is going to reject the proposal.
+>
+> Sure, I couldn't agree more. But this is something that a PEP mentor
+> (instead of sponsor) also could deal with. Any potential mentor would
+> quickly dismiss the PEP as having no chance and that would work just fine.
+>
+> The problem with the "sponsor" idea is that the sponsor must come from
+> the group of core devs supporting the PEP. What if all core devs
+> supporting it don't have time to act as sponsor or just don't care enough?
+>
+
+If no one cares enough then there isn't enough support to begin with. I
+can't think of a PEP that was accepted with a universally lukewarm
+reception; there's always been at least one person who liked the idea to
+care.
+
+
+> On the other hand, if there is some support for an idea, then anybody
+> should be able to mentor even if the mentor doesn't personally support
+> the idea. I guess the mentor shouldn't be opposed either, but there is a
+> large gray zone of -0/+0 in between where mentors could come from.
+>
+
+If the hypothetical situation comes up of:
+
+   1. An external person proposes a PEP
+   2. No supportive core dev has time to sponsor
+   3. Someone who doesn't support the PEP is willing to sponsor
+
+then we can talk about changing the process, but otherwise we are worrying
+about a hypothetical situation versus personal experience which suggests
+this won't be the case. IOW we need to give this a shot before we consider
+changing it.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190305/31f8ef4f/attachment.html>
+
+From rosuav at gmail.com  Tue Mar  5 15:45:41 2019
+From: rosuav at gmail.com (Chris Angelico)
+Date: Wed, 6 Mar 2019 07:45:41 +1100
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <CAP1=2W4RKiQBUokR9xforwBMQA9=1qhXA_a3_99x6hUjhnS68w@mail.gmail.com>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+ <5C7E789B.9010007@UGent.be>
+ <CANbgQ_GNqk19iOpotgGT_mNFUFNBEHoNoEm9tVpV1rZOnLw1kQ@mail.gmail.com>
+ <65a0900d-36f3-32f0-1cd0-e4403368f855@python.org> <5C7ED4F3.10302@UGent.be>
+ <CAP1=2W4RKiQBUokR9xforwBMQA9=1qhXA_a3_99x6hUjhnS68w@mail.gmail.com>
+Message-ID: <CAPTjJmpZKOrWz6DPqtxdDdWUOyvNHH=D7XzRRbwmaEU4ai9_zg@mail.gmail.com>
+
+On Wed, Mar 6, 2019 at 7:41 AM Brett Cannon <brett at python.org> wrote:
+>
+>
+>
+> On Tue, Mar 5, 2019 at 11:59 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+>>
+>> On 2019-03-05 18:14, Steve Dower wrote:
+>> > However, if you don't have
+>> > *a single* core developer on board from python-ideas, chances are the
+>> > whole team is going to reject the proposal.
+>>
+>> Sure, I couldn't agree more. But this is something that a PEP mentor
+>> (instead of sponsor) also could deal with. Any potential mentor would
+>> quickly dismiss the PEP as having no chance and that would work just fine.
+>>
+>> The problem with the "sponsor" idea is that the sponsor must come from
+>> the group of core devs supporting the PEP. What if all core devs
+>> supporting it don't have time to act as sponsor or just don't care enough?
+>
+>
+> If no one cares enough then there isn't enough support to begin with. I can't think of a PEP that was accepted with a universally lukewarm reception; there's always been at least one person who liked the idea to care.
+>
+>>
+>> On the other hand, if there is some support for an idea, then anybody
+>> should be able to mentor even if the mentor doesn't personally support
+>> the idea. I guess the mentor shouldn't be opposed either, but there is a
+>> large gray zone of -0/+0 in between where mentors could come from.
+>
+>
+> If the hypothetical situation comes up of:
+>
+> An external person proposes a PEP
+> No supportive core dev has time to sponsor
+> Someone who doesn't support the PEP is willing to sponsor
+>
+> then we can talk about changing the process, but otherwise we are worrying about a hypothetical situation versus personal experience which suggests this won't be the case. IOW we need to give this a shot before we consider changing it.
+>
+
+How much effort does it take to sponsor a PEP? I'm not a core dev, but
+I can help someone with the work of writing and publishing. So if, in
+that hypothetical situation, some (very busy) core dev were willing to
+say "yeah, go ahead, put my name on it", would that be sufficient? If
+so, it shouldn't be a problem to require this - any proposal with
+enough support to be worth PEPing should have at least one person
+who's willing to have his/her name in the headers.
+
+ChrisA
+
+From steve.dower at python.org  Tue Mar  5 16:02:54 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 5 Mar 2019 13:02:54 -0800
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <CAPTjJmpZKOrWz6DPqtxdDdWUOyvNHH=D7XzRRbwmaEU4ai9_zg@mail.gmail.com>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+ <5C7E789B.9010007@UGent.be>
+ <CANbgQ_GNqk19iOpotgGT_mNFUFNBEHoNoEm9tVpV1rZOnLw1kQ@mail.gmail.com>
+ <65a0900d-36f3-32f0-1cd0-e4403368f855@python.org> <5C7ED4F3.10302@UGent.be>
+ <CAP1=2W4RKiQBUokR9xforwBMQA9=1qhXA_a3_99x6hUjhnS68w@mail.gmail.com>
+ <CAPTjJmpZKOrWz6DPqtxdDdWUOyvNHH=D7XzRRbwmaEU4ai9_zg@mail.gmail.com>
+Message-ID: <021c02d0-2ba8-db1c-d074-b07e741ed9bd@python.org>
+
+On 05Mar2019 1245, Chris Angelico wrote:
+> How much effort does it take to sponsor a PEP? I'm not a core dev, but
+> I can help someone with the work of writing and publishing. So if, in
+> that hypothetical situation, some (very busy) core dev were willing to
+> say "yeah, go ahead, put my name on it", would that be sufficient? If
+> so, it shouldn't be a problem to require this - any proposal with
+> enough support to be worth PEPing should have at least one person
+> who's willing to have his/her name in the headers.
+
+For the record, now that he's joined the conversation, Chris is who I 
+had in mind when I invented the term "PEP triager" in my email :)
+
+If we had a way of appointing people who we trust to be non-core dev 
+sponsors of PEPs, I'd nominate him. Though I suspect he's well known 
+enough to the council that they'd accept his support of a PEP as 
+sufficient to consider it from someone who's otherwise completely 
+unknown. There are always grey areas in any policy.
+
+Cheers,
+Steve
+
+From steve at holdenweb.com  Tue Mar  5 17:53:58 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Tue, 5 Mar 2019 22:53:58 +0000
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <021c02d0-2ba8-db1c-d074-b07e741ed9bd@python.org>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <CACo5Rz5k=iBypcHFtGXE1mR-3RiME8Z1=4K=fiKTWXH5Zzjn_w@mail.gmail.com>
+ <5C7E789B.9010007@UGent.be>
+ <CANbgQ_GNqk19iOpotgGT_mNFUFNBEHoNoEm9tVpV1rZOnLw1kQ@mail.gmail.com>
+ <65a0900d-36f3-32f0-1cd0-e4403368f855@python.org> <5C7ED4F3.10302@UGent.be>
+ <CAP1=2W4RKiQBUokR9xforwBMQA9=1qhXA_a3_99x6hUjhnS68w@mail.gmail.com>
+ <CAPTjJmpZKOrWz6DPqtxdDdWUOyvNHH=D7XzRRbwmaEU4ai9_zg@mail.gmail.com>
+ <021c02d0-2ba8-db1c-d074-b07e741ed9bd@python.org>
+Message-ID: <CAMofdRC+M14VeQBu_rzvf2V4MXhMGaFZ2bR0h_GOObJPtswSGg@mail.gmail.com>
+
+On Tue, Mar 5, 2019 at 9:04 PM Steve Dower <steve.dower at python.org> wrote:
+
+> On 05Mar2019 1245, Chris Angelico wrote:
+> > How much effort does it take to sponsor a PEP? I'm not a core dev, but
+> > I can help someone with the work of writing and publishing. So if, in
+> > that hypothetical situation, some (very busy) core dev were willing to
+> > say "yeah, go ahead, put my name on it", would that be sufficient? If
+> > so, it shouldn't be a problem to require this - any proposal with
+> > enough support to be worth PEPing should have at least one person
+> > who's willing to have his/her name in the headers.
+>
+> For the record, now that he's joined the conversation, Chris is who I
+> had in mind when I invented the term "PEP triager" in my email :)
+>
+> If we had a way of appointing people who we trust to be non-core dev
+> sponsors of PEPs, I'd nominate him. Though I suspect he's well known
+> enough to the council that they'd accept his support of a PEP as
+> sufficient to consider it from someone who's otherwise completely
+> unknown. There are always grey areas in any policy.
+>
+
+If core devs trust someone enough to let them act as a PEP sponsor, they
+probably know at least one core dev well enough to get them to add their
+name as sponsor on the condition that they are only responsiible for
+ensuring their "proxy" (?) responds adequately and in a sufficiently timely
+manner.
+
+I don't have a great deal to add to most conversations here, but I would
+urge all concerned to consider Brett's point, from my own now distant
+experience as a PSF chair. If I may paraphrase him, it's easier to change
+the rules when someone wants or needs to do something outside their current
+scope than it is to devise bullet-proof rules. It was only after I learned
+this lesson that much of the constitutional lawyering in the PSF was
+(gradually) replaced by useful mission-directed volunteer-led activity.
+
+Please don't concern yourselves too much about process, but instead focus
+on the desired results. If lawyering is needed, delegate it to the PSF! I'd
+rather have you pushing Python forward ;-).
+
+Finally, thanks again to everyone who contributes, particularly for
+managing to hide a great deal of Python's modern-day complexity from those
+who neither want nor need to know about it. Ultimately I think that is
+perhaps the biggest factor fuelling the language's continued growth.
+
+Kind regards
+Steve Holden
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190305/e878624a/attachment-0001.html>
+
+From songofacandy at gmail.com  Wed Mar  6 00:21:05 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Wed, 6 Mar 2019 14:21:05 +0900
+Subject: [Python-Dev] Summary of Python tracker Issues
+In-Reply-To: <CACBhJdFi0xLrwFuC6Fiqz=V9nM67ku5=2c7WGGSPt-ptKE1dAA@mail.gmail.com>
+References: <20190208180753.1.782F2F2B9AA3561B@roundup.psfhosted.org>
+ <CAEfz+TwdqQm829Q_2RWJq9QVDsnRX53JkFYVMqFP0G+OSqJKiA@mail.gmail.com>
+ <CAK256p3ruU-RCv-k_XeXSsu+33oKKnE29YK=bK=pQBJb=7tEgg@mail.gmail.com>
+ <q59m60$1i0v$1@blaine.gmane.org>
+ <CAK256p1kP_D9AYYfCbcgOXp5tb7oMHVbZ8x7JBi9yO9QsO4B0g@mail.gmail.com>
+ <bb74cef5-2393-dccb-a6c5-5e491bbf66be@g.nevcal.com>
+ <q59oo7$71ib$1@blaine.gmane.org>
+ <5d12e862-5398-5701-2503-b745c0875976@g.nevcal.com>
+ <q5ae7e$603g$1@blaine.gmane.org>
+ <CACBhJdGqHTJCrZfGDtEnwBMs5JXTpjyNa04qiR5sOf4yb9OzbQ@mail.gmail.com>
+ <CACBhJdFi0xLrwFuC6Fiqz=V9nM67ku5=2c7WGGSPt-ptKE1dAA@mail.gmail.com>
+Message-ID: <CAEfz+TxQnv2kTKgAE1Mgy827xCEw0C=7eiAv3Cu3un2xVsgULA@mail.gmail.com>
+
+Thank you for fixing it.Weekly status give me motivation to look issues.
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From benjamin at python.org  Wed Mar  6 00:40:33 2019
+From: benjamin at python.org (Benjamin Peterson)
+Date: Wed, 06 Mar 2019 00:40:33 -0500
+Subject: [Python-Dev] [RELEASE] Python 2.7.16
+In-Reply-To: <12acd71f-c18b-ea72-1e43-df4c76aa7812@redhat.com>
+References: <5cb021d0-bf2f-45aa-98f1-5f4bb77fb4a6@www.fastmail.com>
+ <12acd71f-c18b-ea72-1e43-df4c76aa7812@redhat.com>
+Message-ID: <3cdb64ff-afc1-43d3-bb69-b866386d3f87@www.fastmail.com>
+
+
+
+On Tue, Mar 5, 2019, at 03:18, Miro Hron?ok wrote:
+> On 04. 03. 19 4:30, Benjamin Peterson wrote:
+> > Hello all,
+> > I'm pleased to announce the immediate availability of Python 2.7.16 for download at https://www.python.org/downloads/release/python-2716/.
+> > 
+> > The only change since the release candidate was a fix for the IDLE icon on macOS. See https://bugs.python.org/issue32129. Refer to the changelog for a full list of changes: https://raw.githubusercontent.com/python/cpython/v2.7.16/Misc/NEWS.d/2.7.16rc1.rst
+> 
+> 
+> https://www.python.org/downloads/release/python-2716/ links changelog to 
+> https://raw.githubusercontent.com/python/cpython/v2.7.16/Misc/NEWS.d/2.7.16.rst 
+> but that only has 1 change (I suppose against rc1).
+> 
+> Is there a better link, or should I read those two combined?
+> 
+> https://raw.githubusercontent.com/python/cpython/v2.7.16/Misc/NEWS.d/2.7.16rc1.rst
+> https://raw.githubusercontent.com/python/cpython/v2.7.16/Misc/NEWS.d/2.7.16.rst
+
+Correct, those the full delta between 2.7.15 and 2.7.16.
+
