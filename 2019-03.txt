@@ -3061,3 +3061,1834 @@ Giampaolo - http://grodola.blogspot.com
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/2ecf456d/attachment.html>
 
+From songofacandy at gmail.com  Thu Mar  7 04:18:27 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Thu, 7 Mar 2019 18:18:27 +0900
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+Message-ID: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+
+Hi, all.
+
+I came from https://bugs.python.org/issue35838
+Since there are no "expert" for configparser in
+Expert Index, I ask here to make design decision.
+
+The default behavior of CofigParser.optionxform
+is str.lowercase().  This is used to canonicalize
+option key names.
+
+The document of the optionxform shows example
+overrides it to identity function `lambda option: option`.
+https://docs.python.org/3/library/configparser.html#configparser.ConfigParser.optionxform
+
+BPO-35838 is issue about optionxform can be called twice
+while ConfigParser.read_dict().
+If optionxfrom is not idempotent, it creates unexpected option
+name.
+https://bugs.python.org/issue35838#msg334439
+
+But even if all APIs calls optionxform exactly once, user may
+read option name and value, and write updated value with same name.
+In this case, user read option name already optionxform-ed
+(canonicalized).  So non-idempotent optionxform will break
+option name.
+
+So what should we do about optionxform?
+
+a)  Document "optionxform must be idempotent".
+
+b) Ensure all APIs calls optionxform exactly once, and document
+   "When you get option name from section objects, it is already
+    optionxform-ed.  You can not reuse the option name if
+    optionxform is not idempotent, because optionxform will be
+    applied to the name again."
+
+I prefer (a) to (b) because it's simple and easy solution.
+
+But for some use cases (e.g. read only, write only, use only
+predefined option name and read only it's value), (b) works.
+At least issue reporter try this use case and be trapped by
+this behavior.
+
+How do you think?
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From p.f.moore at gmail.com  Thu Mar  7 04:56:49 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 7 Mar 2019 09:56:49 +0000
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+Message-ID: <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+
+On Thu, 7 Mar 2019 at 09:21, Inada Naoki <songofacandy at gmail.com> wrote:
+> The document of the optionxform shows example
+> overrides it to identity function `lambda option: option`.
+> https://docs.python.org/3/library/configparser.html#configparser.ConfigParser.optionxform
+>
+> BPO-35838 is issue about optionxform can be called twice
+> while ConfigParser.read_dict().
+> If optionxfrom is not idempotent, it creates unexpected option
+> name.
+> https://bugs.python.org/issue35838#msg334439
+
+I'm not keen on the term "idempotent" here - I wasn't at all clear
+what it was intended to convey. But from looking at the bug report, I
+see that it basically means "optionxform should be a function which,
+when applied more than one time to a value, returns the same result as
+if it had been applied once only".
+
+> But even if all APIs calls optionxform exactly once, user may
+> read option name and value, and write updated value with same name.
+> In this case, user read option name already optionxform-ed
+> (canonicalized).  So non-idempotent optionxform will break
+> option name.
+>
+> So what should we do about optionxform?
+>
+> a)  Document "optionxform must be idempotent".
+>
+> b) Ensure all APIs calls optionxform exactly once, and document
+>    "When you get option name from section objects, it is already
+>     optionxform-ed.  You can not reuse the option name if
+>     optionxform is not idempotent, because optionxform will be
+>     applied to the name again."
+>
+> I prefer (a) to (b) because it's simple and easy solution.
+
+I strongly prefer (b). I think the example given in the bug report is
+a reasonable thing to expect to work. I think that disallowing this
+usage is an arbitrary restriction that honestly doesn't have a good
+justification *other* than "it's easier for the implementation". It's
+obviously not a *common* requirement, otherwise the issue would have
+come up more often, but it's a reasonable one (after all, we don't
+require similar functions like the key argument to sorted() to conform
+to this restriction).
+
+I'd look at the question the other way round. If we *did* insist that
+optionxform has to be "idempotent", how would we recommend that the
+person who reported the bug achieved the result he's trying to get?
+lambda x: x if x.startswith("(") and x.endswith(")") else "(" + x +
+")"? That seems a bit fiddly.
+
+If, however, the consensus is that we choose (a), can I ask that we
+*don't* use the term "idempotent" when documenting the restriction? I
+think it will cause too much confusion - we should explain the
+restriction without using obscure terms (and if it's hard to explain
+the restriction like that, maybe that demonstrates that it's an
+unreasonable restriction to impose? ;-))
+
+Paul
+
+From songofacandy at gmail.com  Thu Mar  7 05:06:31 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Thu, 7 Mar 2019 19:06:31 +0900
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+Message-ID: <CAEfz+Ty2y0+3ZBTB=MekQaBEgcUhtHyEFk=_cTbSzrBintio4A@mail.gmail.com>
+
+On Thu, Mar 7, 2019 at 6:57 PM Paul Moore <p.f.moore at gmail.com> wrote:
+>
+> I'm not keen on the term "idempotent" here - I wasn't at all clear
+> what it was intended to convey. But from looking at the bug report, I
+> see that it basically means "optionxform should be a function which,
+> when applied more than one time to a value, returns the same result as
+> if it had been applied once only".
+
+You're right.  "idempotent" is technical (or mathematical) jargon.
+When f(x) satisfies "f(x) == f(f(x)) for all x" restriction, f(x) is idempotent.
+
+
+>
+> I'd look at the question the other way round. If we *did* insist that
+> optionxform has to be "idempotent", how would we recommend that the
+> person who reported the bug achieved the result he's trying to get?
+> lambda x: x if x.startswith("(") and x.endswith(")") else "(" + x +
+> ")"? That seems a bit fiddly.
+
+In this case, we recommend not using optionxform to wrap name with
+"()" implicitly.  Use wrapped name explicitly instead.
+
+e.g. cfg["section"]["(name)"] = "value"
+
+It's very simple.
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From tir.karthi at gmail.com  Thu Mar  7 05:30:02 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Thu, 7 Mar 2019 16:00:02 +0530
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+Message-ID: <CAAjsFLQcQyyLYa6NA34k3Xjuyk6WmrGmTb5RAQK-=nref3ndsA@mail.gmail.com>
+
+On Thu, Mar 7, 2019 at 2:51 PM Inada Naoki <songofacandy at gmail.com> wrote:
+
+> Hi, all.
+>
+> I came from https://bugs.python.org/issue35838
+> Since there are no "expert" for configparser in
+> Expert Index, I ask here to make design decision.
+>
+
+There is lukasz.langa in the expert index for configparser at
+https://devguide.python.org/experts/#stdlib and that's why I deferred to
+them.
+
+The default behavior of CofigParser.optionxform
+> is str.lowercase().  This is used to canonicalize
+> option key names.
+>
+> The document of the optionxform shows example
+> overrides it to identity function `lambda option: option`.
+>
+> https://docs.python.org/3/library/configparser.html#configparser.ConfigParser.optionxform
+>
+> BPO-35838 is issue about optionxform can be called twice
+> while ConfigParser.read_dict().
+> If optionxfrom is not idempotent, it creates unexpected option
+> name.
+> https://bugs.python.org/issue35838#msg334439
+>
+> But even if all APIs calls optionxform exactly once, user may
+> read option name and value, and write updated value with same name.
+> In this case, user read option name already optionxform-ed
+> (canonicalized).  So non-idempotent optionxform will break
+> option name.
+>
+> So what should we do about optionxform?
+>
+> a)  Document "optionxform must be idempotent".
+>
+
+I also feel this is restrictive since wrapping keys with () looks like a
+valid use case to me.
+
+b) Ensure all APIs calls optionxform exactly once, and document
+>    "When you get option name from section objects, it is already
+>     optionxform-ed.  You can not reuse the option name if
+>     optionxform is not idempotent, because optionxform will be
+>     applied to the name again."
+>
+> I prefer (a) to (b) because it's simple and easy solution.
+>
+
+I initially preferred (b) while read_dict is one case. As you have
+mentioned in the tracker there are various scenarios where the transform is
+done and stored in the underlying internal dict and then while setting one
+section key to another it might apply it again. Also I am afraid there is
+less test coverage for optionxform itself so there could be more scenarios
+to cover increasing the complexity.
+
+-- 
+Regards,
+Karthikeyan S
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/19cc428d/attachment.html>
+
+From p.f.moore at gmail.com  Thu Mar  7 05:30:10 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 7 Mar 2019 10:30:10 +0000
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <CAEfz+Ty2y0+3ZBTB=MekQaBEgcUhtHyEFk=_cTbSzrBintio4A@mail.gmail.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+ <CAEfz+Ty2y0+3ZBTB=MekQaBEgcUhtHyEFk=_cTbSzrBintio4A@mail.gmail.com>
+Message-ID: <CACac1F8EC42SCCgLac3F0Ytf-vOzJJ5hTxOu9uh0ZdykVtcq_Q@mail.gmail.com>
+
+On Thu, 7 Mar 2019 at 10:06, Inada Naoki <songofacandy at gmail.com> wrote:
+>
+> On Thu, Mar 7, 2019 at 6:57 PM Paul Moore <p.f.moore at gmail.com> wrote:
+> >
+> > I'm not keen on the term "idempotent" here - I wasn't at all clear
+> > what it was intended to convey. But from looking at the bug report, I
+> > see that it basically means "optionxform should be a function which,
+> > when applied more than one time to a value, returns the same result as
+> > if it had been applied once only".
+>
+> You're right.  "idempotent" is technical (or mathematical) jargon.
+> When f(x) satisfies "f(x) == f(f(x)) for all x" restriction, f(x) is idempotent.
+
+Thanks. I know what the term means, at least in a mathematical sense -
+the computing sense is slightly different (in a subtle way that may
+not be relevant here - see
+https://stackoverflow.com/questions/1077412/what-is-an-idempotent-operation).
+
+> > I'd look at the question the other way round. If we *did* insist that
+> > optionxform has to be "idempotent", how would we recommend that the
+> > person who reported the bug achieved the result he's trying to get?
+> > lambda x: x if x.startswith("(") and x.endswith(")") else "(" + x +
+> > ")"? That seems a bit fiddly.
+>
+> In this case, we recommend not using optionxform to wrap name with
+> "()" implicitly.  Use wrapped name explicitly instead.
+>
+> e.g. cfg["section"]["(name)"] = "value"
+>
+> It's very simple.
+
+That argument could be used for any use of optionxform, though -
+instead of using the default optionxform, use explicitly-lowercased
+values everywhere instead.
+
+I still prefer option (b), allowing general functions for optionxform.
+However, I will say (and I should have said in my first mail) that
+this is a view based purely on theoretical considerations. I've never
+explicitly used optionxform myself, and none of my code would be
+impacted in any way regardless of the outcome of this discussion.
+
+Paul
+
+From songofacandy at gmail.com  Thu Mar  7 05:41:21 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Thu, 7 Mar 2019 19:41:21 +0900
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <CACac1F8EC42SCCgLac3F0Ytf-vOzJJ5hTxOu9uh0ZdykVtcq_Q@mail.gmail.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+ <CAEfz+Ty2y0+3ZBTB=MekQaBEgcUhtHyEFk=_cTbSzrBintio4A@mail.gmail.com>
+ <CACac1F8EC42SCCgLac3F0Ytf-vOzJJ5hTxOu9uh0ZdykVtcq_Q@mail.gmail.com>
+Message-ID: <CAEfz+TyzDCrWuDrSZK9_dB4pcxqmuyLxTfC9ECScp-zK34TNgw@mail.gmail.com>
+
+>
+> That argument could be used for any use of optionxform, though -
+> instead of using the default optionxform, use explicitly-lowercased
+> values everywhere instead.
+>
+
+It can't be usable if the config format case-insensitive.
+
+value = (cfg.get("section", "name") or cfg.get("section", "Name")
+        or cfg.get("section", "nAme") or cfg.get("section", "naMe")...)
+
+
+> I still prefer option (b), allowing general functions for optionxform.
+> However, I will say (and I should have said in my first mail) that
+> this is a view based purely on theoretical considerations. I've never
+> explicitly used optionxform myself, and none of my code would be
+> impacted in any way regardless of the outcome of this discussion.
+>
+> Paul
+
+If we choose (b), I think core developer must check test coverage for
+optionxform before documenting non-idempotent optionxform
+is allowed explicitly.
+
+I don't have motivation for that because I never used configparser in such way.
+
+The PR looks good to me for the particular case the issue describe.
+So I will merge the PR without updating document when we chose (b).
+
+But let's wait a few days for other comments.
+
+Regards,
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From steve at pearwood.info  Thu Mar  7 07:39:50 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 7 Mar 2019 23:39:50 +1100
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+Message-ID: <20190307123950.GL4465@ando.pearwood.info>
+
+On Thu, Mar 07, 2019 at 09:56:49AM +0000, Paul Moore wrote:
+> On Thu, 7 Mar 2019 at 09:21, Inada Naoki <songofacandy at gmail.com> wrote:
+> > The document of the optionxform shows example
+> > overrides it to identity function `lambda option: option`.
+> > https://docs.python.org/3/library/configparser.html#configparser.ConfigParser.optionxform
+> >
+> > BPO-35838 is issue about optionxform can be called twice
+> > while ConfigParser.read_dict().
+> > If optionxfrom is not idempotent, it creates unexpected option
+> > name.
+> > https://bugs.python.org/issue35838#msg334439
+> 
+> I'm not keen on the term "idempotent" here - I wasn't at all clear
+> what it was intended to convey. But from looking at the bug report, I
+> see that it basically means "optionxform should be a function which,
+> when applied more than one time to a value, returns the same result as
+> if it had been applied once only".
+
+That's what "idempotent" means :-)
+
+
+[...]
+> > So what should we do about optionxform?
+> >
+> > a)  Document "optionxform must be idempotent".
+> >
+> > b) Ensure all APIs calls optionxform exactly once, and document
+> >    "When you get option name from section objects, it is already
+> >     optionxform-ed.  You can not reuse the option name if
+> >     optionxform is not idempotent, because optionxform will be
+> >     applied to the name again."
+> >
+> > I prefer (a) to (b) because it's simple and easy solution.
+> 
+> I strongly prefer (b).
+
+I don't have a strong opinion, but I have a mild preference for taking 
+responsibility for idempotency out of the user's hands if practical.
+
+
+[...]
+> I'd look at the question the other way round. If we *did* insist that
+> optionxform has to be "idempotent", how would we recommend that the
+> person who reported the bug achieved the result he's trying to get?
+> lambda x: x if x.startswith("(") and x.endswith(")") else "(" + x +
+> ")"? That seems a bit fiddly.
+
+Writing idempotent functions often is.
+
+ 
+> If, however, the consensus is that we choose (a), can I ask that we
+> *don't* use the term "idempotent" when documenting the restriction?
+
+Why use one word when twenty-four will do? *wink*
+
+
+> I think it will cause too much confusion - we should explain the
+> restriction without using obscure terms (and if it's hard to explain
+> the restriction like that, maybe that demonstrates that it's an
+> unreasonable restriction to impose? ;-))
+
+Please, idempotent is a standard term of art, especially for those 
+working with RESTful interfaces.
+
+http://restcookbook.com/HTTP%20Methods/idempotency/
+
+It might be obscure to you, but then nearly every jargon term will be 
+obscure to somebody. Nobody is born knowing what terms like
+
+    multiprocessing
+    threading
+    metaclass
+    decorator
+    comprehension
+    futures
+
+etc mean. They're all "obscure jargon" terms to someone. The first time 
+I came across "tuple", I had no idea what it meant (and in fact it took 
+me many years to stop misspelling it "turple").
+
+By all means include a definition of idempotent (perhaps a link to the 
+glossary). But we shouldn't avoid useful, precise terminology because 
+some people haven't come across it yet.
+
+
+
+-- 
+Steven
+
+From songofacandy at gmail.com  Thu Mar  7 08:26:48 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Thu, 7 Mar 2019 22:26:48 +0900
+Subject: [Python-Dev] Compact ordered set
+In-Reply-To: <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+References: <CAEfz+TwBihOdZRBY8_F230fDbhB-3chReMoG8dQCE66=zZmbeQ@mail.gmail.com>
+ <A1B3DF9E-9220-44E2-A9CB-9D7014A61767@gmail.com>
+ <FC1A9CE1-0353-41A2-81A1-3D48E03292E9@gmail.com>
+Message-ID: <CAEfz+TwT2Ft2i_uA_heinkwHoGvb-Y6KyReFDpb_MoUT3HTgvg@mail.gmail.com>
+
+ordered set 2
+
+Hi, Raymond.
+
+Thank you for your detailed response and I'm sorry about the late reply.
+
+All of your points make sense to me.  My implementation has not been
+battle-tested yet.
+
+As I wrote in a previous mail, there is only one benchmark in
+pyperformance was affected significantly.  (My implementation was 13%
+faster.)
+
+After that, I wrote some microbenchmarks.  Some run faster on the
+current implementation and some run faster on the ordered
+implementation.
+https://github.com/methane/sandbox/tree/master/python/ordered-set
+
+For example, current implementation is at most 20% faster on creating
+new set by consecutive integers. (e.g. `set(range(N))`)   As you know,
+it is because hash(int) is consecutive too.
+
+On the other hand, ordered implementation is at most 17% faster on
+creating new set by string values.
+
+But I don't know how this microbenchmark results affects real world
+set workloads.  Pyperformance doesn't have enough variations of set
+worklods.
+
+Would you please tell me how did you gather vary set workloads?
+
+
+> * To get the same lookup performance, the density of index table would need to go down to around 25%. Otherwise, there's no way to make up for the extra indirection and the loss of cache locality.
+
+Yes.  Currently, I chose capacity ratio=50%, and I removed 4X resize
+on small sets.  So density is about 25~50% for now.  Performance of
+simple lookup is 5~8% slower.
+
+More small capacity ratio may improve performance a bit, but it tends
+worse memory efficiency when table is 32bit or 64bit.
+
+> * There was a small win on iteration performance because its cheaper to loop over a dense array than a sparse array (fewer memory access and elimination of the unpredictable branch).  This is nice because iteration performance matters in some key use cases.
+
+Yes.  And it can be huge performance benefit on extreme cases.
+(e.g. https://bugs.python.org/issue32846)
+
+> * I gave up on ordering right away.  If we care about performance, keys can be stored in the order added; but no effort should be expended to maintain order if subsequent deletions occur.  Likewise, to keep set-to-set operations efficient (i.e. looping over the smaller input), no order guarantee should be given for those operations.  In general, we can let order happen but should not guarantee it and work to maintain it or slow-down essential operations to make them ordered.
+
+I agree.  Maybe, set shouldn't guarantee preserving insertion order unlike dict.
+It loses almost half of benefit of new implementation :-(
+But order is stable in most cases anyway regardless hash randomization.
+Stable pyc can be compiled without PYTHONHASHSEED=0, and sets in
+logs are almost stable and readable.
+
+
+> * Compacting does make sets a little smaller but does cost an indirection and incurs a cost for switching index sizes between 1-byte arrays, 2-byte arrays, 4-byte arrays, and 8-byte arrays.  Those don't seem very expensive; however, set lookups are already very cheap when the hash values are known (when they're not, the cost of computing the hash value tends to dominate anything done by the setobject itself).
+
+Yes.  Ordered implementation makes simple case slower.  But memory
+efficiency is very different if application uses tons of small sets.
+
+> * I couldn't find any existing application that would notice the benefit of making sets a bit smaller.  Most applications use dictionaries (directly or indirectly) everywhere, so compaction was an overall win.  Sets tend to be used more sparsely (no pun intended) and tend to be only a small part of overall memory usage. I had to consider this when bumping the load factor down to 60%, prioritizing speed over space.
+
+You're right.  Number of set objects in Python interpreter is very few
+than dict.
+And ordered set is not memory efficient for large set.
+
+Maybe, we couldn't find clear net win by this set implementation.
+I will stop this work at some point.
+
+Thank you,
+
+--
+Inada Naoki  <songofacandy at gmail.com>
+
+From p.f.moore at gmail.com  Thu Mar  7 09:39:23 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 7 Mar 2019 14:39:23 +0000
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <20190307123950.GL4465@ando.pearwood.info>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+ <20190307123950.GL4465@ando.pearwood.info>
+Message-ID: <CACac1F9y6W8cbkyVLXf1M8UVxExDU=Z8Csvz50NVcF6xqhYu+g@mail.gmail.com>
+
+On Thu, 7 Mar 2019 at 12:42, Steven D'Aprano <steve at pearwood.info> wrote:
+
+> > I'm not keen on the term "idempotent" here - I wasn't at all clear
+> > what it was intended to convey. But from looking at the bug report, I
+> > see that it basically means "optionxform should be a function which,
+> > when applied more than one time to a value, returns the same result as
+> > if it had been applied once only".
+>
+> That's what "idempotent" means :-)
+
+Sigh. I'm not interested in an extended debate on fiddly details here.
+
+I know that's what "idempotent" means. I said I "wasn't clear", and
+the context clarified it for me (as would going and looking it up,
+which I *also* did).There's a subtle difference in the mathematical
+and computing meanings (around functions with side-effects, which
+aren't a thing in maths), which IMO makes the term *very slightly*
+ambiguous - but more to the point, it's uncommon jargon in many areas
+(searching for "idempotent" in Google shows enough examples of people
+asking what it means to bear this out, IMO - feel free to disagree).
+
+> > If, however, the consensus is that we choose (a), can I ask that we
+> > *don't* use the term "idempotent" when documenting the restriction?
+>
+> Why use one word when twenty-four will do? *wink*
+
+Why use possibly-misunderstood jargon when a clear description will
+do? Hmm, let me think. I guess it depends on which
+carefully-worded-to-make-your-point description of the situation you
+choose to use. *wink*
+
+> > I think it will cause too much confusion - we should explain the
+> > restriction without using obscure terms (and if it's hard to explain
+> > the restriction like that, maybe that demonstrates that it's an
+> > unreasonable restriction to impose? ;-))
+>
+> Please, idempotent is a standard term of art, especially for those
+> working with RESTful interfaces.
+>
+> http://restcookbook.com/HTTP%20Methods/idempotency/
+>
+> It might be obscure to you, but then nearly every jargon term will be
+> obscure to somebody.
+
+I didn't say otherwise. I said "I think it will cause too much
+confusion". I stand by that. I value clear, non-technical, terms over
+jargon when it's possible to express an idea that way without
+sacrificing clarity. I believe that in this case this is possible
+(although as I've already said, I think it's better to avoid the whole
+question and *not* impose the restriction at all).
+
+I have no idea what proportion of readers of the configparser docs
+will be familiar with REST (or with maths, or with any other
+context).I doubt you do either, but if you do I'll defer to your
+knowledge.
+
+> The first time
+> I came across "tuple", I had no idea what it meant (and in fact it took
+> me many years to stop misspelling it "turple").
+
+I love that, I may start using it deliberately :-)
+
+> By all means include a definition of idempotent (perhaps a link to the
+> glossary). But we shouldn't avoid useful, precise terminology because
+> some people haven't come across it yet.
+
+Agreed, but we should also express ideas in a way that is as
+accessible to the general reader as possible. Sometimes that means
+using (and explaining) precise technical terms, other times it means
+using simple language that gets the job done, without using
+*unnecessary* jargon. It's a judgement call as to where the dividing
+line lies. So I feel that "idempotent" is on one side of the line, and
+you think it's on the other. We've expressed our opinions, let's leave
+it at that - I don't want to get into an extended debate over "my
+experience of what the average user thinks is wider than yours"...
+
+Paul
+
+From storchaka at gmail.com  Thu Mar  7 11:40:12 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Thu, 7 Mar 2019 18:40:12 +0200
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+Message-ID: <q5rhhg$63gc$1@blaine.gmane.org>
+
+07.03.19 11:18, Inada Naoki ????:
+> So what should we do about optionxform?
+> 
+> a)  Document "optionxform must be idempotent".
+> 
+> b) Ensure all APIs calls optionxform exactly once, and document
+>     "When you get option name from section objects, it is already
+>      optionxform-ed.  You can not reuse the option name if
+>      optionxform is not idempotent, because optionxform will be
+>      applied to the name again."
+> 
+> I prefer (a) to (b) because it's simple and easy solution.
+
+I am not expert of configparser, but I prefer (a). The purpose of 
+introducing optionxform was to make lowercasing optional.
+
+https://github.com/python/cpython/commit/9e480adf9b3520ea3deb322fd1214f53a2293a0d
+
+
+From sadhak001 at gmail.com  Thu Mar  7 12:24:48 2019
+From: sadhak001 at gmail.com (Mani Sarkar)
+Date: Thu, 7 Mar 2019 17:24:48 +0000
+Subject: [Python-Dev] Loading modules from a folder
+Message-ID: <CAGHtMW=DpdzH_S-AVqwcEqB__2k4cGiXKfrsPkseQ+PZaMLAhg@mail.gmail.com>
+
+Hi,
+
+I have seen multiple ways to load modules from a folder.
+
+Say I have a folder src which contains a number of folders each one of them
+is a module.
+
+What are the conventional ways to load modules from such a folder?
+
+I have used
+
+>From src.[module] import xxxxx
+
+But I don't want to use the src prefix, any other ways to indicate that in
+python?
+
+Thanks
+
+Cheers,
+Mani
+-- 
+
+@theNeomatrix369 <http://twitter.com/theNeomatrix369>*  |  **Blog
+<http://neomatrix369.wordpress.com/>**  | *@adoptopenjdk
+<http://twitter.com/adoptopenjdk> @graalvm <http://twitter.com/graalvm>
+@graal <http://twitter.com/graal> @truffleruby
+<http://twitter.com/truffleruby> | Dev. communities | *Bitbucket
+<https://bitbucket.org/neomatrix369>* * |  **Github
+<https://github.com/neomatrix369>* * | * *Slideshare
+<https://slideshare.net/neomatrix369>* * | **LinkedIn
+<http://uk.linkedin.com/pub/mani-sarkar/71/a77/39b>*
+*Come to Devoxx UK 2019:* http://www.devoxx.co.uk/
+
+*Don't chase success, rather aim for "Excellence", and success will come
+chasing after you!*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/82a35790/attachment.html>
+
+From brett at python.org  Thu Mar  7 13:41:27 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 7 Mar 2019 10:41:27 -0800
+Subject: [Python-Dev] Loading modules from a folder
+In-Reply-To: <CAGHtMW=DpdzH_S-AVqwcEqB__2k4cGiXKfrsPkseQ+PZaMLAhg@mail.gmail.com>
+References: <CAGHtMW=DpdzH_S-AVqwcEqB__2k4cGiXKfrsPkseQ+PZaMLAhg@mail.gmail.com>
+Message-ID: <CAP1=2W7JbhY0OyAANBNs7ar7WOm+_5hNnVWZbT6yqKub0VHXpw@mail.gmail.com>
+
+This mailing list is actually for the development *of* Python, not *with*
+Python. You can try asking your question on Stack Overflow, python tutor,
+or python-list.
+
+On Thu, Mar 7, 2019 at 9:28 AM Mani Sarkar <sadhak001 at gmail.com> wrote:
+
+> Hi,
+>
+> I have seen multiple ways to load modules from a folder.
+>
+> Say I have a folder src which contains a number of folders each one of
+> them is a module.
+>
+> What are the conventional ways to load modules from such a folder?
+>
+> I have used
+>
+> From src.[module] import xxxxx
+>
+> But I don't want to use the src prefix, any other ways to indicate that in
+> python?
+>
+> Thanks
+>
+> Cheers,
+> Mani
+> --
+>
+> @theNeomatrix369 <http://twitter.com/theNeomatrix369>*  |  **Blog
+> <http://neomatrix369.wordpress.com/>**  | *@adoptopenjdk
+> <http://twitter.com/adoptopenjdk> @graalvm <http://twitter.com/graalvm>
+> @graal <http://twitter.com/graal> @truffleruby
+> <http://twitter.com/truffleruby> | Dev. communities | *Bitbucket
+> <https://bitbucket.org/neomatrix369>* * |  **Github
+> <https://github.com/neomatrix369>* * | * *Slideshare
+> <https://slideshare.net/neomatrix369>* * | **LinkedIn
+> <http://uk.linkedin.com/pub/mani-sarkar/71/a77/39b>*
+> *Come to Devoxx UK 2019:* http://www.devoxx.co.uk/
+>
+> *Don't chase success, rather aim for "Excellence", and success will come
+> chasing after you!*
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/8b8ff747/attachment.html>
+
+From mariatta at python.org  Thu Mar  7 13:49:50 2019
+From: mariatta at python.org (Mariatta)
+Date: Thu, 7 Mar 2019 10:49:50 -0800
+Subject: [Python-Dev] Using CLA assistant for Python contributions
+Message-ID: <CAGbohnbpnjLcbXHy9x6CtOY9KRRu5NEasUnkoQ0r32iq7STV7w@mail.gmail.com>
+
+I've posted in Discourse under core-workflow category
+<https://discuss.python.org/t/using-cla-assistant-for-python/990>, and this
+has been previously discussed on the core-workflow mailing list
+<https://mail.python.org/archives/list/core-workflow at python.org/thread/JBV3XJVD2DLDX5DY7TZEA6CO5YPNHJ2C/>,
+but I feel this affects the wider contributors to Python, so wanted to
+share it here for more visibility.
+
+TL;DR:
+
+We'd like to start using CLA assistant for contributions to Python
+(including CPython, devguide, PEPs, all the bots etc). Ernest had set up
+our own instance of CLA assistant, and it had been tested by several core
+developers. We've also consulted The PSF and Van Lindberg for legal advice.
+
+Unless I hear strong opposition (with reasons) from Python Steering
+Council, Python core developers, and active core contributors, I plan to
+switch us over to to CLA assistant in the coming week (before my OOOS of
+March 18)
+
+How this will affect all contributors to Python old and new:
+
+- you will need to sign the CLA again, even if you've signed it before (in
+bpo). It will take you several clicks, but then you'll do this only once,
+and it takes effect immediately. (instead of waiting for a PSF staff to
+check for it)
+
+- bpo username will no longer be required when signing the CLA
+
+- CLA will be accepted under Apache v2 only (no more Academic Free license)
+
+For even more details, please follow the discourse post and the
+core-workflow mailing list linked above, as well as the "CLA" section of my
+blog post about Core Python sprint 2018
+<https://mariatta.ca/core-sprint-2018-part-2.html#core-sprint-2018-part-2>.
+
+Thanks.
+?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/e46f7e04/attachment.html>
+
+From mariatta at python.org  Thu Mar  7 14:08:50 2019
+From: mariatta at python.org (Mariatta)
+Date: Thu, 7 Mar 2019 11:08:50 -0800
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+Message-ID: <CAGbohnZMUfGwzfhzqp1QEyhuuVEFeAWe8XVs+=p_MqZ2zkq+ew@mail.gmail.com>
+
+I'd like to formally present to Python-dev PEP 581: Using GitHub Issues for
+CPython
+
+Full text: https://www.python.org/dev/peps/pep-0581/
+
+This is my first PEP, and in my opinion it is ready for wider discussion. I
+don't know if it is "ready for pronouncement" so I'm hoping to get more
+guidance about it from other experienced core devs and steering council.
+
+I also plan to open discussion about PEP 581 at Python Language Summit, and
+since I'm one-half of the language summit chairs, it is quite likely this
+discussion will happen.
+
+On that note, you can still sign up for the language summit here:
+https://us.pycon.org/2019/events/language-summit/
+
+Note that unlike previous years, you do not need to be invited by a core
+developer. ?ukasz and I will be curating the content, and we want to
+include more diverse perspectives into language summit discussions.
+
+Thanks.
+
+?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/e2783988/attachment.html>
+
+From sadhak001 at gmail.com  Thu Mar  7 15:27:49 2019
+From: sadhak001 at gmail.com (Mani Sarkar)
+Date: Thu, 7 Mar 2019 20:27:49 +0000
+Subject: [Python-Dev] Loading modules from a folder
+In-Reply-To: <CAP1=2W7JbhY0OyAANBNs7ar7WOm+_5hNnVWZbT6yqKub0VHXpw@mail.gmail.com>
+References: <CAGHtMW=DpdzH_S-AVqwcEqB__2k4cGiXKfrsPkseQ+PZaMLAhg@mail.gmail.com>
+ <CAP1=2W7JbhY0OyAANBNs7ar7WOm+_5hNnVWZbT6yqKub0VHXpw@mail.gmail.com>
+Message-ID: <CAGHtMWmpsQvRW4NS8fMind8XdMw+G2oLyJ4QbuV2OUvd0xgTJg@mail.gmail.com>
+
+Cool, thanks!
+
+My apologies - i'll post the question there instead.
+
+On Thu, 7 Mar 2019 at 18:41 Brett Cannon <brett at python.org> wrote:
+
+> This mailing list is actually for the development *of* Python, not *with*
+> Python. You can try asking your question on Stack Overflow, python tutor,
+> or python-list.
+>
+> On Thu, Mar 7, 2019 at 9:28 AM Mani Sarkar <sadhak001 at gmail.com> wrote:
+>
+>> Hi,
+>>
+>> I have seen multiple ways to load modules from a folder.
+>>
+>> Say I have a folder src which contains a number of folders each one of
+>> them is a module.
+>>
+>> What are the conventional ways to load modules from such a folder?
+>>
+>> I have used
+>>
+>> From src.[module] import xxxxx
+>>
+>> But I don't want to use the src prefix, any other ways to indicate that
+>> in python?
+>>
+>> Thanks
+>>
+>> Cheers,
+>> Mani
+>> --
+>>
+>> @theNeomatrix369 <http://twitter.com/theNeomatrix369>*  |  **Blog
+>> <http://neomatrix369.wordpress.com/>**  | *@adoptopenjdk
+>> <http://twitter.com/adoptopenjdk> @graalvm <http://twitter.com/graalvm>
+>> @graal <http://twitter.com/graal> @truffleruby
+>> <http://twitter.com/truffleruby> | Dev. communities | *Bitbucket
+>> <https://bitbucket.org/neomatrix369>* * |  **Github
+>> <https://github.com/neomatrix369>* * | * *Slideshare
+>> <https://slideshare.net/neomatrix369>* * | **LinkedIn
+>> <http://uk.linkedin.com/pub/mani-sarkar/71/a77/39b>*
+>> *Come to Devoxx UK 2019:* http://www.devoxx.co.uk/
+>>
+>> *Don't chase success, rather aim for "Excellence", and success will come
+>> chasing after you!*
+>>
+> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>
+> --
+
+@theNeomatrix369 <http://twitter.com/theNeomatrix369>*  |  **Blog
+<http://neomatrix369.wordpress.com/>**  | *@adoptopenjdk
+<http://twitter.com/adoptopenjdk> @graalvm <http://twitter.com/graalvm>
+@graal <http://twitter.com/graal> @truffleruby
+<http://twitter.com/truffleruby> | Dev. communities | *Bitbucket
+<https://bitbucket.org/neomatrix369>* * |  **Github
+<https://github.com/neomatrix369>* * | * *Slideshare
+<https://slideshare.net/neomatrix369>* * | **LinkedIn
+<http://uk.linkedin.com/pub/mani-sarkar/71/a77/39b>*
+*Come to Devoxx UK 2019:* http://www.devoxx.co.uk/
+
+*Don't chase success, rather aim for "Excellence", and success will come
+chasing after you!*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/b6631977/attachment.html>
+
+From matthew at woodcraft.me.uk  Thu Mar  7 14:56:41 2019
+From: matthew at woodcraft.me.uk (Matthew Woodcraft)
+Date: Thu, 07 Mar 2019 19:56:41 +0000
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+Message-ID: <1551988232.oqg8xuvpxk.astroid@golux.woodcraft.me.uk>
+
+On 07/03/2019 19.08, Mariatta wrote:
+> I'd like to formally present to Python-dev PEP 581: Using GitHub Issues
+> for CPython
+>
+> Full text: https://www.python.org/dev/peps/pep-0581/
+>
+> This is my first PEP, and in my opinion it is ready for wider
+> discussion.
+
+One part of this PEP stands out to me:
+
+| We should not be moving all open issues to GitHub. Issues with little
+| or no activity should just be closed. Issues with no decision made for
+| years should just be closed.
+
+I strongly advise against closing bug reports just because they're old.
+
+I know that the Python developers value trying to be a welcoming
+community. To many people, having a bug report that they put some effort
+into closed for no reason other than the passage of time feels like a
+slap in the face which stings harder than, for example, intemperate
+words on a mailing list.
+
+This is even more true if there won't be an option to re-open the bug,
+which seems to be what the PEP is saying will be the case.
+
+If a bug has been around for a long time and hasn't been fixed, the most
+useful information for the bug tracker to contain is "this bug has been
+around for a long time and it hasn't been fixed". Leaving the bug open
+is the simplest way to achieve that.
+
+(I think the above only goes for issues which are actually reporting
+bugs. Wishlist items are a different matter.)
+
+-M-
+
+
+
+From skip.montanaro at gmail.com  Thu Mar  7 17:01:55 2019
+From: skip.montanaro at gmail.com (Skip Montanaro)
+Date: Thu, 7 Mar 2019 16:01:55 -0600
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+In-Reply-To: <CAGbohnZMUfGwzfhzqp1QEyhuuVEFeAWe8XVs+=p_MqZ2zkq+ew@mail.gmail.com>
+References: <CAGbohnZMUfGwzfhzqp1QEyhuuVEFeAWe8XVs+=p_MqZ2zkq+ew@mail.gmail.com>
+Message-ID: <CANc-5UwodQb0uLPA1viNk4wx5hvvmKbHOOGjejY6Peh8a_5syg@mail.gmail.com>
+
+> I'd like to formally present to Python-dev PEP 581: Using GitHub Issues for CPython
+>
+> Full text: https://www.python.org/dev/peps/pep-0581/
+
+Thanks for doing this. I think there is a pretty strong argument to be
+made that mature, widely adopted systems like GitHub (or GitLab or
+Bitbucket) should be used where possible. One thing I didn't notice
+was any sort of explanation about how CPython wound up on Roundup to
+begin with. I think it would be worthwhile to mention a couple
+reasons, when the decision was made to use Roundup, etc. Without it, a
+casual reader might think the core devs made a horrible mistake way
+back when, and are only now getting around to correcting it. I don't
+recall when Roundup was adopted, but it was quite awhile ago, and the
+issue tracker universe was a much different place. Here are a couple
+things I recall (perhaps incorrectly). It's been awhile, but for the
+digital spelunkers, I'm sure it's all in an email archive somewhere.
+(I didn't find a PEP. Did that decision predate PEPs?)
+
+* Back in the olden days, basically every candidate issue tracker
+required modification to make it suitable for a particular project. I
+don't rightly recall if Roundup was deemed easier to modify or if
+there were just people willing to step up and make the necessary
+changes.
+
+* There was a desire to eat your own dog food, and I believe Roundup
+is/was written in Python. That would be much less important today.
+Plenty of people already eat Python brand Dog Food.?
+
+Skip
+
+From mariatta at python.org  Thu Mar  7 17:11:49 2019
+From: mariatta at python.org (Mariatta)
+Date: Thu, 7 Mar 2019 14:11:49 -0800
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+In-Reply-To: <1551988232.oqg8xuvpxk.astroid@golux.woodcraft.me.uk>
+References: <1551988232.oqg8xuvpxk.astroid@golux.woodcraft.me.uk>
+Message-ID: <CAGbohnbjzWaaMa3z_Sj=48HOD0YBSYyZB5eNKiUO8CZ7tV9oxw@mail.gmail.com>
+
+On Thu, Mar 7, 2019 at 12:35 PM Matthew Woodcraft <matthew at woodcraft.me.uk>
+wrote:
+
+>
+> One part of this PEP stands out to me:
+>
+> | We should not be moving all open issues to GitHub. Issues with little
+> | or no activity should just be closed. Issues with no decision made for
+> | years should just be closed.
+>
+> I strongly advise against closing bug reports just because they're old.
+>
+> I know that the Python developers value trying to be a welcoming
+> community. To many people, having a bug report that they put some effort
+> into closed for no reason other than the passage of time feels like a
+> slap in the face which stings harder than, for example, intemperate
+> words on a mailing list.
+>
+> This is even more true if there won't be an option to re-open the bug,
+> which seems to be what the PEP is saying will be the case.
+>
+> If a bug has been around for a long time and hasn't been fixed, the most
+> useful information for the bug tracker to contain is "this bug has been
+> around for a long time and it hasn't been fixed". Leaving the bug open
+> is the simplest way to achieve that.
+>
+> (I think the above only goes for issues which are actually reporting
+> bugs. Wishlist items are a different matter.)
+>
+> -M-
+>
+
+
+Thanks. A similar argument had been made by several other core devs in
+person during Language summit 2018 as well as during the drafting of PEP
+581, that we shouldn't be closing issues blindly.
+
+I hear you (all) and I see the point. I agree that we shouldn't just be
+closing all issues. I will edit the PEP sometime later today (or later this
+weekend).
+
+
+?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/762e2e35/attachment.html>
+
+From mariatta at python.org  Thu Mar  7 17:16:36 2019
+From: mariatta at python.org (Mariatta)
+Date: Thu, 7 Mar 2019 14:16:36 -0800
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+In-Reply-To: <CA+VECoVi63oLbe7rdF_S1-P0rpUyQpKsObYqRGOBJD7W_mGZEg@mail.gmail.com>
+References: <CAGbohnZMUfGwzfhzqp1QEyhuuVEFeAWe8XVs+=p_MqZ2zkq+ew@mail.gmail.com>
+ <CA+VECoVi63oLbe7rdF_S1-P0rpUyQpKsObYqRGOBJD7W_mGZEg@mail.gmail.com>
+Message-ID: <CAGbohnZQk4Voeb0xW9gUuHQS3j-bhvqqq+JJ_KJ_b=aXC4k=3Q@mail.gmail.com>
+
+On Thu, Mar 7, 2019 at 12:36 PM Manuel Cer?n <ceronman at gmail.com> wrote:
+
+>
+> After some frustration with bpo, I decided to file some issues into the
+> meta tracker, just to find out that the link [1] provided by the Python
+> Developer's Guide [2] is broken, giving a connection timeout.
+>
+>
+Sometime ago we've started experimenting moving the meta tracker to GitHub.
+https://github.com/python/bugs.python.org I don't know whether this is now
+the "official" place for it, but I've definitely been referring people to
+this repo if they need to file issue about bpo.
+
+Again I don't know if this is now official or not, and should we start
+updating all documentations accordingly?
+
+?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/4cf1a916/attachment.html>
+
+From mariatta at python.org  Thu Mar  7 17:36:11 2019
+From: mariatta at python.org (Mariatta)
+Date: Thu, 7 Mar 2019 14:36:11 -0800
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+In-Reply-To: <CANc-5UwodQb0uLPA1viNk4wx5hvvmKbHOOGjejY6Peh8a_5syg@mail.gmail.com>
+References: <CAGbohnZMUfGwzfhzqp1QEyhuuVEFeAWe8XVs+=p_MqZ2zkq+ew@mail.gmail.com>
+ <CANc-5UwodQb0uLPA1viNk4wx5hvvmKbHOOGjejY6Peh8a_5syg@mail.gmail.com>
+Message-ID: <CAGbohnbP0vZ-+RHV+B3gWGg5P-LOWrTtRBG38cRfNkbm8m+G2A@mail.gmail.com>
+
+On Thu, Mar 7, 2019 at 2:02 PM Skip Montanaro <skip.montanaro at gmail.com>
+wrote:
+
+>  I think it would be worthwhile to mention a couple
+> reasons, when the decision was made to use Roundup, etc. Without it, a
+> casual reader might think the core devs made a horrible mistake way
+> back when, and are only now getting around to correcting it.
+>
+
+I was not involved in core Python development back then, so if it is really
+important and if people think such paragraph needs to be part of the PEP,
+then perhaps someone else more knowledgeable will need to help with this.
+
+Personally, I don't think it was a horrible mistake. I believe the core
+devs back then carefully considered all options and decided that
+bpo/roundup was the way to go. And I really don't want to give that
+impression to the readers of this PEP that "I" or "core devs" now think it
+was a horrible mistake. If there is specific parts of the PEP that gives
+people that impression, then I'd definitely want to work and improve that.
+
+?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/9205084b/attachment.html>
+
+From greg at krypto.org  Thu Mar  7 17:51:01 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Thu, 7 Mar 2019 14:51:01 -0800
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+In-Reply-To: <CAGbohnbjzWaaMa3z_Sj=48HOD0YBSYyZB5eNKiUO8CZ7tV9oxw@mail.gmail.com>
+References: <1551988232.oqg8xuvpxk.astroid@golux.woodcraft.me.uk>
+ <CAGbohnbjzWaaMa3z_Sj=48HOD0YBSYyZB5eNKiUO8CZ7tV9oxw@mail.gmail.com>
+Message-ID: <CAGE7PNLMGuJgmYgsZH635YANK71RO6oohh7EgjFGo3UsRrouNw@mail.gmail.com>
+
+On Thu, Mar 7, 2019 at 2:12 PM Mariatta <mariatta at python.org> wrote:
+
+>
+> On Thu, Mar 7, 2019 at 12:35 PM Matthew Woodcraft <matthew at woodcraft.me.uk>
+> wrote:
+>
+>>
+>> One part of this PEP stands out to me:
+>>
+>> | We should not be moving all open issues to GitHub. Issues with little
+>> | or no activity should just be closed. Issues with no decision made for
+>> | years should just be closed.
+>>
+>> I strongly advise against closing bug reports just because they're old.
+>>
+>> I know that the Python developers value trying to be a welcoming
+>> community. To many people, having a bug report that they put some effort
+>> into closed for no reason other than the passage of time feels like a
+>> slap in the face which stings harder than, for example, intemperate
+>> words on a mailing list.
+>>
+>> This is even more true if there won't be an option to re-open the bug,
+>> which seems to be what the PEP is saying will be the case.
+>>
+>> If a bug has been around for a long time and hasn't been fixed, the most
+>> useful information for the bug tracker to contain is "this bug has been
+>> around for a long time and it hasn't been fixed". Leaving the bug open
+>> is the simplest way to achieve that.
+>>
+>> (I think the above only goes for issues which are actually reporting
+>> bugs. Wishlist items are a different matter.)
+>>
+>> -M-
+>>
+>
+>
+> Thanks. A similar argument had been made by several other core devs in
+> person during Language summit 2018 as well as during the drafting of PEP
+> 581, that we shouldn't be closing issues blindly.
+>
+> I hear you (all) and I see the point. I agree that we shouldn't just be
+> closing all issues. I will edit the PEP sometime later today (or later this
+> weekend).
+>
+
+yay thanks! :)
+
+*(because I fixed this SourceForge issue number era
+bug https://bugs.python.org/issue1054041
+<https://bugs.python.org/issue1054041> in 3.8 :)*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/683658d1/attachment.html>
+
+From mariatta at python.org  Thu Mar  7 18:34:01 2019
+From: mariatta at python.org (Mariatta)
+Date: Thu, 7 Mar 2019 15:34:01 -0800
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+In-Reply-To: <CAGE7PNLMGuJgmYgsZH635YANK71RO6oohh7EgjFGo3UsRrouNw@mail.gmail.com>
+References: <1551988232.oqg8xuvpxk.astroid@golux.woodcraft.me.uk>
+ <CAGbohnbjzWaaMa3z_Sj=48HOD0YBSYyZB5eNKiUO8CZ7tV9oxw@mail.gmail.com>
+ <CAGE7PNLMGuJgmYgsZH635YANK71RO6oohh7EgjFGo3UsRrouNw@mail.gmail.com>
+Message-ID: <CAGbohnb+gx9_Ye-Ad9Qo68GWQCEiexYiv294nZxcgtxOsmREiQ@mail.gmail.com>
+
+I've made the PR about "not closing all issues":
+https://github.com/python/peps/pull/917/files
+
+
+?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/ba8700e8/attachment.html>
+
+From greg.ewing at canterbury.ac.nz  Thu Mar  7 18:34:46 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Fri, 08 Mar 2019 12:34:46 +1300
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+Message-ID: <5C81AA96.7020204@canterbury.ac.nz>
+
+Inada Naoki wrote:
+
+> a)  Document "optionxform must be idempotent".
+
+> b) Ensure all APIs calls optionxform exactly once, and document
+ >    [that it must be idempotent in certain special situations].
+
+I think the question that needs to be asked is whether optionxform
+is meant to be a canonicalising operation, or a transformation
+from an external to an internal form.
+
+Although the docs don't say so explicitly, it seems clear to me
+that the author of the module was thinking of it as a transformation
+to a canonical form. If that's what is intended, then idempotency
+is pretty much implied, from the definition of what canonical
+means. If something is already in canonical form, nothing needs
+to be done.
+
+The behaviour with regard to initialising from a dict that was
+raised in https://bugs.python.org/issue35838#msg334439 is probably
+an oversight, but there are at least two other ways that the
+module assumes idempotency:
+
+1) The API does not provide any way of accessing an option
+*without* applying the transformation. This is a problem if e.g.
+you want to iterate over the keys and write values back.
+
+2) The write() method writes out the transformed versions of
+option names. If this output is read back in, the transformation
+will necessarily be applied a second time. There doesn't seem
+to be any workaround for this.
+
+There may also be other ways in which idempotency is assumed
+that I haven't thought of.
+
+So, rather than try to have the docs list all the things that
+non-idempotency could break, it would be easier to simply
+document that idempotency is assumed.
+
+-- 
+Greg
+
+From barry at python.org  Thu Mar  7 18:35:42 2019
+From: barry at python.org (Barry Warsaw)
+Date: Thu, 7 Mar 2019 15:35:42 -0800
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+In-Reply-To: <CAGbohnbP0vZ-+RHV+B3gWGg5P-LOWrTtRBG38cRfNkbm8m+G2A@mail.gmail.com>
+References: <CAGbohnZMUfGwzfhzqp1QEyhuuVEFeAWe8XVs+=p_MqZ2zkq+ew@mail.gmail.com>
+ <CANc-5UwodQb0uLPA1viNk4wx5hvvmKbHOOGjejY6Peh8a_5syg@mail.gmail.com>
+ <CAGbohnbP0vZ-+RHV+B3gWGg5P-LOWrTtRBG38cRfNkbm8m+G2A@mail.gmail.com>
+Message-ID: <4CF3BECF-9E75-4FAF-90AB-131034282956@python.org>
+
+On Mar 7, 2019, at 14:36, Mariatta <mariatta at python.org> wrote:
+
+> I was not involved in core Python development back then, so if it is really important and if people think such paragraph needs to be part of the PEP, then perhaps someone else more knowledgeable will need to help with this.
+> 
+> Personally, I don't think it was a horrible mistake. I believe the core devs back then carefully considered all options and decided that bpo/roundup was the way to go. And I really don't want to give that impression to the readers of this PEP that "I" or "core devs" now think it was a horrible mistake. If there is specific parts of the PEP that gives people that impression, then I'd definitely want to work and improve that.
+
+I did a little bit of archive archeology (always a frightening and humbling black hole spelunking expedition), and here?s a brief history AFAICT.  Dates are approximate.
+
+5/2000 - we move all development (CVS at the time, and bug tracking) to SourceForge.  This roughly coincided with PythonLabs leaving CNRI, so clearly we couldn?t continue running infra off of their systems.
+
+10/2005 - we move to Subversion
+
+9/2006 - we begin to discuss moving off of the SF bug tracker.  I believe that Thomas Wouters, Martin von Loewis, Brett Cannon (big surprise! :), and myself were involved in that effort, with Richard Jones (original author of Roundup) recusing himself.  The candidates were Roundup, Trac, Jira, and Launchpad.  I think Brett did the first round of feature reviews and comparisons.  David Goodger was also involved.  We did want it to be written in Python and we preferred running it on python.org infra, but neither of these were required criteria.
+
+Jira and Roundup made the first cuts, with Launchpad and Trac being discarded as ?having issues? (I don?t have access in memory or emails to any of those details).  Jira was deemed pretty complex, but Atlassian offered hosting.  Roundup was ?not as polished" back then, but that wasn?t necessarily a negative.  It was easy to use and host, and had a complimentary feature set, but we felt like we needed volunteers to help us keep it going.  Richard Jones of course did fantastic work on the software itself, and we did manage to, um, round up enough volunteers to make it a viable choice.
+
+10/2006 - the decision was made to move to Roundup, and we decided to accept Upfront?s offer to host the instance.
+
+3/2007 - new-bugs-announce was created and notifications of new bugs was redirected to that mailing list.
+
+I?ll disappear down that archive rabbit hole now, which in some cases goes back to 1995.  There are so many fun and scary paths to explore.  See you in 6 months.
+
+jeremy-is-salty-ly y?rs,
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/40a8bc55/attachment-0001.sig>
+
+From greg.ewing at canterbury.ac.nz  Thu Mar  7 18:56:13 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Fri, 08 Mar 2019 12:56:13 +1300
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <CACac1F9y6W8cbkyVLXf1M8UVxExDU=Z8Csvz50NVcF6xqhYu+g@mail.gmail.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+ <20190307123950.GL4465@ando.pearwood.info>
+ <CACac1F9y6W8cbkyVLXf1M8UVxExDU=Z8Csvz50NVcF6xqhYu+g@mail.gmail.com>
+Message-ID: <5C81AF9D.2060002@canterbury.ac.nz>
+
+Paul Moore wrote:
+> There's a subtle difference in the mathematical
+> and computing meanings [of idempotent] (around functions
+ > with side-effects, which aren't a thing in maths)
+
+Not really an issue here, since optionxform shouldn't be having
+side effects if it's sane.
+
+In any case, the word is easy enough to avoid in this case.
+We could say something like:
+
+    "The optionxform function transforms option names to a
+    canonical form. If the name is already in canonical form,
+    it should be returned unchanged."
+
+-- 
+Greg
+
+From steve at pearwood.info  Thu Mar  7 19:12:37 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 8 Mar 2019 11:12:37 +1100
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <5C81AF9D.2060002@canterbury.ac.nz>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+ <20190307123950.GL4465@ando.pearwood.info>
+ <CACac1F9y6W8cbkyVLXf1M8UVxExDU=Z8Csvz50NVcF6xqhYu+g@mail.gmail.com>
+ <5C81AF9D.2060002@canterbury.ac.nz>
+Message-ID: <20190308001237.GO4465@ando.pearwood.info>
+
+On Fri, Mar 08, 2019 at 12:56:13PM +1300, Greg Ewing wrote:
+
+> In any case, the word is easy enough to avoid in this case.
+
+I don't think we should avoid using standard terminology even if we can. 
+Knowledge of standard terminology is useful, and we don't generally make 
+a practice of talking about (e.g.) "simultaneously running subtasks" 
+when we can say "threads" instead.
+
+You are happy to use the jargon terms "function" and "canonical form" 
+without explanation, which I think proves that one person's jargon is 
+another's obvious, clear, precise technical terminology.
+
+
+> We could say something like:
+> 
+>    "The optionxform function transforms option names to a
+>    canonical form. If the name is already in canonical form,
+>    it should be returned unchanged."
+
+How about:
+
+    "The optionxform function transforms option names to a
+    canonical form. This should be an idempotent function: 
+    if the name is already in canonical form, it should be 
+    returned unchanged."
+
+
+requires six extra words, but it uses the correct technical term which 
+will be familiar to some proportion of users, while also explaining the 
+term for those who aren't familiar with it. We all win!
+
+
+-- 
+Steven
+
+From brett at python.org  Thu Mar  7 19:36:22 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 7 Mar 2019 16:36:22 -0800
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+In-Reply-To: <4CF3BECF-9E75-4FAF-90AB-131034282956@python.org>
+References: <CAGbohnZMUfGwzfhzqp1QEyhuuVEFeAWe8XVs+=p_MqZ2zkq+ew@mail.gmail.com>
+ <CANc-5UwodQb0uLPA1viNk4wx5hvvmKbHOOGjejY6Peh8a_5syg@mail.gmail.com>
+ <CAGbohnbP0vZ-+RHV+B3gWGg5P-LOWrTtRBG38cRfNkbm8m+G2A@mail.gmail.com>
+ <4CF3BECF-9E75-4FAF-90AB-131034282956@python.org>
+Message-ID: <CAP1=2W76XdXv4j6Km91ALyr3vSsTtALG_4BNiDUTi2VQOntcLQ@mail.gmail.com>
+
+I'll start by saying I don't think a history lesson is important for this
+PEP. This is simply a matter of evaluating whether Roundup or GitHub issues
+is better for us and in the future. There's no real mistakes to watch out
+for or anything (and if there is it's that self-hosting has a cost ;) .
+
+On Thu, Mar 7, 2019 at 3:38 PM Barry Warsaw <barry at python.org> wrote:
+
+> On Mar 7, 2019, at 14:36, Mariatta <mariatta at python.org> wrote:
+>
+> > I was not involved in core Python development back then, so if it is
+> really important and if people think such paragraph needs to be part of the
+> PEP, then perhaps someone else more knowledgeable will need to help with
+> this.
+> >
+> > Personally, I don't think it was a horrible mistake. I believe the core
+> devs back then carefully considered all options and decided that
+> bpo/roundup was the way to go. And I really don't want to give that
+> impression to the readers of this PEP that "I" or "core devs" now think it
+> was a horrible mistake. If there is specific parts of the PEP that gives
+> people that impression, then I'd definitely want to work and improve that.
+>
+> I did a little bit of archive archeology (always a frightening and
+> humbling black hole spelunking expedition), and here?s a brief history
+> AFAICT.  Dates are approximate.
+>
+> 5/2000 - we move all development (CVS at the time, and bug tracking) to
+> SourceForge.  This roughly coincided with PythonLabs leaving CNRI, so
+> clearly we couldn?t continue running infra off of their systems.
+>
+> 10/2005 - we move to Subversion
+>
+> 9/2006 - we begin to discuss moving off of the SF bug tracker.  I believe
+> that Thomas Wouters, Martin von Loewis, Brett Cannon (big surprise! :), and
+> myself were involved in that effort, with Richard Jones (original author of
+> Roundup) recusing himself.  The candidates were Roundup, Trac, Jira, and
+> Launchpad.  I think Brett did the first round of feature reviews and
+> comparisons.  David Goodger was also involved.  We did want it to be
+> written in Python and we preferred running it on python.org infra, but
+> neither of these were required criteria.
+>
+
+This was actually my first infrastructure project and how I ended up on the
+PSF board and the head of the infrastructure group. :)
+
+
+>
+> Jira and Roundup made the first cuts, with Launchpad and Trac being
+> discarded as ?having issues? (I don?t have access in memory or emails to
+> any of those details).  Jira was deemed pretty complex, but Atlassian
+> offered hosting.  Roundup was ?not as polished" back then, but that wasn?t
+> necessarily a negative.  It was easy to use and host, and had a
+> complimentary feature set, but we felt like we needed volunteers to help us
+> keep it going.  Richard Jones of course did fantastic work on the software
+> itself, and we did manage to, um, round up enough volunteers to make it a
+> viable choice.
+>
+> 10/2006 - the decision was made to move to Roundup, and we decided to
+> accept Upfront?s offer to host the instance.
+
+
+You're missing the step of "the decision was made to move to Jira and
+people flipped out." :) We actually said Jira was our choice unless enough
+people came forward to volunteer to help support us using Roundup. In the
+end enough people did step forward and people didn't like us using Java and
+a closed-source solution, so we went with Roundup (this is when RMS got
+involved and asked us to reconsider; this is also when I learned that
+volunteers saying they will help with something doesn't mean they actually
+will, especially when they have no established reputation ;) .
+
+The original announcement can be found at
+https://mail.python.org/pipermail/python-dev/2006-October/069139.html.
+
+-Brett
+
+
+> 3/2007 - new-bugs-announce was created and notifications of new bugs was
+> redirected to that mailing list.
+>
+> I?ll disappear down that archive rabbit hole now, which in some cases goes
+> back to 1995.  There are so many fun and scary paths to explore.  See you
+> in 6 months.
+>
+> jeremy-is-salty-ly y?rs,
+> -Barry
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/56c8ede0/attachment.html>
+
+From brett at python.org  Thu Mar  7 19:38:53 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 7 Mar 2019 16:38:53 -0800
+Subject: [Python-Dev] PEP 12 updated with templates for header fields and
+ sections
+Message-ID: <CAP1=2W77qwvoqraaGCRUsA_C_Y8yr1MTLKUvG8t1s+0jRSBuug@mail.gmail.com>
+
+https://github.com/python/peps/blob/master/pep-0012.rst now has a complete
+list of header fields along with format clues for easier copy-and-paste use
+in creating a new PEP. There is also a section template with one-liner
+explanations for what each section is for so people don't accidentally
+leave anything out. They are not in a single, unified template to copy to
+partially make sure people actually read the PEP before they start writing.
+:)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/cd2f20e9/attachment.html>
+
+From steve at pearwood.info  Thu Mar  7 20:42:21 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 8 Mar 2019 12:42:21 +1100
+Subject: [Python-Dev] Using CLA assistant for Python contributions
+In-Reply-To: <CAGbohnbpnjLcbXHy9x6CtOY9KRRu5NEasUnkoQ0r32iq7STV7w@mail.gmail.com>
+References: <CAGbohnbpnjLcbXHy9x6CtOY9KRRu5NEasUnkoQ0r32iq7STV7w@mail.gmail.com>
+Message-ID: <20190308014221.GB12502@ando.pearwood.info>
+
+On Thu, Mar 07, 2019 at 10:49:50AM -0800, Mariatta wrote:
+
+> Unless I hear strong opposition (with reasons) from Python Steering
+> Council, Python core developers, and active core contributors, I plan to
+> switch us over to to CLA assistant in the coming week (before my OOOS of
+> March 18)
+
+OOOS? Object Oriented Operating System?
+
+
+> How this will affect all contributors to Python old and new:
+> 
+> - you will need to sign the CLA again, even if you've signed it before (in
+> bpo). It will take you several clicks, 
+
+If this is a Github thing, it will probably take me a lot more than 
+several clicks. It will probably take me a whole OS upgrade.
+
+
+> but then you'll do this only once,
+> and it takes effect immediately. (instead of waiting for a PSF staff to
+> check for it)
+
+I don't have an opinion on the specific technology you use for future 
+CLAs. If CLA Assistant is the tool you want to use for future 
+contributors, then go for it.
+
+But I think it is ... I need a word weaker than rude ... ill-mannered(?) 
+to ask people to re-sign an agreement they have already signed, without 
+a really good reason.
+
+I suppose it can be forgiven if:
+
+- the signing process is straight-forward and easy;
+- and supporting the legacy CLAs is particularly difficult;
+
+but if the existing CLAs haven't expired, haven't been revoked, and 
+there's no legal reason why they are no longer in force, then why 
+are you asking us to re-sign?
+
+I will if I really must, but I'll feel put out over it.
+
+
+-- 
+Steven
+
+From mariatta at python.org  Thu Mar  7 21:22:11 2019
+From: mariatta at python.org (Mariatta)
+Date: Thu, 7 Mar 2019 18:22:11 -0800
+Subject: [Python-Dev] Using CLA assistant for Python contributions
+In-Reply-To: <20190308014221.GB12502@ando.pearwood.info>
+References: <CAGbohnbpnjLcbXHy9x6CtOY9KRRu5NEasUnkoQ0r32iq7STV7w@mail.gmail.com>
+ <20190308014221.GB12502@ando.pearwood.info>
+Message-ID: <CAGbohnbkxefa=LDAbh+yKfxmchQMugqbDTwVnWqFQX2hrAiQGQ@mail.gmail.com>
+
+>
+> I plan to
+> > switch us over to to CLA assistant in the coming week (before my OOOS of
+> > March 18)
+> OOOS?
+
+
+My Out Of Open Source aka I'm not doing any volunteer activities for 6
+weeks (details:
+https://discuss.python.org/t/mariatta-will-be-ooos-out-of-open-source-starting-march-18-may-9th-2019/973/3
+)
+
+
+
+> - the signing process is straight-forward and easy;
+
+
+Yes it really is straight forward and easy. Everything happens on the
+browser on GitHub. If you can open GitHub webpage then you can sign the CLA
+via CLA assistant, no additional program/downloading/command line is
+needed. It can be done with computer or your modern smartphone or
+tablet/iPad with internet connection.
+
+
+?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/45cddafe/attachment.html>
+
+From mariatta at python.org  Thu Mar  7 21:30:00 2019
+From: mariatta at python.org (Mariatta)
+Date: Thu, 7 Mar 2019 18:30:00 -0800
+Subject: [Python-Dev] Using CLA assistant for Python contributions
+In-Reply-To: <CAGbohnbkxefa=LDAbh+yKfxmchQMugqbDTwVnWqFQX2hrAiQGQ@mail.gmail.com>
+References: <CAGbohnbpnjLcbXHy9x6CtOY9KRRu5NEasUnkoQ0r32iq7STV7w@mail.gmail.com>
+ <20190308014221.GB12502@ando.pearwood.info>
+ <CAGbohnbkxefa=LDAbh+yKfxmchQMugqbDTwVnWqFQX2hrAiQGQ@mail.gmail.com>
+Message-ID: <CAGbohnb68713hzrXXxWPrHtd+su0xRWrUYmEGBF6jJ=po1CbJw@mail.gmail.com>
+
+Thought I'll be a little more clearer: you'll need to re-sign the CLA only
+for your future contributions (aka when you make new pull request to
+Python).
+
+Your previous CLA record are still available for The PSF, we're just not
+going to export over data from existing CLA host to CLA assistant.
+?
+?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190307/99530d8e/attachment.html>
+
+From songofacandy at gmail.com  Thu Mar  7 21:51:25 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 8 Mar 2019 11:51:25 +0900
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <20190308001237.GO4465@ando.pearwood.info>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+ <20190307123950.GL4465@ando.pearwood.info>
+ <CACac1F9y6W8cbkyVLXf1M8UVxExDU=Z8Csvz50NVcF6xqhYu+g@mail.gmail.com>
+ <5C81AF9D.2060002@canterbury.ac.nz> <20190308001237.GO4465@ando.pearwood.info>
+Message-ID: <CAEfz+TzEXdrD0-XMJh9MSftjm+tU-9Bqjzo+FRpcAmFsb9dMkw@mail.gmail.com>
+
+>
+> > We could say something like:
+> >
+> >    "The optionxform function transforms option names to a
+> >    canonical form. If the name is already in canonical form,
+> >    it should be returned unchanged."
+>
+> How about:
+>
+>     "The optionxform function transforms option names to a
+>     canonical form. This should be an idempotent function:
+>     if the name is already in canonical form, it should be
+>     returned unchanged."
+>
+>
+> requires six extra words, but it uses the correct technical term which
+> will be familiar to some proportion of users, while also explaining the
+> term for those who aren't familiar with it. We all win!
+>
+
+Thank you for suggestions.
+
+Personally speaking, I think technical jargon is much easier than
+normal English idioms or complex English syntax.
+
+I learned "idempotent" long ago while learning HTTP.  On the other hand,
+I don't know normal English idioms even 5-year children who speaks
+English at home knows.
+
+Technical jargon is good tool to communicate with people uses English
+only for programming.  It shows the meaning very clearly with few words.
+
+So I agree with you.  If reader may not know tech jargon widely used,
+teach it instead of avoid it.
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From tir.karthi at gmail.com  Fri Mar  8 01:49:00 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Fri, 8 Mar 2019 12:19:00 +0530
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+In-Reply-To: <CAGbohnZMUfGwzfhzqp1QEyhuuVEFeAWe8XVs+=p_MqZ2zkq+ew@mail.gmail.com>
+References: <CAGbohnZMUfGwzfhzqp1QEyhuuVEFeAWe8XVs+=p_MqZ2zkq+ew@mail.gmail.com>
+Message-ID: <CAAjsFLRbO9myg_2VhOZJP+_EvTg3cXE3nKf+t6KOxa4sV6jOpg@mail.gmail.com>
+
+On Fri, Mar 8, 2019 at 12:41 AM Mariatta <mariatta at python.org> wrote:
+
+> I'd like to formally present to Python-dev PEP 581: Using GitHub Issues
+> for CPython
+>
+> Full text: https://www.python.org/dev/peps/pep-0581/
+>
+>
+Thanks a lot for doing this!
+
+* The current bug tracker has low contributions and moving to a place like
+GitHub would open up to a lot of opportunities like integrations, webhooks
+where people can build custom workflow etc. along with reducing the
+maintenance burden on the team.
+* GitHub also allows markdown and syntax highlighting on code snippets
+would be much easier to read compared to current tracker. In some cases
+GitHub can even inline the code for a permalink to a single line which adds
+more context. Also support for editing comments to fix minor typos links
+are great. Emoji support :)
+* The current bpo search is surprisingly very effective though it just does
+substring search across comments and patches I believe. If not I can google
+keywords with site:bugs.python.org to get relevant results. I expect search
+to be better on GitHub but worth experimenting since searching to get
+related issues/discussion helps a lot in triaging.
+
+Some points worth considering and some of them are addressed in the PEP
+already.
+
+* Moving to GitHub also comes at a cost of accessibility where there might
+be people posting questions that are more suitable for stackoverflow,
+python-list etc. Thus there might be more incoming issues that would
+require more effort on triaging.
+* There could be explicit guidelines on when a triager should close an
+issue and current bpo supports custom fields for resolution, state of the
+issue (open/close/pending/needs-test/patch-review)  that are updated.
+Besides closing the issue there could be labels or a comment format to
+describe the rationale and resolution.
+* There could also be guidelines on when to lock the thread since there
+could be cases where security issues or issues that can trigger heated
+arguments are posted. It could get even more attention when it's posted on
+Reddit or hackernews attracting unwanted attention e.g. security issues in
+npm posted to reddit. Someone can chime in to lock it but guidelines on
+when to do this would be helpful so that decision is not based on personal
+opinion to lock it.
+* Extended discussions in some cases along with no proper support for
+threading could result in lot of duplicated messages that would be hard to
+scroll through. It's a problem with current tracker too but something that
+can come up where people will use +1 comments instead of using thumbs up
+emoji. Rust community had some similar concerns since they do RFC
+discussions on GitHub that result in 200+ comments. Though we don't do PEP
+discussions some bugs can result in this.
+* I wish python-bug-list, weekly summary continues to be integrated with
+GitHub too since some of us don't want to watch the repo to get all the
+activity along with pull requests and just want to track activity on issues.
+* Currently there is some link rot on bpo for svn related links, broken
+patch file links etc. Moving to GitHub I guess they are handled like magic
+links for PEPs, bpo-NNNN, etc. that are mentioned in the PEP 581.
+
+Personally, I think more people will love it once they get to use it so if
+something like 100 issues can be migrated to a sample repo with labels,
+content etc. As a shameless plug I tried migrating around 150 issues in
+current bpo to GitLab sometime back with components as labels. Though an
+apple to oranges comparison (GitLab UI vs GitHub UI) I personally find the
+UI (also GitHub UI) very easy to navigate in terms of clicking on labels,
+search, sort, filter etc. in https://gitlab.com/tirkarthi/python-bugs/issues
+and the issue is more easy to read with markdown support for code where I
+added highlight to snippet
+https://gitlab.com/tirkarthi/python-bugs/issues/140
+
+-- 
+Regards,
+Karthikeyan S
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190308/88e103cb/attachment-0001.html>
+
+From p.f.moore at gmail.com  Fri Mar  8 02:25:37 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Fri, 8 Mar 2019 07:25:37 +0000
+Subject: [Python-Dev] Using CLA assistant for Python contributions
+In-Reply-To: <CAGbohnb68713hzrXXxWPrHtd+su0xRWrUYmEGBF6jJ=po1CbJw@mail.gmail.com>
+References: <CAGbohnbpnjLcbXHy9x6CtOY9KRRu5NEasUnkoQ0r32iq7STV7w@mail.gmail.com>
+ <20190308014221.GB12502@ando.pearwood.info>
+ <CAGbohnbkxefa=LDAbh+yKfxmchQMugqbDTwVnWqFQX2hrAiQGQ@mail.gmail.com>
+ <CAGbohnb68713hzrXXxWPrHtd+su0xRWrUYmEGBF6jJ=po1CbJw@mail.gmail.com>
+Message-ID: <CACac1F_fB3uSb=z8zhj6M1PtNgkj3RhJRc7gM8afkpTxsHVfXQ@mail.gmail.com>
+
+On Fri, 8 Mar 2019 at 02:32, Mariatta <mariatta at python.org> wrote:
+>
+> Thought I'll be a little more clearer: you'll need to re-sign the CLA only for your future contributions (aka when you make new pull request to Python).
+
+My preference would be to just re-sign the CLA *immediately*, and not
+wait for when I have a PR - I presume that would be
+possible/supported. Instructions on how to do so when the switchover
+happens would be useful.
+
+Paul
+
+PS I would also prefer not to have to re-sign, but just have my
+existing confirmation carried over. I don't *know* if there are any
+implications at my end around re-signing, and my preference is simply
+to not ask that question (on the basis of why make things harder for
+myself). But if it's needed, then fair enough.
+
+From p.f.moore at gmail.com  Fri Mar  8 02:30:09 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Fri, 8 Mar 2019 07:30:09 +0000
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <5C81AF9D.2060002@canterbury.ac.nz>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+ <20190307123950.GL4465@ando.pearwood.info>
+ <CACac1F9y6W8cbkyVLXf1M8UVxExDU=Z8Csvz50NVcF6xqhYu+g@mail.gmail.com>
+ <5C81AF9D.2060002@canterbury.ac.nz>
+Message-ID: <CACac1F8Ob5JdVzBEK0N9V26_VXJPB6G_D2c+Gv_FNfFZYfCSRQ@mail.gmail.com>
+
+On Thu, 7 Mar 2019 at 23:58, Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+>
+> Paul Moore wrote:
+> > There's a subtle difference in the mathematical
+> > and computing meanings [of idempotent] (around functions
+>  > with side-effects, which aren't a thing in maths)
+>
+> Not really an issue here, since optionxform shouldn't be having
+> side effects if it's sane.
+>
+> In any case, the word is easy enough to avoid in this case.
+> We could say something like:
+>
+>     "The optionxform function transforms option names to a
+>     canonical form. If the name is already in canonical form,
+>     it should be returned unchanged."
+>
+
+Precisely. +1 on this wording if we choose to go this way.
+
+If someone *really* wants to link the idea to the term "idempotent"
+then a simple "(i.e., the function must be idempotent)" would be
+sufficient to confirm for people who know the term, avoid making it
+unclear for people who don't, and teach people who don't the meaning
+of the term.
+
+Paul
+
+From p.f.moore at gmail.com  Fri Mar  8 02:33:26 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Fri, 8 Mar 2019 07:33:26 +0000
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <CAEfz+TzEXdrD0-XMJh9MSftjm+tU-9Bqjzo+FRpcAmFsb9dMkw@mail.gmail.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+ <20190307123950.GL4465@ando.pearwood.info>
+ <CACac1F9y6W8cbkyVLXf1M8UVxExDU=Z8Csvz50NVcF6xqhYu+g@mail.gmail.com>
+ <5C81AF9D.2060002@canterbury.ac.nz> <20190308001237.GO4465@ando.pearwood.info>
+ <CAEfz+TzEXdrD0-XMJh9MSftjm+tU-9Bqjzo+FRpcAmFsb9dMkw@mail.gmail.com>
+Message-ID: <CACac1F-FKU_WPMuaqDN1PpoQW4vOr42eRJeBU5TM7YDZ3NmccQ@mail.gmail.com>
+
+On Fri, 8 Mar 2019 at 02:54, Inada Naoki <songofacandy at gmail.com> wrote:
+>
+> Personally speaking, I think technical jargon is much easier than
+> normal English idioms or complex English syntax.
+>
+> I learned "idempotent" long ago while learning HTTP.  On the other hand,
+> I don't know normal English idioms even 5-year children who speaks
+> English at home knows.
+>
+> Technical jargon is good tool to communicate with people uses English
+> only for programming.  It shows the meaning very clearly with few words.
+
+Thanks for the reminder that the trade-off is different for
+non-English speakers - and my apologies for not taking that into
+account.
+
+> So I agree with you.  If reader may not know tech jargon widely used,
+> teach it instead of avoid it.
+
+Your point is taken, let's include the term in the explanation, but
+let's also spell out the behaviour for people who don't know the term
+(or who simply find it less familiar because it's not something
+commonly used in areas they work in).
+
+Paul
+
