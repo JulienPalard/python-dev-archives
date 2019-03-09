@@ -4892,3 +4892,1328 @@ commonly used in areas they work in).
 
 Paul
 
+From eric at trueblade.com  Fri Mar  8 03:26:56 2019
+From: eric at trueblade.com (Eric V. Smith)
+Date: Fri, 8 Mar 2019 08:26:56 +0000
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <20190308001237.GO4465@ando.pearwood.info>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+ <20190307123950.GL4465@ando.pearwood.info>
+ <CACac1F9y6W8cbkyVLXf1M8UVxExDU=Z8Csvz50NVcF6xqhYu+g@mail.gmail.com>
+ <5C81AF9D.2060002@canterbury.ac.nz>
+ <20190308001237.GO4465@ando.pearwood.info>
+Message-ID: <7BF92869-B60F-4AD8-839F-BF514DC0E24E@trueblade.com>
+
+
+> On Mar 8, 2019, at 12:12 AM, Steven D'Aprano <steve at pearwood.info> wrote:
+> 
+>> On Fri, Mar 08, 2019 at 12:56:13PM +1300, Greg Ewing wrote:
+>> 
+>> In any case, the word is easy enough to avoid in this case.
+> 
+> I don't think we should avoid using standard terminology even if we can. 
+> Knowledge of standard terminology is useful, and we don't generally make 
+> a practice of talking about (e.g.) "simultaneously running subtasks" 
+> when we can say "threads" instead.
+> 
+> You are happy to use the jargon terms "function" and "canonical form" 
+> without explanation, which I think proves that one person's jargon is 
+> another's obvious, clear, precise technical terminology.
+> 
+> 
+>> We could say something like:
+>> 
+>>   "The optionxform function transforms option names to a
+>>   canonical form. If the name is already in canonical form,
+>>   it should be returned unchanged."
+> 
+> How about:
+> 
+>    "The optionxform function transforms option names to a
+>    canonical form. This should be an idempotent function: 
+>    if the name is already in canonical form, it should be 
+>    returned unchanged."
+
+I?d prefer something less passive than ?it should remain unchanged? (as my high school English teacher would say: ?by whom??). Something like ?If optionxform is called on a name that is already in canonical form, then it should return that name unchanged?.  Then add something like ?That is, optionxform should be idempotent?.
+
+Eric
+
+> 
+> 
+> requires six extra words, but it uses the correct technical term which 
+> will be familiar to some proportion of users, while also explaining the 
+> term for those who aren't familiar with it. We all win!
+> 
+> 
+> -- 
+> Steven
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/eric%2Ba-python-dev%40trueblade.com
+
+
+From vstinner at redhat.com  Fri Mar  8 03:29:34 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 8 Mar 2019 09:29:34 +0100
+Subject: [Python-Dev] PEP 12 updated with templates for header fields
+ and sections
+In-Reply-To: <CAP1=2W77qwvoqraaGCRUsA_C_Y8yr1MTLKUvG8t1s+0jRSBuug@mail.gmail.com>
+References: <CAP1=2W77qwvoqraaGCRUsA_C_Y8yr1MTLKUvG8t1s+0jRSBuug@mail.gmail.com>
+Message-ID: <CA+3bQGE+rgMxo4tYn_K-r8FfRzQ9FPourpO_5FcOFCGY2HB0vg@mail.gmail.com>
+
+Hi Brett,
+
+I like to see discussions where a PEP has been disccussed. There is
+the "Post History" just gives dates. The problem is that PEPs are
+discussed on 3 mailing lists: python-ideas, python-dev and
+python-committers. Maybe some PEP are now also discussed on
+discuss.python.org.
+
+Do you have any recommendation to referer to these discussions?
+
+I would like to suggest to add URLs to the first messages of all
+threads about a PEP... Well... I know that for PEP 572, this list
+would be hard to create and maybe not really useful. Maybe not add
+links to *all* threads, but only the most actives or most "useful"
+threads? The PEP author would be free to decide which threads are
+important or not ;-)
+
+The status quo (Post History header) is fine, if I really want to find
+these discussions, I'm able to find them from dates :-)
+
+Victor
+
+Le ven. 8 mars 2019 ? 01:42, Brett Cannon <brett at python.org> a ?crit :
+>
+> https://github.com/python/peps/blob/master/pep-0012.rst now has a complete list of header fields along with format clues for easier copy-and-paste use in creating a new PEP. There is also a section template with one-liner explanations for what each section is for so people don't accidentally leave anything out. They are not in a single, unified template to copy to partially make sure people actually read the PEP before they start writing. :)
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From J.Demeyer at UGent.be  Fri Mar  8 03:37:04 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 8 Mar 2019 09:37:04 +0100
+Subject: [Python-Dev] PEP 12 updated with templates for header fields
+ and sections
+In-Reply-To: <CA+3bQGE+rgMxo4tYn_K-r8FfRzQ9FPourpO_5FcOFCGY2HB0vg@mail.gmail.com>
+References: <CAP1=2W77qwvoqraaGCRUsA_C_Y8yr1MTLKUvG8t1s+0jRSBuug@mail.gmail.com>
+ <CA+3bQGE+rgMxo4tYn_K-r8FfRzQ9FPourpO_5FcOFCGY2HB0vg@mail.gmail.com>
+Message-ID: <5C8229B0.50203@UGent.be>
+
+On 2019-03-08 09:29, Victor Stinner wrote:
+> I would like to suggest to add URLs to the first messages of all
+> threads about a PEP...
+
+Like this?
+
+https://www.python.org/dev/peps/pep-0580/#discussion
+
+From vstinner at redhat.com  Fri Mar  8 04:04:45 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 8 Mar 2019 10:04:45 +0100
+Subject: [Python-Dev] PEP 12 updated with templates for header fields
+ and sections
+In-Reply-To: <5C8229B0.50203@UGent.be>
+References: <CAP1=2W77qwvoqraaGCRUsA_C_Y8yr1MTLKUvG8t1s+0jRSBuug@mail.gmail.com>
+ <CA+3bQGE+rgMxo4tYn_K-r8FfRzQ9FPourpO_5FcOFCGY2HB0vg@mail.gmail.com>
+ <5C8229B0.50203@UGent.be>
+Message-ID: <CA+3bQGEHpQJumSqhs0yqL+aE2905g98XE3-g4Y9+CQwagAx8-A@mail.gmail.com>
+
+Yeah, such list is more convenient than just "Post-History:
+14-Aug-2001, 03-Sept-2001".
+
+Victor
+
+Le ven. 8 mars 2019 ? 09:40, Jeroen Demeyer <J.Demeyer at ugent.be> a ?crit :
+>
+> On 2019-03-08 09:29, Victor Stinner wrote:
+> > I would like to suggest to add URLs to the first messages of all
+> > threads about a PEP...
+>
+> Like this?
+>
+> https://www.python.org/dev/peps/pep-0580/#discussion
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From steve at pearwood.info  Fri Mar  8 05:36:56 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 8 Mar 2019 21:36:56 +1100
+Subject: [Python-Dev] Using CLA assistant for Python contributions
+In-Reply-To: <CACac1F_fB3uSb=z8zhj6M1PtNgkj3RhJRc7gM8afkpTxsHVfXQ@mail.gmail.com>
+References: <CAGbohnbpnjLcbXHy9x6CtOY9KRRu5NEasUnkoQ0r32iq7STV7w@mail.gmail.com>
+ <20190308014221.GB12502@ando.pearwood.info>
+ <CAGbohnbkxefa=LDAbh+yKfxmchQMugqbDTwVnWqFQX2hrAiQGQ@mail.gmail.com>
+ <CAGbohnb68713hzrXXxWPrHtd+su0xRWrUYmEGBF6jJ=po1CbJw@mail.gmail.com>
+ <CACac1F_fB3uSb=z8zhj6M1PtNgkj3RhJRc7gM8afkpTxsHVfXQ@mail.gmail.com>
+Message-ID: <20190308103656.GD12502@ando.pearwood.info>
+
+On Fri, Mar 08, 2019 at 07:25:37AM +0000, Paul Moore wrote:
+
+> PS I would also prefer not to have to re-sign, but just have my
+> existing confirmation carried over. I don't *know* if there are any
+> implications at my end around re-signing, and my preference is simply
+> to not ask that question (on the basis of why make things harder for
+> myself). But if it's needed, then fair enough.
+
+Because what you don't know can't hurt you?
+
+You're signing a legal document. Shouldn't you understand the 
+implications of signing it before you sign?
+
+
+
+-- 
+Steven
+
+From p.f.moore at gmail.com  Fri Mar  8 05:58:00 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Fri, 8 Mar 2019 10:58:00 +0000
+Subject: [Python-Dev] Using CLA assistant for Python contributions
+In-Reply-To: <20190308103656.GD12502@ando.pearwood.info>
+References: <CAGbohnbpnjLcbXHy9x6CtOY9KRRu5NEasUnkoQ0r32iq7STV7w@mail.gmail.com>
+ <20190308014221.GB12502@ando.pearwood.info>
+ <CAGbohnbkxefa=LDAbh+yKfxmchQMugqbDTwVnWqFQX2hrAiQGQ@mail.gmail.com>
+ <CAGbohnb68713hzrXXxWPrHtd+su0xRWrUYmEGBF6jJ=po1CbJw@mail.gmail.com>
+ <CACac1F_fB3uSb=z8zhj6M1PtNgkj3RhJRc7gM8afkpTxsHVfXQ@mail.gmail.com>
+ <20190308103656.GD12502@ando.pearwood.info>
+Message-ID: <CACac1F_cmM53sAmZBsC40+dasM752ZHXWF_m_ABRyScqGP=n4w@mail.gmail.com>
+
+On Fri, 8 Mar 2019 at 10:39, Steven D'Aprano <steve at pearwood.info> wrote:
+>
+> On Fri, Mar 08, 2019 at 07:25:37AM +0000, Paul Moore wrote:
+>
+> > PS I would also prefer not to have to re-sign, but just have my
+> > existing confirmation carried over. I don't *know* if there are any
+> > implications at my end around re-signing, and my preference is simply
+> > to not ask that question (on the basis of why make things harder for
+> > myself). But if it's needed, then fair enough.
+>
+> Because what you don't know can't hurt you?
+>
+> You're signing a legal document. Shouldn't you understand the
+> implications of signing it before you sign?
+
+Sigh. Trust me that I know what I'm saying, please. I do understand
+the implications. And re-signing a CLA *will* involve different
+processes for me than a simple continuance of an existing CLA - even
+if that CLA is confirmed by the PSF as legally identical to the new
+one. I can, and will, negotiate that difficulty myself if necessary -
+but honestly, it's not really the place of anyone on this list to tell
+me what I need to do in order to ensure my compliance with the CLA and
+with my employer's policies.
+
+I offered the information for awareness, to ensure that the people
+proposing this change knew that it had the potential to incur extra
+work for people being asked to re-sign, beyond the mere mechanics of
+re-signing. I did not expect arguments over my understanding of what I
+needed to do (nor did I expect the Spanish Inquisition, but *nobody*
+expects that ;-))
+
+Paul
+
+From steve at pearwood.info  Fri Mar  8 06:46:03 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 8 Mar 2019 22:46:03 +1100
+Subject: [Python-Dev] Using CLA assistant for Python contributions
+In-Reply-To: <CACac1F_cmM53sAmZBsC40+dasM752ZHXWF_m_ABRyScqGP=n4w@mail.gmail.com>
+References: <CAGbohnbpnjLcbXHy9x6CtOY9KRRu5NEasUnkoQ0r32iq7STV7w@mail.gmail.com>
+ <20190308014221.GB12502@ando.pearwood.info>
+ <CAGbohnbkxefa=LDAbh+yKfxmchQMugqbDTwVnWqFQX2hrAiQGQ@mail.gmail.com>
+ <CAGbohnb68713hzrXXxWPrHtd+su0xRWrUYmEGBF6jJ=po1CbJw@mail.gmail.com>
+ <CACac1F_fB3uSb=z8zhj6M1PtNgkj3RhJRc7gM8afkpTxsHVfXQ@mail.gmail.com>
+ <20190308103656.GD12502@ando.pearwood.info>
+ <CACac1F_cmM53sAmZBsC40+dasM752ZHXWF_m_ABRyScqGP=n4w@mail.gmail.com>
+Message-ID: <20190308114602.GE12502@ando.pearwood.info>
+
+On Fri, Mar 08, 2019 at 10:58:00AM +0000, Paul Moore wrote:
+> On Fri, 8 Mar 2019 at 10:39, Steven D'Aprano <steve at pearwood.info> wrote:
+> >
+> > On Fri, Mar 08, 2019 at 07:25:37AM +0000, Paul Moore wrote:
+> >
+> > > PS I would also prefer not to have to re-sign, but just have my
+> > > existing confirmation carried over. I don't *know* if there are any
+> > > implications at my end around re-signing, and my preference is simply
+> > > to not ask that question (on the basis of why make things harder for
+> > > myself). But if it's needed, then fair enough.
+> >
+> > Because what you don't know can't hurt you?
+> >
+> > You're signing a legal document. Shouldn't you understand the
+> > implications of signing it before you sign?
+> 
+> Sigh. Trust me that I know what I'm saying, please. I do understand
+> the implications.
+
+I'm sorry Paul, we seem to have difficulty in communicating today.
+
+You explicitly said that you did not know if there are any implications 
+for you to re-sign, now you're saying that we ought to trust you that 
+you do know the implications. Forgive me if I'm confused.
+
+Oh! I think I get it... when you say you prefer to not to ask the 
+question, you mean in the sense of "Don't make me re-sign, and that way 
+I won't have to ask about the implications of re-signing".
+
+Is that what you meant? I'm sorry, I truly read it as "I don't know what 
+the implications are, and I don't want to know, but I'll sign".
+
+Communication is hard.
+
+
+
+> And re-signing a CLA *will* involve different
+> processes for me than a simple continuance of an existing CLA - even
+> if that CLA is confirmed by the PSF as legally identical to the new
+> one.
+
+That's a very good point, and I hope Mariatta is reading :-)
+
+Fortunately, I don't have to worry about re-negotiating a new CLA with 
+an employer. But I imagine a lot of people will be in your same 
+situation.
+
+
+> I can, and will, negotiate that difficulty myself if necessary -
+> but honestly, it's not really the place of anyone on this list to tell
+> me what I need to do in order to ensure my compliance with the CLA and
+> with my employer's policies.
+
+Chill out Paul, I'm not your dad and I'm not telling you to clean your 
+room :-)
+
+But we are a community, not as close as personal friends, but closer 
+than perfect strangers, and if I see people in my community talking 
+about doing something which may be problematic for them, the kind thing 
+to do is point that out.
+
+Sorry if I stepped on your toes by misunderstanding your words.
+
+
+-- 
+Steven
+
+From tritium-list at sdamon.com  Fri Mar  8 08:09:11 2019
+From: tritium-list at sdamon.com (Alex Walters)
+Date: Fri, 8 Mar 2019 08:09:11 -0500
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+Message-ID: <081901d4d5b0$1f72e1d0$5e58a570$@sdamon.com>
+
+I'm confused about this.  Didn't you need someone with merge permissions already to merge a pep into the pep repo?  Isn't this just adding a layer of paperwork to something that was already the case for all practical purposes?
+
+> -----Original Message-----
+> From: Python-Dev <python-dev-bounces+tritium-
+> list=sdamon.com at python.org> On Behalf Of Brett Cannon
+> Sent: Monday, March 4, 2019 8:44 PM
+> To: python-dev <python-dev at python.org>
+> Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+> 
+> The steering council has implemented a new idea called sponsors to the PEP
+> process (added in
+> https://github.com/python/peps/commit/c58d32c33bd06eb386d3f33963a14
+> 34510528f68). The thinking is that to help make sure PEPs from non-core
+> developers receive appropriate guidance through the PEP process, a core
+> developer needs to sign on to be a sponsor of the PEP. Being a sponsor does
+> not preclude the core dev from eventually becoming a co-author or BDFL-
+> delegate later on (but obviously not both), but the expectation is the
+> sponsor is supportive of the idea (because if a single core dev won't sign on
+> to help then what chance does the PEP have of being accepted?).
+> 
+> 
+> If this doesn't turn out well we can obviously revert this, but hopefully this
+> will make things smoother for those who are new to the PEP process.
+
+
+
+From Richard at Damon-Family.org  Fri Mar  8 08:46:02 2019
+From: Richard at Damon-Family.org (Richard Damon)
+Date: Fri, 8 Mar 2019 08:46:02 -0500
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <081901d4d5b0$1f72e1d0$5e58a570$@sdamon.com>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <081901d4d5b0$1f72e1d0$5e58a570$@sdamon.com>
+Message-ID: <46403614-6d88-d4b2-0578-5833db5255ec@Damon-Family.org>
+
+On 3/8/19 8:09 AM, Alex Walters wrote:
+> I'm confused about this.  Didn't you need someone with merge permissions already to merge a pep into the pep repo?  Isn't this just adding a layer of paperwork to something that was already the case for all practical purposes?
+>
+>
+I would say the difference that before, the non-committer proposer just
+needed to convince some committer that the PEP was 'a good idea' and
+worth being discussed. Now, that person needs to persuade some committer
+that not only is it a good idea, but that it is worth the committer
+committing themselves to supporting the proposer through the process.
+
+-- 
+Richard Damon
+
+
+From steve.dower at python.org  Fri Mar  8 10:58:38 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 8 Mar 2019 07:58:38 -0800
+Subject: [Python-Dev] configparser: should optionxform be idempotent?
+In-Reply-To: <7BF92869-B60F-4AD8-839F-BF514DC0E24E@trueblade.com>
+References: <CAEfz+Twwyt_U=hgm2SUwP_NPefE2n6KSduFBqaOg6-K4c-NNgQ@mail.gmail.com>
+ <CACac1F_5MsNeC-pGO7kQRCt7HEAx8yFE2UyVD9i-CFQ3ZDfF8w@mail.gmail.com>
+ <20190307123950.GL4465@ando.pearwood.info>
+ <CACac1F9y6W8cbkyVLXf1M8UVxExDU=Z8Csvz50NVcF6xqhYu+g@mail.gmail.com>
+ <5C81AF9D.2060002@canterbury.ac.nz>
+ <20190308001237.GO4465@ando.pearwood.info>
+ <7BF92869-B60F-4AD8-839F-BF514DC0E24E@trueblade.com>
+Message-ID: <85a1f069-93d8-a16b-1ed3-22965ae4bd4f@python.org>
+
+I just have one thing to add to the discussion, which is this:
+
+https://youtu.be/hAnCiTpxXPg?t=6339
+
+Yes, people actually read and interpret our documentation :)  So 
+discussions like this are probably a good thing in terms of getting the 
+best descriptions in there, but if we use a specific technical term *not 
+quite right* then we will be found out.
+
+(A few of us core devs chatted with Al afterwards and there's no bad 
+blood, so don't worry about that.)
+
+Cheers,
+Steve
+
+From mariatta at python.org  Fri Mar  8 12:59:46 2019
+From: mariatta at python.org (Mariatta)
+Date: Fri, 8 Mar 2019 09:59:46 -0800
+Subject: [Python-Dev] Using CLA assistant for Python contributions
+In-Reply-To: <CACac1F_fB3uSb=z8zhj6M1PtNgkj3RhJRc7gM8afkpTxsHVfXQ@mail.gmail.com>
+References: <CAGbohnbpnjLcbXHy9x6CtOY9KRRu5NEasUnkoQ0r32iq7STV7w@mail.gmail.com>
+ <20190308014221.GB12502@ando.pearwood.info>
+ <CAGbohnbkxefa=LDAbh+yKfxmchQMugqbDTwVnWqFQX2hrAiQGQ@mail.gmail.com>
+ <CAGbohnb68713hzrXXxWPrHtd+su0xRWrUYmEGBF6jJ=po1CbJw@mail.gmail.com>
+ <CACac1F_fB3uSb=z8zhj6M1PtNgkj3RhJRc7gM8afkpTxsHVfXQ@mail.gmail.com>
+Message-ID: <CAGbohnYbp=LYcPwStmiSz3nB7H_xvM8CHC+oLTjZ6w+whCE-uw@mail.gmail.com>
+
+On Thu, Mar 7, 2019 at 11:25 PM Paul Moore <p.f.moore at gmail.com> wrote:
+
+>
+> My preference would be to just re-sign the CLA *immediately*, and not
+> wait for when I have a PR - I presume that would be
+> possible/supported.
+>
+
+Yes this is possible, and once the switchover happens, I will post the link
+with instructions on how to do that.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190308/38794382/attachment.html>
+
+From status at bugs.python.org  Fri Mar  8 13:08:07 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri,  8 Mar 2019 18:08:07 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190308180807.56ACE52B1EC@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-03-01 - 2019-03-08)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7031 (+19)
+  closed 40963 (+65)
+  total  47994 (+84)
+
+Open issues with patches: 2793 
+
+
+Issues opened (55)
+==================
+
+#33329: sigaddset() can fail on some signal numbers
+https://bugs.python.org/issue33329  reopened by larry
+
+#36097: Use only public C-API in _xxsubinterpreters module.
+https://bugs.python.org/issue36097  reopened by eric.snow
+
+#36125: Cannot cross-compile to more featureful but same tune
+https://bugs.python.org/issue36125  reopened by xdegaye
+
+#36160: Multiple errors in test_site.py on sysconfig._CONFIG_VARS.clea
+https://bugs.python.org/issue36160  opened by Ivan.Pozdeev
+
+#36161: Use thread-safe functions instead of unsafe ones (crypt, ttyna
+https://bugs.python.org/issue36161  opened by twouters
+
+#36164: Updating Py_InspectFlag programmatically
+https://bugs.python.org/issue36164  opened by ishimoto
+
+#36165: DOC: ssl.rst is missing formatting on two links
+https://bugs.python.org/issue36165  opened by cheryl.sabella
+
+#36166: DOC: Fix markup on function parameter on datamodel.rst
+https://bugs.python.org/issue36166  opened by cheryl.sabella
+
+#36167: DOC: Incorrect capitalization in Programming FAQ
+https://bugs.python.org/issue36167  opened by cheryl.sabella
+
+#36168: DOC: Fix capitalization in string.rst
+https://bugs.python.org/issue36168  opened by cheryl.sabella
+
+#36172: csv module internal consistency
+https://bugs.python.org/issue36172  opened by Shane Smith
+
+#36174: Remove licenseUrl field from nuget packages
+https://bugs.python.org/issue36174  opened by steve.dower
+
+#36176: Make IDLE Autocomplete / Calltip Window Colors Configurable
+https://bugs.python.org/issue36176  opened by greylaw89
+
+#36179: _hashopenssl has reference leaks in OOM case
+https://bugs.python.org/issue36179  opened by christian.heimes
+
+#36180: mboxMessage.get_payload throws TypeError on malformed content 
+https://bugs.python.org/issue36180  opened by enrico
+
+#36182: Path.write_text() docs do not include the case that a file exi
+https://bugs.python.org/issue36182  opened by lys.nikolaou
+
+#36184: [EASY] test_gdb.test_threads() is specific to _POSIX_THREADS, 
+https://bugs.python.org/issue36184  opened by vstinner
+
+#36189: DOC: Correct word in tutorial introduction
+https://bugs.python.org/issue36189  opened by cheryl.sabella
+
+#36194: Add "make regen-configure"
+https://bugs.python.org/issue36194  opened by vstinner
+
+#36195: initializer is not a valid param in ThreadPoolExecutor
+https://bugs.python.org/issue36195  opened by harman786
+
+#36201: AssertCountEqual does not work for nested dictionaries.
+https://bugs.python.org/issue36201  opened by walterqian
+
+#36202: Calling Py_DecodeLocale() before _PyPreConfig_Write() can prod
+https://bugs.python.org/issue36202  opened by vstinner
+
+#36203: PyWeakref_NewRef docs are misleading
+https://bugs.python.org/issue36203  opened by Maxwell Bernstein
+
+#36204: Deprecate calling Py_Main() after Py_Initialize()? Add Py_Init
+https://bugs.python.org/issue36204  opened by vstinner
+
+#36205: Python 3.7 and 3.8 process_time is not reported correctly when
+https://bugs.python.org/issue36205  opened by Nitapol
+
+#36207: robotsparser deny all with some rules
+https://bugs.python.org/issue36207  opened by quentin-maire
+
+#36208: AsyncIO V4MAPPED addresses with V6ONLY.
+https://bugs.python.org/issue36208  opened by jeeger
+
+#36210: ncurses versus cursus integration - platform differences and d
+https://bugs.python.org/issue36210  opened by Michael.Felt
+
+#36211: show full url when execute "make -C Doc/ serve"
+https://bugs.python.org/issue36211  opened by matrixise
+
+#36212: [2.7] Coverity scan: Modules/_hotshot.c , Variable "s1" going 
+https://bugs.python.org/issue36212  opened by cstratak
+
+#36213: subprocess.check_output() fails with OSError: [WinError 87] wh
+https://bugs.python.org/issue36213  opened by Geoff.Alexander
+
+#36214: AC_RUN_IFELSE macros not used as arguments of AC_CACHE_VAL et 
+https://bugs.python.org/issue36214  opened by xdegaye
+
+#36215: Should AppVeyor run compile Python in debug mode?
+https://bugs.python.org/issue36215  opened by vstinner
+
+#36216: urlsplit does not handle NFKC normalization
+https://bugs.python.org/issue36216  opened by steve.dower
+
+#36217: recvmsg support on Windows
+https://bugs.python.org/issue36217  opened by chrysn
+
+#36218: .sort() segfaults consistently on crafted input
+https://bugs.python.org/issue36218  opened by Lyn Levenick
+
+#36219: Add edit option in IDLE to convert smart quotes to ascii quote
+https://bugs.python.org/issue36219  opened by rhettinger
+
+#36220: LOAD_NAME and LOAD_GLOBAL handle dict subclasses for globals()
+https://bugs.python.org/issue36220  opened by Kevin Shweh
+
+#36221: Setting PYTHONASYNCIODEBUG breaks warnings
+https://bugs.python.org/issue36221  opened by ods
+
+#36225: Lingering subinterpreters should be implicitly cleared on shut
+https://bugs.python.org/issue36225  opened by ncoghlan
+
+#36226: multipart/related header causes false positive StartBoundaryNo
+https://bugs.python.org/issue36226  opened by cschmidbauer
+
+#36227: Add default_namespace argument to xml.etree.ElementTree.tostri
+https://bugs.python.org/issue36227  opened by Bernt.R??skar.Brenna
+
+#36229: Linear-time ops for some mutable collections.
+https://bugs.python.org/issue36229  opened by brandtbucher
+
+#36230: Please sort assertSetEqual's output
+https://bugs.python.org/issue36230  opened by Jess
+
+#36231: no "proper" header files on macOS 10.14 Mojave
+https://bugs.python.org/issue36231  opened by dimpase
+
+#36232: Improve error message on dbm.open
+https://bugs.python.org/issue36232  opened by rougeth
+
+#36233: xml ElementTree quotation marks of xml version string
+https://bugs.python.org/issue36233  opened by Photoniker
+
+#36234: test_os: add tests for invalid uid type
+https://bugs.python.org/issue36234  opened by vstinner
+
+#36235: distutils.sysconfig.customize_compiler() overrides CFLAGS var 
+https://bugs.python.org/issue36235  opened by vstinner
+
+#36236: Python crash on macOS when CWD is invalid
+https://bugs.python.org/issue36236  opened by lkollar
+
+#36238: distutils complains "package init file 'xxx/__init__.py' not f
+https://bugs.python.org/issue36238  opened by jt
+
+#36239: gettext: GNUTranslations doesn't parse properly comments in de
+https://bugs.python.org/issue36239  opened by vstinner
+
+#36240: Definitions of time
+https://bugs.python.org/issue36240  opened by Robert Billing
+
+#36241: MD5 checksum is not valid for v2.7.16 "Windows x86-64 MSI inst
+https://bugs.python.org/issue36241  opened by andrejs-sisojevs-accenture
+
+#36243: Python os.listdir fails with FileNotFoundError when directory 
+https://bugs.python.org/issue36243  opened by Geoff.Alexander
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36243: Python os.listdir fails with FileNotFoundError when directory 
+https://bugs.python.org/issue36243
+
+#36240: Definitions of time
+https://bugs.python.org/issue36240
+
+#36238: distutils complains "package init file 'xxx/__init__.py' not f
+https://bugs.python.org/issue36238
+
+#36232: Improve error message on dbm.open
+https://bugs.python.org/issue36232
+
+#36231: no "proper" header files on macOS 10.14 Mojave
+https://bugs.python.org/issue36231
+
+#36229: Linear-time ops for some mutable collections.
+https://bugs.python.org/issue36229
+
+#36225: Lingering subinterpreters should be implicitly cleared on shut
+https://bugs.python.org/issue36225
+
+#36221: Setting PYTHONASYNCIODEBUG breaks warnings
+https://bugs.python.org/issue36221
+
+#36217: recvmsg support on Windows
+https://bugs.python.org/issue36217
+
+#36215: Should AppVeyor run compile Python in debug mode?
+https://bugs.python.org/issue36215
+
+#36214: AC_RUN_IFELSE macros not used as arguments of AC_CACHE_VAL et 
+https://bugs.python.org/issue36214
+
+#36212: [2.7] Coverity scan: Modules/_hotshot.c , Variable "s1" going 
+https://bugs.python.org/issue36212
+
+#36211: show full url when execute "make -C Doc/ serve"
+https://bugs.python.org/issue36211
+
+#36210: ncurses versus cursus integration - platform differences and d
+https://bugs.python.org/issue36210
+
+#36207: robotsparser deny all with some rules
+https://bugs.python.org/issue36207
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36236: Python crash on macOS when CWD is invalid
+https://bugs.python.org/issue36236
+
+#36235: distutils.sysconfig.customize_compiler() overrides CFLAGS var 
+https://bugs.python.org/issue36235
+
+#36234: test_os: add tests for invalid uid type
+https://bugs.python.org/issue36234
+
+#36231: no "proper" header files on macOS 10.14 Mojave
+https://bugs.python.org/issue36231
+
+#36229: Linear-time ops for some mutable collections.
+https://bugs.python.org/issue36229
+
+#36227: Add default_namespace argument to xml.etree.ElementTree.tostri
+https://bugs.python.org/issue36227
+
+#36226: multipart/related header causes false positive StartBoundaryNo
+https://bugs.python.org/issue36226
+
+#36218: .sort() segfaults consistently on crafted input
+https://bugs.python.org/issue36218
+
+#36216: urlsplit does not handle NFKC normalization
+https://bugs.python.org/issue36216
+
+#36211: show full url when execute "make -C Doc/ serve"
+https://bugs.python.org/issue36211
+
+#36210: ncurses versus cursus integration - platform differences and d
+https://bugs.python.org/issue36210
+
+#36195: initializer is not a valid param in ThreadPoolExecutor
+https://bugs.python.org/issue36195
+
+#36182: Path.write_text() docs do not include the case that a file exi
+https://bugs.python.org/issue36182
+
+#36179: _hashopenssl has reference leaks in OOM case
+https://bugs.python.org/issue36179
+
+#36164: Updating Py_InspectFlag programmatically
+https://bugs.python.org/issue36164
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#33944: Deprecate and remove pth files
+https://bugs.python.org/issue33944  32 msgs
+
+#35967: Better platform.processor support
+https://bugs.python.org/issue35967  17 msgs
+
+#33608: Add a cross-interpreter-safe mechanism to indicate that an obj
+https://bugs.python.org/issue33608  14 msgs
+
+#36218: .sort() segfaults consistently on crafted input
+https://bugs.python.org/issue36218  10 msgs
+
+#36239: gettext: GNUTranslations doesn't parse properly comments in de
+https://bugs.python.org/issue36239   9 msgs
+
+#29515: socket module missing IPPROTO_IPV6, IPPROTO_IPV4 on Windows
+https://bugs.python.org/issue29515   7 msgs
+
+#36204: Deprecate calling Py_Main() after Py_Initialize()? Add Py_Init
+https://bugs.python.org/issue36204   7 msgs
+
+#36227: Add default_namespace argument to xml.etree.ElementTree.tostri
+https://bugs.python.org/issue36227   6 msgs
+
+#36230: Please sort assertSetEqual's output
+https://bugs.python.org/issue36230   6 msgs
+
+#33346: Syntax error with async generator inside dictionary comprehens
+https://bugs.python.org/issue33346   5 msgs
+
+
+
+Issues closed (63)
+==================
+
+#8075: Windows (Vista/7) install error when choosing to compile .py f
+https://bugs.python.org/issue8075  closed by steve.dower
+
+#9566: Compilation warnings under x64 Windows
+https://bugs.python.org/issue9566  closed by vstinner
+
+#10009: Automated MSI installation does not work
+https://bugs.python.org/issue10009  closed by steve.dower
+
+#20906: Issues in Unicode HOWTO
+https://bugs.python.org/issue20906  closed by vstinner
+
+#21478: mock calls don't propagate to parent (autospec)
+https://bugs.python.org/issue21478  closed by xtreak
+
+#24322: Hundreds of linker warnings on Windows
+https://bugs.python.org/issue24322  closed by steve.dower
+
+#29205: col_offset for AsyncFunctionDef AST nodes is wrong
+https://bugs.python.org/issue29205  closed by serhiy.storchaka
+
+#29440: _dbm requires -lgdbm if gdbm is built as static libraries
+https://bugs.python.org/issue29440  closed by yan12125
+
+#30831: Inconsistent or wrong documentation around Asynchronous Contex
+https://bugs.python.org/issue30831  closed by yselivanov
+
+#32129: IDLE app icon is blurry on macOS with Aqua Tk 8.6
+https://bugs.python.org/issue32129  closed by terry.reedy
+
+#32856: Optimize the `for y in [x]` idiom in comprehensions
+https://bugs.python.org/issue32856  closed by serhiy.storchaka
+
+#35198: Build issue while compiling cpp files in AIX
+https://bugs.python.org/issue35198  closed by vstinner
+
+#35435: Discourage external links to old docs.
+https://bugs.python.org/issue35435  closed by mdk
+
+#35466: Use a linked list for the ceval pending calls.
+https://bugs.python.org/issue35466  closed by eric.snow
+
+#35740: openssl version 1.1.1 need to be there in cpython-source-deps 
+https://bugs.python.org/issue35740  closed by steve.dower
+
+#35808: Let's retire pgen
+https://bugs.python.org/issue35808  closed by pablogsal
+
+#35899: '_is_sunder' function in 'enum' module fails on empty string
+https://bugs.python.org/issue35899  closed by ethan.furman
+
+#35975: Put back the ability to parse files where async/await aren't k
+https://bugs.python.org/issue35975  closed by gvanrossum
+
+#36019: test_urllib fail in s390x buildbots: http://www.example.com/
+https://bugs.python.org/issue36019  closed by vstinner
+
+#36043: FileCookieJar constructor don't accept PathLike
+https://bugs.python.org/issue36043  closed by brett.cannon
+
+#36091: clean up async generator from types module
+https://bugs.python.org/issue36091  closed by scotchka
+
+#36103: Increase shutil.COPY_BUFSIZE
+https://bugs.python.org/issue36103  closed by inada.naoki
+
+#36108: Avoid failing the build on race condition in clean
+https://bugs.python.org/issue36108  closed by steve.dower
+
+#36114: test_multiprocessing_spawn dumps core in AMD64 FreeBSD CURRENT
+https://bugs.python.org/issue36114  closed by vstinner
+
+#36116: test_multiprocessing_spawn fails on AMD64 Windows8 3.x
+https://bugs.python.org/issue36116  closed by vstinner
+
+#36139: release GIL on mmap dealloc
+https://bugs.python.org/issue36139  closed by benjamin.peterson
+
+#36140: An incorrect check in _msi.c's msidb_getsummaryinformation()
+https://bugs.python.org/issue36140  closed by steve.dower
+
+#36142: Add a new _PyPreConfig step to Python initialization to setup 
+https://bugs.python.org/issue36142  closed by vstinner
+
+#36147: [2.7] Coverity scan: Modules/_ctypes/cfield.c , Variable "resu
+https://bugs.python.org/issue36147  closed by vstinner
+
+#36149: use of uninitialised memory in cPickle.
+https://bugs.python.org/issue36149  closed by twouters
+
+#36154: Python quit unexpectedly error
+https://bugs.python.org/issue36154  closed by ned.deily
+
+#36162: error: implicit declaration of function 'sendfile' is invalid 
+https://bugs.python.org/issue36162  closed by inada.naoki
+
+#36163: same object, same method, but the is keyword return false.
+https://bugs.python.org/issue36163  closed by steven.daprano
+
+#36169: Add overlap() method to statistics.NormalDist()
+https://bugs.python.org/issue36169  closed by rhettinger
+
+#36170: posix_spawn doesn't exist in 3.7
+https://bugs.python.org/issue36170  closed by ned.deily
+
+#36171: tkinter scrollbar missing 'state' option
+https://bugs.python.org/issue36171  closed by cheryl.sabella
+
+#36173: apam
+https://bugs.python.org/issue36173  closed by steven.daprano
+
+#36175: Identity of bound methods
+https://bugs.python.org/issue36175  closed by inada.naoki
+
+#36177: test_io: test_daemon_threads_shutdown_stdout_deadlock() fails 
+https://bugs.python.org/issue36177  closed by vstinner
+
+#36178: type.__init__ called instead of cls.__init__ when inheriting f
+https://bugs.python.org/issue36178  closed by steven.daprano
+
+#36181: Add mode parameter to PurePath.write_text to allow for 'a' mod
+https://bugs.python.org/issue36181  closed by serhiy.storchaka
+
+#36183: test_gdb failed on AMD64 FreeBSD CURRENT Shared 3.7 and 3.x
+https://bugs.python.org/issue36183  closed by vstinner
+
+#36185: [EASY DOC] typo: Doc/c-api/objbuffer.rst:  There is a typo in 
+https://bugs.python.org/issue36185  closed by serhiy.storchaka
+
+#36186: [2.7] Coverity scan: Modules/linuxaudiodev.c , fd handle is no
+https://bugs.python.org/issue36186  closed by vstinner
+
+#36187: Get rid of NamedStore
+https://bugs.python.org/issue36187  closed by serhiy.storchaka
+
+#36188: Remove vestiges of Python 2 unbound methods from Python 3
+https://bugs.python.org/issue36188  closed by benjamin.peterson
+
+#36190: file object method .tell() sometimes returns large number when
+https://bugs.python.org/issue36190  closed by tim.peters
+
+#36191: pubkeys.txt contains bogus keys
+https://bugs.python.org/issue36191  closed by nanjekyejoannah
+
+#36192: Usage of `tmpnam_r` and `tempname` is dangerous, better use `m
+https://bugs.python.org/issue36192  closed by matrixise
+
+#36193: Redirected stderr not reset properly when using logging
+https://bugs.python.org/issue36193  closed by vinay.sajip
+
+#36196: sys.executable does not return python3 executable when using u
+https://bugs.python.org/issue36196  closed by inada.naoki
+
+#36197: Compilation Warning for memoryview.tobytes and _collections._t
+https://bugs.python.org/issue36197  closed by vstinner
+
+#36198: Misleading in library/sets document
+https://bugs.python.org/issue36198  closed by DeadmanWalking
+
+#36199: libzmq.dll causes uncontrollable screen flickering when access
+https://bugs.python.org/issue36199  closed by eryksun
+
+#36200: display index on IndexError
+https://bugs.python.org/issue36200  closed by Aditya Shankar
+
+#36206: re.match() not matching escaped hyphens
+https://bugs.python.org/issue36206  closed by josh.r
+
+#36209: [EASY Doc] Typo in hashlib error message
+https://bugs.python.org/issue36209  closed by vstinner
+
+#36222: ValueError: a coroutine was expected  with asyncio.run
+https://bugs.python.org/issue36222  closed by vstinner
+
+#36223: Execution sequence for print function
+https://bugs.python.org/issue36223  closed by xtreak
+
+#36224: Python quit unexpectedly error
+https://bugs.python.org/issue36224  closed by ned.deily
+
+#36228: Support coercion of complex to float/int
+https://bugs.python.org/issue36228  closed by zach.ware
+
+#36237: data_files / Install Additional Files written unclearly such t
+https://bugs.python.org/issue36237  closed by jt
+
+#36242: spam
+https://bugs.python.org/issue36242  closed by SilentGhost
+
+From brett at python.org  Fri Mar  8 13:20:52 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 8 Mar 2019 10:20:52 -0800
+Subject: [Python-Dev] PEP 12 updated with templates for header fields
+ and sections
+In-Reply-To: <CA+3bQGE+rgMxo4tYn_K-r8FfRzQ9FPourpO_5FcOFCGY2HB0vg@mail.gmail.com>
+References: <CAP1=2W77qwvoqraaGCRUsA_C_Y8yr1MTLKUvG8t1s+0jRSBuug@mail.gmail.com>
+ <CA+3bQGE+rgMxo4tYn_K-r8FfRzQ9FPourpO_5FcOFCGY2HB0vg@mail.gmail.com>
+Message-ID: <CAP1=2W6bryXhM=nwrHoUdrvJGOwFa3gJTz4Me5v8cXfeYE3QcA@mail.gmail.com>
+
+This is all OT for this thread. If you would like to start a new discussion
+about changing the PEP process so discussion threads are tracked more
+thoroughly then please do.
+
+On Fri, Mar 8, 2019 at 12:29 AM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hi Brett,
+>
+> I like to see discussions where a PEP has been discussed. There is
+> the "Post History" just gives dates. The problem is that PEPs are
+> discussed on 3 mailing lists: python-ideas, python-dev and
+> python-committers. Maybe some PEP are now also discussed on
+> discuss.python.org.
+>
+> Do you have any recommendation to refer to these discussions?
+>
+> I would like to suggest to add URLs to the first messages of all
+> threads about a PEP... Well... I know that for PEP 572, this list
+> would be hard to create and maybe not really useful. Maybe not add
+> links to *all* threads, but only the most actives or most "useful"
+> threads? The PEP author would be free to decide which threads are
+> important or not ;-)
+>
+> The status quo (Post History header) is fine, if I really want to find
+> these discussions, I'm able to find them from dates :-)
+>
+> Victor
+>
+> Le ven. 8 mars 2019 ? 01:42, Brett Cannon <brett at python.org> a ?crit :
+> >
+> > https://github.com/python/peps/blob/master/pep-0012.rst now has a
+> complete list of header fields along with format clues for easier
+> copy-and-paste use in creating a new PEP. There is also a section template
+> with one-liner explanations for what each section is for so people don't
+> accidentally leave anything out. They are not in a single, unified template
+> to copy to partially make sure people actually read the PEP before they
+> start writing. :)
+> > _______________________________________________
+> > Python-Dev mailing list
+> > Python-Dev at python.org
+> > https://mail.python.org/mailman/listinfo/python-dev
+> > Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+>
+>
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190308/8caeaf23/attachment.html>
+
+From brett at python.org  Fri Mar  8 13:26:23 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 8 Mar 2019 10:26:23 -0800
+Subject: [Python-Dev] PEPs from non-core devs now need a sponsor
+In-Reply-To: <46403614-6d88-d4b2-0578-5833db5255ec@Damon-Family.org>
+References: <CAP1=2W7BnsYJga=WbkPLT_xHAeHMAqR4DAP6+iAt+_1fKBXLUQ@mail.gmail.com>
+ <081901d4d5b0$1f72e1d0$5e58a570$@sdamon.com>
+ <46403614-6d88-d4b2-0578-5833db5255ec@Damon-Family.org>
+Message-ID: <CAP1=2W65gd0T82LizyBD2pNXLe6jXyEP-pU_EnxZ3g8uxw42cQ@mail.gmail.com>
+
+On Fri, Mar 8, 2019 at 5:46 AM Richard Damon <Richard at damon-family.org>
+wrote:
+
+> On 3/8/19 8:09 AM, Alex Walters wrote:
+> > I'm confused about this.  Didn't you need someone with merge permissions
+> already to merge a pep into the pep repo?  Isn't this just adding a layer
+> of paperwork to something that was already the case for all practical
+> purposes?
+>
+
+Nope. We don't like paperwork anymore than you or anyone else.
+
+
+> >
+> >
+> I would say the difference that before, the non-committer proposer just
+> needed to convince some committer that the PEP was 'a good idea' and
+> worth being discussed. Now, that person needs to persuade some committer
+> that not only is it a good idea, but that it is worth the committer
+> committing themselves to supporting the proposer through the process.
+>
+
+What Richard said. Before, PEP editors would make sure a PEP was basically
+grammatically correct and not totally bonkers, but otherwise didn't make
+judgments. Now we're saying there needs to be a core dev to help you
+through the process to help make sure you will be successful and at least
+*someone* thinks it's a good idea.
+
+-Brett
+
+
+>
+> --
+> Richard Damon
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190308/43735081/attachment.html>
+
+From haritha.sharma at rbc.com  Fri Mar  8 15:07:18 2019
+From: haritha.sharma at rbc.com (Sharma, Haritha (CWM-NR))
+Date: Fri, 8 Mar 2019 20:07:18 +0000
+Subject: [Python-Dev] Pythong 3.6.5 Tests failed
+Message-ID: <da71cde3235d4c38a9f584873a6adc29@SXGCMB03.fg.rbc.com>
+
+I got error message that test_dtrace and test_normalization failed. Below is the messages when I reran the test. Please let me know whether these errors are okay.
+
+Thanks,
+Haritha
+
+
+[root at mrkdlvaiaas2882 Python-3.6.5]# ./python -m test -v test_normalization
+== CPython 3.6.5 (default, Mar 8 2019, 14:29:13) [GCC 4.8.5 20150623 (Red Hat 4.8.5-36)]
+== Linux-3.10.0-957.1.3.el7.x86_64-x86_64-with-redhat-7.6-Maipo little-endian
+== cwd: /tmp/python/Python-3.6.5/build/test_python_123679
+== CPU count: 2
+== encodings: locale=UTF-8, FS=utf-8
+Run tests sequentially
+0:00:00 load avg: 0.39 [1/1] test_normalization
+test_bug_834676 (test.test_normalization.NormalizationTest) ... ok
+test_main (test.test_normalization.NormalizationTest) ... skipped "Use of the 'urlfetch' resource not enabled"
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.003s
+
+OK (skipped=1)
+1 test OK.
+
+Total duration: 51 ms
+Tests result: SUCCESS
+
+[root at mrkdlvaiaas2882 Python-3.6.5]#  ./python -m test -v test_dtrace
+== CPython 3.6.5 (default, Mar 8 2019, 14:29:13) [GCC 4.8.5 20150623 (Red Hat 4.8.5-36)]
+== Linux-3.10.0-957.1.3.el7.x86_64-x86_64-with-redhat-7.6-Maipo little-endian
+== cwd: /tmp/python/Python-3.6.5/build/test_python_124133
+== CPU count: 2
+== encodings: locale=UTF-8, FS=utf-8
+Run tests sequentially
+0:00:00 load avg: 0.36 [1/1] test_dtrace
+skipped 'dtrace(1) failed: /bin/dtrace invalid option -q\nUsage /bin/dtrace [--help] [-h | -G] [-C [-I<Path>]] -s File.d [-o <File>]'
+skipped 'dtrace(1) failed: /bin/dtrace invalid option -q\nUsage /bin/dtrace [--help] [-h | -G] [-C [-I<Path>]] -s File.d [-o <File>]'
+test_function_entry_return (test.test_dtrace.SystemTapNormalTests) ... FAIL
+test_gc (test.test_dtrace.SystemTapNormalTests) ... FAIL
+test_line (test.test_dtrace.SystemTapNormalTests) ... FAIL
+test_verify_call_opcodes (test.test_dtrace.SystemTapNormalTests)
+Ensure our call stack test hits all function call opcodes ... ok
+test_function_entry_return (test.test_dtrace.SystemTapOptimizedTests) ... FAIL
+test_gc (test.test_dtrace.SystemTapOptimizedTests) ... FAIL
+test_line (test.test_dtrace.SystemTapOptimizedTests) ... FAIL
+test_verify_call_opcodes (test.test_dtrace.SystemTapOptimizedTests)
+Ensure our call stack test hits all function call opcodes ... ok
+
+======================================================================
+FAIL: test_function_entry_return (test.test_dtrace.SystemTapNormalTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in normalize_trace_output
+    result.sort(key=lambda row: int(row[0]))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in <lambda>
+    result.sort(key=lambda row: int(row[0]))
+ValueError: invalid literal for int() with base 10: "semantic error: while resolving probe point: identifier 'process' at /tmp/python/Python-3.6.5/Lib/test/dtracedata/call_stack.stp:13:7"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 118, in test_function_entry_return
+    self.run_case("call_stack")
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 114, in run_case
+    name, optimize_python=self.optimize_python)
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 50, in run_case
+    optimize_python=optimize_python))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 37, in normalize_trace_output
+    "tracer produced unparseable output:\n{}".format(output)
+AssertionError: tracer produced unparseable output:
+semantic error: while resolving probe point: identifier 'process' at /tmp/python/Python-3.6.5/Lib/test/dtracedata/call_stack.stp:13:7
+        source: probe process.mark("function__entry")
+                      ^
+
+semantic error: no match
+
+Pass 2: analysis failed.  [man error::pass2]
+Number of similar error messages suppressed: 3.
+Rerun with -v to see them.
+
+
+======================================================================
+FAIL: test_gc (test.test_dtrace.SystemTapNormalTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in normalize_trace_output
+    result.sort(key=lambda row: int(row[0]))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in <lambda>
+    result.sort(key=lambda row: int(row[0]))
+ValueError: invalid literal for int() with base 10: "semantic error: while resolving probe point: identifier 'process' at /tmp/python/Python-3.6.5/Lib/test/dtracedata/gc.stp:3:7"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 146, in test_gc
+    self.run_case("gc")
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 114, in run_case
+    name, optimize_python=self.optimize_python)
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 50, in run_case
+    optimize_python=optimize_python))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 37, in normalize_trace_output
+    "tracer produced unparseable output:\n{}".format(output)
+AssertionError: tracer produced unparseable output:
+semantic error: while resolving probe point: identifier 'process' at /tmp/python/Python-3.6.5/Lib/test/dtracedata/gc.stp:3:7
+        source: probe process.mark("function__entry")
+                      ^
+
+semantic error: no match
+
+Pass 2: analysis failed.  [man error::pass2]
+Number of similar error messages suppressed: 3.
+Rerun with -v to see them.
+
+
+======================================================================
+FAIL: test_line (test.test_dtrace.SystemTapNormalTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in normalize_trace_output
+    result.sort(key=lambda row: int(row[0]))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in <lambda>
+    result.sort(key=lambda row: int(row[0]))
+ValueError: invalid literal for int() with base 10: "Input file '/tmp/python/Python-3.6.5/build/test_python_124133/dtracedata/line.stp' is missing."
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 149, in test_line
+    self.run_case("line")
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 114, in run_case
+    name, optimize_python=self.optimize_python)
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 50, in run_case
+    optimize_python=optimize_python))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 37, in normalize_trace_output
+    "tracer produced unparseable output:\n{}".format(output)
+AssertionError: tracer produced unparseable output:
+Input file '/tmp/python/Python-3.6.5/build/test_python_124133/dtracedata/line.stp' is missing.
+Pass 1: parse failed.  [man error::pass1]
+
+
+======================================================================
+FAIL: test_function_entry_return (test.test_dtrace.SystemTapOptimizedTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in normalize_trace_output
+    result.sort(key=lambda row: int(row[0]))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in <lambda>
+    result.sort(key=lambda row: int(row[0]))
+ValueError: invalid literal for int() with base 10: "semantic error: while resolving probe point: identifier 'process' at /tmp/python/Python-3.6.5/Lib/test/dtracedata/call_stack.stp:13:7"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 118, in test_function_entry_return
+    self.run_case("call_stack")
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 114, in run_case
+    name, optimize_python=self.optimize_python)
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 50, in run_case
+    optimize_python=optimize_python))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 37, in normalize_trace_output
+    "tracer produced unparseable output:\n{}".format(output)
+AssertionError: tracer produced unparseable output:
+semantic error: while resolving probe point: identifier 'process' at /tmp/python/Python-3.6.5/Lib/test/dtracedata/call_stack.stp:13:7
+        source: probe process.mark("function__entry")
+                      ^
+
+semantic error: no match
+
+Pass 2: analysis failed.  [man error::pass2]
+Number of similar error messages suppressed: 3.
+Rerun with -v to see them.
+
+
+======================================================================
+FAIL: test_gc (test.test_dtrace.SystemTapOptimizedTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in normalize_trace_output
+    result.sort(key=lambda row: int(row[0]))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in <lambda>
+    result.sort(key=lambda row: int(row[0]))
+ValueError: invalid literal for int() with base 10: "semantic error: while resolving probe point: identifier 'process' at /tmp/python/Python-3.6.5/Lib/test/dtracedata/gc.stp:3:7"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 146, in test_gc
+    self.run_case("gc")
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 114, in run_case
+    name, optimize_python=self.optimize_python)
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 50, in run_case
+    optimize_python=optimize_python))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 37, in normalize_trace_output
+    "tracer produced unparseable output:\n{}".format(output)
+AssertionError: tracer produced unparseable output:
+semantic error: while resolving probe point: identifier 'process' at /tmp/python/Python-3.6.5/Lib/test/dtracedata/gc.stp:3:7
+        source: probe process.mark("function__entry")
+                      ^
+
+semantic error: no match
+
+Pass 2: analysis failed.  [man error::pass2]
+Number of similar error messages suppressed: 3.
+Rerun with -v to see them.
+
+
+======================================================================
+FAIL: test_line (test.test_dtrace.SystemTapOptimizedTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in normalize_trace_output
+    result.sort(key=lambda row: int(row[0]))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 32, in <lambda>
+    result.sort(key=lambda row: int(row[0]))
+ValueError: invalid literal for int() with base 10: "Input file '/tmp/python/Python-3.6.5/build/test_python_124133/dtracedata/line.stp' is missing."
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 149, in test_line
+    self.run_case("line")
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 114, in run_case
+    name, optimize_python=self.optimize_python)
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 50, in run_case
+    optimize_python=optimize_python))
+  File "/tmp/python/Python-3.6.5/Lib/test/test_dtrace.py", line 37, in normalize_trace_output
+    "tracer produced unparseable output:\n{}".format(output)
+AssertionError: tracer produced unparseable output:
+Input file '/tmp/python/Python-3.6.5/build/test_python_124133/dtracedata/line.stp' is missing.
+Pass 1: parse failed.  [man error::pass1]
+
+
+----------------------------------------------------------------------
+Ran 8 tests in 4.836s
+
+FAILED (failures=6, skipped=2)
+test test_dtrace failed
+test_dtrace failed
+
+1 test failed:
+    test_dtrace
+
+Total duration: 5 sec
+Tests result: FAILURE
+_______________________________________________________________________
+If you received this email in error, please advise the sender (by return email or otherwise) immediately. You have consented to receive the attached electronically at the above-noted email address; please retain a copy of this confirmation for future reference.  
+
+Si vous recevez ce courriel par erreur, veuillez en aviser l'exp?diteur imm?diatement, par retour de courriel ou par un autre moyen. Vous avez accept? de recevoir le(s) document(s) ci-joint(s) par voie ?lectronique ? l'adresse courriel indiqu?e ci-dessus; veuillez conserver une copie de cette confirmation pour les fins de reference future.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190308/4c575738/attachment-0001.html>
+
