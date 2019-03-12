@@ -6254,3 +6254,644 @@ with clang!
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190309/bb566611/attachment.html>
 
+From j.orponen at 4teamwork.ch  Mon Mar 11 08:05:13 2019
+From: j.orponen at 4teamwork.ch (Joni Orponen)
+Date: Mon, 11 Mar 2019 13:05:13 +0100
+Subject: [Python-Dev] Last-minute request: please backport bpo-33329 fix
+ to 3.4 and 3.5
+In-Reply-To: <3d30f424-b3e2-346d-8f15-c77282c9d01a@hastings.org>
+References: <eca9d6f2-14a3-0a17-2730-8d74cbb8fa84@hastings.org>
+ <CA+LW3i3jX06H5XbPSnFxcLmL+fQX9Z9yFPMUjhrceR6cKcceSw@mail.gmail.com>
+ <3d30f424-b3e2-346d-8f15-c77282c9d01a@hastings.org>
+Message-ID: <CA+LW3i0XyNiZJDOh9a7VRcHb499k6+FsRra0iGZUxW2A5GQupA@mail.gmail.com>
+
+On Sun, Mar 10, 2019 at 7:50 AM Larry Hastings <larry at hastings.org> wrote:
+
+> On 3/4/19 2:29 AM, Joni Orponen wrote:
+>
+> On Sat, Mar 2, 2019 at 7:08 AM Larry Hastings <larry at hastings.org> wrote:
+>
+>> This bug in bpo-33329:
+>>
+>> https://bugs.python.org/issue33329
+>>
+>>
+>> This is also potentially affecting PGO builds of 2.7 on Debian Buster
+> with GCC. Somehow building with Clang is fine.
+>
+> Does the configure time choice of compiler make a difference here for 3.4
+> and 3.5?
+>
+> I don't know.  I only build with the default compiler on my machine, gcc.
+> (My machine is Linux, 64-bit.)  It'd be swell if you tried the RCs with
+> clang!
+>
+> */arry*
+>
+I've only risen this as a newer glibc was implicated as a potential source
+of trouble, I have a lab / 'canary in a coal mine' server on a prerelease
+OS version (Debian Buster is currently in feature freeze ~ release
+candidate stage) and I've not noticed anything to have happened with a
+newer glibc in relation to building Python, but I've not had success
+building a PGO build of 2.7.15 with the GCC shipped at that time, but
+building with Clang working fine.
+
+I'd thus be inclined to point at digging up relevant changes in GCC than in
+glibc. Currently 2.7.16 compiles just fine for me on both GCC and Clang.
+2.7.15 still does not compile fine for me on GCC.
+
+FWIW - both Python 3 RCs from above successfully complete a PGO build for
+me (and thus implicitly also pass the regression tests) with Clang. They
+both get stuck with GCC.
+
+$ cat /etc/debian_version
+buster/sid
+
+$ aptitude show base-files
+Package: base-files
+Version: 10.1
+Essential: yes
+State: installed
+
+$ aptitude show libc6
+Package: libc6
+Version: 2.28-8
+State: installed
+
+$ aptitude show clang
+Package: clang
+Version: 1:7.0-47
+State: installed
+
+$ clang --version
+clang version 7.0.1-8 (tags/RELEASE_701/final)
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+
+$ aptitude show gcc
+Package: gcc
+Version: 4:8.3.0-1
+State: installed
+
+$ gcc --version
+gcc (Debian 8.3.0-2) 8.3.0
+
+And for anyone wishing to try such things out for themselves, one can
+simply set the CC environment variable for the autotools provided
+./configure script.
+
+See ./configure --help for any further details and instructions.
+
+-- 
+Joni Orponen
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190311/b1d072ed/attachment.html>
+
+From ncoghlan at gmail.com  Mon Mar 11 08:23:13 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 11 Mar 2019 22:23:13 +1000
+Subject: [Python-Dev] Initial updates to PEP 1 for Steering Council based
+ governance
+Message-ID: <CADiSq7e4TFv2XquDGasDZ72n2NFGs4zjfRnaFEE8qO0mrVhKyw@mail.gmail.com>
+
+Hi folks,
+
+Brett recently posted about the update to PEP 1 that added the PEP Sponsor
+role, but folks may not have noticed that we've also made the amendments
+needed to allow the PEP decision making process to restart:
+https://github.com/python/peps/pull/896/files
+
+This is the smallest change to PEP 1 that we consider potentially viable:
+handling all PEPs through the BDFL-Delegate model, with the Steering
+Council's primary involvement being to appoint the delegates (or accept
+their volunteering), once a PEP has reached the point of being actively
+reviewed.
+
+We'll also act as an ongoing consulting resource for anyone that takes on
+the BD role for a PEP.
+
+We're currently working through the follow-up activity, which is to review
+the list of Draft PEPs, and work out which ones are at a point where
+assigning a BDFL-Delegate makes sense.
+
+Cheers,
+Nick.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190311/d5cd5e33/attachment.html>
+
+From liu.denton at gmail.com  Mon Mar 11 05:56:58 2019
+From: liu.denton at gmail.com (Denton Liu)
+Date: Mon, 11 Mar 2019 02:56:58 -0700
+Subject: [Python-Dev] [bpo-35155] Requesting a review
+In-Reply-To: <20190227064056.GA2611@archbookpro.localdomain>
+References: <20190212101455.GA29427@archbookpro.localdomain>
+ <20190227064056.GA2611@archbookpro.localdomain>
+Message-ID: <20190311095658.GA785@archbookpro.localdomain>
+
+On Tue, Feb 26, 2019 at 10:40:56PM -0800, Denton Liu wrote:
+> On Tue, Feb 12, 2019 at 02:14:55AM -0800, Denton Liu wrote:
+> > Hello all,
+> > 
+> > A couple months back, I reported bpo-35155[1] and I submitted a PR for
+> > consideration[2]. After a couple of reviews, it seems like progress has
+> > stalled. Would it be possible for someone to review this?
+> > 
+> > Thanks,
+> > 
+> > Denton
+> > 
+> > [1]: https://bugs.python.org/issue35155
+> > [2]: https://github.com/python/cpython/pull/10313
+> 
+> Thanks for the comments and help on the PR!
+> 
+> It seems like progress on this change has stalled again. If there aren't
+> anymore comments, I believe that this PR is ready to be merged.
+> 
+> Thanks,
+> 
+> Denton
+
+Hello all,
+
+It seems like the reviews on the PR are still stalled. Would it be
+possible for someone to take a look? If there aren't anymore comments, I
+believe that the PR is ready to be merged.
+
+Thanks,
+
+Denton
+
+From vstinner at redhat.com  Mon Mar 11 17:02:32 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 11 Mar 2019 22:02:32 +0100
+Subject: [Python-Dev] [python-committers] Last-minute request: please
+ backport bpo-33329 fix to 3.4 and 3.5
+In-Reply-To: <CA+LW3i0XyNiZJDOh9a7VRcHb499k6+FsRra0iGZUxW2A5GQupA@mail.gmail.com>
+References: <eca9d6f2-14a3-0a17-2730-8d74cbb8fa84@hastings.org>
+ <CA+LW3i3jX06H5XbPSnFxcLmL+fQX9Z9yFPMUjhrceR6cKcceSw@mail.gmail.com>
+ <3d30f424-b3e2-346d-8f15-c77282c9d01a@hastings.org>
+ <CA+LW3i0XyNiZJDOh9a7VRcHb499k6+FsRra0iGZUxW2A5GQupA@mail.gmail.com>
+Message-ID: <CA+3bQGHn0kQC4MTkuHV1-s84XWri2_DxHNDzKTSrGj2QNXqq3g@mail.gmail.com>
+
+I don't think that a thread about a release is the right place to discuss a
+bug. Please open an issue at bugs.python.org ?
+
+Victor
+
+Le lundi 11 mars 2019, Joni Orponen <j.orponen at 4teamwork.ch> a ?crit :
+> On Sun, Mar 10, 2019 at 7:50 AM Larry Hastings <larry at hastings.org> wrote:
+>>
+>> On 3/4/19 2:29 AM, Joni Orponen wrote:
+>>
+>> On Sat, Mar 2, 2019 at 7:08 AM Larry Hastings <larry at hastings.org> wrote:
+>>>
+>>> This bug in bpo-33329:
+>>>
+>>> https://bugs.python.org/issue33329
+>>>
+>> This is also potentially affecting PGO builds of 2.7 on Debian Buster
+with GCC. Somehow building with Clang is fine.
+>> Does the configure time choice of compiler make a difference here for
+3.4 and 3.5?
+>>
+>> I don't know.  I only build with the default compiler on my machine,
+gcc.  (My machine is Linux, 64-bit.)  It'd be swell if you tried the RCs
+with clang!
+>>
+>> /arry
+>
+> I've only risen this as a newer glibc was implicated as a potential
+source of trouble, I have a lab / 'canary in a coal mine' server on a
+prerelease OS version (Debian Buster is currently in feature freeze ~
+release candidate stage) and I've not noticed anything to have happened
+with a newer glibc in relation to building Python, but I've not had success
+building a PGO build of 2.7.15 with the GCC shipped at that time, but
+building with Clang working fine.
+> I'd thus be inclined to point at digging up relevant changes in GCC than
+in glibc. Currently 2.7.16 compiles just fine for me on both GCC and Clang.
+2.7.15 still does not compile fine for me on GCC.
+> FWIW - both Python 3 RCs from above successfully complete a PGO build for
+me (and thus implicitly also pass the regression tests) with Clang. They
+both get stuck with GCC.
+> $ cat /etc/debian_version
+> buster/sid
+> $ aptitude show base-files
+> Package: base-files
+> Version: 10.1
+> Essential: yes
+> State: installed
+> $ aptitude show libc6
+> Package: libc6
+> Version: 2.28-8
+> State: installed
+> $ aptitude show clang
+> Package: clang
+> Version: 1:7.0-47
+> State: installed
+> $ clang --version
+> clang version 7.0.1-8 (tags/RELEASE_701/final)
+> Target: x86_64-pc-linux-gnu
+> Thread model: posix
+> InstalledDir: /usr/bin
+> $ aptitude show gcc
+> Package: gcc
+> Version: 4:8.3.0-1
+> State: installed
+> $ gcc --version
+> gcc (Debian 8.3.0-2) 8.3.0
+> And for anyone wishing to try such things out for themselves, one can
+simply set the CC environment variable for the autotools provided
+./configure script.
+> See ./configure --help for any further details and instructions.
+> --
+> Joni Orponen
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190311/3b102a40/attachment.html>
+
+From nas-python at arctrix.com  Mon Mar 11 17:56:29 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Mon, 11 Mar 2019 15:56:29 -0600
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <CA+3bQGEOc53H3VwnAj6Dy1o+txoc244AFnZJKTcWvQDJCg4G3w@mail.gmail.com>
+References: <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGGfZ6nRkKS==ArkK8FcZe_8xdrV_bmcaoHOWPpWKVzq5w@mail.gmail.com>
+ <5C75BE81.4060209@canterbury.ac.nz>
+ <CA+3bQGEOc53H3VwnAj6Dy1o+txoc244AFnZJKTcWvQDJCg4G3w@mail.gmail.com>
+Message-ID: <20190311215629.y2j6szbqzzi7jcds@python.ca>
+
+On 2019-02-27, Victor Stinner wrote:
+> The compiler begins with using static single assignment form (SSA) but
+> then uses a register allocator to reduce the number of used registers.
+> Usually, at the end you have less than 5 registers for a whole
+> function.
+
+In case anyone is interested on working on this, I dug up some
+discussion from years ago.  Advice from Tim Peters:
+
+    [Python-Dev] Rattlesnake progress
+    https://mail.python.org/pipermail/python-dev/2002-February/020172.html
+    https://mail.python.org/pipermail/python-dev/2002-February/020182.html
+    https://mail.python.org/pipermail/python-dev/2002-February/020146.html
+
+Doing a prototype register-based compiler in Python seems like a
+good idea.  Using the 'compiler' package would give you a good
+start.  I think this is the most recent version of that package:
+
+    https://github.com/pfalcon/python-compiler
+
+Based on a little poking around, I think it has not been updated for
+the 16-bit word code.  Shouldn't be too hard to make it work though.
+
+I was thinking about the code format on the weekend.  Using
+three-register opcodes seems a good idea.   We could could retain
+the 16-bit word code format.  For opcodes that use three registers,
+use a second word for the last two registers.  I.e.
+
+    <8 bit opcode><8 bit register #>
+    <8 bit register #><8 bit register #>
+
+Limit the number of registers to 256.  If you run out, just push and
+pop from stack.  You want to keep the instruction decode path in the
+evaluation loop simple and not confuse the CPU branch predictor.
+
+Regards,
+
+  Neil
+
+From mertz at gnosis.cx  Mon Mar 11 18:03:26 2019
+From: mertz at gnosis.cx (David Mertz)
+Date: Mon, 11 Mar 2019 18:03:26 -0400
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+In-Reply-To: <20190311215629.y2j6szbqzzi7jcds@python.ca>
+References: <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGGfZ6nRkKS==ArkK8FcZe_8xdrV_bmcaoHOWPpWKVzq5w@mail.gmail.com>
+ <5C75BE81.4060209@canterbury.ac.nz>
+ <CA+3bQGEOc53H3VwnAj6Dy1o+txoc244AFnZJKTcWvQDJCg4G3w@mail.gmail.com>
+ <20190311215629.y2j6szbqzzi7jcds@python.ca>
+Message-ID: <CAEbHw4ZsBtA5WukU1-VmcdM+-W4BbCrUsz6Op0ON39LoXXWDXg@mail.gmail.com>
+
+Parrot got rather further along than rattlesnake as a register based VM. I
+don't think it every really beat CPython in speed though.
+
+http://parrot.org/
+
+On Mon, Mar 11, 2019, 5:57 PM Neil Schemenauer <nas-python at arctrix.com>
+wrote:
+
+> On 2019-02-27, Victor Stinner wrote:
+> > The compiler begins with using static single assignment form (SSA) but
+> > then uses a register allocator to reduce the number of used registers.
+> > Usually, at the end you have less than 5 registers for a whole
+> > function.
+>
+> In case anyone is interested on working on this, I dug up some
+> discussion from years ago.  Advice from Tim Peters:
+>
+>     [Python-Dev] Rattlesnake progress
+>     https://mail.python.org/pipermail/python-dev/2002-February/020172.html
+>     https://mail.python.org/pipermail/python-dev/2002-February/020182.html
+>     https://mail.python.org/pipermail/python-dev/2002-February/020146.html
+>
+> Doing a prototype register-based compiler in Python seems like a
+> good idea.  Using the 'compiler' package would give you a good
+> start.  I think this is the most recent version of that package:
+>
+>     https://github.com/pfalcon/python-compiler
+>
+> Based on a little poking around, I think it has not been updated for
+> the 16-bit word code.  Shouldn't be too hard to make it work though.
+>
+> I was thinking about the code format on the weekend.  Using
+> three-register opcodes seems a good idea.   We could could retain
+> the 16-bit word code format.  For opcodes that use three registers,
+> use a second word for the last two registers.  I.e.
+>
+>     <8 bit opcode><8 bit register #>
+>     <8 bit register #><8 bit register #>
+>
+> Limit the number of registers to 256.  If you run out, just push and
+> pop from stack.  You want to keep the instruction decode path in the
+> evaluation loop simple and not confuse the CPU branch predictor.
+>
+> Regards,
+>
+>   Neil
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mertz%40gnosis.cx
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190311/55e4f538/attachment.html>
+
+From g.rodola at gmail.com  Mon Mar 11 19:35:01 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Tue, 12 Mar 2019 00:35:01 +0100
+Subject: [Python-Dev] (Licensing question) backport of shutil.copyfile()
+ functionality
+Message-ID: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+
+Hello,
+some time ago I contributed a couple of patches to speedup shutil.copy*()
+functions:
+https://bugs.python.org/issue33671
+https://bugs.python.org/issue33695
+I would like to backport both functionalities so that they can be used on
+Python 2.7 and <3.8 and put it on PYPI. In order to do so I will basically
+have to copy some parts of shutil module (copytree() function + the
+unit-tests I added in BPO-33671 and a couple of other things). Are there
+constraints regarding this in terms of license? Am I supposed to use GPL?
+(I was thinking about using MIT)
+
+Note: in this package called "zerocopy" I will probably want to expose
+other functionalities such as tee(), splice() and CopyFileEx and
+TransmitFile on Windows, so it's probably gonna be half a backport and half
+a brand new project.
+
+Thanks.
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190312/a40db889/attachment.html>
+
+From v+python at g.nevcal.com  Mon Mar 11 22:00:49 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Mon, 11 Mar 2019 19:00:49 -0700
+Subject: [Python-Dev] (Licensing question) backport of shutil.copyfile()
+ functionality
+In-Reply-To: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+References: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+Message-ID: <0c8dd528-1224-38d7-db20-c5d1bb4ee343@g.nevcal.com>
+
+On 3/11/2019 4:35 PM, Giampaolo Rodola' wrote:
+> Hello,
+> some time ago I contributed a couple of patches to speedup 
+> shutil.copy*() functions:
+> https://bugs.python.org/issue33671
+> https://bugs.python.org/issue33695
+> I would like to backport both functionalities so that they can be used 
+> on Python 2.7 and <3.8 and put it on PYPI. In order to do so I will 
+> basically have to copy some parts of shutil module (copytree() 
+> function + the unit-tests I added in BPO-33671 and a couple of other 
+> things). Are there constraints regarding this in terms of license? Am 
+> I supposed to use GPL? (I was thinking about using MIT)
+>
+> Note: in this package called "zerocopy" I will probably want to expose 
+> other functionalities such as tee(), splice() and CopyFileEx and 
+> TransmitFile on Windows, so it's probably gonna be half a backport and 
+> half a brand new project.
+>
+> Thanks.
+
+Thanks for the contributions. I don't know about the licensing.
+
+I wonder if you should make two packages, though... one just exactly a 
+backport of the shutil speedups, and the second containing the new 
+functionalities.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190311/dd7b7ffa/attachment.html>
+
+From greg at krypto.org  Mon Mar 11 22:45:03 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Mon, 11 Mar 2019 19:45:03 -0700
+Subject: [Python-Dev] (Licensing question) backport of shutil.copyfile()
+ functionality
+In-Reply-To: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+References: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+Message-ID: <CAGE7PNKzSDAyKBN1oNJkX3gOPAfX5jD89b5oKiRPEhUon97oLQ@mail.gmail.com>
+
+Things in the standard library are already covered by the PSF license so
+that is what should be kept on backports from the stdlib to earlier
+versions.
+
+I do recommend keeping your backported stuff and new functionality separate
+(separate packages ideally, but that'll depend on how intertwined things
+are) as Glenn also suggested so that your additional functionality can work
+on modern Python interpreters without requiring your backported package.
+
+Keep things labelled backports strictly API compatible with a fixed version
+of the stdlib.  It lets people using them migrate _to_ the stdlib easier in
+the future.
+
+my 2 cents as the subprocess32 maintainer,
+-gps
+
+On Mon, Mar 11, 2019 at 4:35 PM Giampaolo Rodola' <g.rodola at gmail.com>
+wrote:
+
+> Hello,
+> some time ago I contributed a couple of patches to speedup shutil.copy*()
+> functions:
+> https://bugs.python.org/issue33671
+> https://bugs.python.org/issue33695
+> I would like to backport both functionalities so that they can be used on
+> Python 2.7 and <3.8 and put it on PYPI. In order to do so I will basically
+> have to copy some parts of shutil module (copytree() function + the
+> unit-tests I added in BPO-33671 and a couple of other things). Are there
+> constraints regarding this in terms of license? Am I supposed to use GPL?
+> (I was thinking about using MIT)
+>
+> Note: in this package called "zerocopy" I will probably want to expose
+> other functionalities such as tee(), splice() and CopyFileEx and
+> TransmitFile on Windows, so it's probably gonna be half a backport and half
+> a brand new project.
+>
+> Thanks.
+>
+> --
+> Giampaolo - http://grodola.blogspot.com
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190311/b05e4370/attachment.html>
+
+From songofacandy at gmail.com  Mon Mar 11 22:54:31 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Tue, 12 Mar 2019 11:54:31 +0900
+Subject: [Python-Dev] (Licensing question) backport of shutil.copyfile()
+ functionality
+In-Reply-To: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+References: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+Message-ID: <CAEfz+TyGaHv3DaAbxMfz5dyT2HsrmSp4Cx2S5Cv3h4cyMiOhKA@mail.gmail.com>
+
+On Tue, Mar 12, 2019 at 8:38 AM Giampaolo Rodola' <g.rodola at gmail.com> wrote:
+>
+> Hello,
+> some time ago I contributed a couple of patches to speedup shutil.copy*() functions:
+> https://bugs.python.org/issue33671
+> https://bugs.python.org/issue33695
+> I would like to backport both functionalities so that they can be used on Python 2.7 and <3.8 and put it on PYPI. In order to do so I will basically have to copy some parts of shutil module (copytree() function + the unit-tests I added in BPO-33671 and a couple of other things). Are there constraints regarding this in terms of license? Am I supposed to use GPL? (I was thinking about using MIT)
+>
+
+First of all, I'm sorry if I'm wrong.  I'm not lawyer.
+
+You can use both of GPL and MIT.  Users can use your package under it.
+
+On the other hand, when you publish your package, *you* should follow
+PSF license.
+Read this.  https://docs.python.org/3/license.html
+
+"""
+3. In the event Licensee prepares a derivative work that is based on or
+   incorporates Python 3.7.2 or any part thereof, and wants to make the
+   derivative work available to others as provided herein, then Licensee hereby
+   agrees to include in any such work a brief summary of the changes
+made to Python
+   3.7.2.
+"""
+
+As you can see, PSF license doesn't force you to use PSF license. (not
+"copyleft")
+All you need is "brief summary of the changes made to Python".
+
+I think it can be:
+
+# Copyright 2001- Python Software Foundation.
+# Copyright 2019- Your Name
+#
+# Following code is from Python standard library (Lib/shutil.py)
+#
+# Changelog:
+#   * ...
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From tjreedy at udel.edu  Tue Mar 12 01:27:14 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Tue, 12 Mar 2019 01:27:14 -0400
+Subject: [Python-Dev] (Licensing question) backport of shutil.copyfile()
+ functionality
+In-Reply-To: <CAEfz+TyGaHv3DaAbxMfz5dyT2HsrmSp4Cx2S5Cv3h4cyMiOhKA@mail.gmail.com>
+References: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+ <CAEfz+TyGaHv3DaAbxMfz5dyT2HsrmSp4Cx2S5Cv3h4cyMiOhKA@mail.gmail.com>
+Message-ID: <q67fvk$1154$1@blaine.gmane.org>
+
+On 3/11/2019 10:54 PM, Inada Naoki wrote:
+
+>> Hello,
+>> some time ago I contributed a couple of patches to speedup shutil.copy*() functions:
+>> https://bugs.python.org/issue33671
+>> https://bugs.python.org/issue33695
+
+You retain copyright on the code you contributed.
+
+>> I would like to backport both functionalities so that they can be used on Python 2.7 and <3.8 and put it on PYPI. In order to do so I will basically have to copy some parts of shutil module (copytree() function + the unit-tests I added in BPO-33671 and a couple of other things). Are there constraints regarding this in terms of license? Am I supposed to use GPL? (I was thinking about using MIT)
+>>
+> 
+> First of all, I'm sorry if I'm wrong.  I'm not lawyer.
+> 
+> You can use both of GPL and MIT.  Users can use your package under it.
+> 
+> On the other hand, when you publish your package, *you* should follow
+> PSF license.
+> Read this.  https://docs.python.org/3/license.html
+> 
+> """
+> 3. In the event Licensee prepares a derivative work that is based on or
+>     incorporates Python 3.7.2 or any part thereof, and wants to make the
+>     derivative work available to others as provided herein, then Licensee hereby
+>     agrees to include in any such work a brief summary of the changes
+> made to Python
+>     3.7.2.
+> """
+> 
+> As you can see, PSF license doesn't force you to use PSF license. (not
+> "copyleft")
+
+In fact, the PSF lawyer says one should not use the 'PSF license' as it 
+is specilized for the PSF and Python.
+
+> All you need is "brief summary of the changes made to Python".
+> 
+> I think it can be:
+> 
+> # Copyright 2001- Python Software Foundation.
+> # Copyright 2019- Your Name
+> #
+> # Following code is from Python standard library (Lib/shutil.py)
+> #
+> # Changelog:
+> #   * ...
+
+
+-- 
+Terry Jan Reedy
+
+
