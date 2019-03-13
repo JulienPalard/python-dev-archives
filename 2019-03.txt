@@ -6895,3 +6895,295 @@ is specilized for the PSF and Python.
 Terry Jan Reedy
 
 
+From mariatta at python.org  Tue Mar 12 12:16:15 2019
+From: mariatta at python.org (Mariatta)
+Date: Tue, 12 Mar 2019 09:16:15 -0700
+Subject: [Python-Dev] Reminder: Python Language Summit 2019 Signup
+Message-ID: <CAGbohnbq9ss+bsegfOYL3qMgYeevSF2=6z2TiX06jd5zdS9zeQ@mail.gmail.com>
+
+Just another reminder that sign up is still open for Python Language Summit
+(until March 21st, 2019)
+
+TL;DR:
+
+When: Wednesday, May 1, 2019, 10am?4pm
+Where: Huntington Convention Center, Cleveland, Ohio
+Apply: Attendance sign up form <https://goo.gl/forms/pexfOGDjpV0BWMer2>
+(before March 21, 2019)
+Speak: Topic submission form <https://goo.gl/forms/8l7ITEKOjlWkBjcl1>
+(before March 21, 2019)
+You will be notified by April 15, 2019
+Co-chairs: Mariatta and ?ukasz
+Blogger: A. Jesse Jiryu Davis
+
+All language summit attendees are also invited for dinner with PyCon staff
+and volunteers right after the summit. Details will be forwarded once we
+confirm your attendance. Since I don't want to miss the dinner, we will be
+more strict with timing and not go overtime.
+
+So far, we have a number of interesting topics proposed by core developers
+as well as by members of the wider Python community. Some of the proposed
+topic are: PEP 581, async REPL, Python 3.9 release cadence, core Python
+mentorship, manylinux, etc.
+
+If you have any questions, the Users section of our Discourse
+instance (https://discuss.python.org/c/users) is the best place to ask.
+For private communication, write to mariatta at python.org and/or
+lukasz at python.org.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190312/2e333e82/attachment.html>
+
+From g.rodola at gmail.com  Tue Mar 12 17:55:09 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Tue, 12 Mar 2019 22:55:09 +0100
+Subject: [Python-Dev] (Licensing question) backport of shutil.copyfile()
+ functionality
+In-Reply-To: <0c8dd528-1224-38d7-db20-c5d1bb4ee343@g.nevcal.com>
+References: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+ <0c8dd528-1224-38d7-db20-c5d1bb4ee343@g.nevcal.com>
+Message-ID: <CAFYqXL_YXT=-hbQ3XQKuAVq8aZeyeRXRxLp2PWvew6EymtAD4A@mail.gmail.com>
+
+On Tue, Mar 12, 2019 at 3:01 AM Glenn Linderman <v+python at g.nevcal.com>
+wrote:
+
+> On 3/11/2019 4:35 PM, Giampaolo Rodola' wrote:
+>
+> Hello,
+> some time ago I contributed a couple of patches to speedup shutil.copy*()
+> functions:
+> https://bugs.python.org/issue33671
+> https://bugs.python.org/issue33695
+> I would like to backport both functionalities so that they can be used on
+> Python 2.7 and <3.8 and put it on PYPI. In order to do so I will basically
+> have to copy some parts of shutil module (copytree() function + the
+> unit-tests I added in BPO-33671 and a couple of other things). Are there
+> constraints regarding this in terms of license? Am I supposed to use GPL?
+> (I was thinking about using MIT)
+>
+> Note: in this package called "zerocopy" I will probably want to expose
+> other functionalities such as tee(), splice() and CopyFileEx and
+> TransmitFile on Windows, so it's probably gonna be half a backport and half
+> a brand new project.
+>
+> Thanks.
+>
+>
+> Thanks for the contributions. I don't know about the licensing.
+>
+> I wonder if you should make two packages, though... one just exactly a
+> backport of the shutil speedups, and the second containing the new
+> functionalities.
+>
+
+That was my initial thought as well (a "backports.shutil_copy" module
+targeting copy* functions only), but (especially after playing with this
+today) I think I have something a bit more ambitious in mind. I'm currently
+experimenting with different things which could be baked in a third-party
+lib and possibly contributed back to Python later on:
+
+1) on OSX we could use f/copyfile() syscall to copy file attrs/metadata;
+that may be useful to speedup shutil.copystat() and shutil.copymode()
+2) copytree() on OSX could take advantage of f/copyfile() +
+COPYFILE_RECURSIVE (which is probably too platform-specific for inclusion)
+3) on Linux we could use copy_file_range() as a replacement for
+os.sendfile() in shutil.copyfile() (it's supposed to be faster)
+4) on Linux ioctl() + FICLONE could be used to implement CoW (copy on
+write) instantaneous copies, and could be added as shutil.cow_copyfile()
+(haven't look into Windows yet)
+5) I was thinking about backporting socket.socket.sendfile() as well, which
+uses os.sendfile() on POSIX but not TransmitFile on Windows (asyncio does
+though)
+6)  another idea (but I'm not sure if it's possible, as I still have to dig
+into that) is a new socket recvfile() function boosted up by tee() /
+splice() on Linux, which maybe could be contributed back as
+socket.socket.recvfile()
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190312/abd71102/attachment.html>
+
+From nad at python.org  Tue Mar 12 19:28:52 2019
+From: nad at python.org (Ned Deily)
+Date: Tue, 12 Mar 2019 19:28:52 -0400
+Subject: [Python-Dev] [RELEASE] Python 3.7.3rc1 is now available for testing.
+Message-ID: <DC43F0EE-3377-45B4-B84B-056807BDA332@python.org>
+
+Python 3.7.3rc1 is now available for testing. 3.7.3rc1 is the release
+preview of the next maintenance release of Python 3.7, the latest
+feature release of Python. Assuming no critical problems are found
+prior to 2019-03-25, no code changes are planned between now and the
+final release. This release candidate is intended to give you the
+opportunity to test the new security and bug fixes in 3.7.3. We
+strongly encourage you to test your projects and report issues found
+to bugs.python.org as soon as possible. Please keep in mind that this
+is a preview release and, thus, its use is not recommended for
+production environments.
+
+You can find the release files, a link to the changelog, and more
+information here:
+    https://www.python.org/downloads/release/python-373rc1/
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From greg at krypto.org  Tue Mar 12 20:32:35 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Tue, 12 Mar 2019 17:32:35 -0700
+Subject: [Python-Dev] (Licensing question) backport of shutil.copyfile()
+ functionality
+In-Reply-To: <CAFYqXL_YXT=-hbQ3XQKuAVq8aZeyeRXRxLp2PWvew6EymtAD4A@mail.gmail.com>
+References: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+ <0c8dd528-1224-38d7-db20-c5d1bb4ee343@g.nevcal.com>
+ <CAFYqXL_YXT=-hbQ3XQKuAVq8aZeyeRXRxLp2PWvew6EymtAD4A@mail.gmail.com>
+Message-ID: <CAGE7PN+37ccbSRfX9ODUQsQQMvJjqTiJUWh7pnyzNuSTH-ctTQ@mail.gmail.com>
+
+On Tue, Mar 12, 2019 at 2:55 PM Giampaolo Rodola' <g.rodola at gmail.com>
+wrote:
+
+>
+>
+> On Tue, Mar 12, 2019 at 3:01 AM Glenn Linderman <v+python at g.nevcal.com>
+> wrote:
+>
+>> On 3/11/2019 4:35 PM, Giampaolo Rodola' wrote:
+>>
+>> Hello,
+>> some time ago I contributed a couple of patches to speedup shutil.copy*()
+>> functions:
+>> https://bugs.python.org/issue33671
+>> https://bugs.python.org/issue33695
+>> I would like to backport both functionalities so that they can be used on
+>> Python 2.7 and <3.8 and put it on PYPI. In order to do so I will basically
+>> have to copy some parts of shutil module (copytree() function + the
+>> unit-tests I added in BPO-33671 and a couple of other things). Are there
+>> constraints regarding this in terms of license? Am I supposed to use GPL?
+>> (I was thinking about using MIT)
+>>
+>> Note: in this package called "zerocopy" I will probably want to expose
+>> other functionalities such as tee(), splice() and CopyFileEx and
+>> TransmitFile on Windows, so it's probably gonna be half a backport and half
+>> a brand new project.
+>>
+>> Thanks.
+>>
+>>
+>> Thanks for the contributions. I don't know about the licensing.
+>>
+>> I wonder if you should make two packages, though... one just exactly a
+>> backport of the shutil speedups, and the second containing the new
+>> functionalities.
+>>
+>
+> That was my initial thought as well (a "backports.shutil_copy" module
+> targeting copy* functions only), but (especially after playing with this
+> today) I think I have something a bit more ambitious in mind. I'm currently
+> experimenting with different things which could be baked in a third-party
+> lib and possibly contributed back to Python later on:
+>
+
+If you might want some of this contributed back to Python later on, you
+should not use the GPL.
+
+1) on OSX we could use f/copyfile() syscall to copy file attrs/metadata;
+> that may be useful to speedup shutil.copystat() and shutil.copymode()
+> 2) copytree() on OSX could take advantage of f/copyfile() +
+> COPYFILE_RECURSIVE (which is probably too platform-specific for inclusion)
+> 3) on Linux we could use copy_file_range() as a replacement for
+> os.sendfile() in shutil.copyfile() (it's supposed to be faster)
+> 4) on Linux ioctl() + FICLONE could be used to implement CoW (copy on
+> write) instantaneous copies, and could be added as shutil.cow_copyfile()
+> (haven't look into Windows yet)
+> 5) I was thinking about backporting socket.socket.sendfile() as well,
+> which uses os.sendfile() on POSIX but not TransmitFile on Windows (asyncio
+> does though)
+> 6)  another idea (but I'm not sure if it's possible, as I still have to
+> dig into that) is a new socket recvfile() function boosted up by tee() /
+> splice() on Linux, which maybe could be contributed back as
+> socket.socket.recvfile()
+>
+> --
+> Giampaolo - http://grodola.blogspot.com
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190312/1e2721bd/attachment.html>
+
+From steve at pearwood.info  Tue Mar 12 20:53:19 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 13 Mar 2019 11:53:19 +1100
+Subject: [Python-Dev] (Licensing question) backport of shutil.copyfile()
+ functionality
+In-Reply-To: <CAGE7PN+37ccbSRfX9ODUQsQQMvJjqTiJUWh7pnyzNuSTH-ctTQ@mail.gmail.com>
+References: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+ <0c8dd528-1224-38d7-db20-c5d1bb4ee343@g.nevcal.com>
+ <CAFYqXL_YXT=-hbQ3XQKuAVq8aZeyeRXRxLp2PWvew6EymtAD4A@mail.gmail.com>
+ <CAGE7PN+37ccbSRfX9ODUQsQQMvJjqTiJUWh7pnyzNuSTH-ctTQ@mail.gmail.com>
+Message-ID: <20190313005319.GS12502@ando.pearwood.info>
+
+On Tue, Mar 12, 2019 at 05:32:35PM -0700, Gregory P. Smith wrote:
+
+> If you might want some of this contributed back to Python later on, you
+> should not use the GPL.
+
+Giampaolo can always change the licence of his work later. You can't 
+take away the GPL from work you've already released, but you can 
+relicense the same work under any other terms.
+
+The problem may be if others have contributed to Giampaolo's library 
+under the GPL, and they refuse to re-licence their contributions. I am 
+not a lawyer, but it may be that he can work around that by requiring 
+that contributors assign their copyright in the contribution to him. But 
+that may discourage contributors.
+
+But since Giampaolo seems to be thinking of using the MIT licence, the 
+point may be moot :-)
+
+
+-- 
+Steven
+
+From g.rodola at gmail.com  Tue Mar 12 21:32:11 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Wed, 13 Mar 2019 02:32:11 +0100
+Subject: [Python-Dev] (Licensing question) backport of shutil.copyfile()
+ functionality
+In-Reply-To: <q67fvk$1154$1@blaine.gmane.org>
+References: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+ <CAEfz+TyGaHv3DaAbxMfz5dyT2HsrmSp4Cx2S5Cv3h4cyMiOhKA@mail.gmail.com>
+ <q67fvk$1154$1@blaine.gmane.org>
+Message-ID: <CAFYqXL_stYoV20kZ9x6PgQXd6sdxnDxqvr0v0a7Mc=yws915rg@mail.gmail.com>
+
+On Tue, Mar 12, 2019 at 6:29 AM Terry Reedy <tjreedy at udel.edu> wrote:
+
+> On 3/11/2019 10:54 PM, Inada Naoki wrote:
+>
+> >> Hello,
+> >> some time ago I contributed a couple of patches to speedup
+> shutil.copy*() functions:
+> >> https://bugs.python.org/issue33671
+> >> https://bugs.python.org/issue33695
+>
+> You retain copyright on the code you contributed.
+> https://mail.python.org/mailman/listinfo/python-dev
+>
+
+I didn't write shutil.copytree()'s code though, and I'd need to copy it.
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190313/14b18f75/attachment.html>
+
