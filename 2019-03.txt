@@ -7187,3 +7187,137 @@ Giampaolo - http://grodola.blogspot.com
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190313/14b18f75/attachment.html>
 
+From remi.lapeyre at henki.fr  Wed Mar 13 06:21:31 2019
+From: remi.lapeyre at henki.fr (=?UTF-8?Q?R=C3=A9mi_Lapeyre?=)
+Date: Wed, 13 Mar 2019 03:21:31 -0700
+Subject: [Python-Dev] int() and math.trunc don't accept objects that
+ only define __index__
+In-Reply-To: <CADiSq7ezAk=vbKfi37wRjTAOE+iUB2Ay7eLFSusruaO_stLQXg@mail.gmail.com>
+References: <CA+jiYFCY-Fboaz=4+hvN_5LG4o=eHyOxUafGaJV6Yc51mOgtVw@mail.gmail.com>
+ <q4obm4$1d65$1@blaine.gmane.org>
+ <CADiSq7ezAk=vbKfi37wRjTAOE+iUB2Ay7eLFSusruaO_stLQXg@mail.gmail.com>
+Message-ID: <CA+jiYFAhZH562xwqP_j3JZR9AcA1ceEZEoYSfgNvbsPkw+1FPw@mail.gmail.com>
+
+Le 22 f?vrier 2019 ? 18:14:01, Nick Coghlan
+(ncoghlan at gmail.com(mailto:ncoghlan at gmail.com)) a ?crit:
+
+> On Fri, 22 Feb 2019 at 18:29, Serhiy Storchaka wrote:
+> > Should we add default implementations of __float__ and __complex__ when
+> > either __index__ or __int__ is defined? Currently:
+> >
+> > >>> class A:
+> > ... def __int__(self): return 42
+> > ...
+> > >>> int(A())
+> > 42
+> > >>> float(A())
+> > Traceback (most recent call last):
+> > File "", line 1, in
+> > TypeError: float() argument must be a string or a number, not 'A'
+> > >>> complex(A())
+> > Traceback (most recent call last):
+> > File "", line 1, in
+> > TypeError: complex() first argument must be a string or a number, not 'A'
+> >
+> > Or just document that in order to have a coherent integer type class,
+> > when __index__() or __int__() are defined __float__() and __complex__()
+> > should also be defined, and all should return equal values.
+>
+> I think when __index__ is defined, it would be reasonable to have that
+> imply the same floating point conversion rules as are applied for
+> builtin ints, since the conversion is supposed to be lossless in that
+> case (and if it isn't lossless, that's what `__int__` is for).
+> However, I don't think the decision is quite as clearcut as it is for
+> `__index__` implying `__int__`.
+
+When __index__ is defined it means that there is a lossless conversion
+to int possible. In this case, this means a lossless conversion to
+float and complex is also possible (with the exception of overflows
+but anyone doing float(var) should expect them). In this case, I think
+defining __index__ could set a default for __int__, __float__ and
+__complex__.
+
+> Lossy conversions to int shouldn't imply anything about conversions to
+> real numbers or floating point values.
+
+I think the right behavior is the other way around, it should go the
+other way around from a superset to a subset, when __int__ is defined
+__float__ should not have a default set because there might be a
+better default than float(int(self)), but when __float__ is defined,
+it should be safe to make __int__ default to int(float(self)) if not
+defined.
+
+This would simplify this behavior:
+
+Python 3.7.2 (default, Jan 13 2019, 12:50:01)
+[Clang 10.0.0 (clang-1000.11.45.5)] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> class Test:
+... ? ? def __float__(self):
+... ? ? ? ? ? ? return 3.14
+...
+>>> float(Test())
+3.14
+>>> int(float(Test()))
+3
+>>> int(Test())
+Traceback (most recent call last):
+? File "<stdin>", line 1, in <module>
+TypeError: int() argument must be a string, a bytes-like object or a
+number, not ?Test'
+
+
+Defining __complex__ shouldn?t do anything since they have one more
+dimension there is no clear way to convert to ints and floats which is
+already the behavior of the the builtin complex type:
+
+>>> int(complex())
+Traceback (most recent call last):
+? File "<stdin>", line 1, in <module>
+TypeError: can't convert complex to int
+>>> float(complex())
+Traceback (most recent call last):
+? File "<stdin>", line 1, in <module>
+TypeError: can't convert complex to float
+
+
+Here?s an implementation of what I?m thinking of:
+
+
+>>> def finish_class(cls):
+... ? ? def set(cls, name, target):
+... ? ? ? ? if not hasattr(cls, name):
+... ? ? ? ? ? ? setattr(cls, name, target)
+...
+... ? ? if hasattr(cls, '__index__'):
+... ? ? ? ? set(cls, '__int__', cls.__index__)
+... ? ? ? ? set(cls, '__float__', lambda self: float(self.__index__()))
+... ? ? ? ? set(cls, '__complex__', lambda self: complex(self.__index__(), 0))
+... ? ? if hasattr(cls, '__float__'):
+... ? ? ? ? set(cls, '__int__', lambda self: int(float(self)))
+...
+>>>
+>>> class Test:
+... ? ? def __index__(self):
+... ? ? ? ? return 4
+...
+>>> finish_class(Test)
+>>>
+>>> int(Test())
+4
+>>> float(Test())
+4.0
+>>> complex(Test())
+(4+0j)
+>>>
+>>> class Test2:
+... ? ? def __float__(self):
+... ? ? ? ? return 3.14
+...
+>>> finish_class(Test2)
+>>>
+>>> int(Test2())
+3
+>>> float(Test2())
+3.14
+
