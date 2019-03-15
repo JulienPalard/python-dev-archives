@@ -7321,3 +7321,165 @@ Here?s an implementation of what I?m thinking of:
 >>> float(Test2())
 3.14
 
+From vstinner at redhat.com  Thu Mar 14 13:01:32 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 14 Mar 2019 18:01:32 +0100
+Subject: [Python-Dev] Initial updates to PEP 1 for Steering Council
+ based governance
+In-Reply-To: <CADiSq7e4TFv2XquDGasDZ72n2NFGs4zjfRnaFEE8qO0mrVhKyw@mail.gmail.com>
+References: <CADiSq7e4TFv2XquDGasDZ72n2NFGs4zjfRnaFEE8qO0mrVhKyw@mail.gmail.com>
+Message-ID: <CA+3bQGFH0N=4DhpX4vL5jU5K3gP3CfkehGwjLAPhxicKZWwJDA@mail.gmail.com>
+
+Hi,
+
+Le lun. 11 mars 2019 ? 13:26, Nick Coghlan <ncoghlan at gmail.com> a ?crit :
+> This is the smallest change to PEP 1 that we consider potentially viable: handling all PEPs through the BDFL-Delegate model, with the Steering Council's primary involvement being to appoint the delegates (or accept their volunteering), once a PEP has reached the point of being actively reviewed.
+
+Does it mean that very controversial PEPs like PEP 572 would have a
+BDFL-delegate as well? The delegate will be the only one taking the
+final decision?
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From guido at python.org  Thu Mar 14 13:30:54 2019
+From: guido at python.org (Guido van Rossum)
+Date: Thu, 14 Mar 2019 10:30:54 -0700
+Subject: [Python-Dev] Typing Summit at PyCon?
+Message-ID: <CAP7+vJJCarymRq0qhwC9rmTm4F1ddiBDu5C6yYT8JwDyf3UvbQ@mail.gmail.com>
+
+If you're going to PyCon and interested in static typing for Python (e.g.
+mypy, pytype, Pyre, PyCharm), I have something for you. I am hoping to
+organize a Typing Summit, on Thursday afternoon, May 2nd. If you're
+interested, please reply to me so I can gauge interest.
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190314/1e77b5b4/attachment.html>
+
+From brett at python.org  Thu Mar 14 13:33:01 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 14 Mar 2019 10:33:01 -0700
+Subject: [Python-Dev] Initial updates to PEP 1 for Steering Council
+ based governance
+In-Reply-To: <CA+3bQGFH0N=4DhpX4vL5jU5K3gP3CfkehGwjLAPhxicKZWwJDA@mail.gmail.com>
+References: <CADiSq7e4TFv2XquDGasDZ72n2NFGs4zjfRnaFEE8qO0mrVhKyw@mail.gmail.com>
+ <CA+3bQGFH0N=4DhpX4vL5jU5K3gP3CfkehGwjLAPhxicKZWwJDA@mail.gmail.com>
+Message-ID: <CAP1=2W6+A7fpU6dZuG8qys1eyokttga=tvFcdAiDRXHtZzCBxw@mail.gmail.com>
+
+On Thu, Mar 14, 2019 at 10:02 AM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hi,
+>
+> Le lun. 11 mars 2019 ? 13:26, Nick Coghlan <ncoghlan at gmail.com> a ?crit :
+> > This is the smallest change to PEP 1 that we consider potentially
+> viable: handling all PEPs through the BDFL-Delegate model, with the
+> Steering Council's primary involvement being to appoint the delegates (or
+> accept their volunteering), once a PEP has reached the point of being
+> actively reviewed.
+>
+> Does it mean that very controversial PEPs like PEP 572 would have a
+> BDFL-delegate as well? The delegate will be the only one taking the
+> final decision?
+>
+
+Probably not. In cases where no clear BDFL Delegate can be identified the
+SC will probably handle the decision.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190314/2ab3e6be/attachment.html>
+
+From jigar.1994 at gmail.com  Thu Mar 14 14:39:04 2019
+From: jigar.1994 at gmail.com (Jigar Bhalodia)
+Date: Thu, 14 Mar 2019 14:39:04 -0400
+Subject: [Python-Dev] How to create a child process using multiprocessing in
+ Python2.7.10 without the child sharing resources with parent?
+Message-ID: <CAAiHz+nRy=y_hbH83o040AbF3JxU7oVqAQ_7eu+TYv6wfV1V-Q@mail.gmail.com>
+
+Hello,
+
+We are trying to move our python 2.7.10 codebase from Windows to Linux. We
+recently discovered that multiprocessing library in Python 2.7 behaves
+differently on Windows vs Linux. We have found many articles like this one
+<https://rhodesmill.org/brandon/2010/python-multiprocessing-linux-windows/>
+describing
+the problem however, we are unable to find a solution online for Python
+2.7. This is a fix
+<https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_start_method>
+for
+this issue in Python 3.4 however, we are unable to upgrade to Python 3.4.
+Is there any way to use multiprocessing in Python 2.7 on Linux without the
+child and parent sharing memory? We can also use guidance on modifying
+forking.py
+<https://github.com/python/cpython/blob/2.7/Lib/multiprocessing/forking.py>
+code
+in python 2.7 to ensure child and parent process aren't sharing memory and
+doing Copy-on-Write. Thanks!
+
+https://stackoverflow.com/questions/55168149/how-to-create-a-child-process-using-multiprocessing-in-python2-7-10-without-the
+
+Thanks,
+Jigar
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190314/99d09ac9/attachment.html>
+
+From steve at pearwood.info  Thu Mar 14 22:45:42 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 15 Mar 2019 13:45:42 +1100
+Subject: [Python-Dev] int() and math.trunc don't accept objects that
+ only define __index__
+In-Reply-To: <CA+jiYFAhZH562xwqP_j3JZR9AcA1ceEZEoYSfgNvbsPkw+1FPw@mail.gmail.com>
+References: <CA+jiYFCY-Fboaz=4+hvN_5LG4o=eHyOxUafGaJV6Yc51mOgtVw@mail.gmail.com>
+ <q4obm4$1d65$1@blaine.gmane.org>
+ <CADiSq7ezAk=vbKfi37wRjTAOE+iUB2Ay7eLFSusruaO_stLQXg@mail.gmail.com>
+ <CA+jiYFAhZH562xwqP_j3JZR9AcA1ceEZEoYSfgNvbsPkw+1FPw@mail.gmail.com>
+Message-ID: <20190315024541.GE12502@ando.pearwood.info>
+
+On Wed, Mar 13, 2019 at 03:21:31AM -0700, R?mi Lapeyre wrote:
+
+> When __index__ is defined it means that there is a lossless conversion
+> to int possible. In this case, this means a lossless conversion to
+> float and complex is also possible 
+
+That's not correct:
+
+py> n = 2**64 + 1
+py> n == int(float(n))
+False
+
+Python floats (C doubles) can lose digits when converting from ints 
+over 2**53 or so.
+
+
+> (with the exception of overflows
+> but anyone doing float(var) should expect them).
+
+I don't. I expect float(var) to overflow to infinity, if it is going to 
+overflow, and always forget that it can raise.
+
+
+py> float("9e9999")
+inf
+
+py> float(str(9*10**9999))
+inf
+
+But:
+
+py> float(9*10**9999)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+OverflowError: int too large to convert to float
+
+This never fails to surprise me.
+
+
+
+
+-- 
+Steven
+
