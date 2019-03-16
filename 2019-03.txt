@@ -7483,3 +7483,761 @@ This never fails to surprise me.
 -- 
 Steven
 
+From solipsis at pitrou.net  Fri Mar 15 06:50:43 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 15 Mar 2019 11:50:43 +0100
+Subject: [Python-Dev] Register-based VM [Was: Possible performance
+ regression]
+References: <20190225115452.30ed11bb@fsol>
+ <9D28FA05-1FDA-43E0-9CD1-DCDDBCE05A03@gmail.com>
+ <CALFfu7C=xpvRwbhnnB4fDEFxY7eezV0QHrxUEoX9Tkq3SgGexg@mail.gmail.com>
+ <CALFfu7CT9KpV-6bDgi9pPeX0vESu8fOcRT=fkB83jQCYLXKD3g@mail.gmail.com>
+ <20190226193512.m5wzrecaxt3yfm7l@python.ca>
+ <CA+3bQGGXjMAJ6FQb=65OAjRW+p783ePzGFTcaHWLONZNFs7KJA@mail.gmail.com>
+ <20190226205841.wo6a6bc65igmxpk3@python.ca>
+ <CA+3bQGGfZ6nRkKS==ArkK8FcZe_8xdrV_bmcaoHOWPpWKVzq5w@mail.gmail.com>
+ <5C75BE81.4060209@canterbury.ac.nz>
+ <CA+3bQGEOc53H3VwnAj6Dy1o+txoc244AFnZJKTcWvQDJCg4G3w@mail.gmail.com>
+ <20190311215629.y2j6szbqzzi7jcds@python.ca>
+ <CAEbHw4ZsBtA5WukU1-VmcdM+-W4BbCrUsz6Op0ON39LoXXWDXg@mail.gmail.com>
+Message-ID: <20190315115043.56255e6d@fsol>
+
+On Mon, 11 Mar 2019 18:03:26 -0400
+David Mertz <mertz at gnosis.cx> wrote:
+> Parrot got rather further along than rattlesnake as a register based VM. I
+> don't think it every really beat CPython in speed though.
+> 
+> http://parrot.org/
+
+But Parrot also had a "generic" design that was supposed to cater for
+all dynamic programming languages.  AFAIU, it was heavily
+over-engineered and under-staffed, and the design documents were
+difficult to understand.
+
+Regards
+
+Antoine.
+
+
+
+From remi.lapeyre at henki.fr  Fri Mar 15 06:59:18 2019
+From: remi.lapeyre at henki.fr (=?UTF-8?Q?R=C3=A9mi_Lapeyre?=)
+Date: Fri, 15 Mar 2019 06:59:18 -0400
+Subject: [Python-Dev] int() and math.trunc don't accept objects that
+ only define __index__
+In-Reply-To: <20190315024541.GE12502@ando.pearwood.info>
+References: <CA+jiYFCY-Fboaz=4+hvN_5LG4o=eHyOxUafGaJV6Yc51mOgtVw@mail.gmail.com>
+ <q4obm4$1d65$1@blaine.gmane.org>
+ <CADiSq7ezAk=vbKfi37wRjTAOE+iUB2Ay7eLFSusruaO_stLQXg@mail.gmail.com>
+ <CA+jiYFAhZH562xwqP_j3JZR9AcA1ceEZEoYSfgNvbsPkw+1FPw@mail.gmail.com>
+ <20190315024541.GE12502@ando.pearwood.info>
+ <20190315024541.GE12502@ando.pearwood.info>
+Message-ID: <CA+jiYFCY02FjjZTVxQdqKtReOZy1sOXndmmCUd6m0bPSzZWn6g@mail.gmail.com>
+
+Le 15 mars 2019 ? 03:49:19, Steven D'Aprano
+(steve at pearwood.info(mailto:steve at pearwood.info)) a ?crit:
+
+> On Wed, Mar 13, 2019 at 03:21:31AM -0700, R?mi Lapeyre wrote:
+>
+> > When __index__ is defined it means that there is a lossless conversion
+> > to int possible. In this case, this means a lossless conversion to
+> > float and complex is also possible
+>
+> That's not correct:
+>
+> py> n = 2**64 + 1
+> py> n == int(float(n))
+> False
+
+Thanks, I should have thought of that. Do you think __index__ should
+only define
+__int__ then?
+
+
+> Python floats (C doubles) can lose digits when converting from ints
+> over 2**53 or so.
+>
+>
+> > (with the exception of overflows
+> > but anyone doing float(var) should expect them).
+>
+> I don't. I expect float(var) to overflow to infinity, if it is going to
+> overflow, and always forget that it can raise.
+>
+>
+> py> float("9e9999")
+> inf
+>
+> py> float(str(9*10**9999))
+> inf
+>
+> But:
+>
+> py> float(9*10**9999)
+> Traceback (most recent call last):
+> File "", line 1, in
+> OverflowError: int too large to convert to float
+>
+> This never fails to surprise me.
+>
+>
+>
+>
+> --
+> Steven
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/remi.lapeyre%40henki.fr
+
+From solipsis at pitrou.net  Fri Mar 15 07:06:08 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 15 Mar 2019 12:06:08 +0100
+Subject: [Python-Dev] (Licensing question) PSF license
+References: <CAFYqXL9syH6xiiQh6SyK192UnSScV_3s_eCAkptcRCcqL-LNZQ@mail.gmail.com>
+ <CAEfz+TyGaHv3DaAbxMfz5dyT2HsrmSp4Cx2S5Cv3h4cyMiOhKA@mail.gmail.com>
+ <q67fvk$1154$1@blaine.gmane.org>
+Message-ID: <20190315120608.18c3225e@fsol>
+
+On Tue, 12 Mar 2019 01:27:14 -0400
+Terry Reedy <tjreedy at udel.edu> wrote:
+> > First of all, I'm sorry if I'm wrong.  I'm not lawyer.
+> > 
+> > You can use both of GPL and MIT.  Users can use your package under it.
+> > 
+> > On the other hand, when you publish your package, *you* should follow
+> > PSF license.
+> > Read this.  https://docs.python.org/3/license.html
+> > 
+> > """
+> > 3. In the event Licensee prepares a derivative work that is based on or
+> >     incorporates Python 3.7.2 or any part thereof, and wants to make the
+> >     derivative work available to others as provided herein, then Licensee hereby
+> >     agrees to include in any such work a brief summary of the changes
+> > made to Python
+> >     3.7.2.
+> > """
+> > 
+> > As you can see, PSF license doesn't force you to use PSF license. (not
+> > "copyleft")  
+> 
+> In fact, the PSF lawyer says one should not use the 'PSF license' as it 
+> is specilized for the PSF and Python.
+
+Interesting.  I did use the PSF license for the pickle5 backport and I
+suspect I'm not the only one to use it (though I don't know how to do
+a per-license search on PyPI).
+https://pypi.org/project/pickle5/
+
+Regards
+
+Antoine.
+
+
+
+From status at bugs.python.org  Fri Mar 15 14:08:26 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 15 Mar 2019 18:08:26 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190315180826.131E052B22B@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-03-08 - 2019-03-15)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7048 (+17)
+  closed 41009 (+46)
+  total  48057 (+63)
+
+Open issues with patches: 2798 
+
+
+Issues opened (48)
+==================
+
+#4459: bdist_rpm should enable --fix-python by default
+https://bugs.python.org/issue4459  reopened by vstinner
+
+#10948: Trouble with dir_util created dir cache
+https://bugs.python.org/issue10948  reopened by eric.araujo
+
+#30040: new empty dict can be more small
+https://bugs.python.org/issue30040  reopened by rhettinger
+
+#33376: [pysqlite] Duplicate rows can be returned after rolling back a
+https://bugs.python.org/issue33376  reopened by benjamin.peterson
+
+#36245: PCBuild/build.bat errors, probably from space characters in pa
+https://bugs.python.org/issue36245  opened by Jess
+
+#36246: csv.writer lineterminator affects csv escaping
+https://bugs.python.org/issue36246  opened by flow2k
+
+#36247: zipfile - extract truncates (existing) file when bad password 
+https://bugs.python.org/issue36247  opened by CristiFati
+
+#36250: pdb: interaction might cause "ValueError: signal only works in
+https://bugs.python.org/issue36250  opened by blueyed
+
+#36253: Use after free in ctypes test suite
+https://bugs.python.org/issue36253  opened by btharper
+
+#36254: Fix invalid uses of %d in format strings in C
+https://bugs.python.org/issue36254  opened by serhiy.storchaka
+
+#36255: Provide a simple way to delete and edit python's welcome messa
+https://bugs.python.org/issue36255  opened by benp
+
+#36256: parser module fails on legal input
+https://bugs.python.org/issue36256  opened by A. Skrobov
+
+#36257: configure with --with-icc --with-cxx-main=icpc
+https://bugs.python.org/issue36257  opened by aminiussi
+
+#36258: Incorrect docstring of the ssl module
+https://bugs.python.org/issue36258  opened by Ofekmeister
+
+#36259: exception text is being sourced from the wrong file
+https://bugs.python.org/issue36259  opened by rhubarbdog x
+
+#36260: Cpython/Lib vulnerability found and request a patch submission
+https://bugs.python.org/issue36260  opened by krnick
+
+#36261: email examples should not gratuitously mess with preamble
+https://bugs.python.org/issue36261  opened by era
+
+#36263: test_hashlib.test_scrypt() fails on Fedora 29
+https://bugs.python.org/issue36263  opened by vstinner
+
+#36265: Remove ABCs from collections
+https://bugs.python.org/issue36265  opened by jwilk
+
+#36266: Which module could not be found?
+https://bugs.python.org/issue36266  opened by Phillip.M.Feldman at gmail.com
+
+#36267: User input to argparse raises Index_Error:  "-a=" on a 'store_
+https://bugs.python.org/issue36267  opened by paul.j3
+
+#36268: Change default tar format to modern POSIX 2001 (pax) for bette
+https://bugs.python.org/issue36268  opened by CAM-Gerlach
+
+#36270: DOC: Add link to sys.exc_info for "Reference Manual"
+https://bugs.python.org/issue36270  opened by cheryl.sabella
+
+#36271: '_io.TextIOWrapper' object has no attribute 'mode'
+https://bugs.python.org/issue36271  opened by nemeskeyd
+
+#36272: Recursive logging crashes Interpreter in Python 3
+https://bugs.python.org/issue36272  opened by Saim Raza
+
+#36273: test_thread leaks a core dump on PPC64 AIX 3.x
+https://bugs.python.org/issue36273  opened by vstinner
+
+#36274: http.client cannot send non-ASCII request lines
+https://bugs.python.org/issue36274  opened by tburke
+
+#36275: DOC: venv.create doesn't include prompt parameter
+https://bugs.python.org/issue36275  opened by cheryl.sabella
+
+#36276: Python urllib CRLF injection vulnerability
+https://bugs.python.org/issue36276  opened by ragdoll.guo
+
+#36277: pdb's recursive debug command is not listed in the docs
+https://bugs.python.org/issue36277  opened by Antony.Lee
+
+#36279: os.wait3() leaks some uninitialized stack when no processes ex
+https://bugs.python.org/issue36279  opened by dw
+
+#36281: OSError: handle is closed for ProcessPoolExecutor and run_in_e
+https://bugs.python.org/issue36281  opened by basnijholt
+
+#36283: eval is needlessly limited
+https://bugs.python.org/issue36283  opened by bup
+
+#36285: Integer overflow in array.array.remove()
+https://bugs.python.org/issue36285  opened by sth
+
+#36286: Random failure in test_idle
+https://bugs.python.org/issue36286  opened by serhiy.storchaka
+
+#36287: Make ast.dump() not output optional default fields
+https://bugs.python.org/issue36287  opened by serhiy.storchaka
+
+#36290: _ast.ast_type_init does not handle args and kwargs correctly.
+https://bugs.python.org/issue36290  opened by remi.lapeyre
+
+#36292: Coverity scan: Resource leaks in longobject.c
+https://bugs.python.org/issue36292  opened by cstratak
+
+#36293: Nonblocking read sys.stdin raises error
+https://bugs.python.org/issue36293  opened by cykerway
+
+#36295: Need to yield (sleep(0)) twice in asyncio
+https://bugs.python.org/issue36295  opened by Assaf Dayan
+
+#36297: Remove unicode_internal codec
+https://bugs.python.org/issue36297  opened by inada.naoki
+
+#36298: Lib/pyclbr.py crashes when the package spec cannot be determin
+https://bugs.python.org/issue36298  opened by mental
+
+#36299: Deprecate 'u' type in array module
+https://bugs.python.org/issue36299  opened by inada.naoki
+
+#36300: eval of generator expressions cannot access local variables
+https://bugs.python.org/issue36300  opened by Martin Hosken
+
+#36301: Add _Py_PreInitialize() function
+https://bugs.python.org/issue36301  opened by vstinner
+
+#36302: distutils creates unreproducible .so files
+https://bugs.python.org/issue36302  opened by bmwiedemann
+
+#36304: When using bz2 and lzma in mode 'wt', the BOM is not written
+https://bugs.python.org/issue36304  opened by janluke
+
+#36305: Inconsistent behavior of pathlib.WindowsPath with drive paths
+https://bugs.python.org/issue36305  opened by kmaork
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36302: distutils creates unreproducible .so files
+https://bugs.python.org/issue36302
+
+#36299: Deprecate 'u' type in array module
+https://bugs.python.org/issue36299
+
+#36298: Lib/pyclbr.py crashes when the package spec cannot be determin
+https://bugs.python.org/issue36298
+
+#36295: Need to yield (sleep(0)) twice in asyncio
+https://bugs.python.org/issue36295
+
+#36290: _ast.ast_type_init does not handle args and kwargs correctly.
+https://bugs.python.org/issue36290
+
+#36285: Integer overflow in array.array.remove()
+https://bugs.python.org/issue36285
+
+#36281: OSError: handle is closed for ProcessPoolExecutor and run_in_e
+https://bugs.python.org/issue36281
+
+#36279: os.wait3() leaks some uninitialized stack when no processes ex
+https://bugs.python.org/issue36279
+
+#36275: DOC: venv.create doesn't include prompt parameter
+https://bugs.python.org/issue36275
+
+#36274: http.client cannot send non-ASCII request lines
+https://bugs.python.org/issue36274
+
+#36270: DOC: Add link to sys.exc_info for "Reference Manual"
+https://bugs.python.org/issue36270
+
+#36267: User input to argparse raises Index_Error:  "-a=" on a 'store_
+https://bugs.python.org/issue36267
+
+#36258: Incorrect docstring of the ssl module
+https://bugs.python.org/issue36258
+
+#36257: configure with --with-icc --with-cxx-main=icpc
+https://bugs.python.org/issue36257
+
+#36253: Use after free in ctypes test suite
+https://bugs.python.org/issue36253
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36302: distutils creates unreproducible .so files
+https://bugs.python.org/issue36302
+
+#36301: Add _Py_PreInitialize() function
+https://bugs.python.org/issue36301
+
+#36297: Remove unicode_internal codec
+https://bugs.python.org/issue36297
+
+#36292: Coverity scan: Resource leaks in longobject.c
+https://bugs.python.org/issue36292
+
+#36287: Make ast.dump() not output optional default fields
+https://bugs.python.org/issue36287
+
+#36285: Integer overflow in array.array.remove()
+https://bugs.python.org/issue36285
+
+#36279: os.wait3() leaks some uninitialized stack when no processes ex
+https://bugs.python.org/issue36279
+
+#36274: http.client cannot send non-ASCII request lines
+https://bugs.python.org/issue36274
+
+#36272: Recursive logging crashes Interpreter in Python 3
+https://bugs.python.org/issue36272
+
+#36263: test_hashlib.test_scrypt() fails on Fedora 29
+https://bugs.python.org/issue36263
+
+#36254: Fix invalid uses of %d in format strings in C
+https://bugs.python.org/issue36254
+
+#36253: Use after free in ctypes test suite
+https://bugs.python.org/issue36253
+
+#36250: pdb: interaction might cause "ValueError: signal only works in
+https://bugs.python.org/issue36250
+
+#36247: zipfile - extract truncates (existing) file when bad password 
+https://bugs.python.org/issue36247
+
+#36245: PCBuild/build.bat errors, probably from space characters in pa
+https://bugs.python.org/issue36245
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#36085: Enable better DLL resolution
+https://bugs.python.org/issue36085  18 msgs
+
+#30040: new empty dict can be more small
+https://bugs.python.org/issue30040  15 msgs
+
+#36010: Please provide a .zip Windows release of Python that is not cr
+https://bugs.python.org/issue36010  10 msgs
+
+#36272: Recursive logging crashes Interpreter in Python 3
+https://bugs.python.org/issue36272   8 msgs
+
+#35121: Cookie domain check returns incorrect results
+https://bugs.python.org/issue35121   7 msgs
+
+#35647: Cookie path check returns incorrect results
+https://bugs.python.org/issue35647   7 msgs
+
+#36276: Python urllib CRLF injection vulnerability
+https://bugs.python.org/issue36276   7 msgs
+
+#36256: parser module fails on legal input
+https://bugs.python.org/issue36256   6 msgs
+
+#36263: test_hashlib.test_scrypt() fails on Fedora 29
+https://bugs.python.org/issue36263   6 msgs
+
+#21314: Document '/' in signatures
+https://bugs.python.org/issue21314   5 msgs
+
+
+
+Issues closed (44)
+==================
+
+#12974: array module: deprecate '__int__' conversion support for array
+https://bugs.python.org/issue12974  closed by serhiy.storchaka
+
+#26018: documentation of ZipFile file name encoding
+https://bugs.python.org/issue26018  closed by serhiy.storchaka
+
+#27916: Use time.monotonic instead of time.time where appropriate
+https://bugs.python.org/issue27916  closed by cheryl.sabella
+
+#28956: return list of modes for a multimodal distribution instead of 
+https://bugs.python.org/issue28956  closed by steven.daprano
+
+#31973: Incomplete DeprecationWarning for async/await keywords
+https://bugs.python.org/issue31973  closed by barry
+
+#32846: Deletion of large sets of strings is extra slow
+https://bugs.python.org/issue32846  closed by inada.naoki
+
+#33002: Making a class formattable as hex/oct integer with printf-styl
+https://bugs.python.org/issue33002  closed by serhiy.storchaka
+
+#35132: python-gdb error: Python Exception <class 'RuntimeError'> Type
+https://bugs.python.org/issue35132  closed by vstinner
+
+#35661: Store the venv prompt in pyvenv.cfg
+https://bugs.python.org/issue35661  closed by cheryl.sabella
+
+#35807: Update bundled pip to 19.0
+https://bugs.python.org/issue35807  closed by ncoghlan
+
+#35830: building multiple (binary) packages from a single project
+https://bugs.python.org/issue35830  closed by stefan
+
+#35832: Installation error
+https://bugs.python.org/issue35832  closed by steve.dower
+
+#35843: importlib.util docs for namespace packages innaccurate
+https://bugs.python.org/issue35843  closed by brett.cannon
+
+#35854: EnvBuilder and venv symlinks do not work on Windows on 3.7.2
+https://bugs.python.org/issue35854  closed by steve.dower
+
+#35892: Fix awkwardness of statistics.mode() for multimodal datasets
+https://bugs.python.org/issue35892  closed by rhettinger
+
+#35944: Python 3.7 install error
+https://bugs.python.org/issue35944  closed by steve.dower
+
+#36029: Use title-case HTTP header fields
+https://bugs.python.org/issue36029  closed by mdk
+
+#36042: Setting __init_subclass__ and __class_getitem__ methods are in
+https://bugs.python.org/issue36042  closed by inada.naoki
+
+#36174: Remove licenseUrl field from nuget packages
+https://bugs.python.org/issue36174  closed by steve.dower
+
+#36176: Fix IDLE Autocomplete / Calltip Window Colors
+https://bugs.python.org/issue36176  closed by terry.reedy
+
+#36212: [2.7] Coverity scan: Modules/_hotshot.c , Variable "s1" going 
+https://bugs.python.org/issue36212  closed by vstinner
+
+#36216: CVE-2019-9636: urlsplit does not handle NFKC normalization
+https://bugs.python.org/issue36216  closed by steve.dower
+
+#36229: Avoid unnecessary copies for list, set, and bytearray ops.
+https://bugs.python.org/issue36229  closed by rhettinger
+
+#36234: test_os: add tests for invalid uid type
+https://bugs.python.org/issue36234  closed by vstinner
+
+#36241: MD5 checksum is not valid for v2.7.16 "Windows x86-64 MSI inst
+https://bugs.python.org/issue36241  closed by SilentGhost
+
+#36244: Lock release fails under windows
+https://bugs.python.org/issue36244  closed by Konrad Ciecierski
+
+#36248: document about `or`, `and` operator.
+https://bugs.python.org/issue36248  closed by SilentGhost
+
+#36249: f-string should be the default placeholder
+https://bugs.python.org/issue36249  closed by serhiy.storchaka
+
+#36251: Invalid format specifiers in MatchObject and StdPrinter repr
+https://bugs.python.org/issue36251  closed by serhiy.storchaka
+
+#36252: update to Unicode 12
+https://bugs.python.org/issue36252  closed by benjamin.peterson
+
+#36262: Coverity scan: Python/dtoa.c resource leak
+https://bugs.python.org/issue36262  closed by vstinner
+
+#36264: os.path.expanduser should not use HOME on windows
+https://bugs.python.org/issue36264  closed by steve.dower
+
+#36269: post install in setup.py does not work when executed through p
+https://bugs.python.org/issue36269  closed by sabakauser
+
+#36278: Truncate method
+https://bugs.python.org/issue36278  closed by josh.r
+
+#36280: Add kind field to ast.Constant, to distinguish u"..." from "..
+https://bugs.python.org/issue36280  closed by gvanrossum
+
+#36282: Not accurate error message for exact number of positional argu
+https://bugs.python.org/issue36282  closed by serhiy.storchaka
+
+#36284: importlib.import_module() not thread safe if Exception is rais
+https://bugs.python.org/issue36284  closed by serhiy.storchaka
+
+#36288: Incorrect answer when using round()
+https://bugs.python.org/issue36288  closed by zach.ware
+
+#36289: [2.7] Coverity scan: Modules/_io/bufferedio.c leaked_storage: 
+https://bugs.python.org/issue36289  closed by vstinner
+
+#36291: [2.7] Coverity Scan: Modules/_json.c: leaked_storage: Variable
+https://bugs.python.org/issue36291  closed by vstinner
+
+#36294: `io.BufferedIOBase` returns `None`
+https://bugs.python.org/issue36294  closed by martin.panter
+
+#36296: distutils.version.StrictVersion objects cannot be compared wit
+https://bugs.python.org/issue36296  closed by eric.araujo
+
+#36303: Trying to change values (fe. "To", "From") of email.mime.text.
+https://bugs.python.org/issue36303  closed by Fotoblysk
+
+#36306: inspect.signature(math.log) raises ValueError
+https://bugs.python.org/issue36306  closed by remi.lapeyre
+
+From brett at python.org  Fri Mar 15 17:24:13 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 15 Mar 2019 14:24:13 -0700
+Subject: [Python-Dev] Rejecting PEP 473: Adding structured data to built-in
+ exceptions
+Message-ID: <CAP1=2W7PT1xqGdemEineaCKU_J5Tv22+qbRYbS_9x6Vo_5KfVg@mail.gmail.com>
+
+The steering council felt the PEP was too broad and not focused enough.
+Discussions about adding more attributes to built-in exceptions can
+continue on the issue tracker on a per-exception basis (and obviously here
+for any broader points, e.g. performance implications as I know that has
+come up before when the idea of storing relevant objects on exceptions).
+
+Thanks to Sebastian Kreft for taking the time to write the PEP in the first
+place.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190315/e2f3550e/attachment.html>
+
+From brett at python.org  Fri Mar 15 17:47:26 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 15 Mar 2019 14:47:26 -0700
+Subject: [Python-Dev] Reject PEP 472: Support for indexing with keyword
+ arguments
+Message-ID: <CAP1=2W7RHwOhSqMmYyRZjHJJGL55AX1dBEhEFDvORO_T5hgo_w@mail.gmail.com>
+
+The idea never seemed to gain any traction over its near 5 years in
+existence as a PEP.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190315/4b40946b/attachment.html>
+
+From brett at python.org  Fri Mar 15 18:32:26 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 15 Mar 2019 15:32:26 -0700
+Subject: [Python-Dev] Deferring PEP 536 -- Final Grammar for Literal String
+ Interpolation
+Message-ID: <CAP1=2W5ELaSEuTaAc1_j+NYAgocRwoeX=oE0LxNgDqSNDL+b+w@mail.gmail.com>
+
+The steering council decided to defer PEP 536 until an implementation is
+available.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190315/73148f1b/attachment.html>
+
+From brett at python.org  Fri Mar 15 18:42:49 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 15 Mar 2019 15:42:49 -0700
+Subject: [Python-Dev] Rejecting PEP 542 -- Dot Notation Assignment In
+ Function Header
+Message-ID: <CAP1=2W7pr-TAQcXJMCMbJnnWFLP7GHc0Ao6wZ7buHVYKyx10xA@mail.gmail.com>
+
+The steering council has decided to reject PEP 542 as the idea never seemed
+to gain traction.
+
+Thanks to Markus Meskanen for taking the time to write the PEP.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190315/8b508c82/attachment.html>
+
+From ncoghlan at gmail.com  Sat Mar 16 00:58:55 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sat, 16 Mar 2019 14:58:55 +1000
+Subject: [Python-Dev] Initial updates to PEP 1 for Steering Council
+ based governance
+In-Reply-To: <CA+3bQGFH0N=4DhpX4vL5jU5K3gP3CfkehGwjLAPhxicKZWwJDA@mail.gmail.com>
+References: <CADiSq7e4TFv2XquDGasDZ72n2NFGs4zjfRnaFEE8qO0mrVhKyw@mail.gmail.com>
+ <CA+3bQGFH0N=4DhpX4vL5jU5K3gP3CfkehGwjLAPhxicKZWwJDA@mail.gmail.com>
+Message-ID: <CADiSq7ekBzTezDbwVj=iFAG8STAP3xVGewJ98CqGr91aa96Z8g@mail.gmail.com>
+
+On Fri, 15 Mar 2019 at 03:01, Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Hi,
+>
+> Le lun. 11 mars 2019 ? 13:26, Nick Coghlan <ncoghlan at gmail.com> a ?crit :
+> > This is the smallest change to PEP 1 that we consider potentially viable: handling all PEPs through the BDFL-Delegate model, with the Steering Council's primary involvement being to appoint the delegates (or accept their volunteering), once a PEP has reached the point of being actively reviewed.
+>
+> Does it mean that very controversial PEPs like PEP 572 would have a
+> BDFL-delegate as well? The delegate will be the only one taking the
+> final decision?
+
+Steering Council members can be BDFL-Delegates, so for particularly
+controversial PEPs, it's most likely that:
+
+1. the BD will be a Steering Council member
+2. they'll be serving as a spokesperson for the SC in relation to that
+PEP and consulting with the rest of the SC before making any
+pronouncements, rather than operating independently
+
+That seems likely to provide clearer communication both inside and
+outside the SC than if we leave the responsibility for communicating
+the status of affected PEPs to the SC as a whole.
+
+However, we don't think it makes sense to handle *every* PEP that way,
+since there's non-trivial overhead in making and communicating
+decisions as a 5-person team, rather than as a more autonomous
+individual decision maker.
+
+Even when the BD isn't a Steering Council member themselves though,
+the intent is for them to rely on the SC members for advice and
+support if they feel they need it, as described in this paragraph from
+the revised PEP 1:
+
+============
+The final authority for PEP approval is the Steering Council. However,
+whenever a new PEP is put forward, any core developer that believes
+they are suitably experienced to make the final decision on that PEP
+may offer to serve as the BDFL-Delegate for that PEP, and they will
+then have the authority to approve (or reject) that PEP.
+Individuals taking on this responsibility are free to seek additional
+guidance from the Steering Council at any time, and are also expected
+to take the advice and perspectives of other core developers into
+account.
+============
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sat Mar 16 01:25:13 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sat, 16 Mar 2019 15:25:13 +1000
+Subject: [Python-Dev] PEP 581: Using GitHub Issues for CPython
+In-Reply-To: <CAAjsFLRbO9myg_2VhOZJP+_EvTg3cXE3nKf+t6KOxa4sV6jOpg@mail.gmail.com>
+References: <CAGbohnZMUfGwzfhzqp1QEyhuuVEFeAWe8XVs+=p_MqZ2zkq+ew@mail.gmail.com>
+ <CAAjsFLRbO9myg_2VhOZJP+_EvTg3cXE3nKf+t6KOxa4sV6jOpg@mail.gmail.com>
+Message-ID: <CADiSq7dk5BsbXOMBCEvABHn2H9gEBo1oz56URZv=yEo_xAPP5Q@mail.gmail.com>
+
+On Fri, 8 Mar 2019 at 16:52, Karthikeyan <tir.karthi at gmail.com> wrote:
+> Personally, I think more people will love it once they get to use it so if something like 100 issues can be migrated to a sample repo with labels, content etc.
+
+We're already using GitHub issues for pretty much everything in Python
+core development that *isn't* CPython itself, and even for CPython,
+folks experience the core issue management interface in the overview
+page for pull requests.
+
+One of the requests we made at the Language Summit discussion last
+year was for Mariatta to enhance PEP 581 with additional discussion of
+what would need to change to bring the Roundup instance up to the
+point of being competitive with the GitHub issues user experience,
+which she added:
+
+* https://www.python.org/dev/peps/pep-0581/#issues-with-roundup-bpo
+* https://www.python.org/dev/peps/pep-0581/#why-not-focus-on-improving-roundup-bpo
+
+There's been plenty of time since then for folks to put forward a
+competing proposal to modernise the Roundup UI directly instead of
+migrating to a different issue tracking tool, but so far no such
+proposal has emerged.
+
+One of the other blockers was the fact that the Contributor Licensing
+Agreement process was tightly coupled to some custom fields in b.p.o
+[1], and that is now very close to being resolved thanks to Mariatta's
+efforts (and provides a nice workflow improvement in its own right).
+
+Cheers,
+Nick.
+
+[1] https://www.python.org/dev/peps/pep-0581/#update-the-cla-host
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
