@@ -8241,3 +8241,163 @@ Nick.
 -- 
 Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
 
+From vstinner at redhat.com  Sat Mar 16 06:06:23 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 16 Mar 2019 11:06:23 +0100
+Subject: [Python-Dev] Rejecting PEP 473: Adding structured data to built-in
+ exceptions
+In-Reply-To: <CAP1=2W7PT1xqGdemEineaCKU_J5Tv22+qbRYbS_9x6Vo_5KfVg@mail.gmail.com>
+References: <CAP1=2W7PT1xqGdemEineaCKU_J5Tv22+qbRYbS_9x6Vo_5KfVg@mail.gmail.com>
+Message-ID: <CA+3bQGHCs7Uor4C=_6qjwmGODhvuBRZ1hLAv==oFCXrdzzixNg@mail.gmail.com>
+
+Hi,
+
+While I would like to get such new attributes, I see drawbacks as blocker
+issues and so I am fine with this PEP rejection. Performance is too
+critical for most common exceptions.
+
+For me one blocker issue is the high risk of creating reference cycles. And
+the weak reference API isn't the most practical :-(
+
+Moreover I expect slowdown, whereas exceptions are already expensive :-(
+Recently, internal code to get an attribute has been reworked to avoid
+exception whenever possible, and it made the code faster.
+
+Victor
+
+Le vendredi 15 mars 2019, Brett Cannon <brett at python.org> a ?crit :
+> The steering council felt the PEP was too broad and not focused enough.
+Discussions about adding more attributes to built-in exceptions can
+continue on the issue tracker on a per-exception basis (and obviously here
+for any broader points, e.g. performance implications as I know that has
+come up before when the idea of storing relevant objects on exceptions).
+> Thanks to Sebastian Kreft for taking the time to write the PEP in the
+first place.
+>
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190316/7b0e0a07/attachment.html>
+
+From vano at mail.mipt.ru  Sat Mar 16 03:10:24 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Sat, 16 Mar 2019 10:10:24 +0300
+Subject: [Python-Dev] Tests for internal functionality
+Message-ID: <87f2d4c9-b9e8-6a63-e4a8-e464a0d63be6@mail.mipt.ru>
+
+In https://github.com/python/cpython/pull/6541 , I was requested to add tests for an internal C function.
+
+As I wrote in https://github.com/python/cpython/pull/6541#issuecomment-445514807 , it's not clear from the codebase
+
+1) where tests for internal (as opposed to public) functionality should be located
+ ??? * I only ran across very few tests for private functionality and they were located alongside the public tests. See e.g. 
+https://github.com/python/cpython/pull/12140 -- site._getuserbase is a private function.
+
+2) what spec one should test against since there's no official docs for internal functionality
+
+That time, they let it slide, but of course this is not something to make a habit of. It still bothers me that I left unfinished business there.
+Any thoughts?
+
+-- 
+Regards,
+Ivan
+
+
+From phil.angerer at gmail.com  Sat Mar 16 10:12:38 2019
+From: phil.angerer at gmail.com (Philipp Angerer)
+Date: Sat, 16 Mar 2019 15:12:38 +0100
+Subject: [Python-Dev] Deferring PEP 536 -- Final Grammar for Literal
+ String Interpolation
+In-Reply-To: <CAP1=2W5ELaSEuTaAc1_j+NYAgocRwoeX=oE0LxNgDqSNDL+b+w@mail.gmail.com>
+References: <CAP1=2W5ELaSEuTaAc1_j+NYAgocRwoeX=oE0LxNgDqSNDL+b+w@mail.gmail.com>
+Message-ID: <CACSGjE-YXB0ByOh4B2VWv159Kai3AySACNh_c2UNyKOvGwzHRQ@mail.gmail.com>
+
+Sorry for not having one, but my C is really not up to speed.
+
+Help is therefore very welcome of course!
+
+Am Fr., 15. M?rz 2019 um 23:32 Uhr schrieb Brett Cannon <brett at python.org>:
+
+> The steering council decided to defer PEP 536 until an implementation is
+> available.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190316/d1991953/attachment.html>
+
+From stefano.borini at gmail.com  Sat Mar 16 11:46:26 2019
+From: stefano.borini at gmail.com (Stefano Borini)
+Date: Sat, 16 Mar 2019 15:46:26 +0000
+Subject: [Python-Dev] Reject PEP 472: Support for indexing with keyword
+ arguments
+In-Reply-To: <CAP1=2W7RHwOhSqMmYyRZjHJJGL55AX1dBEhEFDvORO_T5hgo_w@mail.gmail.com>
+References: <CAP1=2W7RHwOhSqMmYyRZjHJJGL55AX1dBEhEFDvORO_T5hgo_w@mail.gmail.com>
+Message-ID: <CAFp+ze1EDBPMA+G8Cb5gv81e=a7qqy=_BAJJ-FAohQsnauboww@mail.gmail.com>
+
+Hello, I am one of the authors of the PEP.
+I agree with your sentiment. I still think it might be useful in some
+contexts and I got some positive reactions here and there, but as you said
+it does not seem to provide a lot of added value.
+
+
+On Fri, 15 Mar 2019 at 21:50, Brett Cannon <brett at python.org> wrote:
+
+> The idea never seemed to gain any traction over its near 5 years in
+> existence as a PEP.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/makepython%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190316/9e1242b3/attachment.html>
+
+From tjreedy at udel.edu  Sat Mar 16 17:23:30 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sat, 16 Mar 2019 17:23:30 -0400
+Subject: [Python-Dev] Tests for internal functionality
+In-Reply-To: <87f2d4c9-b9e8-6a63-e4a8-e464a0d63be6@mail.mipt.ru>
+References: <87f2d4c9-b9e8-6a63-e4a8-e464a0d63be6@mail.mipt.ru>
+Message-ID: <q6jpgk$2uhn$1@blaine.gmane.org>
+
+On 3/16/2019 3:10 AM, Ivan Pozdeev via Python-Dev wrote:
+> In https://github.com/python/cpython/pull/6541 , I was requested to add 
+> tests for an internal C function.
+> 
+> As I wrote in 
+> https://github.com/python/cpython/pull/6541#issuecomment-445514807 , 
+> it's not clear from the codebase
+> 
+> 1) where tests for internal (as opposed to public) functionality should 
+> be located
+
+In the same file where they would be if public, which is what you seemed 
+to find.  Label somehow, such as 'class InternalsTest(TestCase):' or 
+'test__private' (with double __ indicating test of _private).
+
+>  ??? * I only ran across very few tests for private functionality and 
+> they were located alongside the public tests. See e.g. 
+> https://github.com/python/cpython/pull/12140 -- site._getuserbase is a 
+> private function.
+> 
+> 2) what spec one should test against since there's no official docs for 
+> internal functionality
+
+Is there an informal spec in the form of docstring or comments?  Besides 
+that, test against current behavior.  The main purpose of retro-testing 
+is to detect *unintended* changes of behavior (regressions).
+
+> That time, they let it slide, but of course this is not something to 
+> make a habit of. It still bothers me that I left unfinished business there.
+> Any thoughts?
+
+-- 
+Terry Jan Reedy
+
+
+
