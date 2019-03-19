@@ -8401,3 +8401,685 @@ Terry Jan Reedy
 
 
 
+From Peixing.Xin at windriver.com  Mon Mar 18 03:31:47 2019
+From: Peixing.Xin at windriver.com (Xin, Peixing)
+Date: Mon, 18 Mar 2019 07:31:47 +0000
+Subject: [Python-Dev] Anyone can help to proceed these 2 PRs?
+Message-ID: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9E134@ALA-MBD.corp.ad.wrs.com>
+
+Hi, Experts:
+
+I have 2 PRs pending there to get review for days. Anyone can give your hands? Thanks in advance. BTW, they are about CPython working on VxWorks 7.
+
+https://github.com/python/cpython/pull/12118
+https://github.com/python/cpython/pull/12305
+
+Thanks,
+Peixing
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190318/cdd89be9/attachment.html>
+
+From larry at hastings.org  Mon Mar 18 16:38:41 2019
+From: larry at hastings.org (Larry Hastings)
+Date: Mon, 18 Mar 2019 13:38:41 -0700
+Subject: [Python-Dev] Python 3.5.7 is now available
+Message-ID: <d3a2addd-46f6-eff9-cc0e-c53acc990faf@hastings.org>
+
+
+On behalf of the Python development community, I'm chuffed to announce 
+the availability of Python 3.5.7.
+
+Python 3.5 is in "security fixes only" mode.? It only accepts security 
+fixes, not conventional bug fixes, and the release is source-only.
+
+And you can find Python 3.5.7rc1 here:
+
+    https://www.python.org/downloads/release/python-357/
+
+
+Best wishes,
+
+
+
+//arry/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190318/4101ad26/attachment.html>
+
+From larry at hastings.org  Mon Mar 18 16:42:31 2019
+From: larry at hastings.org (Larry Hastings)
+Date: Mon, 18 Mar 2019 13:42:31 -0700
+Subject: [Python-Dev] Python 3.4.10 is now available
+Message-ID: <c062a27c-3be9-58de-b7cd-4a706f736433@hastings.org>
+
+
+On behalf of the Python development community, I'm proud--if slightly 
+sad--to announce the availability of Python 3.4.10.
+
+Python 3.4.10 was released in "security fixes only" mode.? It only 
+contains security fixes, not conventional bug fixes, and it is a 
+source-only release.
+
+Python 3.4.10 is the final release in the Python 3.4 series. As of this 
+release, the 3.4 branch has been retired, no further changes to 3.4 will 
+be accepted, and no new releases will be made.? This is standard Python 
+policy; Python releases get five years of support and are then retired.
+
+If you're still using Python 3.4, you should consider upgrading to the 
+current version--3.7.2 as of this writing.? Newer versions of Python
+have many new features, performance improvements, and bug fixes, which 
+should all serve to enhance your Python programming experience.
+
+We in the Python core development community thank you for your interest 
+in 3.4, and we wish you all the best!
+
+
+You can find Python 3.4.10 here:
+
+    https://www.python.org/downloads/release/python-3410/
+
+
+One I completely finish the Python 3.4.10 release process, I will retire 
+as Python 3.4 Release Manager.? I'll still be Python 3.5 Release Manager 
+for another eighteen months or so.
+
+
+Python 3.4 is OVER!
+https://www.youtube.com/watch?v=YlGqN3AKOsA
+
+
+
+//arry/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190318/64974083/attachment.html>
+
+From Paul.Monson at microsoft.com  Mon Mar 18 16:10:53 2019
+From: Paul.Monson at microsoft.com (Paul Monson)
+Date: Mon, 18 Mar 2019 20:10:53 +0000
+Subject: [Python-Dev] Testing cross-compiled python (windows arm32) from
+ build bot
+Message-ID: <CY4PR2101MB080437C3EE50F1184D4496D6F9470@CY4PR2101MB0804.namprd21.prod.outlook.com>
+
+Hello,
+
+For windows arm32 I would like to be able run tests in the buildbot.
+Windows arm32 programs built with MSVC are always cross-compiled.
+This means I need to build cpython on x86/x64 and then deploy the build artifacts and run the tests on an ARM32 device.
+
+Is there any documentation or examples of how to do this?
+If not, are there any recommendations for how to achieve this?
+
+Thanks,
+Paul Monson
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190318/a50835e0/attachment.html>
+
+From doko at ubuntu.com  Mon Mar 18 17:32:02 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Mon, 18 Mar 2019 22:32:02 +0100
+Subject: [Python-Dev] Testing cross-compiled python (windows arm32) from
+ build bot
+In-Reply-To: <CY4PR2101MB080437C3EE50F1184D4496D6F9470@CY4PR2101MB0804.namprd21.prod.outlook.com>
+References: <CY4PR2101MB080437C3EE50F1184D4496D6F9470@CY4PR2101MB0804.namprd21.prod.outlook.com>
+Message-ID: <61bfdffc-e3cc-ee02-2f55-93f8658d23ce@ubuntu.com>
+
+On 18.03.19 21:10, Paul Monson via Python-Dev wrote:
+> Hello,
+> 
+> For windows arm32 I would like to be able run tests in the buildbot.
+> Windows arm32 programs built with MSVC are always cross-compiled.
+> This means I need to build cpython on x86/x64 and then deploy the build artifacts and run the tests on an ARM32 device.
+> 
+> Is there any documentation or examples of how to do this?
+> If not, are there any recommendations for how to achieve this?
+
+I'm not aware of any documentation. For arm-linux-gnueabihf I once had a setup
+with two chroots, the first one for cross-building python, and then the second
+one for running the tests using qemu.  Two separate chroots to make sure that I
+don't run any target code during the build.  The build location bind mounted in
+both chroots to avoid the copy step.
+
+Matthias
+
+From brett at python.org  Mon Mar 18 17:42:14 2019
+From: brett at python.org (Brett Cannon)
+Date: Mon, 18 Mar 2019 14:42:14 -0700
+Subject: [Python-Dev] Reject PEP 472: Support for indexing with keyword
+ arguments
+In-Reply-To: <CAFp+ze1EDBPMA+G8Cb5gv81e=a7qqy=_BAJJ-FAohQsnauboww@mail.gmail.com>
+References: <CAP1=2W7RHwOhSqMmYyRZjHJJGL55AX1dBEhEFDvORO_T5hgo_w@mail.gmail.com>
+ <CAFp+ze1EDBPMA+G8Cb5gv81e=a7qqy=_BAJJ-FAohQsnauboww@mail.gmail.com>
+Message-ID: <CAP1=2W4C=bhCmqtDnoF2QVaeqw253sCJfEhkU489fJTy8apCMg@mail.gmail.com>
+
+And thanks for the PEP, Stefano!
+
+(I meant to say "thanks" in the email but I simply forgot :( ).
+
+On Sat, Mar 16, 2019 at 8:46 AM Stefano Borini <stefano.borini at gmail.com>
+wrote:
+
+> Hello, I am one of the authors of the PEP.
+> I agree with your sentiment. I still think it might be useful in some
+> contexts and I got some positive reactions here and there, but as you said
+> it does not seem to provide a lot of added value.
+>
+>
+> On Fri, 15 Mar 2019 at 21:50, Brett Cannon <brett at python.org> wrote:
+>
+>> The idea never seemed to gain any traction over its near 5 years in
+>> existence as a PEP.
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/makepython%40gmail.com
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190318/2ba8248b/attachment.html>
+
+From raymond.hettinger at gmail.com  Mon Mar 18 18:41:15 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Mon, 18 Mar 2019 15:41:15 -0700
+Subject: [Python-Dev] Is XML serialization output guaranteed to be bytewise
+ identical forever?
+Message-ID: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+
+We're having a super interesting discussion on https://bugs.python.org/issue34160 .  It is now marked as a release blocker and warrants a broader discussion.
+
+Our problem is that at least two distinct and important users have written tests that depend on exact byte-by-byte comparisons of the final serialization.  So any changes to the XML modules will break those tests (not the applications themselves, just the test cases that assume the output will be forever, byte-by-byte identical).  
+
+In theory, the tests are incorrectly designed and should not treat the module output as a canonical normal form.  In practice, doing an equality test on the output is the simplest, most obvious approach, and likely is being done in other packages we don't know about yet.
+
+With pickle, json, and __repr__, the usual way to write a test is to verify a roundtrip:  assert pickle.loads(pickle.dumps(data)) == data.  With XML, the problem is that the DOM doesn't have an equality operator.  The user is left with either testing specific fragments with element.find(xpath) or with using a standards compliant canonicalization package (not available from us). Neither option is pleasant.
+
+The code in the current 3.8 alpha differs from 3.7 in that it removes attribute sorting and instead preserves the order the user specified when creating an element.  As far as I can tell, there is no objection to this as a feature.  The problem is what to do about the existing tests in third-party code, what guarantees we want to make going forward, and what do we recommend as a best practice for testing XML generation.
+
+Things we can do:
+
+1) Revert back to the 3.7 behavior. This of course, makes all the test pass :-)  The downside is that it perpetuates the practice of bytewise equality tests and locks in all implementation quirks forever.  I don't know of anyone advocating this option, but it is the simplest thing to do.
+
+2). Go into every XML module and add attribute sorting options to each function that generate xml.  This gives users a way to make their tests pass for now. There are several downsides. a) It grows the API in a way that is inconsistent with all the other XML packages I've seen. b) We'll have to test, maintain, and document the API forever -- the API is already large and time consuming to teach. c) It perpetuates the notion that bytewise equality tests are the right thing to do, so we'll have this problem again if substitute in another code generator or alter any of the other implementation quirks (i.e. how CDATA sections are serialized).
+
+3) Add a standards compliant canonicalization tool (see https://en.wikipedia.org/wiki/Canonical_XML ).  This is likely to be the right-way-to-do-it but takes time and energy.
+
+4) Fix the tests in the third-party modules to be more focused on their actual test objectives, the semantics of the generated XML rather than the exact serialization.  This option would seem like the right-thing-to-do but it isn't trivial because the entire premise of the existing test is invalid.  For every case, we'll actually have to think through what the test objective really is.
+
+Of these, option 2 is my least preferred.  Ideally, we don't guarantee bytewise identical output across releases, and ideally we don't grow a new API that perpetuates the issue. That said, I'm not wedded to any of these options and just want us to do what is best for the users in the long run.
+
+Regardless of option chosen, we should make explicit whether on not the Python standard library modules guarantee cross-release bytewise identical output for XML. That is really the core issue here.  Had we had an explicit notice one way or the other, there wouldn't be an issue now.
+
+Any thoughts?
+
+
+
+Raymond Hettinger
+
+
+P.S.   Stefan Behnel is planning to remove attribute sorting from lxml.  On the bug tracker, he has clearly articulated his reasons.
+
+
+
+From njs at pobox.com  Mon Mar 18 19:15:30 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Mon, 18 Mar 2019 16:15:30 -0700
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+Message-ID: <CAPJVwB=Z0zA=U+BsO50aphqYUtzLO_ROEb1RUYPz-ttwLAHyuQ@mail.gmail.com>
+
+I noticed that your list doesn't include "add a DOM equality operator".
+That seems potentially simpler to implement than canonical XML
+serialization, and like a useful thing to have in any case. Would it make
+sense as an option?
+
+On Mon, Mar 18, 2019, 15:46 Raymond Hettinger <raymond.hettinger at gmail.com>
+wrote:
+
+> We're having a super interesting discussion on
+> https://bugs.python.org/issue34160 .  It is now marked as a release
+> blocker and warrants a broader discussion.
+>
+> Our problem is that at least two distinct and important users have written
+> tests that depend on exact byte-by-byte comparisons of the final
+> serialization.  So any changes to the XML modules will break those tests
+> (not the applications themselves, just the test cases that assume the
+> output will be forever, byte-by-byte identical).
+>
+> In theory, the tests are incorrectly designed and should not treat the
+> module output as a canonical normal form.  In practice, doing an equality
+> test on the output is the simplest, most obvious approach, and likely is
+> being done in other packages we don't know about yet.
+>
+> With pickle, json, and __repr__, the usual way to write a test is to
+> verify a roundtrip:  assert pickle.loads(pickle.dumps(data)) == data.  With
+> XML, the problem is that the DOM doesn't have an equality operator.  The
+> user is left with either testing specific fragments with
+> element.find(xpath) or with using a standards compliant canonicalization
+> package (not available from us). Neither option is pleasant.
+>
+> The code in the current 3.8 alpha differs from 3.7 in that it removes
+> attribute sorting and instead preserves the order the user specified when
+> creating an element.  As far as I can tell, there is no objection to this
+> as a feature.  The problem is what to do about the existing tests in
+> third-party code, what guarantees we want to make going forward, and what
+> do we recommend as a best practice for testing XML generation.
+>
+> Things we can do:
+>
+> 1) Revert back to the 3.7 behavior. This of course, makes all the test
+> pass :-)  The downside is that it perpetuates the practice of bytewise
+> equality tests and locks in all implementation quirks forever.  I don't
+> know of anyone advocating this option, but it is the simplest thing to do.
+>
+> 2). Go into every XML module and add attribute sorting options to each
+> function that generate xml.  This gives users a way to make their tests
+> pass for now. There are several downsides. a) It grows the API in a way
+> that is inconsistent with all the other XML packages I've seen. b) We'll
+> have to test, maintain, and document the API forever -- the API is already
+> large and time consuming to teach. c) It perpetuates the notion that
+> bytewise equality tests are the right thing to do, so we'll have this
+> problem again if substitute in another code generator or alter any of the
+> other implementation quirks (i.e. how CDATA sections are serialized).
+>
+> 3) Add a standards compliant canonicalization tool (see
+> https://en.wikipedia.org/wiki/Canonical_XML ).  This is likely to be the
+> right-way-to-do-it but takes time and energy.
+>
+> 4) Fix the tests in the third-party modules to be more focused on their
+> actual test objectives, the semantics of the generated XML rather than the
+> exact serialization.  This option would seem like the right-thing-to-do but
+> it isn't trivial because the entire premise of the existing test is
+> invalid.  For every case, we'll actually have to think through what the
+> test objective really is.
+>
+> Of these, option 2 is my least preferred.  Ideally, we don't guarantee
+> bytewise identical output across releases, and ideally we don't grow a new
+> API that perpetuates the issue. That said, I'm not wedded to any of these
+> options and just want us to do what is best for the users in the long run.
+>
+> Regardless of option chosen, we should make explicit whether on not the
+> Python standard library modules guarantee cross-release bytewise identical
+> output for XML. That is really the core issue here.  Had we had an explicit
+> notice one way or the other, there wouldn't be an issue now.
+>
+> Any thoughts?
+>
+>
+>
+> Raymond Hettinger
+>
+>
+> P.S.   Stefan Behnel is planning to remove attribute sorting from lxml.
+> On the bug tracker, he has clearly articulated his reasons.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190318/2736d92b/attachment-0001.html>
+
+From raymond.hettinger at gmail.com  Mon Mar 18 19:33:51 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Mon, 18 Mar 2019 16:33:51 -0700
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <CAPJVwB=Z0zA=U+BsO50aphqYUtzLO_ROEb1RUYPz-ttwLAHyuQ@mail.gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CAPJVwB=Z0zA=U+BsO50aphqYUtzLO_ROEb1RUYPz-ttwLAHyuQ@mail.gmail.com>
+Message-ID: <E2BF691B-636F-4B62-ACC0-A4F574C9118C@gmail.com>
+
+
+
+> On Mar 18, 2019, at 4:15 PM, Nathaniel Smith <njs at pobox.com> wrote:
+> 
+> I noticed that your list doesn't include "add a DOM equality operator". That seems potentially simpler to implement than canonical XML serialization, and like a useful thing to have in any case. Would it make sense as an option?
+
+Time machine!  St?phane Wirtel just posted a basic semantic comparison between two streams.?   Presumably, there would need to be a range of options for specifying what constitutes equivalence but this is a nice start.
+
+Raymond
+
+
+? https://bugs.python.org/file48217/test_xml_compare.py
+
+
+From brian.kuhl at windriver.com  Mon Mar 18 20:15:45 2019
+From: brian.kuhl at windriver.com (Kuhl, Brian)
+Date: Tue, 19 Mar 2019 00:15:45 +0000
+Subject: [Python-Dev] Testing cross-compiled python (windows arm32) from
+ build bot
+In-Reply-To: <61bfdffc-e3cc-ee02-2f55-93f8658d23ce@ubuntu.com>
+References: <CY4PR2101MB080437C3EE50F1184D4496D6F9470@CY4PR2101MB0804.namprd21.prod.outlook.com>
+ <61bfdffc-e3cc-ee02-2f55-93f8658d23ce@ubuntu.com>
+Message-ID: <6C486AB80682E24095E3E77A408D68F20149A4947B@ALA-MBD.corp.ad.wrs.com>
+
+
+We (Wind River) are doing it for VxWorks, which is also cross-compiled, and has no concept of chroot you see in Linux. 
+The trick is to insert a little switch from local to a remote shell between the build and the test run via ssh (or telnet).
+Don't think we gotten anywhere near upstreaming that little change though?
+CPython's buildbot is actually easier than most to open source test suites to adapt to cross compile, because everything is run in python after the build, so you only have to make one switch in context.
+
+ Brian
+
+> -----Original Message-----
+> From: Python-Dev [mailto:python-dev-
+> bounces+brian.kuhl=windriver.com at python.org] On Behalf Of Matthias Klose
+> Sent: Monday, March 18, 2019 5:32 PM
+> To: Paul Monson <Paul.Monson at microsoft.com>; python-dev at python.org
+> Subject: Re: [Python-Dev] Testing cross-compiled python (windows arm32) from
+> build bot
+> 
+> On 18.03.19 21:10, Paul Monson via Python-Dev wrote:
+> > Hello,
+> >
+> > For windows arm32 I would like to be able run tests in the buildbot.
+> > Windows arm32 programs built with MSVC are always cross-compiled.
+> > This means I need to build cpython on x86/x64 and then deploy the build
+> artifacts and run the tests on an ARM32 device.
+> >
+> > Is there any documentation or examples of how to do this?
+> > If not, are there any recommendations for how to achieve this?
+> 
+> I'm not aware of any documentation. For arm-linux-gnueabihf I once had a
+> setup with two chroots, the first one for cross-building python, and then the
+> second one for running the tests using qemu.  Two separate chroots to make
+> sure that I don't run any target code during the build.  The build location bind
+> mounted in both chroots to avoid the copy step.
+> 
+> Matthias
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-
+> dev/brian.kuhl%40windriver.com
+
+From Peixing.Xin at windriver.com  Mon Mar 18 22:21:58 2019
+From: Peixing.Xin at windriver.com (Xin, Peixing)
+Date: Tue, 19 Mar 2019 02:21:58 +0000
+Subject: [Python-Dev] Can I submit more support of standard library for
+ VxWorks after 3.8.0 beta1?
+Message-ID: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EE94@ALA-MBD.corp.ad.wrs.com>
+
+Hi, Experts:
+
+Seeing from the Python 3.8.0 schedule(https://www.python.org/dev/peps/pep-0569/#schedule), new features will not be allowed to submit after 3.8.0 beta1. For VxWorks RTOS platform supporting CPython, we are using bpo-31904(https://bugs.python.org/issue31904) for PRs to submit our codes. Now I want to know whether we can add more standard library support for VxWorks AFTER 3.8.0 beta1?
+
+[cid:image001.png at 01D4DE3B.DF628700]
+
+Thanks,
+Peixing
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/8abd81fa/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image001.png
+Type: image/png
+Size: 50332 bytes
+Desc: image001.png
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/8abd81fa/attachment-0001.png>
+
+From Peixing.Xin at windriver.com  Mon Mar 18 22:54:29 2019
+From: Peixing.Xin at windriver.com (Xin, Peixing)
+Date: Tue, 19 Mar 2019 02:54:29 +0000
+Subject: [Python-Dev] What is the workflow for announcing tier 2 platform
+ support?
+Message-ID: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EF06@ALA-MBD.corp.ad.wrs.com>
+
+Hi, Experts:
+
+VxWorks RTOS will release a new version at the end of June. For this new version, we(Wind River) plan to announce the Python support officially here (https://www.python.org/download/other/) for VxWorks as tier 2 platform. Now my 2 questions come:
+
+1.       To be qualified as tier 2 platform here https://www.python.org/download/other/, do I need to get all test cases pass on VxWorks RTOS? Now we have the following PRs for VxWorks. With these PRs merged, we can get around 70% test cases PASS.
+[cid:image003.png at 01D4DE3F.A336F1E0]
+
+2.       If we reach the announcement level, what is the workflow to update the website statements here https://www.python.org/download/other/. The following picture shows what we want to show.
+
+[cid:image002.png at 01D4DE42.1EB0FB70]
+
+Thanks,
+Peixing
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/65b8207e/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image003.png
+Type: image/png
+Size: 15039 bytes
+Desc: image003.png
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/65b8207e/attachment-0002.png>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image002.png
+Type: image/png
+Size: 130305 bytes
+Desc: image002.png
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/65b8207e/attachment-0003.png>
+
+From tjreedy at udel.edu  Tue Mar 19 00:44:30 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Tue, 19 Mar 2019 00:44:30 -0400
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+Message-ID: <q6ps3g$2e1q$1@blaine.gmane.org>
+
+On 3/18/2019 6:41 PM, Raymond Hettinger wrote:
+> We're having a super interesting discussion on https://bugs.python.org/issue34160 .  It is now marked as a release blocker and warrants a broader discussion.
+> 
+> Our problem is that at least two distinct and important users have written tests that depend on exact byte-by-byte comparisons of the final serialization.  So any changes to the XML modules will break those tests (not the applications themselves, just the test cases that assume the output will be forever, byte-by-byte identical).
+> 
+> In theory, the tests are incorrectly designed and should not treat the module output as a canonical normal form.  In practice, doing an equality test on the output is the simplest, most obvious approach, and likely is being done in other packages we don't know about yet.
+> 
+> With pickle, json, and __repr__, the usual way to write a test is to verify a roundtrip:  assert pickle.loads(pickle.dumps(data)) == data.  With XML, the problem is that the DOM doesn't have an equality operator.  The user is left with either testing specific fragments with element.find(xpath) or with using a standards compliant canonicalization package (not available from us). Neither option is pleasant.
+> 
+> The code in the current 3.8 alpha differs from 3.7 in that it removes attribute sorting and instead preserves the order the user specified when creating an element.  As far as I can tell, there is no objection to this as a feature.  The problem is what to do about the existing tests in third-party code, what guarantees we want to make going forward, and what do we recommend as a best practice for testing XML generation.
+> 
+> Things we can do:
+> 
+> 1) Revert back to the 3.7 behavior. This of course, makes all the test pass :-)  The downside is that it perpetuates the practice of bytewise equality tests and locks in all implementation quirks forever.  I don't know of anyone advocating this option, but it is the simplest thing to do.
+
+If it comes down to doing *something* to unblock the release ...
+1b) Revert to 3.7 *and* document that byte equality with current ouput 
+is *not* guaranteed.
+
+> 2). Go into every XML module and add attribute sorting options to each function that generate xml.  This gives users a way to make their tests pass for now. There are several downsides. a) It grows the API in a way that is inconsistent with all the other XML packages I've seen. b) We'll have to test, maintain, and document the API forever -- the API is already large and time consuming to teach. c) It perpetuates the notion that bytewise equality tests are the right thing to do, so we'll have this problem again if substitute in another code generator or alter any of the other implementation quirks (i.e. how CDATA sections are serialized).
+> 
+> 3) Add a standards compliant canonicalization tool (see https://en.wikipedia.org/wiki/Canonical_XML ).  This is likely to be the right-way-to-do-it but takes time and energy.
+> 
+> 4) Fix the tests in the third-party modules to be more focused on their actual test objectives, the semantics of the generated XML rather than the exact serialization.  This option would seem like the right-thing-to-do but it isn't trivial because the entire premise of the existing test is invalid.  For every case, we'll actually have to think through what the test objective really is.
+> 
+> Of these, option 2 is my least preferred.  Ideally, we don't guarantee bytewise identical output across releases, and ideally we don't grow a new API that perpetuates the issue. That said, I'm not wedded to any of these options and just want us to do what is best for the users in the long run.
+
+The point of 1b would be to give us time to do that if more is needed.
+
+> Regardless of option chosen, we should make explicit whether on not the Python standard library modules guarantee cross-release bytewise identical output for XML. That is really the core issue here.  Had we had an explicit notice one way or the other, there wouldn't be an issue now.
+
+I have not read the XML docs but based on this and the issue discussion 
+and what I think our general guarantee policy has been, I would consider 
+that there is not one.  (I am thinking about things like garbage 
+collection, stable sorting, and set/dict iteration order.)
+
+-- 
+Terry Jan Reedy
+
+
+From greg at krypto.org  Tue Mar 19 02:30:43 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Mon, 18 Mar 2019 23:30:43 -0700
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <q6ps3g$2e1q$1@blaine.gmane.org>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <q6ps3g$2e1q$1@blaine.gmane.org>
+Message-ID: <CAGE7PNJxv0T74mEM-Pq1vdMdQaQQiLwnMujHtTT=OVFdwMO6mA@mail.gmail.com>
+
+On Mon, Mar 18, 2019 at 9:44 PM Terry Reedy <tjreedy at udel.edu> wrote:
+
+> On 3/18/2019 6:41 PM, Raymond Hettinger wrote:
+> > We're having a super interesting discussion on
+> https://bugs.python.org/issue34160 .  It is now marked as a release
+> blocker and warrants a broader discussion.
+> >
+> > Our problem is that at least two distinct and important users have
+> written tests that depend on exact byte-by-byte comparisons of the final
+> serialization.  So any changes to the XML modules will break those tests
+> (not the applications themselves, just the test cases that assume the
+> output will be forever, byte-by-byte identical).
+> >
+> > In theory, the tests are incorrectly designed and should not treat the
+> module output as a canonical normal form.  In practice, doing an equality
+> test on the output is the simplest, most obvious approach, and likely is
+> being done in other packages we don't know about yet.
+> >
+> > With pickle, json, and __repr__, the usual way to write a test is to
+> verify a roundtrip:  assert pickle.loads(pickle.dumps(data)) == data.  With
+> XML, the problem is that the DOM doesn't have an equality operator.  The
+> user is left with either testing specific fragments with
+> element.find(xpath) or with using a standards compliant canonicalization
+> package (not available from us). Neither option is pleasant.
+> >
+> > The code in the current 3.8 alpha differs from 3.7 in that it removes
+> attribute sorting and instead preserves the order the user specified when
+> creating an element.  As far as I can tell, there is no objection to this
+> as a feature.  The problem is what to do about the existing tests in
+> third-party code, what guarantees we want to make going forward, and what
+> do we recommend as a best practice for testing XML generation.
+> >
+> > Things we can do:
+> >
+> > 1) Revert back to the 3.7 behavior. This of course, makes all the test
+> pass :-)  The downside is that it perpetuates the practice of bytewise
+> equality tests and locks in all implementation quirks forever.  I don't
+> know of anyone advocating this option, but it is the simplest thing to do.
+>
+> If it comes down to doing *something* to unblock the release ...
+> 1b) Revert to 3.7 *and* document that byte equality with current ouput
+> is *not* guaranteed.
+>
+> > 2). Go into every XML module and add attribute sorting options to each
+> function that generate xml.  This gives users a way to make their tests
+> pass for now. There are several downsides. a) It grows the API in a way
+> that is inconsistent with all the other XML packages I've seen. b) We'll
+> have to test, maintain, and document the API forever -- the API is already
+> large and time consuming to teach. c) It perpetuates the notion that
+> bytewise equality tests are the right thing to do, so we'll have this
+> problem again if substitute in another code generator or alter any of the
+> other implementation quirks (i.e. how CDATA sections are serialized).
+> >
+> > 3) Add a standards compliant canonicalization tool (see
+> https://en.wikipedia.org/wiki/Canonical_XML ).  This is likely to be the
+> right-way-to-do-it but takes time and energy.
+
+>
+> > 4) Fix the tests in the third-party modules to be more focused on their
+> actual test objectives, the semantics of the generated XML rather than the
+> exact serialization.  This option would seem like the right-thing-to-do but
+> it isn't trivial because the entire premise of the existing test is
+> invalid.  For every case, we'll actually have to think through what the
+> test objective really is.
+
+>
+> > Of these, option 2 is my least preferred.  Ideally, we don't guarantee
+> bytewise identical output across releases, and ideally we don't grow a new
+> API that perpetuates the issue. That said, I'm not wedded to any of these
+> options and just want us to do what is best for the users in the long run.
+>
+
+For (1) - don't revert in 3.8 - Do not worry about order or formatting of
+serialized data changing between major Python releases.  change in 3.8?
+that's 100% okay.  This already happens all the time between Python
+releases.  We've changed dict iteration order between releases twice this
+decade.
+
+Within point releases of stable versions, ie 3.7.x? Up to the release
+manager; it is semi-rude to change something like this within a stable
+release unless there is a good reason, but we *believe* have done it
+before. A general rule of thumb is to try not to without good reason though
+unless the code to avoid doing so would be over complicated.
+
+It is always the user code depending on the non-declared ordering within
+output that is wrong, when we preserve it we're only doing them a temporary
+favor that ultimately allows more problems to grow in the future.  Nobody
+should use a text comparison on serialized data not explicitly stated as
+canonical and call that test good by any standard unless you are writing a
+test that for canonical output by a library that explicitly guarantees its
+output will be canonical.
+
+Agreed that your option (2) is not good for the world. The best thing to do
+API wise is intentionally force some randomness of emitted order so that
+people do not accidentally stumble into writing tests like this in the
+presence of multiple attributes being emitted. If people need some
+canonical form of output they need to explicitly ask for it.
+
+The hash randomization work we did years ago for dicts exposed real bugs in
+code all around the world when it was enabled (we turned it on internally
+at work soon after it was implemented and had thousands of tests to fix
+including exposing several hidden actual bugs in code).  A lot of the fixes
+were typical "parse the structured data and compare structures" cleanups of
+code that was previously cheating and getting away with a golden value
+string comparison.  (people are always going to write code like that, it is
+trivial to write, and if it doesn't appear to be flaky they'll consider it
+good enough and leave future breakage for the next maintainers)
+
+Option (3) seems better served via PyPI modules.
+
+Option (4): fix code testing golden value str/bytes equality of serialized
+formatted data is always a good thing to do.  sometimes easy, occasionally
+quite frustrating as you find fundamentally flawed tests or, worse, flawed
+API designs that relied on the non-guaranteed order.  can we fix everyones
+code?  nope.  it isn't our responsibility, but if we've identified widely
+used projects with the issue at least give them a heads up about their
+bug(s) as soon as possible with repro instructions in the relevant issue
+trackers.
+
+my 2cents,
+-gps
+
+
+>
+> The point of 1b would be to give us time to do that if more is needed.
+>
+> > Regardless of option chosen, we should make explicit whether on not the
+> Python standard library modules guarantee cross-release bytewise identical
+> output for XML. That is really the core issue here.  Had we had an explicit
+> notice one way or the other, there wouldn't be an issue now.
+>
+> I have not read the XML docs but based on this and the issue discussion
+> and what I think our general guarantee policy has been, I would consider
+> that there is not one.  (I am thinking about things like garbage
+> collection, stable sorting, and set/dict iteration order.)
+>
+> --
+> Terry Jan Reedy
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190318/1208eee0/attachment.html>
+
