@@ -9083,3 +9083,2282 @@ my 2cents,
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190318/1208eee0/attachment.html>
 
+From storchaka at gmail.com  Tue Mar 19 04:13:00 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Tue, 19 Mar 2019 10:13:00 +0200
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+Message-ID: <q6q8af$3i67$1@blaine.gmane.org>
+
+19.03.19 00:41, Raymond Hettinger ????:
+> 3) Add a standards compliant canonicalization tool (see https://en.wikipedia.org/wiki/Canonical_XML ).  This is likely to be the right-way-to-do-it but takes time and energy.
+> 
+> 4) Fix the tests in the third-party modules to be more focused on their actual test objectives, the semantics of the generated XML rather than the exact serialization.  This option would seem like the right-thing-to-do but it isn't trivial because the entire premise of the existing test is invalid.  For every case, we'll actually have to think through what the test objective really is.
+
+I think the combination of options 3 and 4 is the right thing. Not 
+always the stable output is needed, in these cases option 4 should be 
+considered. But there are valid use cases for the stable output, in 
+these cases we need to provide an alternative in the stdlib. I am 
+working on this.
+
+
+From ned at nedbatchelder.com  Tue Mar 19 07:53:11 2019
+From: ned at nedbatchelder.com (Ned Batchelder)
+Date: Tue, 19 Mar 2019 07:53:11 -0400
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <q6q8af$3i67$1@blaine.gmane.org>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <q6q8af$3i67$1@blaine.gmane.org>
+Message-ID: <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+
+On 3/19/19 4:13 AM, Serhiy Storchaka wrote:
+> 19.03.19 00:41, Raymond Hettinger ????:
+>> 3) Add a standards compliant canonicalization tool (see 
+>> https://en.wikipedia.org/wiki/Canonical_XML ).? This is likely to be 
+>> the right-way-to-do-it but takes time and energy.
+>>
+>> 4) Fix the tests in the third-party modules to be more focused on 
+>> their actual test objectives, the semantics of the generated XML 
+>> rather than the exact serialization.? This option would seem like the 
+>> right-thing-to-do but it isn't trivial because the entire premise of 
+>> the existing test is invalid.? For every case, we'll actually have to 
+>> think through what the test objective really is.
+>
+> I think the combination of options 3 and 4 is the right thing. Not 
+> always the stable output is needed, in these cases option 4 should be 
+> considered. But there are valid use cases for the stable output, in 
+> these cases we need to provide an alternative in the stdlib. I am 
+> working on this.
+
+Option 4 is misleading.? Is anyone here really offering to "fix the 
+tests in third-party modules"?? Option 4 is actually, "do nothing, and 
+let a multitude of projects figure out how to fix their tests, slowing 
+progress in those projects as they try to support Python 3.8."
+
+In my case, the test code has a generic function to compare an actual 
+directory of files to an expected directory of files, so it isn't quite 
+as simple as "just use the right XML comparison."? And I support Python 
+2.7, 3.5, etc, so tests still need to work under those versions.? None 
+of this is impossible, but please try not to preach to us maintainers 
+that we are doing it wrong, that it will be easy to fix, etc.? Using 
+language like "the entire premise of the test is invalid" seems 
+needlessly condescending.
+
+As one of the suggested solutions, a DOM comparison is not enough. I 
+don't just want to know that my actual XML is different than my expected 
+XML.? I want to know where and how it differs.
+
+Textual comparison may be the "wrong" way to check XML, but it gives me 
+many tools for working with the test results.? It was simple and it 
+worked.? Now in Python 3.8, because Python doesn't want to add an 
+optional flag to continue doing what it has always done, I need to 
+re-engineer my tests.
+
+--Ned.
+
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: 
+> https://mail.python.org/mailman/options/python-dev/ned%40nedbatchelder.com
+
+From mertz at gnosis.cx  Tue Mar 19 08:11:34 2019
+From: mertz at gnosis.cx (David Mertz)
+Date: Tue, 19 Mar 2019 08:11:34 -0400
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+Message-ID: <CAEbHw4b3JkvO-OkAMMdCzGfUiJXqwte1XhVj-JhndSHQO6FStg@mail.gmail.com>
+
+In my opinion, any test that relied on a non-promised accident of
+serialization is broken today. Very often, such bad tests mask bad
+production code that makes the same unsafe assumptions.
+
+This is similar to tests that assumed a certain dictionary order, before we
+got guaranteed insertion order. Or like tests that rely on object identity
+of short strings or small ints. Or like non-guaranteed identities in
+pickles across versions.
+
+In a way, this case makes bugs worse because they are not only a Python
+internal matter. XML is used to communicate among many tools and
+programming languages, and relying on assumptions those other tools will
+not follow us a bad habit. Sure, most tests probably don't get to the point
+of touching those external tools themselves, but staying from bad
+assumptions about the domain isn't best practices.
+
+That said, I think aN XML canonicalization function is generally a good
+thing for Python to have. But it shouldn't be a stopper in releases.
+
+On Mon, Mar 18, 2019, 6:47 PM Raymond Hettinger <raymond.hettinger at gmail.com>
+wrote:
+
+> We're having a super interesting discussion on
+> https://bugs.python.org/issue34160 .  It is now marked as a release
+> blocker and warrants a broader discussion.
+>
+> Our problem is that at least two distinct and important users have written
+> tests that depend on exact byte-by-byte comparisons of the final
+> serialization.  So any changes to the XML modules will break those tests
+> (not the applications themselves, just the test cases that assume the
+> output will be forever, byte-by-byte identical).
+>
+> In theory, the tests are incorrectly designed and should not treat the
+> module output as a canonical normal form.  In practice, doing an equality
+> test on the output is the simplest, most obvious approach, and likely is
+> being done in other packages we don't know about yet.
+>
+> With pickle, json, and __repr__, the usual way to write a test is to
+> verify a roundtrip:  assert pickle.loads(pickle.dumps(data)) == data.  With
+> XML, the problem is that the DOM doesn't have an equality operator.  The
+> user is left with either testing specific fragments with
+> element.find(xpath) or with using a standards compliant canonicalization
+> package (not available from us). Neither option is pleasant.
+>
+> The code in the current 3.8 alpha differs from 3.7 in that it removes
+> attribute sorting and instead preserves the order the user specified when
+> creating an element.  As far as I can tell, there is no objection to this
+> as a feature.  The problem is what to do about the existing tests in
+> third-party code, what guarantees we want to make going forward, and what
+> do we recommend as a best practice for testing XML generation.
+>
+> Things we can do:
+>
+> 1) Revert back to the 3.7 behavior. This of course, makes all the test
+> pass :-)  The downside is that it perpetuates the practice of bytewise
+> equality tests and locks in all implementation quirks forever.  I don't
+> know of anyone advocating this option, but it is the simplest thing to do.
+>
+> 2). Go into every XML module and add attribute sorting options to each
+> function that generate xml.  This gives users a way to make their tests
+> pass for now. There are several downsides. a) It grows the API in a way
+> that is inconsistent with all the other XML packages I've seen. b) We'll
+> have to test, maintain, and document the API forever -- the API is already
+> large and time consuming to teach. c) It perpetuates the notion that
+> bytewise equality tests are the right thing to do, so we'll have this
+> problem again if substitute in another code generator or alter any of the
+> other implementation quirks (i.e. how CDATA sections are serialized).
+>
+> 3) Add a standards compliant canonicalization tool (see
+> https://en.wikipedia.org/wiki/Canonical_XML ).  This is likely to be the
+> right-way-to-do-it but takes time and energy.
+>
+> 4) Fix the tests in the third-party modules to be more focused on their
+> actual test objectives, the semantics of the generated XML rather than the
+> exact serialization.  This option would seem like the right-thing-to-do but
+> it isn't trivial because the entire premise of the existing test is
+> invalid.  For every case, we'll actually have to think through what the
+> test objective really is.
+>
+> Of these, option 2 is my least preferred.  Ideally, we don't guarantee
+> bytewise identical output across releases, and ideally we don't grow a new
+> API that perpetuates the issue. That said, I'm not wedded to any of these
+> options and just want us to do what is best for the users in the long run.
+>
+> Regardless of option chosen, we should make explicit whether on not the
+> Python standard library modules guarantee cross-release bytewise identical
+> output for XML. That is really the core issue here.  Had we had an explicit
+> notice one way or the other, there wouldn't be an issue now.
+>
+> Any thoughts?
+>
+>
+>
+> Raymond Hettinger
+>
+>
+> P.S.   Stefan Behnel is planning to remove attribute sorting from lxml.
+> On the bug tracker, he has clearly articulated his reasons.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mertz%40gnosis.cx
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/0288c706/attachment-0001.html>
+
+From solipsis at pitrou.net  Tue Mar 19 08:50:56 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 19 Mar 2019 13:50:56 +0100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+Message-ID: <20190319135056.42957ec2@fsol>
+
+
+Hi Raymond,
+
+As long as the new serialization order is deterministic (i.e. it's the
+same every run and doesn't depend on e.g. hash randomization), then I
+think it's fine to change it.
+
+Some more comments / questions:
+
+> 2). Go into every XML module and add attribute sorting options to each function that generate xml.
+
+What do you mean with "every XML module"? Are there many of them?
+
+> Regardless of option chosen, we should make explicit whether on not the Python standard library modules guarantee cross-release bytewise identical output for XML.
+
+IMO we certainly shouldn't.  XML is a serialization format used for
+machine interoperability (even though "human-editable" was one of its
+selling points at the start, rather misguidingly).  However, the output
+should ideally be stable and deterministic accross all releases of a
+given bugfix branch.
+
+(i.e., if I run the same code multiple times on all 3.7.x versions, I
+should get always the same output)
+
+Regards
+
+Antoine.
+
+
+
+From stephane at wirtel.be  Tue Mar 19 09:03:11 2019
+From: stephane at wirtel.be (=?UTF-8?Q?St=c3=a9phane_Wirtel?=)
+Date: Tue, 19 Mar 2019 14:03:11 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+Message-ID: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+
+Hi,
+
+Context: raise a warning or remove tempfile.mktemp()
+BPO: https://bugs.python.org/issue36309
+
+Since 2.3, this function is deprecated in the documentation, just in the
+documentation. In the code, there is a commented RuntimeWarning.
+Commented by Guido in 2002, because the warning was too annoying (and I
+understand ;-)).
+
+So, in this BPO, we start to discuss about the future of this function
+and Serhiy proposed to discuss on the Python-dev mailing list.
+
+Question: Should we drop it or add a (Pending)DeprecationWarning?
+
+Suggestion and timeline:
+
+3.8, we raise a PendingDeprecationWarning
+    * update the code
+    * update the documentation
+    * update the tests
+      (check a PendingDeprecationWarning if sys.version_info == 3.8)
+
+3.9, we change PendingDeprecationWarning to DeprecationWarning
+      (check DeprecationWarning if sys.version_info == 3.9)
+
+3.9+, we drop tempfile.mktemp()
+
+What do you suggest?
+
+Have a nice day and thank you for your feedback.
+
+From timothy.c.delaney at gmail.com  Tue Mar 19 09:10:32 2019
+From: timothy.c.delaney at gmail.com (Tim Delaney)
+Date: Wed, 20 Mar 2019 00:10:32 +1100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <CAEbHw4b3JkvO-OkAMMdCzGfUiJXqwte1XhVj-JhndSHQO6FStg@mail.gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CAEbHw4b3JkvO-OkAMMdCzGfUiJXqwte1XhVj-JhndSHQO6FStg@mail.gmail.com>
+Message-ID: <CAN8CLgkB=206yqkvBc7dGXNRR7YmyCERJT-XjbyjvCPgqeGdVg@mail.gmail.com>
+
+On Tue, 19 Mar 2019 at 23:13, David Mertz <mertz at gnosis.cx> wrote:
+
+> In a way, this case makes bugs worse because they are not only a Python
+> internal matter. XML is used to communicate among many tools and
+> programming languages, and relying on assumptions those other tools will
+> not follow us a bad habit.
+>
+
+I have a recent example I encountered where the 3.7 behaviour (sorting
+attributes) results in a third-party tool behaving incorrectly, whereas
+maintaining attribute order works correctly. The particular case was using
+HTML <meta> tags for importing into Calibre for converting to an ebook. The
+most common symptom was that series indexes were sometimes being correctly
+imported, and sometimes not. Occasionally other <meta> tags would also fail
+to be correctly imported.
+
+Turns out that <meta name="series_index" content="3"/> gave consistently
+correct results, whilst <meta content="3" name="series_index"/> was
+erratic. And whilst I'd specified the <meta> tags with the name attribute
+first, I was then passing the HTML through BeautifulSoup, which sorted the
+attributes.
+
+Now Calibre is definitely in the wrong here - it should be able to import
+regardless of the order of attributes. But the fact is that there are a lot
+of tools out there that are semi-broken in a similar manner.
+
+This to me is an argument to default to maintaining order, but provide a
+way for the caller to control the order of attributes when formatting e.g.
+pass an ordering function. If you want sorted attributes, pass the built-in
+sorted function as your ordering function. But I think that's getting
+beyond the scope of this discussion.
+
+Tim Delaney
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190320/1a496c7e/attachment.html>
+
+From storchaka at gmail.com  Tue Mar 19 09:12:18 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Tue, 19 Mar 2019 15:12:18 +0200
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <q6q8af$3i67$1@blaine.gmane.org>
+ <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+Message-ID: <q6qprl$2ebs$1@blaine.gmane.org>
+
+19.03.19 13:53, Ned Batchelder ????:
+> Option 4 is misleading.? Is anyone here really offering to "fix the 
+> tests in third-party modules"?? Option 4 is actually, "do nothing, and 
+> let a multitude of projects figure out how to fix their tests, slowing 
+> progress in those projects as they try to support Python 3.8."
+
+Any option except option 1 (and option 2 with sorting by default) 
+requires changing third-party code. You should either pass additional 
+argument to serialization functions, or use special canonization functions.
+
+We should look at the problem from long perspective. Freezing the 
+current behavior forever does not look good. If we need to break the 
+user code, we should minimize the harm and provide convenient tools for 
+reproducing the current behavior. And this is an opportunity to rewrite 
+user tests in more appropriate form. In your case textual comparison may 
+be the most appropriate form, but this may be not so in other cases.
+
+> Now in Python 3.8, because Python doesn't want to add an 
+> optional flag to continue doing what it has always done, I need to 
+> re-engineer my tests.
+
+Please wait yet some time. I hope to add canonicalization before the 
+first beta.
+
+
+From storchaka at gmail.com  Tue Mar 19 09:19:04 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Tue, 19 Mar 2019 15:19:04 +0200
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <20190319135056.42957ec2@fsol>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <20190319135056.42957ec2@fsol>
+Message-ID: <q6qq8a$2vn0$1@blaine.gmane.org>
+
+19.03.19 14:50, Antoine Pitrou ????:
+>> 2). Go into every XML module and add attribute sorting options to each function that generate xml.
+> 
+> What do you mean with "every XML module"? Are there many of them?
+
+ElementTree and minidom. Maybe xmlrpc. And perhaps we need to add 
+arguments in calls at higher level where these modules are used.
+
+
+From solipsis at pitrou.net  Tue Mar 19 09:23:39 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 19 Mar 2019 14:23:39 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+Message-ID: <20190319142339.76cfdc47@fsol>
+
+
+-1.  Please don't remove tempfile.mktemp().  mktemp() is useful to
+create a temporary *name*.  All other tempfile functions create an
+actual file and impose additional burden, for example by making the
+file unaccessible by other processes.  But sometimes all I want is a
+temporary name that an *other* program will create / act on, not Python.
+It's a very common use case when writing scripts.
+
+The only reasonable workaround I can think of is to first create a
+temporary directory using mkdtemp(), then use a well-known name inside
+that directory.  But that has the same security implications AFAICT,
+since another process can come and create the file / symlink first.
+
+Regards
+
+Antoine.
+
+
+On Tue, 19 Mar 2019 14:03:11 +0100
+St?phane Wirtel <stephane at wirtel.be> wrote:
+> Hi,
+> 
+> Context: raise a warning or remove tempfile.mktemp()
+> BPO: https://bugs.python.org/issue36309
+> 
+> Since 2.3, this function is deprecated in the documentation, just in the
+> documentation. In the code, there is a commented RuntimeWarning.
+> Commented by Guido in 2002, because the warning was too annoying (and I
+> understand ;-)).
+> 
+> So, in this BPO, we start to discuss about the future of this function
+> and Serhiy proposed to discuss on the Python-dev mailing list.
+> 
+> Question: Should we drop it or add a (Pending)DeprecationWarning?
+> 
+> Suggestion and timeline:
+> 
+> 3.8, we raise a PendingDeprecationWarning
+>     * update the code
+>     * update the documentation
+>     * update the tests
+>       (check a PendingDeprecationWarning if sys.version_info == 3.8)
+> 
+> 3.9, we change PendingDeprecationWarning to DeprecationWarning
+>       (check DeprecationWarning if sys.version_info == 3.9)
+> 
+> 3.9+, we drop tempfile.mktemp()
+> 
+> What do you suggest?
+> 
+> Have a nice day and thank you for your feedback.
+
+
+
+
+From storchaka at gmail.com  Tue Mar 19 09:23:35 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Tue, 19 Mar 2019 15:23:35 +0200
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <CAN8CLgkB=206yqkvBc7dGXNRR7YmyCERJT-XjbyjvCPgqeGdVg@mail.gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CAEbHw4b3JkvO-OkAMMdCzGfUiJXqwte1XhVj-JhndSHQO6FStg@mail.gmail.com>
+ <CAN8CLgkB=206yqkvBc7dGXNRR7YmyCERJT-XjbyjvCPgqeGdVg@mail.gmail.com>
+Message-ID: <q6qqgr$3tpp$1@blaine.gmane.org>
+
+19.03.19 15:10, Tim Delaney ????:
+> Now Calibre is definitely in the wrong here - it should be able to 
+> import regardless of the order of attributes. But the fact is that there 
+> are a lot of tools out there that are semi-broken in a similar manner.
+
+Is not Calibre going to seat on Python 2 forever? This makes it 
+non-relevant to the discussion about Python 3.8.
+
+
+From storchaka at gmail.com  Tue Mar 19 09:32:25 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Tue, 19 Mar 2019 15:32:25 +0200
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+Message-ID: <q6qr1d$5497$1@blaine.gmane.org>
+
+19.03.19 15:03, St?phane Wirtel ????:
+> Suggestion and timeline:
+> 
+> 3.8, we raise a PendingDeprecationWarning
+>      * update the code
+>      * update the documentation
+>      * update the tests
+>        (check a PendingDeprecationWarning if sys.version_info == 3.8)
+> 
+> 3.9, we change PendingDeprecationWarning to DeprecationWarning
+>        (check DeprecationWarning if sys.version_info == 3.9)
+> 
+> 3.9+, we drop tempfile.mktemp()
+
+This plan LGTM.
+
+Currently mkdir() is widely used in distutils, Sphinx, pip, setuptools, 
+virtualenv, and many other third-party projects, so it will take time to 
+fix all these places. But we should do this, because all this code 
+likely contains security flaws.
+
+
+From rosuav at gmail.com  Tue Mar 19 09:37:56 2019
+From: rosuav at gmail.com (Chris Angelico)
+Date: Wed, 20 Mar 2019 00:37:56 +1100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <20190319142339.76cfdc47@fsol>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+Message-ID: <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+
+On Wed, Mar 20, 2019 at 12:25 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+>
+> -1.  Please don't remove tempfile.mktemp().  mktemp() is useful to
+> create a temporary *name*.  All other tempfile functions create an
+> actual file and impose additional burden, for example by making the
+> file unaccessible by other processes.  But sometimes all I want is a
+> temporary name that an *other* program will create / act on, not Python.
+> It's a very common use case when writing scripts.
+>
+> The only reasonable workaround I can think of is to first create a
+> temporary directory using mkdtemp(), then use a well-known name inside
+> that directory.  But that has the same security implications AFAICT,
+> since another process can come and create the file / symlink first.
+
+Can't you create a NamedTemporaryFile and permit the other program to
+use it? I just tried that (with TiMidity, even though it's quite
+capable of just writing to stdout) and it worked fine.
+
+>>> f = tempfile.NamedTemporaryFile(suffix=".flac")
+>>> subprocess.check_call(["timidity", "-OF", "-o", f.name, "Music/gp_peers.mid"])
+... snip ...
+Wrote 29645816/55940900 bytes(52.9949% compressed)
+>>> data = f.read()
+>>> len(data)
+29645816
+
+ChrisA
+
+From solipsis at pitrou.net  Tue Mar 19 09:39:46 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 19 Mar 2019 14:39:46 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <q6qr1d$5497$1@blaine.gmane.org>
+Message-ID: <20190319143946.3df5a605@fsol>
+
+On Tue, 19 Mar 2019 15:32:25 +0200
+Serhiy Storchaka <storchaka at gmail.com> wrote:
+> 19.03.19 15:03, St?phane Wirtel ????:
+> > Suggestion and timeline:
+> > 
+> > 3.8, we raise a PendingDeprecationWarning
+> >      * update the code
+> >      * update the documentation
+> >      * update the tests
+> >        (check a PendingDeprecationWarning if sys.version_info == 3.8)
+> > 
+> > 3.9, we change PendingDeprecationWarning to DeprecationWarning
+> >        (check DeprecationWarning if sys.version_info == 3.9)
+> > 
+> > 3.9+, we drop tempfile.mktemp()  
+> 
+> This plan LGTM.
+> 
+> Currently mkdir() is widely used in distutils, Sphinx, pip, setuptools, 
+> virtualenv, and many other third-party projects, so it will take time to 
+> fix all these places. But we should do this, because all this code 
+> likely contains security flaws.
+
+The fact that many projects, including well-maintained ones such Sphinx
+or pip, use mktemp(), may be a hint that replacing it is not as easy as
+the people writing the Python documentation seem to think.
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Tue Mar 19 09:51:27 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 19 Mar 2019 14:51:27 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+Message-ID: <20190319145127.0824f196@fsol>
+
+On Wed, 20 Mar 2019 00:37:56 +1100
+Chris Angelico <rosuav at gmail.com> wrote:
+> On Wed, Mar 20, 2019 at 12:25 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+> >
+> >
+> > -1.  Please don't remove tempfile.mktemp().  mktemp() is useful to
+> > create a temporary *name*.  All other tempfile functions create an
+> > actual file and impose additional burden, for example by making the
+> > file unaccessible by other processes.  But sometimes all I want is a
+> > temporary name that an *other* program will create / act on, not Python.
+> > It's a very common use case when writing scripts.
+> >
+> > The only reasonable workaround I can think of is to first create a
+> > temporary directory using mkdtemp(), then use a well-known name inside
+> > that directory.  But that has the same security implications AFAICT,
+> > since another process can come and create the file / symlink first.  
+> 
+> Can't you create a NamedTemporaryFile and permit the other program to
+> use it? I just tried that (with TiMidity, even though it's quite
+> capable of just writing to stdout) and it worked fine.
+
+Does it always work? According to the docs, """Whether the name can be
+used to open the file a second time, while the named temporary file is
+still open, varies across platforms (it can be so used on Unix; it
+cannot on Windows NT or later)""".
+
+tempfile.mktemp() is portable.
+
+Regards
+
+Antoine.
+
+
+
+From stephane at wirtel.be  Tue Mar 19 09:51:51 2019
+From: stephane at wirtel.be (=?UTF-8?Q?St=c3=a9phane_Wirtel?=)
+Date: Tue, 19 Mar 2019 14:51:51 +0100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <q6qprl$2ebs$1@blaine.gmane.org>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <q6q8af$3i67$1@blaine.gmane.org>
+ <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+ <q6qprl$2ebs$1@blaine.gmane.org>
+Message-ID: <0df5a99d-7aeb-183f-b5f6-87be1cc8f208@wirtel.be>
+
+and why not with a very long PendingDeprecationWarning? this warning
+could be used in this case.
+
+From vstinner at redhat.com  Tue Mar 19 09:53:25 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 19 Mar 2019 14:53:25 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+Message-ID: <CA+3bQGEJ2pYn1Hmnwct7B0GYLd-8HLcPwyTbmFLHxnH4xKG32w@mail.gmail.com>
+
+Hi,
+
+I would prefer to keep tempfile.mktemp(), remove the deprecation, but
+better explain the risk of race condition affecting security.
+
+Le mar. 19 mars 2019 ? 14:41, Chris Angelico <rosuav at gmail.com> a ?crit :
+> Can't you create a NamedTemporaryFile and permit the other program to
+> use it? I just tried that (with TiMidity, even though it's quite
+> capable of just writing to stdout) and it worked fine.
+
+When I write tests, I don't really care of security, but
+NamedTemporaryFile caused me many troubles on Windows: you cannot
+delete a file if it's still open in a another program. It's way more
+convenient to use tempfile.mktemp().
+
+O_EXCL, open(tmpname, "wx"), os.open(tmpname, os.O_CREAT | os.O_EXCL |
+os.O_WRONLY), etc. can be used to get an error if the file already
+exists.
+
+I agree that for production code where security matters,
+tempfile.mktemp() must be avoided. But I would prefer to keep it for
+tests.
+
+"with NamedTemporaryFile() as tmp: name = tmp.name" isn't a great
+replacement for tempfile.mktemp(): it creates the file and it opens
+it, whereas I only want a file name and be the first file to create
+and open it.
+
+Victor
+
+From stephane at wirtel.be  Tue Mar 19 10:10:40 2019
+From: stephane at wirtel.be (=?UTF-8?Q?St=c3=a9phane_Wirtel?=)
+Date: Tue, 19 Mar 2019 15:10:40 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <20190319143946.3df5a605@fsol>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <q6qr1d$5497$1@blaine.gmane.org> <20190319143946.3df5a605@fsol>
+Message-ID: <15894f39-1298-4e78-ee59-5d28ca123b5e@wirtel.be>
+
+totally agree with you but this function is deprecated (2002) since 2.3,
+with a simle comment about a security issue.
+
+2.3 -> 2.7, 3.0 -> 3.7, 13 releases and 17 years.
+
+Maybe we could remove it with an official PendingDeprecationWarning.
+
+Le 19/03/19 ? 14:39, Antoine Pitrou a ?crit?:
+> The fact that many projects, including well-maintained ones such Sphinx
+> or pip, use mktemp(), may be a hint that replacing it is not as easy as
+> the people writing the Python documentation seem to think.
+What's the relation with the people writing the Python documentation?
+
+The suggestion about the deprecation warning was proposed by Brett
+Cannon, and Serhiy has proposed to deprecate this function with some
+releases.
+
+The final release for 3.8 is scheduled for October 2019
+(PendingDeprecationWarning).
+Maybe 3.9 will be released 18 months later (DeprecationWarning).
+and maybe 3.10 or 4.0 will be released 18 months after 3.9.
+
+so, from today to 3.9+ there are approximatively 43 months -> 3,5 years.
+I think it's enough in term of time for the big projects to improve
+their code.
+
+
+St?phane
+
+From srittau at rittau.biz  Tue Mar 19 10:12:06 2019
+From: srittau at rittau.biz (Sebastian Rittau)
+Date: Tue, 19 Mar 2019 15:12:06 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CA+3bQGEJ2pYn1Hmnwct7B0GYLd-8HLcPwyTbmFLHxnH4xKG32w@mail.gmail.com>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+ <CA+3bQGEJ2pYn1Hmnwct7B0GYLd-8HLcPwyTbmFLHxnH4xKG32w@mail.gmail.com>
+Message-ID: <8d4e50d4-5167-a419-c254-a1f0631d2755@rittau.biz>
+
+Am 19.03.19 um 14:53 schrieb Victor Stinner:
+>
+> When I write tests, I don't really care of security, but
+> NamedTemporaryFile caused me many troubles on Windows: you cannot
+> delete a file if it's still open in a another program. It's way more
+> convenient to use tempfile.mktemp().
+>
+> O_EXCL, open(tmpname, "wx"), os.open(tmpname, os.O_CREAT | os.O_EXCL |
+> os.O_WRONLY), etc. can be used to get an error if the file already
+> exists.
+>
+> I agree that for production code where security matters,
+> tempfile.mktemp() must be avoided. But I would prefer to keep it for
+> tests.
+
+If there are valid use cases for mktemp(), I recommend renaming
+it to mkname_unsafe() or something equally obvious. Experience
+(and the list of packages still using mktemp() posted here) shows
+that just adding a warning to documentation is not enough. Users
+often discover functions by experimentation or looking at examples
+on the internet.
+
+mktemp() is also unfortunately named, as it does not create a temp
+file as implied. This can also add to the impression that it is the
+proper function to use.
+
+Adding a new function and following the deprecation process for the
+old one should only be a minor inconvenience for existing users that
+need it, should wake up existing users that should not use it in the
+first place, and still allows it to be used for relevant use cases.
+
+I believe for security reasons sometimes inconvenient changes like
+this are necessary.
+
+ ?- Sebastian
+
+
+From paul at ganssle.io  Tue Mar 19 10:21:35 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Tue, 19 Mar 2019 10:21:35 -0400
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <20190319143946.3df5a605@fsol>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <q6qr1d$5497$1@blaine.gmane.org> <20190319143946.3df5a605@fsol>
+Message-ID: <0b519940-06cd-32ee-538e-1c6effdd102a@ganssle.io>
+
+I'm not sure the relationship with mkdir and mktemp here. I don't see
+any uses of tempfile.mktemp in pip or setuptools, though they do use
+os.mkdir (which is not deprecated).
+
+Both pip and setuptools use pytest's tmpdir_factory.mktemp() in their
+test suites, but I believe that is not the same thing.
+
+On 3/19/19 9:39 AM, Antoine Pitrou wrote:
+> On Tue, 19 Mar 2019 15:32:25 +0200
+> Serhiy Storchaka <storchaka at gmail.com> wrote:
+>> 19.03.19 15:03, St?phane Wirtel ????:
+>>> Suggestion and timeline:
+>>>
+>>> 3.8, we raise a PendingDeprecationWarning
+>>>      * update the code
+>>>      * update the documentation
+>>>      * update the tests
+>>>        (check a PendingDeprecationWarning if sys.version_info == 3.8)
+>>>
+>>> 3.9, we change PendingDeprecationWarning to DeprecationWarning
+>>>        (check DeprecationWarning if sys.version_info == 3.9)
+>>>
+>>> 3.9+, we drop tempfile.mktemp()  
+>> This plan LGTM.
+>>
+>> Currently mkdir() is widely used in distutils, Sphinx, pip, setuptools, 
+>> virtualenv, and many other third-party projects, so it will take time to 
+>> fix all these places. But we should do this, because all this code 
+>> likely contains security flaws.
+> The fact that many projects, including well-maintained ones such Sphinx
+> or pip, use mktemp(), may be a hint that replacing it is not as easy as
+> the people writing the Python documentation seem to think.
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/paul%40ganssle.io
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/f1aa8ebd/attachment.sig>
+
+From solipsis at pitrou.net  Tue Mar 19 10:29:17 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 19 Mar 2019 15:29:17 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <q6qr1d$5497$1@blaine.gmane.org> <20190319143946.3df5a605@fsol>
+ <15894f39-1298-4e78-ee59-5d28ca123b5e@wirtel.be>
+Message-ID: <20190319152917.4d17d7af@fsol>
+
+On Tue, 19 Mar 2019 15:10:40 +0100
+St?phane Wirtel <stephane at wirtel.be> wrote:
+> totally agree with you but this function is deprecated (2002) since 2.3,
+> with a simle comment about a security issue.
+
+"Deprecated" doesn't mean anything here.  It's just a mention in the
+documentation.  It doesn't produce actual warnings when used.  And for
+good reason: there are valid use cases.
+
+> so, from today to 3.9+ there are approximatively 43 months -> 3,5 years.
+> I think it's enough in term of time for the big projects to improve
+> their code.
+
+Please explain how the "improvement" would look like.  What is the
+intended replacement for the use case I have explained, and how does it
+improve on the statu quo?
+
+And if there is an easy replacement, then how about re-implementing
+mktemp() using that replacement, instead of removing it?
+
+Regards
+
+Antoine.
+
+
+
+From guido at python.org  Tue Mar 19 10:52:12 2019
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 19 Mar 2019 07:52:12 -0700
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <20190319142339.76cfdc47@fsol>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+Message-ID: <CAP7+vJKvJDs6EhZBKr0BBTWMkepYMmxTj-2rzrF_o9N2Gd1eSw@mail.gmail.com>
+
+On Tue, Mar 19, 2019 at 6:27 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+>
+> -1.  Please don't remove tempfile.mktemp().  mktemp() is useful to
+> create a temporary *name*.  All other tempfile functions create an
+> actual file and impose additional burden, for example by making the
+> file unaccessible by other processes.  But sometimes all I want is a
+> temporary name that an *other* program will create / act on, not Python.
+> It's a very common use case when writing scripts.
+>
+> The only reasonable workaround I can think of is to first create a
+> temporary directory using mkdtemp(), then use a well-known name inside
+> that directory.  But that has the same security implications AFAICT,
+> since another process can come and create the file / symlink first.
+>
+
+If all you need is a random name, why not just use a random number
+generator?
+E.g. I see code like this:
+
+    binascii.hexlify(os.urandom(8)).decode('ascii')
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/244ce09f/attachment.html>
+
+From antoine at python.org  Tue Mar 19 10:57:15 2019
+From: antoine at python.org (Antoine Pitrou)
+Date: Tue, 19 Mar 2019 15:57:15 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CAP7+vJKvJDs6EhZBKr0BBTWMkepYMmxTj-2rzrF_o9N2Gd1eSw@mail.gmail.com>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAP7+vJKvJDs6EhZBKr0BBTWMkepYMmxTj-2rzrF_o9N2Gd1eSw@mail.gmail.com>
+Message-ID: <363c5b82-dcd7-d8f5-b790-65eb9e950ca1@python.org>
+
+
+Le 19/03/2019 ? 15:52, Guido van Rossum a ?crit?:
+> 
+> If all you need is a random name, why not just use a random number
+> generator?
+> E.g. I see code like this:
+> 
+> ??? binascii.hexlify(os.urandom(8)).decode('ascii')
+
+mktemp() already does this, probably in a better way, including the
+notion of prefix, suffix, and parent directory.  Why should I have to
+reimplement it myself?
+
+Regards
+
+Antoine.
+
+From solipsis at pitrou.net  Tue Mar 19 11:16:21 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 19 Mar 2019 16:16:21 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+ <CA+3bQGEJ2pYn1Hmnwct7B0GYLd-8HLcPwyTbmFLHxnH4xKG32w@mail.gmail.com>
+ <8d4e50d4-5167-a419-c254-a1f0631d2755@rittau.biz>
+Message-ID: <20190319161621.1bb75551@fsol>
+
+On Tue, 19 Mar 2019 15:12:06 +0100
+Sebastian Rittau <srittau at rittau.biz> wrote:
+> Am 19.03.19 um 14:53 schrieb Victor Stinner:
+> >
+> > When I write tests, I don't really care of security, but
+> > NamedTemporaryFile caused me many troubles on Windows: you cannot
+> > delete a file if it's still open in a another program. It's way more
+> > convenient to use tempfile.mktemp().
+> >
+> > O_EXCL, open(tmpname, "wx"), os.open(tmpname, os.O_CREAT | os.O_EXCL |
+> > os.O_WRONLY), etc. can be used to get an error if the file already
+> > exists.
+> >
+> > I agree that for production code where security matters,
+> > tempfile.mktemp() must be avoided. But I would prefer to keep it for
+> > tests.  
+> 
+> If there are valid use cases for mktemp(), I recommend renaming
+> it to mkname_unsafe() or something equally obvious.
+> [...]
+> Adding a new function and following the deprecation process for the
+> old one should only be a minor inconvenience for existing users that
+> need it, should wake up existing users that should not use it in the
+> first place, and still allows it to be used for relevant use cases.
+
+That would be fine with me.
+
+Regards
+
+Antoine.
+
+
+
+From ajm at flonidan.dk  Tue Mar 19 11:48:32 2019
+From: ajm at flonidan.dk (Anders Munch)
+Date: Tue, 19 Mar 2019 15:48:32 +0000
+Subject: [Python-Dev] Remove tempfile.mktemp()
+Message-ID: <HE1PR05MB321116F3C3C61D7BF97E0FCFB4400@HE1PR05MB3211.eurprd05.prod.outlook.com>
+
+Antoine Pitrou:
+> And if there is an easy replacement, then how about re-implementing
+> mktemp() using that replacement, instead of removing it?
+
+Indeed.  The principal security issue with mktemp is the difficulty in creating a user-specific thing under a shared /tmp folder in a multi-user setup.
+
+But if it hurts when you use /tmp, why use /tmp? Use a path with no world-accessible ancestor, or at least no world-writable ancestor.
+
+On Windows, that means creating it somewhere under the CSIDL_LOCAL_APPDATA folder. Which is already the default for %TEMP% and %TMP%.
+On Unix, it's a $HOME subfolder with access 700 or 600.
+How about switching mktemp over to use that?
+
+regards, Anders
+
+
+From g.rodola at gmail.com  Tue Mar 19 12:23:00 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Tue, 19 Mar 2019 17:23:00 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+Message-ID: <CAFYqXL_wWKrJrc7JRQP2yUTRyrJ8aKAUmUiUaEBGkabG-oWD3g@mail.gmail.com>
+
+On Tue, Mar 19, 2019 at 2:06 PM St?phane Wirtel <stephane at wirtel.be> wrote:
+>
+> Hi,
+>
+> Context: raise a warning or remove tempfile.mktemp()
+> BPO: https://bugs.python.org/issue36309
+>
+> Since 2.3, this function is deprecated in the documentation, just in the
+> documentation. In the code, there is a commented RuntimeWarning.
+> Commented by Guido in 2002, because the warning was too annoying (and I
+> understand ;-)).
+>
+> So, in this BPO, we start to discuss about the future of this function
+> and Serhiy proposed to discuss on the Python-dev mailing list.
+>
+> Question: Should we drop it or add a (Pending)DeprecationWarning?
+>
+> Suggestion and timeline:
+>
+> 3.8, we raise a PendingDeprecationWarning
+>     * update the code
+>     * update the documentation
+>     * update the tests
+>       (check a PendingDeprecationWarning if sys.version_info == 3.8)
+>
+> 3.9, we change PendingDeprecationWarning to DeprecationWarning
+>       (check DeprecationWarning if sys.version_info == 3.9)
+>
+> 3.9+, we drop tempfile.mktemp()
+>
+> What do you suggest?
+
+I concur with others who think this should not be removed. It's used
+in different stdlib and third party modules' test suites. I see
+tempfile.mktemp() very similar to  test.support.find_unused_port() and
+os.path.exists/isfile/isdir functions: they are all subject to race
+conditions but still they are widely used and have reason to exist
+(practicality beats purity). I suggest turning the doc deprecation
+into a note:: or warning::, so that extra visibility is maintained.
+Because the use case is legitimate and many fs-related APIs such as
+this one are inevitably racy, I lean more towards a note:: rather than
+a warning:: though, and we could probably do the same for os.path.is*
+functions.
+
+@Sebastian
+> If there are valid use cases for mktemp(), I recommend renaming
+> it to mkname_unsafe() or something equally obvious.
+
+I'm -1 about adding an alias (there should be one and preferably only
+one way to do it). Also mkstemp() and mkdtemp() are somewhat poorly
+named IMO, but I wouldn't add an alias for them either.
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+
+From g.rodola at gmail.com  Tue Mar 19 12:41:28 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Tue, 19 Mar 2019 17:41:28 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <363c5b82-dcd7-d8f5-b790-65eb9e950ca1@python.org>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAP7+vJKvJDs6EhZBKr0BBTWMkepYMmxTj-2rzrF_o9N2Gd1eSw@mail.gmail.com>
+ <363c5b82-dcd7-d8f5-b790-65eb9e950ca1@python.org>
+Message-ID: <CAFYqXL9wzPohqD_E+rqFnXcHowR9W5XrpmuWiR85T=+HFgvCCQ@mail.gmail.com>
+
+On Tue, Mar 19, 2019 at 3:57 PM Antoine Pitrou <antoine at python.org> wrote:
+>
+>
+> Le 19/03/2019 ? 15:52, Guido van Rossum a ?crit :
+> >
+> > If all you need is a random name, why not just use a random number
+> > generator?
+> > E.g. I see code like this:
+> >
+> >     binascii.hexlify(os.urandom(8)).decode('ascii')
+>
+> mktemp() already does this, probably in a better way, including the
+> notion of prefix, suffix, and parent directory.  Why should I have to
+> reimplement it myself?
+
+On top of that mktemp() tries exists() in a loop, diminishing the risk
+of names collision.
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+
+From srittau at rittau.biz  Tue Mar 19 12:44:19 2019
+From: srittau at rittau.biz (Sebastian Rittau)
+Date: Tue, 19 Mar 2019 17:44:19 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CAFYqXL_wWKrJrc7JRQP2yUTRyrJ8aKAUmUiUaEBGkabG-oWD3g@mail.gmail.com>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <CAFYqXL_wWKrJrc7JRQP2yUTRyrJ8aKAUmUiUaEBGkabG-oWD3g@mail.gmail.com>
+Message-ID: <fcfbe3d1-1dda-5eb5-a17a-2ee13194a1c3@rittau.biz>
+
+Am 19.03.19 um 17:23 schrieb Giampaolo Rodola':
+> @Sebastian
+>> If there are valid use cases for mktemp(), I recommend renaming
+>> it to mkname_unsafe() or something equally obvious.
+> I'm -1 about adding an alias (there should be one and preferably only
+> one way to do it). Also mkstemp() and mkdtemp() are somewhat poorly
+> named IMO, but I wouldn't add an alias for them either.
+>
+Just to clarify: I was not suggesting creating an alias, I was suggesting
+renaming the function, but keeping the old name for a normal
+deprecation cycle.
+
+But I had another thought: If I understand correctly, the exploitability
+of mktemp() relies on the fact that between determining whether the
+file exists and creation an attacker can create the file themselves.
+Couldn't this problem be solved by generating a filename of sufficient
+length using the secrets module? This way the filename should be
+"unguessable" and safe.
+
+ ?- Sebastian
+
+
+From p.f.moore at gmail.com  Tue Mar 19 13:03:38 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Tue, 19 Mar 2019 17:03:38 +0000
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <fcfbe3d1-1dda-5eb5-a17a-2ee13194a1c3@rittau.biz>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <CAFYqXL_wWKrJrc7JRQP2yUTRyrJ8aKAUmUiUaEBGkabG-oWD3g@mail.gmail.com>
+ <fcfbe3d1-1dda-5eb5-a17a-2ee13194a1c3@rittau.biz>
+Message-ID: <CACac1F8QeAT0Y5r+VaE-6CNn4p9RKN9OAzSKUjLYg_WyNDJk8g@mail.gmail.com>
+
+On Tue, 19 Mar 2019 at 16:47, Sebastian Rittau <srittau at rittau.biz> wrote:
+> But I had another thought: If I understand correctly, the exploitability
+> of mktemp() relies on the fact that between determining whether the
+> file exists and creation an attacker can create the file themselves.
+> Couldn't this problem be solved by generating a filename of sufficient
+> length using the secrets module? This way the filename should be
+> "unguessable" and safe.
+
+IMO, there's not much point trying to "fix" mktemp(). The issues with
+it are clear and there are far better alternatives already available
+for people who need them. The question here is simply about removing
+the function "because people might mistakenly use it and create
+security risks".
+
+Personally, I don't think we should break the code of people who are
+using mktemp() correctly, in awareness of its limitations, just out of
+some idea of protecting people from themselves. Certainly we should
+provide safe library functions wherever possible, but we should have
+better reasons for removing functions that have been around for many,
+many years than just "people might be using it wrongly".
+
+Paul
+
+From g.rodola at gmail.com  Tue Mar 19 13:11:02 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Tue, 19 Mar 2019 18:11:02 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <fcfbe3d1-1dda-5eb5-a17a-2ee13194a1c3@rittau.biz>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <CAFYqXL_wWKrJrc7JRQP2yUTRyrJ8aKAUmUiUaEBGkabG-oWD3g@mail.gmail.com>
+ <fcfbe3d1-1dda-5eb5-a17a-2ee13194a1c3@rittau.biz>
+Message-ID: <CAFYqXL9C8X465iT-dDJSb4rhfGxXXwA1Q5=cVjs=tQ0jgf5F_g@mail.gmail.com>
+
+On Tue, 19 Mar 2019 at 17:47, Sebastian Rittau <srittau at rittau.biz> wrote:
+
+> Am 19.03.19 um 17:23 schrieb Giampaolo Rodola':
+> > @Sebastian
+> >> If there are valid use cases for mktemp(), I recommend renaming
+> >> it to mkname_unsafe() or something equally obvious.
+> > I'm -1 about adding an alias (there should be one and preferably only
+> > one way to do it). Also mkstemp() and mkdtemp() are somewhat poorly
+> > named IMO, but I wouldn't add an alias for them either.
+> >
+> Just to clarify: I was not suggesting creating an alias, I was suggesting
+> renaming the function, but keeping the old name for a normal
+> deprecation cycle.
+>
+> But I had another thought: If I understand correctly, the exploitability
+> of mktemp() relies on the fact that between determining whether the
+> file exists and creation an attacker can create the file themselves.
+> Couldn't this problem be solved by generating a filename of sufficient
+> length using the secrets module? This way the filename should be
+> "unguessable" and safe.
+
+
+Technically you cannot make it 100% safe, only less likely to occur. And on
+a second thought (I retract :)) since this could be used in real apps other
+than tests (I was too focused on that) I think this should be a doc warning
+after all, not info. Doc may suggest to use mode=x when creating the file,
+in order to remove the security implications.
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/a8c7cd8a/attachment.html>
+
+From guido at python.org  Tue Mar 19 13:21:11 2019
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 19 Mar 2019 10:21:11 -0700
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CAFYqXL9C8X465iT-dDJSb4rhfGxXXwA1Q5=cVjs=tQ0jgf5F_g@mail.gmail.com>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <CAFYqXL_wWKrJrc7JRQP2yUTRyrJ8aKAUmUiUaEBGkabG-oWD3g@mail.gmail.com>
+ <fcfbe3d1-1dda-5eb5-a17a-2ee13194a1c3@rittau.biz>
+ <CAFYqXL9C8X465iT-dDJSb4rhfGxXXwA1Q5=cVjs=tQ0jgf5F_g@mail.gmail.com>
+Message-ID: <CAP7+vJ+BKNdnLMKSnO9GfB5oeYfD21fR1iHaWpu1o930OUD-DA@mail.gmail.com>
+
+On Tue, Mar 19, 2019 at 10:14 AM Giampaolo Rodola' <g.rodola at gmail.com>
+wrote:
+
+>
+> On Tue, 19 Mar 2019 at 17:47, Sebastian Rittau <srittau at rittau.biz> wrote:
+>
+>> Am 19.03.19 um 17:23 schrieb Giampaolo Rodola':
+>> > @Sebastian
+>> >> If there are valid use cases for mktemp(), I recommend renaming
+>> >> it to mkname_unsafe() or something equally obvious.
+>> > I'm -1 about adding an alias (there should be one and preferably only
+>> > one way to do it). Also mkstemp() and mkdtemp() are somewhat poorly
+>> > named IMO, but I wouldn't add an alias for them either.
+>> >
+>> Just to clarify: I was not suggesting creating an alias, I was suggesting
+>> renaming the function, but keeping the old name for a normal
+>> deprecation cycle.
+>>
+>> But I had another thought: If I understand correctly, the exploitability
+>> of mktemp() relies on the fact that between determining whether the
+>> file exists and creation an attacker can create the file themselves.
+>> Couldn't this problem be solved by generating a filename of sufficient
+>> length using the secrets module? This way the filename should be
+>> "unguessable" and safe.
+>
+>
+> Technically you cannot make it 100% safe, only less likely to occur.
+>
+
+That seems unnecessarily pedantic. A cryptographic random generator, like
+the one in the secrets module, *is* safe enough for all practical purposes
+(with a large margin).
+
+
+> And on a second thought (I retract :)) since this could be used in real
+> apps other than tests (I was too focused on that) I think this should be a
+> doc warning after all, not info. Doc may suggest to use mode=x when
+> creating the file, in order to remove the security implications.
+>
+
+Hm, the random sequence (implemented in tempfile._RandomNameSequence) is
+currently derived from the random module, which is not cryptographically
+secure. Maybe all we need to do is replace its source of randomness with
+one derived from the secrets module. That seems a one-line change.
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/b26fc74e/attachment.html>
+
+From sebastian at realpath.org  Tue Mar 19 13:16:29 2019
+From: sebastian at realpath.org (Sebastian Krause)
+Date: Tue, 19 Mar 2019 18:16:29 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CAP7+vJKvJDs6EhZBKr0BBTWMkepYMmxTj-2rzrF_o9N2Gd1eSw@mail.gmail.com>
+ (Guido van Rossum's message of "Tue, 19 Mar 2019 07:52:12 -0700")
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAP7+vJKvJDs6EhZBKr0BBTWMkepYMmxTj-2rzrF_o9N2Gd1eSw@mail.gmail.com>
+Message-ID: <86bm26wzrm.fsf@realpath.org>
+
+Guido van Rossum <guido at python.org> wrote:
+> If all you need is a random name, why not just use a random number
+> generator?
+> E.g. I see code like this:
+>
+>     binascii.hexlify(os.urandom(8)).decode('ascii')
+
+I tend to use os.path.join(dir, str(uuid.uuid4())) if I need to
+create a random filename to pass to another program. However, it
+would be nice to have a standard helper function that also allows me
+to specify a prefix and suffix. Shouldn't it be possible to just
+modify tempfile.mktemp() to generate much longer random filenames so
+that it is virtually impossible that another program has already
+created a file with the same name? Then the security problem is
+gone, there is no need to continue deprecating this function and all
+programs using it should continue to work.
+
+From vstinner at redhat.com  Tue Mar 19 13:37:42 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 19 Mar 2019 18:37:42 +0100
+Subject: [Python-Dev] What is the workflow for announcing tier 2
+ platform support?
+In-Reply-To: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EF06@ALA-MBD.corp.ad.wrs.com>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EF06@ALA-MBD.corp.ad.wrs.com>
+Message-ID: <CA+3bQGGZegoCOGRzqu6fQSg36Bba7a5XJJ+ohBwr10AY+77qAQ@mail.gmail.com>
+
+Hi,
+
+I don't think that we can say that Python supports VxWorks yet. Many PRs
+are not merged yet. You are free to disrribute a modified version with your
+changes.
+
+The PEP 11 lists conditions to fully support a platform:
+https://www.python.org/dev/peps/pep-0011/
+
+My summary is: all tests must pass (it's ok to skip a few), a buildbot must
+run and a core dev should handle any regression.
+
+I expect that VxWorks will better fit in the "Best Effort" category: only
+fix issues when someone proposes a fix.
+
+See also my notes:
+https://pythondev.readthedocs.io/platforms.html
+
+Victor
+
+
+Le mardi 19 mars 2019, Xin, Peixing <Peixing.Xin at windriver.com> a ?crit :
+> Hi, Experts:
+>
+>
+>
+> VxWorks RTOS will release a new version at the end of June. For this new
+version, we(Wind River) plan to announce the Python support officially here
+(https://www.python.org/download/other/) for VxWorks as tier 2 platform.
+Now my 2 questions come:
+>
+> 1.       To be qualified as tier 2 platform here
+https://www.python.org/download/other/, do I need to get all test cases
+pass on VxWorks RTOS? Now we have the following PRs for VxWorks. With these
+PRs merged, we can get around 70% test cases PASS.
+>
+> </mail/u/0/s/?view=att&th=16993e40c3ae8b1e&attid=0.0.1&disp=emb&zw&atsh=1>
+>
+> 2.       If we reach the announcement level, what is the workflow to
+update the website statements here https://www.python.org/download/other/.
+The following picture shows what we want to show.
+>
+>
+>
+> </mail/u/0/s/?view=att&th=16993e40c3ae8b1e&attid=0.0.2&disp=emb&zw&atsh=1>
+>
+>
+>
+> Thanks,
+>
+> Peixing
+>
+>
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/d0e48a72/attachment.html>
+
+From vstinner at redhat.com  Tue Mar 19 13:39:55 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 19 Mar 2019 18:39:55 +0100
+Subject: [Python-Dev] Can I submit more support of standard library for
+ VxWorks after 3.8.0 beta1?
+In-Reply-To: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EE94@ALA-MBD.corp.ad.wrs.com>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EE94@ALA-MBD.corp.ad.wrs.com>
+Message-ID: <CA+3bQGH_+Duh=eett7m1Tr0mtp-dwQRu+dT8sDzXzaBVeakhaQ@mail.gmail.com>
+
+You have to find someone to review your PRs. It takes time. We are all
+volunteers. I looked and merged some VxWorks PRs.
+
+Would it be possible to pay a core dev to do the reviews? That's an open
+question for core devs and for WindRiver.
+
+Victor
+
+Le mardi 19 mars 2019, Xin, Peixing <Peixing.Xin at windriver.com> a ?crit :
+> Hi, Experts:
+>
+>
+>
+> Seeing from the Python 3.8.0 schedule(
+https://www.python.org/dev/peps/pep-0569/#schedule), new features will not
+be allowed to submit after 3.8.0 beta1. For VxWorks RTOS platform
+supporting CPython, we are using bpo-31904(
+https://bugs.python.org/issue31904) for PRs to submit our codes. Now I want
+to know whether we can add more standard library support for VxWorks AFTER
+3.8.0 beta1?
+>
+>
+>
+> </mail/u/0/s/?view=att&th=16993c4c52478e78&attid=0.0.1&disp=emb&zw&atsh=1>
+>
+>
+>
+> Thanks,
+>
+> Peixing
+>
+>
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/bb6fb7f8/attachment-0001.html>
+
+From brett at python.org  Tue Mar 19 14:30:07 2019
+From: brett at python.org (Brett Cannon)
+Date: Tue, 19 Mar 2019 11:30:07 -0700
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <q6qprl$2ebs$1@blaine.gmane.org>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <q6q8af$3i67$1@blaine.gmane.org>
+ <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+ <q6qprl$2ebs$1@blaine.gmane.org>
+Message-ID: <CAP1=2W6GtXJ=TkEJ3nixt=FmmeAHrA0XjHvMpvx5bnTeee5+fg@mail.gmail.com>
+
+On Tue, Mar 19, 2019 at 6:15 AM Serhiy Storchaka <storchaka at gmail.com>
+wrote:
+
+> 19.03.19 13:53, Ned Batchelder ????:
+> > Option 4 is misleading.  Is anyone here really offering to "fix the
+> > tests in third-party modules"?  Option 4 is actually, "do nothing, and
+> > let a multitude of projects figure out how to fix their tests, slowing
+> > progress in those projects as they try to support Python 3.8."
+>
+> Any option except option 1 (and option 2 with sorting by default)
+> requires changing third-party code. You should either pass additional
+> argument to serialization functions, or use special canonization functions.
+>
+> We should look at the problem from long perspective. Freezing the
+> current behavior forever does not look good. If we need to break the
+> user code, we should minimize the harm and provide convenient tools for
+> reproducing the current behavior. And this is an opportunity to rewrite
+> user tests in more appropriate form. In your case textual comparison may
+> be the most appropriate form, but this may be not so in other cases.
+>
+
+In situations like this I think it's best to bite the bullet sooner rather
+than later while acknowledging that folks like Ned are in a bind when they
+have support older versions and thus have long-term support costs, too, and
+try to make the transition as painless as possible (my guess is Ned's need
+to support older versions will drop off faster than us having to support
+the xml libraries in the stdlib going forward, hence my viewpoint).
+
+
+>
+> > Now in Python 3.8, because Python doesn't want to add an
+> > optional flag to continue doing what it has always done, I need to
+> > re-engineer my tests.
+>
+> Please wait yet some time. I hope to add canonicalization before the
+> first beta.
+>
+
+For me I think canonicalization/stable pretty-print is the best option,
+especially if we can put the canonicalization code up on PyPI for
+supporting older versions of Python. Otherwise a function that does
+something like an XOR to help diagnose what differs between 2 XML documents
+is also seems like a good option to me.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/79f682a8/attachment.html>
+
+From stefan_ml at behnel.de  Tue Mar 19 14:35:24 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Tue, 19 Mar 2019 19:35:24 +0100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <CAPJVwB=Z0zA=U+BsO50aphqYUtzLO_ROEb1RUYPz-ttwLAHyuQ@mail.gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CAPJVwB=Z0zA=U+BsO50aphqYUtzLO_ROEb1RUYPz-ttwLAHyuQ@mail.gmail.com>
+Message-ID: <q6rcpf$54gj$1@blaine.gmane.org>
+
+Nathaniel Smith schrieb am 19.03.19 um 00:15:
+> That seems potentially simpler to implement than canonical XML
+> serialization
+
+C14N is already implemented for ElementTree, just needs to be ported to
+Py3.8 and merged.
+
+https://bugs.python.org/issue13611
+
+Stefan
+
+
+From brett at python.org  Tue Mar 19 14:39:13 2019
+From: brett at python.org (Brett Cannon)
+Date: Tue, 19 Mar 2019 11:39:13 -0700
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CAP7+vJ+BKNdnLMKSnO9GfB5oeYfD21fR1iHaWpu1o930OUD-DA@mail.gmail.com>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <CAFYqXL_wWKrJrc7JRQP2yUTRyrJ8aKAUmUiUaEBGkabG-oWD3g@mail.gmail.com>
+ <fcfbe3d1-1dda-5eb5-a17a-2ee13194a1c3@rittau.biz>
+ <CAFYqXL9C8X465iT-dDJSb4rhfGxXXwA1Q5=cVjs=tQ0jgf5F_g@mail.gmail.com>
+ <CAP7+vJ+BKNdnLMKSnO9GfB5oeYfD21fR1iHaWpu1o930OUD-DA@mail.gmail.com>
+Message-ID: <CAP1=2W6iRN3GZaSFE2b+9ZP+NZ9+9fwgizVbvpN8oXW6EydriA@mail.gmail.com>
+
+On Tue, Mar 19, 2019 at 10:22 AM Guido van Rossum <guido at python.org> wrote:
+
+> On Tue, Mar 19, 2019 at 10:14 AM Giampaolo Rodola' <g.rodola at gmail.com>
+> wrote:
+>
+>>
+>> On Tue, 19 Mar 2019 at 17:47, Sebastian Rittau <srittau at rittau.biz>
+>> wrote:
+>>
+>>> Am 19.03.19 um 17:23 schrieb Giampaolo Rodola':
+>>> > @Sebastian
+>>> >> If there are valid use cases for mktemp(), I recommend renaming
+>>> >> it to mkname_unsafe() or something equally obvious.
+>>> > I'm -1 about adding an alias (there should be one and preferably only
+>>> > one way to do it). Also mkstemp() and mkdtemp() are somewhat poorly
+>>> > named IMO, but I wouldn't add an alias for them either.
+>>> >
+>>> Just to clarify: I was not suggesting creating an alias, I was suggesting
+>>> renaming the function, but keeping the old name for a normal
+>>> deprecation cycle.
+>>>
+>>> But I had another thought: If I understand correctly, the exploitability
+>>> of mktemp() relies on the fact that between determining whether the
+>>> file exists and creation an attacker can create the file themselves.
+>>> Couldn't this problem be solved by generating a filename of sufficient
+>>> length using the secrets module? This way the filename should be
+>>> "unguessable" and safe.
+>>
+>>
+>> Technically you cannot make it 100% safe, only less likely to occur.
+>>
+>
+> That seems unnecessarily pedantic. A cryptographic random generator, like
+> the one in the secrets module, *is* safe enough for all practical purposes
+> (with a large margin).
+>
+>
+>> And on a second thought (I retract :)) since this could be used in real
+>> apps other than tests (I was too focused on that) I think this should be a
+>> doc warning after all, not info. Doc may suggest to use mode=x when
+>> creating the file, in order to remove the security implications.
+>>
+>
+> Hm, the random sequence (implemented in tempfile._RandomNameSequence) is
+> currently derived from the random module, which is not cryptographically
+> secure. Maybe all we need to do is replace its source of randomness with
+> one derived from the secrets module. That seems a one-line change.
+>
+
+If the only security vulnerability is due to the ability to guess a path
+that would make sense (but I honestly don't know since I'm not a security
+expert).
+
+If Guido's suggestion isn't enough then I think that long with a rename of
+the function to make it obvious that there's potential issues and
+deprecating the old name makes the most sense.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/51c6a45c/attachment.html>
+
+From brett at python.org  Tue Mar 19 14:42:25 2019
+From: brett at python.org (Brett Cannon)
+Date: Tue, 19 Mar 2019 11:42:25 -0700
+Subject: [Python-Dev] Can I submit more support of standard library for
+ VxWorks after 3.8.0 beta1?
+In-Reply-To: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EE94@ALA-MBD.corp.ad.wrs.com>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EE94@ALA-MBD.corp.ad.wrs.com>
+Message-ID: <CAP1=2W6mB2W2rnXNdu7ye6mzpeJCTthUa9MSPqam+oOgdPD4og@mail.gmail.com>
+
+On Mon, Mar 18, 2019 at 7:22 PM Xin, Peixing <Peixing.Xin at windriver.com>
+wrote:
+
+> Hi, Experts:
+>
+>
+>
+> Seeing from the Python 3.8.0 schedule(
+> https://www.python.org/dev/peps/pep-0569/#schedule), new features will
+> not be allowed to submit after 3.8.0 beta1. For VxWorks RTOS platform
+> supporting CPython, we are using bpo-31904(
+> https://bugs.python.org/issue31904) for PRs to submit our codes. Now I
+> want to know whether we can add more standard library support for VxWorks
+> AFTER 3.8.0 beta1?
+>
+
+If the question is whether we as core devs will merge PRs that extend
+support in the stdlib, that will be up to the release manager. Since it
+technically isn't a feature enhancement but a "bugfix" for VxWorks then it
+will probably come down to what changes are required.
+
+-Brett
+
+
+>
+>
+>
+>
+> Thanks,
+>
+> Peixing
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/587771e7/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image001.png
+Type: image/png
+Size: 50332 bytes
+Desc: not available
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/587771e7/attachment-0001.png>
+
+From stefan_ml at behnel.de  Tue Mar 19 14:42:39 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Tue, 19 Mar 2019 19:42:39 +0100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <q6q8af$3i67$1@blaine.gmane.org>
+ <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+Message-ID: <q6rd72$6crv$1@blaine.gmane.org>
+
+Ned Batchelder schrieb am 19.03.19 um 12:53:
+> I need to re-engineer my tests.
+
+? or sort the attributes before serialisation, or use C14N always, or
+change your code to create the attributes in sorted-by-name order. The new
+behaviour allows for a couple of ways to deal with the issue of backwards
+compatibility.
+
+Stefan
+
+
+From raymond.hettinger at gmail.com  Tue Mar 19 14:55:51 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Tue, 19 Mar 2019 11:55:51 -0700
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+Message-ID: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+
+I'm working on ways to make improve help() by giving docstrings to member objects.
+
+One way to do it is to wait until after the class definition and then make individual, direct assignments to __doc__ attributes.This way widely the separates docstrings from their initial __slots__ definition.   Working downstream from the class definition feels awkward and doesn't look pretty.  
+
+There's another way I would like to propose?.  The __slots__ definition already works with any iterable including a dictionary (the dict values are ignored), so we could use the values for the  docstrings.   
+
+This keeps all the relevant information in one place (much like we already do with property() objects).  This way already works, we just need a few lines in pydoc to check to see if a dict if present.  This way also looks pretty and doesn't feel awkward.
+
+I've included worked out examples below.  What do you all think about the proposal?
+
+
+Raymond
+
+
+? https://bugs.python.org/issue36326
+
+
+====== Desired help() output ======
+
+>>> help(NormalDist)
+Help on class NormalDist in module __main__:
+
+class NormalDist(builtins.object)
+ |  NormalDist(mu=0.0, sigma=1.0)
+ |  
+ |  Normal distribution of a random variable
+ |  
+ |  Methods defined here:
+ |  
+ |  __init__(self, mu=0.0, sigma=1.0)
+ |      NormalDist where mu is the mean and sigma is the standard deviation.
+ |  
+ |  cdf(self, x)
+ |      Cumulative distribution function.  P(X <= x)
+ |  
+ |  pdf(self, x)
+ |      Probability density function.  P(x <= X < x+dx) / dx
+ |  
+ |  ----------------------------------------------------------------------
+ |  Data descriptors defined here:
+ |  
+ |  mu
+ |      Arithmetic mean.
+ |  
+ |  sigma
+ |      Standard deviation.
+ |  
+ |  variance
+ |      Square of the standard deviation.
+
+
+
+====== Example of assigning docstrings after the class definition ======
+
+class NormalDist:
+    'Normal distribution of a random variable'
+
+    __slots__ = ('mu', 'sigma')
+
+    def __init__(self, mu=0.0, sigma=1.0):
+        'NormalDist where mu is the mean and sigma is the standard deviation.'
+        self.mu = mu
+        self.sigma = sigma
+
+    @property
+    def variance(self):
+        'Square of the standard deviation.'
+        return self.sigma ** 2.
+
+    def pdf(self, x):
+        'Probability density function.  P(x <= X < x+dx) / dx'
+        variance = self.variance
+        return exp((x - self.mu)**2.0 / (-2.0*variance)) / sqrt(tau * variance)
+
+    def cdf(self, x):
+        'Cumulative distribution function.  P(X <= x)'
+        return 0.5 * (1.0 + erf((x - self.mu) / (self.sigma * sqrt(2.0))))
+
+NormalDist.mu.__doc__ = 'Arithmetic mean'
+NormalDist.sigma.__doc__ = 'Standard deviation'
+
+
+
+====== Example of assigning docstrings with a dict =====
+
+class NormalDist:
+    'Normal distribution of a random variable'
+
+    __slots__ = {'mu' : 'Arithmetic mean.', 'sigma': 'Standard deviation.'}
+
+    def __init__(self, mu=0.0, sigma=1.0):
+        'NormalDist where mu is the mean and sigma is the standard deviation.'
+        self.mu = mu
+        self.sigma = sigma
+
+    @property
+    def variance(self):
+        'Square of the standard deviation.'
+        return self.sigma ** 2.
+
+    def pdf(self, x):
+        'Probability density function.  P(x <= X < x+dx) / dx'
+        variance = self.variance
+        return exp((x - self.mu)**2.0 / (-2.0*variance)) / sqrt(tau * variance)
+
+    def cdf(self, x):
+        'Cumulative distribution function.  P(X <= x)'
+        return 0.5 * (1.0 + erf((x - self.mu) / (self.sigma * sqrt(2.0))))
+
+
+From arj.python at gmail.com  Tue Mar 19 15:02:24 2019
+From: arj.python at gmail.com (Abdur-Rahmaan Janhangeer)
+Date: Tue, 19 Mar 2019 23:02:24 +0400
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+Message-ID: <CADrxXX=_UaTxJy8VmWvoKEL8_12EbND-_3MJYHqKqeAycbLu6g@mail.gmail.com>
+
+I have the impression that the line between variables and docs is a tidbit
+too much blurred.
+
+Yours,
+
+Abdur-Rahmaan Janhangeer
+Mauritius
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/a0090419/attachment.html>
+
+From timothy.c.delaney at gmail.com  Tue Mar 19 16:27:13 2019
+From: timothy.c.delaney at gmail.com (Tim Delaney)
+Date: Wed, 20 Mar 2019 07:27:13 +1100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <q6qqgr$3tpp$1@blaine.gmane.org>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CAEbHw4b3JkvO-OkAMMdCzGfUiJXqwte1XhVj-JhndSHQO6FStg@mail.gmail.com>
+ <CAN8CLgkB=206yqkvBc7dGXNRR7YmyCERJT-XjbyjvCPgqeGdVg@mail.gmail.com>
+ <q6qqgr$3tpp$1@blaine.gmane.org>
+Message-ID: <CAN8CLgn3SyMFS_J5N=eJPe5TV9_7htdW5JLsFWTAgs_nACDzMQ@mail.gmail.com>
+
+On Wed, 20 Mar 2019 at 00:29, Serhiy Storchaka <storchaka at gmail.com> wrote:
+
+> 19.03.19 15:10, Tim Delaney ????:
+> > Now Calibre is definitely in the wrong here - it should be able to
+> > import regardless of the order of attributes. But the fact is that there
+> > are a lot of tools out there that are semi-broken in a similar manner.
+>
+> Is not Calibre going to seat on Python 2 forever? This makes it
+> non-relevant to the discussion about Python 3.8.
+>
+
+I was simply using Calibre as an example of a tool I'd encountered recently
+that works correctly with input files with attributes in one order, but not
+the other. That it happens to be using Python (of any vintage) is
+irrelevant - could have been written in C, Go, Lua ... same problem that
+XML libraries that arbitrarily sort (or otherwise manipulate the order of)
+attributes can result in files that may not work with third-party tools.
+
+Tim Delaney
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190320/d74b31f9/attachment.html>
+
+From python at mrabarnett.plus.com  Tue Mar 19 16:52:02 2019
+From: python at mrabarnett.plus.com (MRAB)
+Date: Tue, 19 Mar 2019 20:52:02 +0000
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+Message-ID: <3d4c1184-a8e2-9fe5-a8f5-31c91b7ef1e9@mrabarnett.plus.com>
+
+On 2019-03-19 18:55, Raymond Hettinger wrote:
+> I'm working on ways to make improve help() by giving docstrings to member objects.
+> 
+> One way to do it is to wait until after the class definition and then make individual, direct assignments to __doc__ attributes.This way widely the separates docstrings from their initial __slots__ definition.   Working downstream from the class definition feels awkward and doesn't look pretty.
+> 
+> There's another way I would like to propose?.  The __slots__ definition already works with any iterable including a dictionary (the dict values are ignored), so we could use the values for the  docstrings.
+> 
+> This keeps all the relevant information in one place (much like we already do with property() objects).  This way already works, we just need a few lines in pydoc to check to see if a dict if present.  This way also looks pretty and doesn't feel awkward.
+> 
+> I've included worked out examples below.  What do you all think about the proposal?
+> 
+[snip]
+
+Thinking ahead, could there ever be anything else that you might want 
+also to attach to member objects?
+
+I suppose that if that's ever the case, the value could itself be 
+expanded to be a dict, something like this:
+
+__slots__ = {'mu' : {'__doc__': 'Arithmetic mean.'}, 'sigma': 
+{'__doc__': 'Standard deviation.'}}
+
+But that could be left to the future...
+
+From raymond.hettinger at gmail.com  Tue Mar 19 17:00:41 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Tue, 19 Mar 2019 14:00:41 -0700
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <3d4c1184-a8e2-9fe5-a8f5-31c91b7ef1e9@mrabarnett.plus.com>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+ <3d4c1184-a8e2-9fe5-a8f5-31c91b7ef1e9@mrabarnett.plus.com>
+Message-ID: <429BB6F0-9D18-412B-9EC7-CB8322FAE43E@gmail.com>
+
+
+
+> On Mar 19, 2019, at 1:52 PM, MRAB <python at mrabarnett.plus.com> wrote:
+> 
+> Thinking ahead, could there ever be anything else that you might want also to attach to member objects?
+
+Our experience with property object suggests that once docstrings are supported, there don't seem to be any other needs.   But then, you never can tell ;-)
+
+
+Raymond
+
+
+"Difficult to see. Always in motion is the future." -- Master Yoda
+
+
+
+From greg at krypto.org  Tue Mar 19 17:36:53 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Tue, 19 Mar 2019 14:36:53 -0700
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <q6q8af$3i67$1@blaine.gmane.org>
+ <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+Message-ID: <CAGE7PNJjWYDc6zPQcFtDtTqjxgVV6euK3Uq27Fq9j2RQ0v+D=Q@mail.gmail.com>
+
+On Tue, Mar 19, 2019, 4:53 AM Ned Batchelder <ned at nedbatchelder.com> wrote:
+
+> On 3/19/19 4:13 AM, Serhiy Storchaka wrote:
+> > 19.03.19 00:41, Raymond Hettinger ????:
+> >> 4) Fix the tests in the third-party modules to be more focused on
+> >> their actual test objectives, the semantics of the generated XML
+> >> rather than the exact serialization.  This option would seem like the
+> >> right-thing-to-do but it isn't trivial because the entire premise of
+> >> the existing test is invalid.  For every case, we'll actually have to
+> >> think through what the test objective really is.
+> >
+>
+> Option 4 is misleading.  Is anyone here really offering to "fix the
+> tests in third-party modules"?  Option 4 is actually, "do nothing, and
+> let a multitude of projects figure out how to fix their tests, slowing
+> progress in those projects as they try to support Python 3.8."
+>
+
+We've done Option 4 for every past behavior change of any form on feature
+.Next releases.  We do try to encourage projects to run their tests on the
+3.Next betas so that they can be ready before 3.Next.0 lands, some of us
+even do it ourselves when we're interested.  Many things won't get ready
+ahead of time, but the actual .0 release forces the issue as their users
+start demanding it on occasion offering patches.  We don't bock a release
+on existing user code being ready for it.
+
+In my case, the test code has a generic function to compare an actual
+> directory of files to an expected directory of files, so it isn't quite
+> as simple as "just use the right XML comparison."  And I support Python
+> 2.7, 3.5, etc, so tests still need to work under those versions.  None
+> of this is impossible, but please try not to preach to us maintainers
+> that we are doing it wrong, that it will be easy to fix, etc.  Using
+> language like "the entire premise of the test is invalid" seems
+> needlessly condescending.
+>
+
+Agreed, that was poor wording.  Lets not let that type of wording escape
+python-dev into docs about a behavior change.
+
+Wording aside, a test relying on undefined behavior is testing for things
+the code under test doesn't actually need to care about being true, even if
+it has happened to work for years.  Such a test is overspecified.
+Potentially without the authors previously consciously realizing that.
+It'll need refactoring to loosen its requirements.  How to loosen it is
+always an implementation detail based on the constraints imposed upon the
+test.  Difficulty lies within range(0, "Port Mercurial to Python 3").  But
+the end result is nice: The code is healthier as tests focus more on what
+was actually important rather than what was quicker to write that got the
+original job done many years ago.
+
+One of the suggested solutions, a DOM comparison is not enough. I
+> don't just want to know that my actual XML is different than my expected
+> XML.  I want to know where and how it differs.
+>
+> Textual comparison may be the "wrong" way to check XML, but it gives me
+> many tools for working with the test results.  It was simple and it
+> worked.  Now in Python 3.8, because Python doesn't want to add an
+> optional flag to continue doing what it has always done, I need to
+> re-engineer my tests.
+>
+> --Ned.
+>
+
+I understand that from a code owners perspective having to do any work, no
+matter what the reason, is counted as re-engineering.  But that doesn't
+make it wrong.  If "what it has always done" was unspecified and arbitrary
+despite happening to not change in the past rather than something easy to
+continue the stability of such as sorted attributes, it is a burden to
+maintain that **unspecifiable** behavior in the language or library going
+forward.
+
+(Note that I have no idea what order the xml code in question happened to
+impose upon attributes; if it went from sorted to not a "fix" to provide
+users is clear: provide a way to keep it sorted for those who need that.
+If it relied on insertion order or hash table iteration order or the phase
+of the moon when the release was cut, we are right to refuse to maintain
+unspecifiable implementation side effect behavior)
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/396956a6/attachment.html>
+
+From greg.ewing at canterbury.ac.nz  Tue Mar 19 18:25:53 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Wed, 20 Mar 2019 11:25:53 +1300
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <20190319145127.0824f196@fsol>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+ <20190319145127.0824f196@fsol>
+Message-ID: <5C916C71.5070102@canterbury.ac.nz>
+
+Antoine Pitrou wrote:
+> Does it always work? According to the docs, """Whether the name can be
+> used to open the file a second time, while the named temporary file is
+> still open, varies across platforms
+
+So use NamedTemporaryFile(delete = False) and close it before passing
+it to the other program.
+
+-- 
+Greg
+
+From g.rodola at gmail.com  Tue Mar 19 18:41:30 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Tue, 19 Mar 2019 23:41:30 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CAP7+vJ+BKNdnLMKSnO9GfB5oeYfD21fR1iHaWpu1o930OUD-DA@mail.gmail.com>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <CAFYqXL_wWKrJrc7JRQP2yUTRyrJ8aKAUmUiUaEBGkabG-oWD3g@mail.gmail.com>
+ <fcfbe3d1-1dda-5eb5-a17a-2ee13194a1c3@rittau.biz>
+ <CAFYqXL9C8X465iT-dDJSb4rhfGxXXwA1Q5=cVjs=tQ0jgf5F_g@mail.gmail.com>
+ <CAP7+vJ+BKNdnLMKSnO9GfB5oeYfD21fR1iHaWpu1o930OUD-DA@mail.gmail.com>
+Message-ID: <CAFYqXL_Gj8WsMcs0TQ_LZt4u+rLM+S4UqD-pPUzYhHj30V8=5w@mail.gmail.com>
+
+On Tue, Mar 19, 2019 at 6:21 PM Guido van Rossum <guido at python.org> wrote:
+
+>> On Tue, Mar 19, 2019 at 10:14 AM Giampaolo Rodola' <g.rodola at gmail.com> wrote:
+>> Technically you cannot make it 100% safe, only less likely to occur.
+> That seems unnecessarily pedantic. A cryptographic random generator, like the one in the secrets module, *is* safe enough for all practical purposes (with a large margin).
+> [...]
+> Hm, the random sequence (implemented in tempfile._RandomNameSequence) is currently derived from the random module, which is not cryptographically secure. Maybe all we need to do is replace its source of randomness with one derived from the secrets module. That seems a one-line change.
+
+Seems to make sense to me. Currently the random string is 8 chars
+long, meaning (if I'm not mistaken) max 40320 possible combinations:
+
+    >>> len(list(itertools.permutations('wuoa736m'))))
+    40320
+
+We may use 9 chars and get to 362880 and increase "security".
+Regardless, it seems to me the original deprecation warning for
+mktemp() was not really justified and should be removed. IMO it
+probably makes more sense to just clarify in the doc that
+NamedTemporaryFile is the right / safe way to create a file with a
+unique name and avoid the theoretical, rare name collision you'd get
+by using open(mktemp(), 'w') instead. Also I'm not sure I understand
+what the code sample provided in the doc aims to achieve:
+https://docs.python.org/3/library/tempfile.html#tempfile.mktemp
+The way I see it, the main (or "correct") use case for mktemp() is
+when you explicitly want a file name which does not exist, in order to
+exercise legitimate scenarios like these ones:
+
+    >>> self.assertRaises(FileNotFoundError, os.unlink, tempfile.mktemp())
+
+    >>> dst = tempfile.mktemp()
+    >>> os.rename(src, dst)
+    >>> assert not os.path.exists(src) and os.path.exists(dst)
+
+-- 
+Giampaolo - http://grodola.blogspot.com
+
+From eryksun at gmail.com  Tue Mar 19 18:49:43 2019
+From: eryksun at gmail.com (eryk sun)
+Date: Tue, 19 Mar 2019 17:49:43 -0500
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CA+3bQGEJ2pYn1Hmnwct7B0GYLd-8HLcPwyTbmFLHxnH4xKG32w@mail.gmail.com>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+ <CA+3bQGEJ2pYn1Hmnwct7B0GYLd-8HLcPwyTbmFLHxnH4xKG32w@mail.gmail.com>
+Message-ID: <CACL+1av3p+5KvcAcpxK6a-p-eRdyA9CGvRh4rgrkMYG2M90z=w@mail.gmail.com>
+
+On 3/19/19, Victor Stinner <vstinner at redhat.com> wrote:
+>
+> When I write tests, I don't really care of security, but
+> NamedTemporaryFile caused me many troubles on Windows: you cannot
+> delete a file if it's still open in a another program. It's way more
+> convenient to use tempfile.mktemp().
+
+Opening the file again for normal access is problematic.
+NamedTemporaryFile opens it with delete access, but Python's open()
+function doesn't support delete-access sharing unless an opener is
+used that calls CreateFileW.
+
+NamedTemporaryFile does open files with delete-access sharing, so any
+process can delete the file if it's allowed by the file's security and
+attributes. You may be thinking of unlinking. In Windows versions
+prior to 10, that's always a two-step process. A file with its delete
+disposition set doesn't get unlinked until all references for all open
+instances are closed.
+
+In Windows 10 (release 1709+), we have the option of using
+SetFileInformationByHandle: FileDispositionInfoEx (21) with
+FILE_DISPOSITION_FLAG_POSIX_SEMANTICS (2) and
+FILE_DISPOSITION_FLAG_DELETE (1). The online documentation hasn't been
+updated to include this, but it's supported in the headers for
+_WIN32_WINNT_WIN10_RS1 and later. This operation unlinks the file as
+soon as we close our handle, even if it has existing references. This
+is explained in the remarks for the underlying NT system call [1]. In
+particular this resolves the race condition related to handles opened
+by anti-malware programs.
+
+It may be worth adding support for deleting files by handle that tries
+FileDispositionInfoEx in 1709+. This will work in about half of all
+Windows systems. (About 40% still run Windows 7.) It's not a panacea
+for Windows file-deleting woes. We still need to be able to open the
+file with delete access, which requires existing opens to share delete
+access.
+
+[1]: https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/content/ntddk/ns-ntddk-_file_disposition_information_ex
+
+From brian.kuhl at windriver.com  Tue Mar 19 16:58:05 2019
+From: brian.kuhl at windriver.com (Kuhl, Brian)
+Date: Tue, 19 Mar 2019 20:58:05 +0000
+Subject: [Python-Dev] Can I submit more support of standard library for
+ VxWorks after 3.8.0 beta1?
+In-Reply-To: <CA+3bQGH_+Duh=eett7m1Tr0mtp-dwQRu+dT8sDzXzaBVeakhaQ@mail.gmail.com>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EE94@ALA-MBD.corp.ad.wrs.com>
+ <CA+3bQGH_+Duh=eett7m1Tr0mtp-dwQRu+dT8sDzXzaBVeakhaQ@mail.gmail.com>
+Message-ID: <6C486AB80682E24095E3E77A408D68F20149A4AF01@ALA-MBD.corp.ad.wrs.com>
+
+Hi Victor,
+I pinged our product manager and he?s open to the idea of setting up a consulting  arrangement with a core developer to help move things along.
+At least in principal.
+If anyone on the core team is interested, and reasonably unaligned with Wind River?s competitors, please contact me off list, Brian dot Kuhl at Wind River dot com.
+
+Brian
+
+From: Python-Dev [mailto:python-dev-bounces+brian.kuhl=windriver.com at python.org] On Behalf Of Victor Stinner
+Sent: Tuesday, March 19, 2019 1:40 PM
+To: Xin, Peixing <Peixing.Xin at windriver.com>
+Cc: python-dev at python.org
+Subject: Re: [Python-Dev] Can I submit more support of standard library for VxWorks after 3.8.0 beta1?
+
+You have to find someone to review your PRs. It takes time. We are all volunteers. I looked and merged some VxWorks PRs.
+
+Would it be possible to pay a core dev to do the reviews? That's an open question for core devs and for WindRiver.
+
+Victor
+
+Le mardi 19 mars 2019, Xin, Peixing <Peixing.Xin at windriver.com<mailto:Peixing.Xin at windriver.com>> a ?crit :
+> Hi, Experts:
+>
+>
+>
+> Seeing from the Python 3.8.0 schedule(https://www.python.org/dev/peps/pep-0569/#schedule), new features will not be allowed to submit after 3.8.0 beta1. For VxWorks RTOS platform supporting CPython, we are using bpo-31904(https://bugs.python.org/issue31904) for PRs to submit our codes. Now I want to know whether we can add more standard library support for VxWorks AFTER 3.8.0 beta1?
+>
+>
+>
+> </mail/u/0/s/?view=att&th=16993c4c52478e78&attid=0.0.1&disp=emb&zw&atsh=1>
+>
+>
+>
+> Thanks,
+>
+> Peixing
+>
+>
+
+--
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190319/5fd54eaa/attachment.html>
+
+From njs at pobox.com  Tue Mar 19 19:33:37 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 19 Mar 2019 16:33:37 -0700
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CAFYqXL_Gj8WsMcs0TQ_LZt4u+rLM+S4UqD-pPUzYhHj30V8=5w@mail.gmail.com>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <CAFYqXL_wWKrJrc7JRQP2yUTRyrJ8aKAUmUiUaEBGkabG-oWD3g@mail.gmail.com>
+ <fcfbe3d1-1dda-5eb5-a17a-2ee13194a1c3@rittau.biz>
+ <CAFYqXL9C8X465iT-dDJSb4rhfGxXXwA1Q5=cVjs=tQ0jgf5F_g@mail.gmail.com>
+ <CAP7+vJ+BKNdnLMKSnO9GfB5oeYfD21fR1iHaWpu1o930OUD-DA@mail.gmail.com>
+ <CAFYqXL_Gj8WsMcs0TQ_LZt4u+rLM+S4UqD-pPUzYhHj30V8=5w@mail.gmail.com>
+Message-ID: <CAPJVwBk=C08LhBBcHJZeqxwLv0SOME2FLhU6adzvpo-aBsMEJw@mail.gmail.com>
+
+On Tue, Mar 19, 2019 at 3:43 PM Giampaolo Rodola' <g.rodola at gmail.com> wrote:
+>
+> On Tue, Mar 19, 2019 at 6:21 PM Guido van Rossum <guido at python.org> wrote:
+>
+> >> On Tue, Mar 19, 2019 at 10:14 AM Giampaolo Rodola' <g.rodola at gmail.com> wrote:
+> >> Technically you cannot make it 100% safe, only less likely to occur.
+> > That seems unnecessarily pedantic. A cryptographic random generator, like the one in the secrets module, *is* safe enough for all practical purposes (with a large margin).
+> > [...]
+> > Hm, the random sequence (implemented in tempfile._RandomNameSequence) is currently derived from the random module, which is not cryptographically secure. Maybe all we need to do is replace its source of randomness with one derived from the secrets module. That seems a one-line change.
+>
+> Seems to make sense to me. Currently the random string is 8 chars
+> long, meaning (if I'm not mistaken) max 40320 possible combinations:
+>
+>     >>> len(list(itertools.permutations('wuoa736m'))))
+>     40320
+
+It's 8 chars taken from a-z0-9_, so there are 37**8 ~= 10**12 possible
+names, or ~41 bits.
+
+> We may use 9 chars and get to 362880 and increase "security".
+> Regardless, it seems to me the original deprecation warning for
+> mktemp() was not really justified and should be removed.
+
+Historically, mktemp variants have caused *tons* of serious security
+vulnerabilities. It's not a theoretical issue. See e.g.
+https://www.owasp.org/index.php/Insecure_Temporary_File
+
+I believe that if we used sufficient unguessable randomness to
+generate the name, then that would resolve the issues and let us
+un-deprecate it. Though like Brett I would like to double-check this
+with security specialists :-).
+
+This would also simplify the implementation a *lot*, down to just:
+
+def mktemp(suffix='', prefix='tmp', dir=None):
+    if dir is None:
+        dir = gettempdir()
+    return _os.path.join(dir, prefix +
+secrets.token_urlsafe(ENTROPY_BYTES) + suffix)
+
+The choice of ENTROPY_BYTES is an interesting question. 16 (= 128
+bits) would be a nice "obviously safe" number, and gives 22-byte
+filenames. We might be able to get away with fewer, if we had a
+plausible cost model for the attack. This is another point where a
+security specialist might be helpful :-).
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From tjreedy at udel.edu  Wed Mar 20 00:45:56 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 20 Mar 2019 00:45:56 -0400
+Subject: [Python-Dev] Can I submit more support of standard library for
+ VxWorks after 3.8.0 beta1?
+In-Reply-To: <CA+3bQGH_+Duh=eett7m1Tr0mtp-dwQRu+dT8sDzXzaBVeakhaQ@mail.gmail.com>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EE94@ALA-MBD.corp.ad.wrs.com>
+ <CA+3bQGH_+Duh=eett7m1Tr0mtp-dwQRu+dT8sDzXzaBVeakhaQ@mail.gmail.com>
+Message-ID: <q6sgi5$69f$1@blaine.gmane.org>
+
+One main purpose of the beta period is to discover and fix bugs and 
+otherwise tweek behavior in the new features included in the first beta. 
+  This usually presupposes that the feature is thought to be 
+'ready-to-go' as-is, absent new discoveries.
+
+Interpretation and issuance of exceptions is usually up to the release 
+manager.  For 3.8, this is ?ukasz Langa,  Victor Stinner is otherwise 
+most involved with platform support.
+
+FWIW, I personally might allow 'suppport added by beta 1' to include 
+failures in up to 4 modules to be fixed as bugs as soon as possible.
+
+On 3/19/2019 1:39 PM, Victor Stinner wrote:
+> You have to find someone to review your PRs. It takes time. We are all 
+> volunteers. I looked and merged some VxWorks PRs.
+> 
+> Would it be possible to pay a core dev to do the reviews? That's an open 
+> question for core devs and for WindRiver.
+
+I think that this is an excellent idea (as in 'likely needed to meet the 
+deadline').  (And no, I am not a candidate for the contract.)
+
+-- 
+Terry Jan Reedy
+
+
+
+From Peixing.Xin at windriver.com  Wed Mar 20 02:18:22 2019
+From: Peixing.Xin at windriver.com (Xin, Peixing)
+Date: Wed, 20 Mar 2019 06:18:22 +0000
+Subject: [Python-Dev] Can I submit more support of standard library for
+ VxWorks after 3.8.0 beta1?
+In-Reply-To: <CAP1=2W6mB2W2rnXNdu7ye6mzpeJCTthUa9MSPqam+oOgdPD4og@mail.gmail.com>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9EE94@ALA-MBD.corp.ad.wrs.com>
+ <CAP1=2W6mB2W2rnXNdu7ye6mzpeJCTthUa9MSPqam+oOgdPD4og@mail.gmail.com>
+Message-ID: <8488FBC4EAAC5941BA4B85DD1ECCF1870133B9FF16@ALA-MBD.corp.ad.wrs.com>
+
+Hi, Brett:
+
+Thanks for your comments. Yes, we want to submit more fixes on test_failures of stardard library after 3.8.0 beta1. Expect those can be accepted and get merged??
+
+Thanks,
+Peixing
+
+From: Brett Cannon [mailto:brett at python.org]
+Sent: Wednesday, March 20, 2019 2:42 AM
+To: Xin, Peixing
+Cc: python-dev at python.org
+Subject: Re: [Python-Dev] Can I submit more support of standard library for VxWorks after 3.8.0 beta1?
+
+
+
+On Mon, Mar 18, 2019 at 7:22 PM Xin, Peixing <Peixing.Xin at windriver.com<mailto:Peixing.Xin at windriver.com>> wrote:
+Hi, Experts:
+
+Seeing from the Python 3.8.0 schedule(https://www.python.org/dev/peps/pep-0569/#schedule), new features will not be allowed to submit after 3.8.0 beta1. For VxWorks RTOS platform supporting CPython, we are using bpo-31904(https://bugs.python.org/issue31904) for PRs to submit our codes. Now I want to know whether we can add more standard library support for VxWorks AFTER 3.8.0 beta1?
+
+If the question is whether we as core devs will merge PRs that extend support in the stdlib, that will be up to the release manager. Since it technically isn't a feature enhancement but a "bugfix" for VxWorks then it will probably come down to what changes are required.
+
+-Brett
+
+
+[cid:image001.png at 01D4DF27.C517FFF0]
+
+Thanks,
+Peixing
+
+_______________________________________________
+Python-Dev mailing list
+Python-Dev at python.org<mailto:Python-Dev at python.org>
+https://mail.python.org/mailman/listinfo/python-dev
+Unsubscribe: https://mail.python.org/mailman/options/python-dev/brett%40python.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190320/2fa986c4/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image001.png
+Type: image/png
+Size: 50332 bytes
+Desc: image001.png
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190320/2fa986c4/attachment-0001.png>
+
