@@ -11362,3 +11362,1600 @@ Size: 50332 bytes
 Desc: image001.png
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190320/2fa986c4/attachment-0001.png>
 
+From storchaka at gmail.com  Wed Mar 20 03:41:34 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Wed, 20 Mar 2019 09:41:34 +0200
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+Message-ID: <q6sqrh$5318$1@blaine.gmane.org>
+
+19.03.19 20:55, Raymond Hettinger ????:
+> I'm working on ways to make improve help() by giving docstrings to member objects.
+> 
+> One way to do it is to wait until after the class definition and then make individual, direct assignments to __doc__ attributes.This way widely the separates docstrings from their initial __slots__ definition.   Working downstream from the class definition feels awkward and doesn't look pretty.
+> 
+> There's another way I would like to propose?.  The __slots__ definition already works with any iterable including a dictionary (the dict values are ignored), so we could use the values for the  docstrings.
+
+I think it would be nice to separate docstrings from the bytecode. This 
+would be allow to have several translated sets of docstrings and load an 
+appropriate set depending on user preferences. This would help in 
+teaching Python.
+
+It is possible with docstrings of modules, classes, functions, methods 
+and properties (created by using the decorator), because the compiler 
+knows what string literal is a docstring. But this is impossible with 
+namedtuple fields and any of the above ideas for slots.
+
+It would be nice to allow to specify docstrings for slots as for methods 
+and properties. Something like in the following pseudocode:
+
+class NormalDist:
+     slot mu:
+	'''Arithmetic mean'''
+     slot sigma:
+         '''Standard deviation'''
+
+It would be also nice to annotate slots and add default values (used 
+when the slot value was not set).
+
+class NormalDist:
+     mu: float = 0.0
+	'''Arithmetic mean'''
+     sigma: float = 1.0
+         '''Standard deviation'''
+
+
+From storchaka at gmail.com  Wed Mar 20 04:04:56 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Wed, 20 Mar 2019 10:04:56 +0200
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <0b519940-06cd-32ee-538e-1c6effdd102a@ganssle.io>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <q6qr1d$5497$1@blaine.gmane.org> <20190319143946.3df5a605@fsol>
+ <0b519940-06cd-32ee-538e-1c6effdd102a@ganssle.io>
+Message-ID: <q6ss7c$hp$1@blaine.gmane.org>
+
+19.03.19 16:21, Paul Ganssle ????:
+> I'm not sure the relationship with mkdir and mktemp here. I don't see
+> any uses of tempfile.mktemp in pip or setuptools, though they do use
+> os.mkdir (which is not deprecated).
+> 
+> Both pip and setuptools use pytest's tmpdir_factory.mktemp() in their
+> test suites, but I believe that is not the same thing.
+
+My fault!
+
+Initially I searched mktemp, and have found usages in distutils, tests, 
+and few other modules in the stdlib. When I wrote the last message I 
+repeat the search on the wider set of Python sources, but for *mkdir* 
+instead of *mktemp*! Thank you for catching this mistake Paul.
+
+Actually, seems mktemp is used exclusively in tests in third-party projects.
+
+
+From storchaka at gmail.com  Wed Mar 20 04:06:27 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Wed, 20 Mar 2019 10:06:27 +0200
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <20190319143946.3df5a605@fsol>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <q6qr1d$5497$1@blaine.gmane.org> <20190319143946.3df5a605@fsol>
+Message-ID: <q6ssa6$hp$2@blaine.gmane.org>
+
+19.03.19 15:39, Antoine Pitrou ????:
+> The fact that many projects, including well-maintained ones such Sphinx
+> or pip, use mktemp(), may be a hint that replacing it is not as easy as
+> the people writing the Python documentation seem to think.
+
+Sorry, it was my mistake (searching mkdir instead of mktemp). mktemp is 
+only used in few tests in third-party projects.
+
+
+From ajm at flonidan.dk  Wed Mar 20 04:47:53 2019
+From: ajm at flonidan.dk (Anders Munch)
+Date: Wed, 20 Mar 2019 08:47:53 +0000
+Subject: [Python-Dev] Remove tempfile.mktemp()
+Message-ID: <HE1PR05MB3211F931DA855F9991E90693B4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+
+Greg Ewing:
+> So use NamedTemporaryFile(delete = False) and close it before passing it to the other program.
+
+That's effectively the same as calling tempfile.mktemp.   While it does waste time opening and closing an unused file, that doesn't help with security.  If anything, it might worsen security.
+
+If a secure implementation of mktemp is truly impossible, then the same could be said for NamedTemperatoryFile(delete=False). Should that be deprecated as well?
+
+regards, Anders
+
+
+From srittau at rittau.biz  Wed Mar 20 04:57:38 2019
+From: srittau at rittau.biz (Sebastian Rittau)
+Date: Wed, 20 Mar 2019 09:57:38 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <HE1PR05MB3211F931DA855F9991E90693B4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+References: <HE1PR05MB3211F931DA855F9991E90693B4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+Message-ID: <9bea28c8-3a77-710a-af65-14b051aa5a20@rittau.biz>
+
+
+Am 20.03.19 um 09:47 schrieb Anders Munch:
+> Greg Ewing:
+>> So use NamedTemporaryFile(delete = False) and close it before passing it to the other program.
+> That's effectively the same as calling tempfile.mktemp.   While it does waste time opening and closing an unused file, that doesn't help with security.  If anything, it might worsen security.
+
+That is not actually true. The important difference is that with 
+NamedTemporaryFile the file exists with appropriate access right (0600). 
+This denies access of that file to other users. With mktemp() no file is 
+created, so another user can "hijack" that name and cause programs to 
+write potentially privileged data into or read manipulated data from 
+that file.
+
+ ?- Sebastian
+
+
+
+From ajm at flonidan.dk  Wed Mar 20 05:53:13 2019
+From: ajm at flonidan.dk (Anders Munch)
+Date: Wed, 20 Mar 2019 09:53:13 +0000
+Subject: [Python-Dev] Remove tempfile.mktemp()
+Message-ID: <HE1PR05MB32116569E1371CC3DFD84960B4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+
+Anders Munch:
+>>> So use NamedTemporaryFile(delete = False) and close it before passing it to the other program.
+>> That's effectively the same as calling tempfile.mktemp.   While it does waste time opening and closing an unused file, that doesn't help with security
+Sebastian Rittau:
+> That is not actually true. The important difference is that with NamedTemporaryFile the file exists with appropriate access right (0600).
+
+You are right, I must have mentally reversed the polarity of the delete argument.  And I didn't realise that the access right on a file had the power to prevent itself from being removed from the folder that it's in.  I thought the access flags were a property of the file itself and not the directory entry. Not sure how that works.
+
+But if NamedTemporaryFile(delete=False) is secure then why not use that to implement mktemp?
+
+def mktemp(suffix="", prefix=template, dir=None):
+    with NamedTemporaryFile(delete=False, suffix=suffix, prefix=prefix, dir=dir) as f:
+        return f.name
+
+Yes, it does leave an empty file if the name is not used, but the name is usually created with the intent to use it, so that is rarely going to be a problem. Just document that that's how it is.  It does mean that where there's an explicit file-exists check before writing the file, that code will break. But it will break a lot less code than removing mktemp entirely.
+
+regards, Anders
+
+
+From eryksun at gmail.com  Wed Mar 20 06:55:38 2019
+From: eryksun at gmail.com (eryk sun)
+Date: Wed, 20 Mar 2019 05:55:38 -0500
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <HE1PR05MB32116569E1371CC3DFD84960B4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+References: <HE1PR05MB32116569E1371CC3DFD84960B4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+Message-ID: <CACL+1as7+6do-RMmmHOBOs06RC9qJEDdr9N7tufJ-KKOxrK4rw@mail.gmail.com>
+
+On 3/20/19, Anders Munch <ajm at flonidan.dk> wrote:
+>
+> You are right, I must have mentally reversed the polarity of the delete
+> argument.  And I didn't realise that the access right on a file had the
+> power to prevent itself from being removed from the folder that it's in.  I
+> thought the access flags were a property of the file itself and not the
+> directory entry. Not sure how that works.
+
+In POSIX, it's secure so long as we use a directory that doesn't grant
+write access to other users, or one that has the sticky bit set such
+as "/tmp". A directory that has the sticky bit set allows only root
+and the owner of the file to unlink the file.
+
+In Windows, a user's default %TEMP% directory is only accessible by
+the user, SYSTEM, and Administrators. The only way others can delete a
+file there is if the file security is modified to allow it (possible
+for individual files, unlike POSIX). This works even with no access to
+the temp directory itself because users have SeChangeNotifyPrivilege,
+which bypasses traverse (execute) access checks.
+
+From ajm at flonidan.dk  Wed Mar 20 07:25:03 2019
+From: ajm at flonidan.dk (Anders Munch)
+Date: Wed, 20 Mar 2019 11:25:03 +0000
+Subject: [Python-Dev] Remove tempfile.mktemp()
+Message-ID: <HE1PR05MB32110BC69414568A25BE4B3DB4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+
+Nathaniel J. Smith:
+> Historically, mktemp variants have caused *tons* of serious security
+> vulnerabilities. It's not a theoretical issue.
+
+All the more reason to have a standard library function that gets it right.
+
+> The choice of ENTROPY_BYTES is an interesting question. 16 (= 128 bits) would
+> be a nice "obviously safe" number, and gives 22-byte filenames. We might be
+> able to get away with fewer, if we had a plausible cost model for the
+> attack. This is another point where a security specialist might be helpful :-).
+
+I'm not a security specialist but I play one on TV.
+Here's my take on it.
+
+Any kind of brute force attack will require at least one syscall per try, to
+create a file or check if a file by a given name exists.  It's a safe assumption
+that names have to be tried individually, because if the attacker has a faster
+way of enumerating existing file names, then the entropy of the filename is
+worthless anyway.
+
+That means even with only 41 bits of entry, the attacker will have make 2^40
+tries on average.  For an individual short-lived file, that could be enough;
+even with a billion syscalls per second, that's over a thousand seconds, leaving
+plenty of time to initiate whatever writes the file.
+
+However, there could be applications where the window of attack is very long,
+hours or days even, or that are constantly writing new temporary files, and
+where the attacker can keep trying at a rapid pace, and then 41 bits is
+definitely not secure.
+
+128 bits seems like overkill: There's no birthday attack because no-one keeps
+2^(ENTROPY_BITS/2) files around, and the attack is running on the attackee's
+system, so there's no using specialised accelerator hardware.  I'd say 64 bits
+is enough under those circumstances, but I wouldn't be surprised if a better
+security specialist could make a case for more.  So maybe go with 80 bits,
+that's puts it at 15 or 16 characters.
+
+
+Med venlig hilsen/Best regards
+
+ Anders Munch
+Chief Security Architect
+
+T: +45 76266981  *  M: +45 51856626
+ajm at flonidan.dk  *  www.flonidan.com 
+ FLONIDAN A/S  *  Islandsvej 29  *  DK-8700 Horsens  *  CVR: 89919916    
+Winner of the 2018 Frost & Sullivan Customer Leadership Award
+
+From vstinner at redhat.com  Wed Mar 20 07:45:40 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 20 Mar 2019 12:45:40 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <HE1PR05MB32110BC69414568A25BE4B3DB4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+References: <HE1PR05MB32110BC69414568A25BE4B3DB4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+Message-ID: <CA+3bQGGx7wgf+HrUp3HE=2BTwJdacuVs0YUYhETzdwfSkPmS+Q@mail.gmail.com>
+
+Hi,
+
+I'm not really convinced that mktemp() should be made "more secure".
+To be clear: mktemp() is vulnerable by design. It's not a matter of
+entropy. You can watch the /tmp directory using inotify and "discover"
+immediately the "secret" filename, it doesn't depend on the amount of
+entropy used to generate the filename. A function is either unsafe or
+secure.
+
+Why mktemp() only uses 8 characters? Well, I guess that humans like to
+be able to copy manually (type) a filename :-)
+
+Note: For the ones who didn't notice, "mktemp()" name comes from a
+function with the same name in the libc.
+http://man7.org/linux/man-pages/man3/mktemp.3.html
+
+Victor
+
+Le mer. 20 mars 2019 ? 12:29, Anders Munch <ajm at flonidan.dk> a ?crit :
+>
+> Nathaniel J. Smith:
+> > Historically, mktemp variants have caused *tons* of serious security
+> > vulnerabilities. It's not a theoretical issue.
+>
+> All the more reason to have a standard library function that gets it right.
+>
+> > The choice of ENTROPY_BYTES is an interesting question. 16 (= 128 bits) would
+> > be a nice "obviously safe" number, and gives 22-byte filenames. We might be
+> > able to get away with fewer, if we had a plausible cost model for the
+> > attack. This is another point where a security specialist might be helpful :-).
+>
+> I'm not a security specialist but I play one on TV.
+> Here's my take on it.
+>
+> Any kind of brute force attack will require at least one syscall per try, to
+> create a file or check if a file by a given name exists.  It's a safe assumption
+> that names have to be tried individually, because if the attacker has a faster
+> way of enumerating existing file names, then the entropy of the filename is
+> worthless anyway.
+>
+> That means even with only 41 bits of entry, the attacker will have make 2^40
+> tries on average.  For an individual short-lived file, that could be enough;
+> even with a billion syscalls per second, that's over a thousand seconds, leaving
+> plenty of time to initiate whatever writes the file.
+>
+> However, there could be applications where the window of attack is very long,
+> hours or days even, or that are constantly writing new temporary files, and
+> where the attacker can keep trying at a rapid pace, and then 41 bits is
+> definitely not secure.
+>
+> 128 bits seems like overkill: There's no birthday attack because no-one keeps
+> 2^(ENTROPY_BITS/2) files around, and the attack is running on the attackee's
+> system, so there's no using specialised accelerator hardware.  I'd say 64 bits
+> is enough under those circumstances, but I wouldn't be surprised if a better
+> security specialist could make a case for more.  So maybe go with 80 bits,
+> that's puts it at 15 or 16 characters.
+>
+>
+> Med venlig hilsen/Best regards
+>
+>  Anders Munch
+> Chief Security Architect
+>
+> T: +45 76266981  *  M: +45 51856626
+> ajm at flonidan.dk  *  www.flonidan.com
+>  FLONIDAN A/S  *  Islandsvej 29  *  DK-8700 Horsens  *  CVR: 89919916
+> Winner of the 2018 Frost & Sullivan Customer Leadership Award
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From steve at pearwood.info  Wed Mar 20 07:57:10 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 20 Mar 2019 22:57:10 +1100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <HE1PR05MB32110BC69414568A25BE4B3DB4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+References: <HE1PR05MB32110BC69414568A25BE4B3DB4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+Message-ID: <20190320115710.GE12502@ando.pearwood.info>
+
+On Wed, Mar 20, 2019 at 11:25:03AM +0000, Anders Munch wrote:
+
+> 128 bits seems like overkill: There's no birthday attack because no-one keeps
+> 2^(ENTROPY_BITS/2) files around, 
+
+You haven't seen my Downloads folder... :-)
+
+But seriously:
+
+> and the attack is running on the attackee's
+> system, so there's no using specialised accelerator hardware.  I'd say 64 bits
+> is enough under those circumstances, but I wouldn't be surprised if a better
+> security specialist could make a case for more.  So maybe go with 80 bits,
+> that's puts it at 15 or 16 characters.
+
+Why be so miserly with entropy? This probably isn't a token that goes to 
+a human, who may have to type it into a web browser, or send it by SMS. 
+Its likely to be a name used only by the machine. Using 128 bits is just 
+22 characters using secrets.token_urlsafe().
+
+The default entropy used by secrets is 32 bytes, which gives a 43 
+character token. I have plenty of files with names longer than that:
+
+"Funny video of cat playing piano while dog does backflips.mp4"
+
+Of course, if you have some specific need for the file name to be 
+shorter (or longer!) then there ought to be a way to set the entropy 
+used. But I think the default secrets entropy is fine, and its better to 
+have longer names than shorter ones, within reason. I don't think 40-50 
+characters (plus any prefix or suffix) is excessive for a temporary file 
+intended for use by an application rather than a human.
+
+
+
+-- 
+Steven
+
+From J.Demeyer at UGent.be  Wed Mar 20 07:53:20 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 20 Mar 2019 12:53:20 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CA+3bQGGx7wgf+HrUp3HE=2BTwJdacuVs0YUYhETzdwfSkPmS+Q@mail.gmail.com>
+References: <HE1PR05MB32110BC69414568A25BE4B3DB4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+ <CA+3bQGGx7wgf+HrUp3HE=2BTwJdacuVs0YUYhETzdwfSkPmS+Q@mail.gmail.com>
+Message-ID: <5C9229B0.20501@UGent.be>
+
+On 2019-03-20 12:45, Victor Stinner wrote:
+> You can watch the /tmp directory using inotify and "discover"
+> immediately the "secret" filename, it doesn't depend on the amount of
+> entropy used to generate the filename.
+
+That's not the problem. The security issue here is guessing the filename 
+*before* it's created and putting a different file or symlink in place.
+
+So I actually do think that mktemp() could be made secure by using a 
+longer name generated by a secure random generator.
+
+From steve at pearwood.info  Wed Mar 20 08:09:44 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 20 Mar 2019 23:09:44 +1100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <CA+3bQGGx7wgf+HrUp3HE=2BTwJdacuVs0YUYhETzdwfSkPmS+Q@mail.gmail.com>
+References: <HE1PR05MB32110BC69414568A25BE4B3DB4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+ <CA+3bQGGx7wgf+HrUp3HE=2BTwJdacuVs0YUYhETzdwfSkPmS+Q@mail.gmail.com>
+Message-ID: <20190320120944.GF12502@ando.pearwood.info>
+
+On Wed, Mar 20, 2019 at 12:45:40PM +0100, Victor Stinner wrote:
+> Hi,
+> 
+> I'm not really convinced that mktemp() should be made "more secure".
+> To be clear: mktemp() is vulnerable by design. It's not a matter of
+> entropy. You can watch the /tmp directory using inotify and "discover"
+> immediately the "secret" filename, it doesn't depend on the amount of
+> entropy used to generate the filename. A function is either unsafe or
+> secure.
+
+Security is not a binary state, it is never either-or "unsafe" or 
+"secure". Secure against what attacks? Unsafe under what circumstances?
+
+I can use the unsafe mktemp on a stand alone single-user computer, 
+disconnected from the internet, guaranteed to have nothing but trusted 
+software, and it will be secure in practice.
+
+Or I can use the "safe interfaces" and I'm still vulnerable to an 
+Advanced Persistent Threat that has compromised the OS specifically to 
+target my application. If the attacker controls the OS or the hardware, 
+then effectively they've already won.
+
+
+-- 
+Steven
+
+From ajm at flonidan.dk  Wed Mar 20 08:25:36 2019
+From: ajm at flonidan.dk (Anders Munch)
+Date: Wed, 20 Mar 2019 12:25:36 +0000
+Subject: [Python-Dev] Remove tempfile.mktemp()
+Message-ID: <HE1PR05MB321127366A723100297A04CBB4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+
+Steven D'Aprano:
+>> 128 bits seems like overkill: There's no birthday attack because 
+>> no-one keeps 2^(ENTROPY_BITS/2) files around
+> You haven't seen my Downloads folder... :-)
+
+I put it to you that those files are not temporary :-)
+
+> Why be so miserly with entropy?
+
+I don't necessarily disagree.  
+
+> Using 128 bits is just 22 characters using secrets.token_urlsafe().
+
+A little more when you take into account case-insensitive file systems.
+
+regards, Anders
+
+
+From ajm at flonidan.dk  Wed Mar 20 08:30:50 2019
+From: ajm at flonidan.dk (Anders Munch)
+Date: Wed, 20 Mar 2019 12:30:50 +0000
+Subject: [Python-Dev] Remove tempfile.mktemp()
+Message-ID: <HE1PR05MB321197944958498AC3905264B4410@HE1PR05MB3211.eurprd05.prod.outlook.com>
+
+Victor Stinner:
+> To be clear: mktemp() is vulnerable by design
+
+No: mktemp() is vulnerable by implementation.  Specifically, returning a file name in a world-accessible location, /tmp.
+
+regards, Anders
+
+
+From solipsis at pitrou.net  Wed Mar 20 10:22:31 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 20 Mar 2019 15:22:31 +0100
+Subject: [Python-Dev] Remove tempfile.mktemp()
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+ <20190319145127.0824f196@fsol> <5C916C71.5070102@canterbury.ac.nz>
+Message-ID: <20190320152231.7936863b@fsol>
+
+On Wed, 20 Mar 2019 11:25:53 +1300
+Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+> Antoine Pitrou wrote:
+> > Does it always work? According to the docs, """Whether the name can be
+> > used to open the file a second time, while the named temporary file is
+> > still open, varies across platforms  
+> 
+> So use NamedTemporaryFile(delete = False) and close it before passing
+> it to the other program.
+
+How is it more secure than using mktemp()?
+
+Regards
+
+Antoine.
+
+
+
+From ethan at stoneleaf.us  Wed Mar 20 18:24:03 2019
+From: ethan at stoneleaf.us (Ethan Furman)
+Date: Wed, 20 Mar 2019 15:24:03 -0700
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+Message-ID: <8f49ea84-37d8-d5c0-f19c-8eeb90e902e0@stoneleaf.us>
+
+On 03/19/2019 11:55 AM, Raymond Hettinger wrote:
+
+> I'm working on ways to make improve help() by giving docstrings
+>  to member objects.
+
+Cool!
+
+> There's another way I would like to propose.  The __slots__
+>  definition already works with any iterable including a
+>  dictionary (the dict values are ignored), so we could use the
+>  values for the  docstrings.
+>
+> [...]
+> 
+> What do you all think about the proposal?
+
+This proposal only works with objects defining __slots__, and only the objects in __slots__?  Does it help Enum, dataclasses, or other enhanced classes/objects?
+
+--
+~Ethan~
+
+From greg at krypto.org  Wed Mar 20 18:30:14 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 20 Mar 2019 15:30:14 -0700
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <q6sqrh$5318$1@blaine.gmane.org>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+ <q6sqrh$5318$1@blaine.gmane.org>
+Message-ID: <CAGE7PN+K0amuQS+nkwrukwfJEmkzCjPXce_vZU8zsqyMWv-zUQ@mail.gmail.com>
+
+(answers above and below the quoting)
+
+I like the idea of documenting attributes, but we shouldn't force the user
+to use __slots__ as that has significant side effects and is rarely
+something people should bother to use.  There are multiple types of
+attributes.  class and instance.  but regardless of where they are
+initialized, they all define the API shape of a class (or instance).
+
+Q: Where at runtime regardless of syntax chosen would such docstrings
+live?  One (of many) common conventions today is to just put them into an
+Attributes: or similar section of the class docstring.  We could actually
+do that automatically by appending a section to the class docstring, but
+that unstructures the data enshrining one format and could break existing
+code for the users of the few but existing APIs that treat docstrings as
+structured runtime data instead of documentation if someone were to try and
+use attribute docstrings on subclasses of those library types.  (ply does
+this, I believe some database abstraction APIs do as well).
+
+On Wed, Mar 20, 2019 at 12:41 AM Serhiy Storchaka <storchaka at gmail.com>
+wrote:
+
+> 19.03.19 20:55, Raymond Hettinger ????:
+> > I'm working on ways to make improve help() by giving docstrings to
+> member objects.
+> >
+> > One way to do it is to wait until after the class definition and then
+> make individual, direct assignments to __doc__ attributes.This way widely
+> the separates docstrings from their initial __slots__ definition.   Working
+> downstream from the class definition feels awkward and doesn't look pretty.
+> >
+> > There's another way I would like to propose?.  The __slots__ definition
+> already works with any iterable including a dictionary (the dict values are
+> ignored), so we could use the values for the  docstrings.
+>
+> I think it would be nice to separate docstrings from the bytecode. This
+> would be allow to have several translated sets of docstrings and load an
+> appropriate set depending on user preferences. This would help in
+> teaching Python.
+>
+> It is possible with docstrings of modules, classes, functions, methods
+> and properties (created by using the decorator), because the compiler
+> knows what string literal is a docstring. But this is impossible with
+> namedtuple fields and any of the above ideas for slots.
+>
+> It would be nice to allow to specify docstrings for slots as for methods
+> and properties. Something like in the following pseudocode:
+>
+> class NormalDist:
+>      slot mu:
+>         '''Arithmetic mean'''
+>      slot sigma:
+>          '''Standard deviation'''
+>
+
+I don't think adding a 'slot' keyword even if limited in scope to class
+body definition level is a good idea (very painful anytime we reserve a new
+word that is already used in code and APIs).
+
+
+> It would be also nice to annotate slots and add default values (used
+> when the slot value was not set).
+>
+> class NormalDist:
+>      mu: float = 0.0
+>         '''Arithmetic mean'''
+>      sigma: float = 1.0
+>          '''Standard deviation'''
+>
+>
+Something along these lines is more interesting to me.  And could be
+applied to variables in _any_ scope.  though there wouldn't be a point in
+using a string in context where the name isn't bound to a class or module.
+
+The best practice today remains "just use the class docstring to document
+your public class and instance attributes".  FWIW other languages tend to
+generate their documentation from code via comments rather than requiring a
+special in language runtime accessible syntax to declare it as
+documentation.
+
+It feels like Python is diverging from the norm if we were encourage more
+of this __doc__ carried around at runtime implicit assignment than we
+already have.  I'm not convinced that is a good thing.
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190320/dfce7afd/attachment.html>
+
+From vano at mail.mipt.ru  Wed Mar 20 18:47:27 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Thu, 21 Mar 2019 01:47:27 +0300
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+Message-ID: <416e2cdf-7284-1be0-e4ff-3e40cf93a07a@mail.mipt.ru>
+
+On 19.03.2019 21:55, Raymond Hettinger wrote:
+> I'm working on ways to make improve help() by giving docstrings to member objects.
+>
+> One way to do it is to wait until after the class definition and then make individual, direct assignments to __doc__ attributes.This way widely the separates docstrings from their initial __slots__ definition.   Working downstream from the class definition feels awkward and doesn't look pretty.
+>
+> There's another way I would like to propose?.  The __slots__ definition already works with any iterable including a dictionary (the dict values are ignored), so we could use the values for the  docstrings.
+>
+> This keeps all the relevant information in one place (much like we already do with property() objects).  This way already works, we just need a few lines in pydoc to check to see if a dict if present.  This way also looks pretty and doesn't feel awkward.
+>
+> I've included worked out examples below.  What do you all think about the proposal?
+>
+>
+> Raymond
+>
+>
+> ? https://bugs.python.org/issue36326
+>
+>
+> ====== Desired help() output ======
+>
+>>>> help(NormalDist)
+> Help on class NormalDist in module __main__:
+>
+> class NormalDist(builtins.object)
+>   |  NormalDist(mu=0.0, sigma=1.0)
+>   |
+>   |  Normal distribution of a random variable
+>   |
+>   |  Methods defined here:
+>   |
+>   |  __init__(self, mu=0.0, sigma=1.0)
+>   |      NormalDist where mu is the mean and sigma is the standard deviation.
+>   |
+>   |  cdf(self, x)
+>   |      Cumulative distribution function.  P(X <= x)
+>   |
+>   |  pdf(self, x)
+>   |      Probability density function.  P(x <= X < x+dx) / dx
+>   |
+>   |  ----------------------------------------------------------------------
+>   |  Data descriptors defined here:
+>   |
+>   |  mu
+>   |      Arithmetic mean.
+>   |
+>   |  sigma
+>   |      Standard deviation.
+>   |
+>   |  variance
+>   |      Square of the standard deviation.
+>
+>
+>
+> ====== Example of assigning docstrings after the class definition ======
+>
+> class NormalDist:
+>      'Normal distribution of a random variable'
+>
+>      __slots__ = ('mu', 'sigma')
+>
+>      def __init__(self, mu=0.0, sigma=1.0):
+>          'NormalDist where mu is the mean and sigma is the standard deviation.'
+>          self.mu = mu
+>          self.sigma = sigma
+>
+>      @property
+>      def variance(self):
+>          'Square of the standard deviation.'
+>          return self.sigma ** 2.
+>
+>      def pdf(self, x):
+>          'Probability density function.  P(x <= X < x+dx) / dx'
+>          variance = self.variance
+>          return exp((x - self.mu)**2.0 / (-2.0*variance)) / sqrt(tau * variance)
+>
+>      def cdf(self, x):
+>          'Cumulative distribution function.  P(X <= x)'
+>          return 0.5 * (1.0 + erf((x - self.mu) / (self.sigma * sqrt(2.0))))
+>
+> NormalDist.mu.__doc__ = 'Arithmetic mean'
+> NormalDist.sigma.__doc__ = 'Standard deviation'
+
+IMO this is another manifestation of the problem that things in the class definition have no access to the class object.
+Logically speaking, a definition item should be able to see everything that is defined before it.
+For the same reason, we have to jump through hoops to use a class name in a class attribute definition -- see e.g. 
+https://stackoverflow.com/questions/14513019/python-get-class-name
+
+If that problem is resolved, you would be able to write something like:
+
+class NormalDist:
+     'Normal distribution of a random variable'
+
+     __slots__ = ('mu', 'sigma')
+
+     __self__.mu.__doc__= 'Arithmetic mean'
+ ?   __self__.sigma.__doc__= 'Stndard deviation'
+
+
+>
+>
+> ====== Example of assigning docstrings with a dict =====
+>
+> class NormalDist:
+>      'Normal distribution of a random variable'
+>
+>      __slots__ = {'mu' : 'Arithmetic mean.', 'sigma': 'Standard deviation.'}
+>
+>      def __init__(self, mu=0.0, sigma=1.0):
+>          'NormalDist where mu is the mean and sigma is the standard deviation.'
+>          self.mu = mu
+>          self.sigma = sigma
+>
+>      @property
+>      def variance(self):
+>          'Square of the standard deviation.'
+>          return self.sigma ** 2.
+>
+>      def pdf(self, x):
+>          'Probability density function.  P(x <= X < x+dx) / dx'
+>          variance = self.variance
+>          return exp((x - self.mu)**2.0 / (-2.0*variance)) / sqrt(tau * variance)
+>
+>      def cdf(self, x):
+>          'Cumulative distribution function.  P(X <= x)'
+>          return 0.5 * (1.0 + erf((x - self.mu) / (self.sigma * sqrt(2.0))))
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vano%40mail.mipt.ru
+
+-- 
+Regards,
+Ivan
+
+
+From vano at mail.mipt.ru  Wed Mar 20 18:47:47 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Thu, 21 Mar 2019 01:47:47 +0300
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+Message-ID: <8ac0ef6d-dcfd-54b2-ff89-e3655453e9d0@mail.mipt.ru>
+
+Before we can say if something is "secure" or not, we need a threat model -- i.e we need to agree which use cases we are protecting and from 
+what threats.
+
+So far, I've seen these use cases:
+
+1. File for the current process' private use
+2. File/file name generated by the current process; written by another process, read by current one
+3. File name generated by the current process; written by the current process, read by another one
+
+And the following threats, three axes:
+
+a. Processes run as other users
+b. Processes run as the same user (or a user that otherwise automatically has access to all your files)
+
+1. Accidental collision from a process that uses CREATE_NEW or equivalent
+2. Accidental collision from a process that doesn't use CREATE_NEW or equivalent
+3. Malicious code creating files at random
+4. Malicious code actively monitoring file creation
+
+-1. read
+-2. write
+
+E.g. for threat b-4), it's not safe to use named files for IPC at all, only case 1 can be secured (with exclusive open).
+
+On 19.03.2019 16:03, St?phane Wirtel wrote:
+
+> Hi,
+>
+> Context: raise a warning or remove tempfile.mktemp()
+> BPO: https://bugs.python.org/issue36309
+>
+> Since 2.3, this function is deprecated in the documentation, just in the
+> documentation. In the code, there is a commented RuntimeWarning.
+> Commented by Guido in 2002, because the warning was too annoying (and I
+> understand ;-)).
+>
+> So, in this BPO, we start to discuss about the future of this function
+> and Serhiy proposed to discuss on the Python-dev mailing list.
+>
+> Question: Should we drop it or add a (Pending)DeprecationWarning?
+>
+> Suggestion and timeline:
+>
+> 3.8, we raise a PendingDeprecationWarning
+>      * update the code
+>      * update the documentation
+>      * update the tests
+>        (check a PendingDeprecationWarning if sys.version_info == 3.8)
+>
+> 3.9, we change PendingDeprecationWarning to DeprecationWarning
+>        (check DeprecationWarning if sys.version_info == 3.9)
+>
+> 3.9+, we drop tempfile.mktemp()
+>
+> What do you suggest?
+>
+> Have a nice day and thank you for your feedback.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vano%40mail.mipt.ru
+
+-- 
+Regards,
+Ivan
+
+
+From raymond.hettinger at gmail.com  Wed Mar 20 18:53:26 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Wed, 20 Mar 2019 15:53:26 -0700
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <CAGE7PN+K0amuQS+nkwrukwfJEmkzCjPXce_vZU8zsqyMWv-zUQ@mail.gmail.com>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+ <q6sqrh$5318$1@blaine.gmane.org>
+ <CAGE7PN+K0amuQS+nkwrukwfJEmkzCjPXce_vZU8zsqyMWv-zUQ@mail.gmail.com>
+Message-ID: <1AC277CC-EF1F-4728-876A-ABB8934A5DF6@gmail.com>
+
+
+> On Mar 20, 2019, at 3:30 PM, Gregory P. Smith <greg at krypto.org> wrote:
+> 
+> I like the idea of documenting attributes, but we shouldn't force the user to use __slots__ as that has significant side effects and is rarely something people should bother to use.
+
+Member objects are like property objects in that they exist at the class level and show up in the help whether you want them to or not.   AFAICT, they are the only such objects to not have a way to attach docstrings.
+
+For instance level attributes created by __init__, the usual way to document them is in either the class docstring or the __init__ docstring.  This is because they don't actually exist until  __init__ is run.
+
+No one is forcing anyone to use slots.  I'm just proposing that for classes that do use them that there is currently no way to annotate them like we do for property objects (which people aren't being forced to use either).  The goal is to make help() better for whatever people are currently doing.  That shouldn't be controversial.  
+
+Someone not liking or recommending slots is quite different from not wanting them documented.  In the examples I posted (taken from the standard library), the help() is clearly better with the annotations than without.
+
+
+Raymond
+
+
+
+
+
+From ethan at stoneleaf.us  Wed Mar 20 18:59:44 2019
+From: ethan at stoneleaf.us (Ethan Furman)
+Date: Wed, 20 Mar 2019 15:59:44 -0700
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <8f49ea84-37d8-d5c0-f19c-8eeb90e902e0@stoneleaf.us>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+ <8f49ea84-37d8-d5c0-f19c-8eeb90e902e0@stoneleaf.us>
+Message-ID: <1475cd51-57a2-c5be-2800-034706ef7b32@stoneleaf.us>
+
+On 03/20/2019 03:24 PM, Ethan Furman wrote:
+> On 03/19/2019 11:55 AM, Raymond Hettinger wrote:
+
+>> There's another way I would like to propose.  The __slots__
+>>  definition already works with any iterable including a
+>>  dictionary (the dict values are ignored), so we could use the
+>>  values for the  docstrings.
+>>
+>> [...]
+>>
+>> What do you all think about the proposal?
+> 
+> This proposal only works with objects defining __slots__, and only
+>  the objects in __slots__?  Does it help Enum, dataclasses, or other
+>  enhanced classes/objects?
+
+Hmm.  Said somewhat less snarkily, is there a more general solution to the problem of absent docstrings or do we have to attack this problem piece-by-piece?
+
+--
+~Ethan~
+
+From raymond.hettinger at gmail.com  Wed Mar 20 19:05:26 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Wed, 20 Mar 2019 16:05:26 -0700
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <416e2cdf-7284-1be0-e4ff-3e40cf93a07a@mail.mipt.ru>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+ <416e2cdf-7284-1be0-e4ff-3e40cf93a07a@mail.mipt.ru>
+Message-ID: <C09BF55D-6EC7-46D7-90EB-D82B5D72DB58@gmail.com>
+
+
+> On Mar 20, 2019, at 3:47 PM, Ivan Pozdeev via Python-Dev <python-dev at python.org> wrote:
+> 
+>> NormalDist.mu.__doc__ = 'Arithmetic mean'
+>> NormalDist.sigma.__doc__ = 'Standard deviation'
+> 
+> IMO this is another manifestation of the problem that things in the class definition have no access to the class object.
+> Logically speaking, a definition item should be able to see everything that is defined before it.
+
+The member objects get created downstream by the type() metaclass.  So, there isn't a visibility issue because the objects don't exist yet.
+
+
+Raymond
+
+
+From raymond.hettinger at gmail.com  Wed Mar 20 19:17:13 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Wed, 20 Mar 2019 16:17:13 -0700
+Subject: [Python-Dev] Best way to specify docstrings for member objects
+In-Reply-To: <1475cd51-57a2-c5be-2800-034706ef7b32@stoneleaf.us>
+References: <B8318F69-46D0-43E5-9E60-B8CD1AE8E887@gmail.com>
+ <8f49ea84-37d8-d5c0-f19c-8eeb90e902e0@stoneleaf.us>
+ <1475cd51-57a2-c5be-2800-034706ef7b32@stoneleaf.us>
+Message-ID: <3C4F62DF-AE45-4CEE-8E9C-E87892FCC3A0@gmail.com>
+
+
+> On Mar 20, 2019, at 3:59 PM, Ethan Furman <ethan at stoneleaf.us> wrote:
+> 
+> Hmm.  Said somewhat less snarkily, is there a more general solution to the problem of absent docstrings or do we have to attack this problem piece-by-piece?
+
+I think this is the last piece.  The pydoc help() utility already knows how to find docstrings for other class level descriptors:  property, class method, staticmethod.
+
+Enum() already has nice looking help() output because the class variables are assigned values that have a nice __repr__, making them self documenting.
+
+By design, dataclasses aren't special -- they just make regular classes, similar to or better than you would write by hand.
+
+
+Raymond
+
+From vstinner at redhat.com  Wed Mar 20 20:22:56 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 21 Mar 2019 01:22:56 +0100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+Message-ID: <CA+3bQGGqLJHEu6M6xrSPV2hB1FUwqTp-u1kTRNSEuWYWwoTRYA@mail.gmail.com>
+
+Hi,
+
+Le lun. 18 mars 2019 ? 23:41, Raymond Hettinger
+<raymond.hettinger at gmail.com> a ?crit :
+> We're having a super interesting discussion on https://bugs.python.org/issue34160 .  It is now marked as a release blocker and warrants a broader discussion.
+
+Thanks for starting a thread on python-dev. I'm the one who raised the
+priority to release blocker to trigger such discussion on python-dev.
+
+
+> Our problem is that at least two distinct and important users have written tests that depend on exact byte-by-byte comparisons of the final serialization.
+
+Sorry but I don't think that it's a good summary of the issue. IMHO
+the issue is more general about how we introduce backward incompatible
+in Python.
+
+The migration from Python 2 to Python 3 took around ten years. That's
+way too long and it caused a lot of troubles in the Python community.
+IMHO one explanation is our patronizing behavior regarding to users
+that I would like to summarize as "your code is wrong, you have to fix
+it" (whereas the code was working well for 10 years with Python 2!).
+
+I'm not opposed to backward incompatible changes, but I think that we
+must very carefully prepare the migration and do our best to help
+users to migrate their code.
+
+
+> 2). Go into every XML module and add attribute sorting options to each function that generate xml. (...)
+
+Written like that, it sounds painful and a huge project... But in
+practice, the implementation looks simple and straightforward:
+https://github.com/python/cpython/pull/12354/files
+
+I don't understand why such simple solution has been rejected.
+
+IMHO adding an optional sort parameter is just the *bare minimum* that
+we can do for our users.
+
+Alternatives have been proposed like a recipe to sort node attributes
+before serialization, but honestly, it's way too complex. I don't want
+to have to copy such recipe to every project. Add a new function,
+import it, use it where XML is written into a file, etc. Taken alone,
+maybe it's acceptable. But please remember that some companies are
+still porting their large Python 2 code base to Python 3. This new
+backward incompatible gets on top of the pile of other backward
+incompatible changes between 2.7 and 3.8.
+
+I would prefer to be able to "just add" sort=True. Don't forget that
+tests like "if sys.version >= (3, 8):"  will be needed which makes the
+overall fix more complicated.
+
+Said differently, the stdlib should help the user to update Python.
+The pain should not only be on the user side.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From raymond.hettinger at gmail.com  Wed Mar 20 20:26:18 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Wed, 20 Mar 2019 17:26:18 -0700
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <q6q8af$3i67$1@blaine.gmane.org>
+ <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+Message-ID: <FB1A02AF-3224-40FF-AF2E-4982495F149E@gmail.com>
+
+
+> On Mar 19, 2019, at 4:53 AM, Ned Batchelder <ned at nedbatchelder.com> wrote:
+> 
+> None of this is impossible, but please try not to preach to us maintainers that we are doing it wrong, that it will be easy to fix, etc
+
+There's no preaching and no judgment.  We can't have a conversation though if we can't state the crux of the problem: some existing tests in third-party modules depend on the XML serialization being byte-for-byte identical forever. The various respondents to this thread have indicated that the standard library should only make that guarantee within a single feature release and that it may to vary across feature releases.
+
+For docutils, it may end-up being an easy fix (either with a semantic comparison or with regenerating the target files when point releases differ).  For Coverage, I don't make any presumption that reengineering the tests will be easy or fun.  Several mitigation strategies have been proposed:
+
+* alter to element creation code to create the attributes in the desired order
+* use a canonicalization tool to create output that is guarantee not to change
+* generate new baseline files when a feature release changes
+* apply Stefan's recipe for reordering attributes
+* make a semantic level comparison
+
+Will any other these work for you?
+
+
+Raymond
+
+
+
+
+
+
+
+
+From vstinner at redhat.com  Wed Mar 20 20:46:14 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 21 Mar 2019 01:46:14 +0100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <FB1A02AF-3224-40FF-AF2E-4982495F149E@gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <q6q8af$3i67$1@blaine.gmane.org>
+ <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+ <FB1A02AF-3224-40FF-AF2E-4982495F149E@gmail.com>
+Message-ID: <CA+3bQGFfUUWqBbXf8Vmp2yJU+agh+PLS8rgao+TsmAauy7RQzw@mail.gmail.com>
+
+Le jeu. 21 mars 2019 ? 01:30, Raymond Hettinger
+<raymond.hettinger at gmail.com> a ?crit :
+> There's no preaching and no judgment.  We can't have a conversation though if we can't state the crux of the problem: some existing tests in third-party modules depend on the XML serialization being byte-for-byte identical forever. The various respondents to this thread have indicated that the standard library should only make that guarantee within a single feature release and that it may to vary across feature releases.
+>
+> For docutils, it may end-up being an easy fix (either with a semantic comparison or with regenerating the target files when point releases differ).  For Coverage, I don't make any presumption that reengineering the tests will be easy or fun.  Several mitigation strategies have been proposed:
+>
+> * alter to element creation code to create the attributes in the desired order
+> * use a canonicalization tool to create output that is guarantee not to change
+> * generate new baseline files when a feature release changes
+> * apply Stefan's recipe for reordering attributes
+> * make a semantic level comparison
+>
+> Will any other these work for you?
+
+Python 3.8 is still in a very early stage of testing. We only started
+to discover which projects are broken by the XML change.
+
+IMHO the problem is wider than just unit tests written in Python.
+Python can be used to produce the XML, but other languages can be used
+to parse or compare the generated XML. For example, if the generated
+file is stored in Git, it will be seen as modified and "git diff" will
+show a lot of "irrelevant" changes.
+
+Comparison of XML using string comparison can also be used to avoid
+expensive disk/database write or reduce network bandwidth. That's an
+issue if the program isn't written in Python, whereas the XML is
+generated by Python.
+
+Getting the same output on Python 3.7 and Python 3.8 is also matter
+for https://reproducible-builds.org/
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From raymond.hettinger at gmail.com  Wed Mar 20 20:56:48 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Wed, 20 Mar 2019 17:56:48 -0700
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <CA+3bQGGqLJHEu6M6xrSPV2hB1FUwqTp-u1kTRNSEuWYWwoTRYA@mail.gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CA+3bQGGqLJHEu6M6xrSPV2hB1FUwqTp-u1kTRNSEuWYWwoTRYA@mail.gmail.com>
+Message-ID: <C9A66D39-2F32-4A1D-9CC2-7328C0FD02BC@gmail.com>
+
+
+> On Mar 20, 2019, at 5:22 PM, Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> I don't understand why such simple solution has been rejected.
+
+It hasn't been rejected. That is above my pay grade.  Stefan and I recommended against going down this path. However, since you're in disagreement and have marked this as a release blocker, it is now time for the steering committee to earn their pay (which is at least double what I'm making) or defer to the principal module maintainer, Stefan.
+
+To recap reasons for not going down this path:
+
+1) The only known use case for a "sort=True" parameter is to perpetuate the practice of byte-by-byte output comparisons guaranteed to work across feature releases.  The various XML experts in this thread have opined that isn't something we should guarantee (and sorting isn't the only aspect detail subject to change, Stefan listed others).
+
+2) The intent of the XML modules is to implement the specification and be interoperable with other languages and other XML tools. It is not intended to be used to generate an exact binary output.  Per section 3.1 of the XML spec, "Note that the order of attribute specifications in a start-tag or empty-element tag is not significant."
+
+3) Mitigating a test failure is a one-time problem. API expansions are forever.
+
+4) The existing API is not small and presents a challenge for teaching. Making the API bigger will make it worse.
+
+5) As far as I can tell, XML tools in other languages (such as Java) don't sort (and likely for good reason).  LXML is dropping its attribute sorting as well, so the standard library would become more of an outlier.
+
+
+Raymond
+
+
+From vstinner at redhat.com  Wed Mar 20 21:07:01 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 21 Mar 2019 02:07:01 +0100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+Message-ID: <CA+3bQGH4g7exNtvEYLUYMSuUeYhSeY4F7PjJUHKmf090dfyOkA@mail.gmail.com>
+
+Le lun. 18 mars 2019 ? 23:41, Raymond Hettinger
+<raymond.hettinger at gmail.com> a ?crit :
+> The code in the current 3.8 alpha differs from 3.7 in that it removes attribute sorting and instead preserves the order the user specified when creating an element.  As far as I can tell, there is no objection to this as a feature.
+
+By the way, what's the rationale of this backward incompatible change?
+
+I found this short message:
+"FWIW, this issue arose from an end-user problem. She had a hard
+requirement to show a security clearance level as the first attribute.
+We did find a work around but it was hack."
+https://bugs.python.org/issue34160#msg338098
+
+It's the first time that I hear an user asking to preserve attribute
+insertion order (or did I miss a previous request?). Technically, it
+was possible to implement the feature earlier using OrderedDict. So
+why doing it now?
+
+Is it really worth it to break Python backward compatibility (change
+the default behavior) for everyone, if it's only needed for few users?
+
+
+> 1) Revert back to the 3.7 behavior. This of course, makes all the test pass :-)  The downside is that it perpetuates the practice of bytewise equality tests and locks in all implementation quirks forever.  I don't know of anyone advocating this option, but it is the simplest thing to do.
+
+Can't we revert Python 3.7 behavior and add a new opt-in option to
+preserve the attribution insertion order (current Python 3.8 default
+behavior)?
+
+Python 3.7, sorting attributes by name, doesn't sound so silly to me.
+It's one arbitrary choice, but at least the output is deterministic.
+And well, Python is doing that for 20 years :-)
+
+
+> 4) Fix the tests in the third-party modules (...)
+
+I also like the option "not break the backward compatibility" to not
+have to fix any project :-)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From raymond.hettinger at gmail.com  Wed Mar 20 23:07:49 2019
+From: raymond.hettinger at gmail.com (Raymond Hettinger)
+Date: Wed, 20 Mar 2019 20:07:49 -0700
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <CA+3bQGH4g7exNtvEYLUYMSuUeYhSeY4F7PjJUHKmf090dfyOkA@mail.gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CA+3bQGH4g7exNtvEYLUYMSuUeYhSeY4F7PjJUHKmf090dfyOkA@mail.gmail.com>
+Message-ID: <204978ED-B6D8-45F8-BA15-F1107E481ACE@gmail.com>
+
+
+> On Mar 20, 2019, at 6:07 PM, Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> what's the rationale of this backward incompatible change?
+
+Please refrain from abusive mischaracterizations.  It is only backwards incompatible if there was a guaranteed behavior.  Whether there was or not is what this thread is about.  
+
+My reading of this thread was that the various experts did not want to lock in the 3.7 behavior nor did they think the purpose of the XML modules is to produce an exact binary output.  The lxml maintainer is dropping sorting (its expensive and it overrides the order specified by the user). Other XML modules don't sort. It only made sense as a way to produce a deterministic output within a feature release back when there was no other way to do it.
+
+For my part, any agreed upon outcome in fine. I'm not willing be debased further, so I am out of this discussion. It's up to you all to do the right thing.
+
+
+Raymond
+
+
+
+
+From greg.ewing at canterbury.ac.nz  Thu Mar 21 00:16:20 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Thu, 21 Mar 2019 17:16:20 +1300
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <20190320152231.7936863b@fsol>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+ <20190319145127.0824f196@fsol> <5C916C71.5070102@canterbury.ac.nz>
+ <20190320152231.7936863b@fsol>
+Message-ID: <5C931014.1000008@canterbury.ac.nz>
+
+Antoine Pitrou wrote:
+> On Wed, 20 Mar 2019 11:25:53 +1300
+> Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+> 
+>>So use NamedTemporaryFile(delete = False) and close it before passing
+>>it to the other program.
+> 
+> How is it more secure than using mktemp()?
+
+It's not, but it solves the problem someone suggested of another
+program not being able to access and/or delete the file.
+
+-- 
+Greg
+
+From solipsis at pitrou.net  Thu Mar 21 07:29:53 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 21 Mar 2019 12:29:53 +0100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CA+3bQGH4g7exNtvEYLUYMSuUeYhSeY4F7PjJUHKmf090dfyOkA@mail.gmail.com>
+Message-ID: <20190321122953.74d23952@fsol>
+
+On Thu, 21 Mar 2019 02:07:01 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> Le lun. 18 mars 2019 ? 23:41, Raymond Hettinger
+> <raymond.hettinger at gmail.com> a ?crit :
+> > The code in the current 3.8 alpha differs from 3.7 in that it removes attribute sorting and instead preserves the order the user specified when creating an element.  As far as I can tell, there is no objection to this as a feature.  
+> 
+> By the way, what's the rationale of this backward incompatible change?
+> 
+> I found this short message:
+> "FWIW, this issue arose from an end-user problem. She had a hard
+> requirement to show a security clearance level as the first attribute.
+> We did find a work around but it was hack."
+> https://bugs.python.org/issue34160#msg338098
+> 
+> It's the first time that I hear an user asking to preserve attribute
+> insertion order (or did I miss a previous request?). Technically, it
+> was possible to implement the feature earlier using OrderedDict. So
+> why doing it now?
+> 
+> Is it really worth it to break Python backward compatibility (change
+> the default behavior) for everyone, if it's only needed for few users?
+
+The argument you're making is weird here.  If only "a few users" need a
+deterministic ordering of XML attributes, then compatibility is broken
+only for "a few users", not for "everyone".
+
+Most users and applications should /never/ care about the order of XML
+attributes.
+
+Regards
+
+Antoine.
+
+
+
+From solipsis at pitrou.net  Thu Mar 21 08:09:00 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 21 Mar 2019 13:09:00 +0100
+Subject: [Python-Dev] Reproducible output (Re: Is XML serialization output
+ guaranteed to be bytewise identical forever?)
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <q6q8af$3i67$1@blaine.gmane.org>
+ <91f9f847-6f9f-35cb-ccc2-5838a65a9f18@nedbatchelder.com>
+ <FB1A02AF-3224-40FF-AF2E-4982495F149E@gmail.com>
+ <CA+3bQGFfUUWqBbXf8Vmp2yJU+agh+PLS8rgao+TsmAauy7RQzw@mail.gmail.com>
+Message-ID: <20190321130900.01c05765@fsol>
+
+On Thu, 21 Mar 2019 01:46:14 +0100
+Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> Getting the same output on Python 3.7 and Python 3.8 is also matter
+> for https://reproducible-builds.org/
+
+If you want reproducible output, you should settle on a well-known
+version of Python.  You don't expect two different versions of gcc to
+produce the exact same binary.  Even compression utilities (such as
+gzip, xz...) can get improvements over time that change the binary
+output, for example making it smaller.
+
+Regards
+
+Antoine.
+
+
+
+From steve at holdenweb.com  Thu Mar 21 13:02:28 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Thu, 21 Mar 2019 17:02:28 +0000
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <20190321122953.74d23952@fsol>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CA+3bQGH4g7exNtvEYLUYMSuUeYhSeY4F7PjJUHKmf090dfyOkA@mail.gmail.com>
+ <20190321122953.74d23952@fsol>
+Message-ID: <CAMofdRDNzxi8AjS_2BGSvRMH8jwtzQadFzv2TszThzf=p0_Zvg@mail.gmail.com>
+
+On Thu, Mar 21, 2019 at 11:33 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> [...]
+>
+> Most users and applications should /never/ care about the order of XML
+> attributes.
+>
+> Regards
+>
+> Antoine
+>
+
+Especially as the standards specifically say that ordering has no semantic
+impact.
+
+Byte-by-byte comparison of XML is almost always inappropriate.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190321/ebdb38cb/attachment.html>
+
+From p.f.moore at gmail.com  Thu Mar 21 13:23:55 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 21 Mar 2019 17:23:55 +0000
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <CAMofdRDNzxi8AjS_2BGSvRMH8jwtzQadFzv2TszThzf=p0_Zvg@mail.gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CA+3bQGH4g7exNtvEYLUYMSuUeYhSeY4F7PjJUHKmf090dfyOkA@mail.gmail.com>
+ <20190321122953.74d23952@fsol>
+ <CAMofdRDNzxi8AjS_2BGSvRMH8jwtzQadFzv2TszThzf=p0_Zvg@mail.gmail.com>
+Message-ID: <CACac1F8m5xxGBivvY-q-+dZtJ-YjvQ0Dto+hogkKSTUY6N=JKg@mail.gmail.com>
+
+On Thu, 21 Mar 2019 at 17:05, Steve Holden <steve at holdenweb.com> wrote:
+>
+> On Thu, Mar 21, 2019 at 11:33 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+>>
+>> [...]
+>>
+>> Most users and applications should /never/ care about the order of XML
+>> attributes.
+>>
+>> Regards
+>>
+>> Antoine
+>
+>
+> Especially as the standards specifically say that ordering has no semantic impact.
+>
+> Byte-by-byte comparison of XML is almost always inappropriate.
+
+Conversely, if ordering has no semantic impact, there's no real
+justification for asking for the current order to be changed.
+
+In practice, allowing the user to control the ordering (by preserving
+input order) gives users a way of handling (according to the standard)
+broken consumers who ascribe semantic meaning to the attribute order.
+So there's a small benefit for real-world users having to deal with
+non-compliant software. But that benefit is by definition small, as
+standards-compliant software won't be affected.
+
+The cost of making the change to projects that rely on the current
+output is significant, and that should be considered. But there's also
+the question of setting a precedent. If we do reject this change
+because of the cost to 3rd parties, are we then committing Python to
+guaranteeing sorted attribute order (and worse, byte-for-byte
+reproducible output) for ever - a far stronger commitment than the
+standards require of us? That seems to me to be an extremely bad
+precedent to set.
+
+There's no good answer here - maybe a possible compromise would be for
+us to document explicitly in 3.8 that output is only guaranteed
+identical to the level the standards require (i.e., attribute order is
+not guaranteed to be preserved) and then make this change in 3.9. But
+in practice, that's not really any better for projects like coverage -
+it just delays the point when they have to bite the bullet (and it's
+not like 3.8 is imminent - there's plenty of time between now and 3.8
+without adding an additional delay).
+
+Reluctantly, I think I'd have to say that I don't think we should
+reject this change simply because existing users rely on the exact
+output currently being produced.
+
+To mitigate the impact on 3rd parties, it would be very helpful if we
+could add to the stdlib some form of "compare two XML documents for
+semantic equality up to the level that the standards require". 3rd
+party code could then use that if it's present, and fall back to
+byte-equality if it's not. If we could get something like that for
+3.9, but not for 3.8, then that would seem to me to be a good reason
+to defer this change until 3.9 (because we don't want to have 3.8
+being an exception where there's no semantic comparison function, but
+the byte-equality fallback doesn't work - that's just needlessly
+annoying).
+
+Paul
+
+From jcgoble3 at gmail.com  Thu Mar 21 13:26:00 2019
+From: jcgoble3 at gmail.com (Jonathan Goble)
+Date: Thu, 21 Mar 2019 13:26:00 -0400
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <CAMofdRDNzxi8AjS_2BGSvRMH8jwtzQadFzv2TszThzf=p0_Zvg@mail.gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CA+3bQGH4g7exNtvEYLUYMSuUeYhSeY4F7PjJUHKmf090dfyOkA@mail.gmail.com>
+ <20190321122953.74d23952@fsol>
+ <CAMofdRDNzxi8AjS_2BGSvRMH8jwtzQadFzv2TszThzf=p0_Zvg@mail.gmail.com>
+Message-ID: <CAK256p1sEq=PyEJCFnJ0QeQ+C81d-NjYj4RUpPemSyT0RQJW-w@mail.gmail.com>
+
+On Thu, Mar 21, 2019, 1:05 PM Steve Holden <steve at holdenweb.com> wrote:
+
+> On Thu, Mar 21, 2019 at 11:33 AM Antoine Pitrou <solipsis at pitrou.net>
+> wrote:
+>
+>> [...]
+>>
+>> Most users and applications should /never/ care about the order of XML
+>> attributes.
+>>
+>> Regards
+>>
+>> Antoine
+>>
+>
+> Especially as the standards specifically say that ordering has no semantic
+> impact.
+>
+
+When you have a lot of attributes, though, sometimes having them in a
+particular defined order can make it easier to reason about and make sense
+of the code when manually reviewing it.
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190321/97d071d8/attachment.html>
+
+From stefan_ml at behnel.de  Thu Mar 21 13:43:22 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Thu, 21 Mar 2019 18:43:22 +0100
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <CA+3bQGGqLJHEu6M6xrSPV2hB1FUwqTp-u1kTRNSEuWYWwoTRYA@mail.gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CA+3bQGGqLJHEu6M6xrSPV2hB1FUwqTp-u1kTRNSEuWYWwoTRYA@mail.gmail.com>
+Message-ID: <q70ifs$2ttu$1@blaine.gmane.org>
+
+Victor Stinner schrieb am 21.03.19 um 01:22:
+> Alternatives have been proposed like a recipe to sort node attributes
+> before serialization, but honestly, it's way too complex.
+
+Hm, really? Five lines of simple and obvious Python code, that provide a
+fast and completely Python-version agnostic solution to the problem that a
+few users have, are "way too complex" ? That sounds a bit extreme to me.
+
+
+> I don't want
+> to have to copy such recipe to every project. Add a new function,
+> import it, use it where XML is written into a file, etc. Taken alone,
+> maybe it's acceptable. But please remember that some companies are
+> still porting their large Python 2 code base to Python 3. This new
+> backward incompatible gets on top of the pile of other backward
+> incompatible changes between 2.7 and 3.8.
+> 
+> I would prefer to be able to "just add" sort=True. Don't forget that
+> tests like "if sys.version >= (3, 8):"  will be needed which makes the
+> overall fix more complicated.
+
+Yes, exactly! Users would have to add that option *conditionally* to their
+code somewhere. Personally, I really dislike having to say "if Python
+version is X do this, otherwise, do that". I prefer a solution that just
+works. There are at least four approaches that generally work across Python
+releases: ignoring the ordering, using C14N, creating attributes in order,
+sorting attributes before serialisation. I'd prefer if users picked one of
+those, preferably the right on for their use case, rather than starting to
+put version specific kludges into their code.
+
+Stefan
+
+
+From eryksun at gmail.com  Thu Mar 21 14:12:54 2019
+From: eryksun at gmail.com (eryk sun)
+Date: Thu, 21 Mar 2019 13:12:54 -0500
+Subject: [Python-Dev] Remove tempfile.mktemp()
+In-Reply-To: <5C931014.1000008@canterbury.ac.nz>
+References: <48ff6e54-661e-9f1b-f6de-4bc4523ac35e@wirtel.be>
+ <20190319142339.76cfdc47@fsol>
+ <CAPTjJmo4DuhKNOo+qXaPjeWLqPQoTLFiPGerdnrPRY48NeTrhQ@mail.gmail.com>
+ <20190319145127.0824f196@fsol> <5C916C71.5070102@canterbury.ac.nz>
+ <20190320152231.7936863b@fsol> <5C931014.1000008@canterbury.ac.nz>
+Message-ID: <CACL+1auvMxXCjajG2a5pVg8H3UgUzJZaVvO-qMvjTq72ueRE4Q@mail.gmail.com>
+
+On 3/20/19, Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+> Antoine Pitrou wrote:
+>
+>> How is it more secure than using mktemp()?
+>
+> It's not, but it solves the problem someone suggested of another
+> program not being able to access and/or delete the file.
+
+NamedTemporaryFile(delete=False) is more secure than naive use of
+mktemp(). The file is created exclusively (O_EXCL). Another standard
+user can't overwrite it. Nor can another standard user delete it if
+it's created in the default temp directory (e.g. POSIX "/tmp" has the
+sticky bit set). mkstemp() is similar but lacks the convenience and
+reliable resource management of a Python file wrapper.
+
+There's still the problem of accidental name collisions with other
+processes that can access the file, i.e. processes running as the same
+user or, in POSIX, processes running as the super user. I saw a
+suggestion in this thread to increase the length of the random
+sequence from 8 characters up to 22 characters in order to make this
+problem extremely improbable.
+
+From tjreedy at udel.edu  Thu Mar 21 16:37:41 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Thu, 21 Mar 2019 16:37:41 -0400
+Subject: [Python-Dev] Is XML serialization output guaranteed to be
+ bytewise identical forever?
+In-Reply-To: <CACac1F8m5xxGBivvY-q-+dZtJ-YjvQ0Dto+hogkKSTUY6N=JKg@mail.gmail.com>
+References: <D778964A-8B2B-4C1C-9328-2AA6DDB4D622@gmail.com>
+ <CA+3bQGH4g7exNtvEYLUYMSuUeYhSeY4F7PjJUHKmf090dfyOkA@mail.gmail.com>
+ <20190321122953.74d23952@fsol>
+ <CAMofdRDNzxi8AjS_2BGSvRMH8jwtzQadFzv2TszThzf=p0_Zvg@mail.gmail.com>
+ <CACac1F8m5xxGBivvY-q-+dZtJ-YjvQ0Dto+hogkKSTUY6N=JKg@mail.gmail.com>
+Message-ID: <q70smm$1sgc$1@blaine.gmane.org>
+
+On 3/21/2019 1:23 PM, Paul Moore wrote:
+> On Thu, 21 Mar 2019 at 17:05, Steve Holden <steve at holdenweb.com> wrote:
+
+>> Especially as the standards specifically say that ordering has no semantic impact.
+>>
+>> Byte-by-byte comparison of XML is almost always inappropriate.
+> 
+> Conversely, if ordering has no semantic impact, there's no real
+> justification for asking for the current order to be changed.
+> 
+> In practice, allowing the user to control the ordering (by preserving
+> input order) gives users a way of handling (according to the standard)
+> broken consumers who ascribe semantic meaning to the attribute order.
+
+Or, as Jonathan Goble said elsewhere, use an order that makes whatever 
+sense to the author and other readers.  The order of positional 
+parameter names in a function definition has no semantic meaning to 
+python, but it would be terrible to make them be sorted.
+
+-- 
+Terry Jan Reedy
+
+
+From songofacandy at gmail.com  Thu Mar 21 22:41:35 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 22 Mar 2019 11:41:35 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+Message-ID: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+
+Hi, all.
+
+I'm thinking about removing PendingDeprecationWarning.
+(previous discussion:
+https://discuss.python.org/t/pendingdeprecationwarning-is-really-useful/1038)
+
+It was added "not be printed by default" version of DeprecationWarning.
+But DeprecationWarning is not printed by default now.
+
+We use PendingDeprecationWarning for N-2 release, and change it to
+DeprecationWarning for N-1 release.  But this workflow seems not worth
+enough for now.
+
+I want to stop using PendingDeprecationWarning for new deprecation.
+
+More aggressively, I want to remove PendingDeprecationWarning class,
+and `PendingDeprecationWarning = DeprecationWarning` for backward
+compatibility.
+
+How do you think?  May I do it in Python 3.8?
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
