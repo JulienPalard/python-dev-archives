@@ -12959,3 +12959,1988 @@ How do you think?  May I do it in Python 3.8?
 -- 
 Inada Naoki  <songofacandy at gmail.com>
 
+From greg.ewing at canterbury.ac.nz  Fri Mar 22 03:31:33 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Fri, 22 Mar 2019 20:31:33 +1300
+Subject: [Python-Dev] Replacement for array.array('u')?
+Message-ID: <5C948F55.4040108@canterbury.ac.nz>
+
+A poster on comp.lang.python is asking about array.array('u').
+He wants an efficient mutable collection of unicode characters
+that can be initialised from a string.
+
+According to the docs, the 'u' code is deprecated and will be
+removed in 4.0, but no alternative is suggested.
+
+Why is this being deprecated, instead of keeping it and making
+it always 32 bits? It seems like useful functionality that can't
+be easily obtained another way.
+
+-- 
+Greg
+
+From vstinner at redhat.com  Fri Mar 22 03:40:38 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 22 Mar 2019 08:40:38 +0100
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+Message-ID: <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+
+Hi,
+
+I agree to make PendingDeprecationWarning an alias to
+DeprecationWarning. I never liked "PendingDeprecationWarning" name,
+it's way too long to type :-D
+
+Le ven. 22 mars 2019 ? 03:45, Inada Naoki <songofacandy at gmail.com> a ?crit :
+> I want to stop using PendingDeprecationWarning for new deprecation.
+
+I'm fine with that.
+
+> More aggressively, I want to remove PendingDeprecationWarning class,
+> and `PendingDeprecationWarning = DeprecationWarning` for backward
+> compatibility.
+
+I'm not sure that I understand well. Do you want to remove the
+PendingDeprecationWarning builtin symbol, or just make it an alias to
+DeprecationWarning.
+
+I'm fine with "PendingDeprecationWarning = DeprecationWarning".
+
+IMHO your email title is misleading. You don't want to *remove*
+PendingDeprecationWarning, you only want to make it an alias to
+DeprecationWarning, right? In term of backward compatibility, it's
+very different :-)
+
+Victor
+
+From vstinner at redhat.com  Fri Mar 22 03:45:03 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 22 Mar 2019 08:45:03 +0100
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <5C948F55.4040108@canterbury.ac.nz>
+References: <5C948F55.4040108@canterbury.ac.nz>
+Message-ID: <CA+3bQGHq9H=idLedekjs1WkKxbt3uHunc7Tdtp3d1y2ht0L-yg@mail.gmail.com>
+
+Hi,
+
+Internally, CPython has a _PyUnicodeWriter which is an efficient way
+to create a string but appending substrings or characters.
+_PyUnicodeWriter changes the internal storage format depending on
+characters code points (ascii or latin1: 1 byte/character, BMP: 2 b/c,
+full UCS: 4 b/c). I tried once to expose it in Python, but I wasn't
+convinced by performances. The overhead of method calls was quite
+significant, and I wasn't convinced by "writer += str" performance
+neither. Maybe I should try again. PyPy also has such object. It
+avoids the "str += str" hack in ceval.c to avoid very poor performance
+(_PyUnicodeWriter also uses overallocation which can be controlled
+with multiple parameters to reduce the number of realloc).
+
+Another alternative would be have to add a "strarray" type similar to
+bytes/bytearray couple.
+
+Is is what you are looking for? Or do you really need array.array API?
+
+Victor
+
+Le ven. 22 mars 2019 ? 08:38, Greg Ewing <greg.ewing at canterbury.ac.nz> a ?crit :
+>
+> A poster on comp.lang.python is asking about array.array('u').
+> He wants an efficient mutable collection of unicode characters
+> that can be initialised from a string.
+>
+> According to the docs, the 'u' code is deprecated and will be
+> removed in 4.0, but no alternative is suggested.
+>
+> Why is this being deprecated, instead of keeping it and making
+> it always 32 bits? It seems like useful functionality that can't
+> be easily obtained another way.
+>
+> --
+> Greg
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From songofacandy at gmail.com  Fri Mar 22 03:53:50 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 22 Mar 2019 16:53:50 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+Message-ID: <CAEfz+TxCp0Nvj0a_7wdi147maX0mLtJzAJXojWWuMDz2Db+f2w@mail.gmail.com>
+
+On Fri, Mar 22, 2019 at 4:40 PM Victor Stinner <vstinner at redhat.com> wrote:
+>
+>
+> > More aggressively, I want to remove PendingDeprecationWarning class,
+> > and `PendingDeprecationWarning = DeprecationWarning` for backward
+> > compatibility.
+>
+> I'm not sure that I understand well. Do you want to remove the
+> PendingDeprecationWarning builtin symbol, or just make it an alias to
+> DeprecationWarning.
+>
+> I'm fine with "PendingDeprecationWarning = DeprecationWarning".
+>
+
+I meant an alias in builtin.
+
+> IMHO your email title is misleading. You don't want to *remove*
+> PendingDeprecationWarning, you only want to make it an alias to
+> DeprecationWarning, right? In term of backward compatibility, it's
+> very different :-)
+>
+> Victor
+
+Yes.  It will be removed at some point, but not in near future.
+
+But when when backward compatibility can be kept by alias,
+we can be very lazy about removing it.
+
+We have `socket.error` for long time.
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From vstinner at redhat.com  Fri Mar 22 04:06:00 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 22 Mar 2019 09:06:00 +0100
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+TxCp0Nvj0a_7wdi147maX0mLtJzAJXojWWuMDz2Db+f2w@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+ <CAEfz+TxCp0Nvj0a_7wdi147maX0mLtJzAJXojWWuMDz2Db+f2w@mail.gmail.com>
+Message-ID: <CA+3bQGE0az9JHEHihRq-6CXqRW1zF8ZWNikxJoNzYnV6qPTgvw@mail.gmail.com>
+
+Le ven. 22 mars 2019 ? 08:54, Inada Naoki <songofacandy at gmail.com> a ?crit :
+> Yes.  It will be removed at some point, but not in near future.
+>
+> But when when backward compatibility can be kept by alias,
+> we can be very lazy about removing it.
+
+Honestly, I don't see the point of removing PendingDeprecationWarning
+anytime soon. Practicality beats purity. Python is no longer about the
+purity of the language (we tried in Python 3.0, not sure that I want
+to want to do that again ;-)), but making it convenient to use for
+most people.
+
+Removing PendingDeprecationWarning doesn't bring any value to anyone.
+"PendingDeprecationWarning = DeprecationWarning" costs nothing in term
+of maintenance.
+
+If you care, I would suggest to invest time in static analyzers like
+pycodestyle, pylint, pyflakes, etc. Emit a warning with a low
+priority, and let users make their own choices.
+
+> We have `socket.error` for long time.
+
+And it's perfectly fine, no?
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From songofacandy at gmail.com  Fri Mar 22 04:16:08 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 22 Mar 2019 17:16:08 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CA+3bQGE0az9JHEHihRq-6CXqRW1zF8ZWNikxJoNzYnV6qPTgvw@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+ <CAEfz+TxCp0Nvj0a_7wdi147maX0mLtJzAJXojWWuMDz2Db+f2w@mail.gmail.com>
+ <CA+3bQGE0az9JHEHihRq-6CXqRW1zF8ZWNikxJoNzYnV6qPTgvw@mail.gmail.com>
+Message-ID: <CAEfz+Tz+gtGUOKdp4G+cA32fwdpw6PewrUeFBU04CUO4=CMS2A@mail.gmail.com>
+
+On Fri, Mar 22, 2019 at 5:06 PM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Le ven. 22 mars 2019 ? 08:54, Inada Naoki <songofacandy at gmail.com> a ?crit :
+> > Yes.  It will be removed at some point, but not in near future.
+> >
+> > But when when backward compatibility can be kept by alias,
+> > we can be very lazy about removing it.
+>
+> Honestly, I don't see the point of removing PendingDeprecationWarning
+> anytime soon. Practicality beats purity.
+
+I totally agree.
+
+> Removing PendingDeprecationWarning doesn't bring any value to anyone.
+> "PendingDeprecationWarning = DeprecationWarning" costs nothing in term
+> of maintenance.
+>
+> If you care, I would suggest to invest time in static analyzers like
+> pycodestyle, pylint, pyflakes, etc. Emit a warning with a low
+> priority, and let users make their own choices.
+
+Agree too.
+
+>
+> > We have `socket.error` for long time.
+>
+> And it's perfectly fine, no?
+>
+
+Yes.  Waiting 10+ years to remove aliases is fine.
+
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From vstinner at redhat.com  Fri Mar 22 04:41:35 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 22 Mar 2019 09:41:35 +0100
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+Tz+gtGUOKdp4G+cA32fwdpw6PewrUeFBU04CUO4=CMS2A@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+ <CAEfz+TxCp0Nvj0a_7wdi147maX0mLtJzAJXojWWuMDz2Db+f2w@mail.gmail.com>
+ <CA+3bQGE0az9JHEHihRq-6CXqRW1zF8ZWNikxJoNzYnV6qPTgvw@mail.gmail.com>
+ <CAEfz+Tz+gtGUOKdp4G+cA32fwdpw6PewrUeFBU04CUO4=CMS2A@mail.gmail.com>
+Message-ID: <CA+3bQGGTtLPcSaHZbHu5g-f+uPm5METL9Gdhs=yS2+CezY_Xpg@mail.gmail.com>
+
+Le ven. 22 mars 2019 ? 09:16, Inada Naoki <songofacandy at gmail.com> a ?crit :
+> > > We have `socket.error` for long time.
+> >
+> > And it's perfectly fine, no?
+> >
+>
+> Yes.  Waiting 10+ years to remove aliases is fine.
+
+Sure.
+
+Let me elaborate my point of view on deprecation, since we are
+discussing it here (and I know that my opinion is not fully shared by
+all core devs, according to the bpo-35283 discussion, or maybe I'm
+wrong?) :-)
+
+Methods of threading.Thread changed their names to comply to PEP 8
+coding style in Python 3: isAlive() has been renamed to is_alive().
+The Threading.isAlive() method still exists in Python 3.8 and I think
+that it's ok. Removing it immediately would go against the best
+practice of writing a single code base working on Python 2 and
+Python3... I would be very annoyed to have to replace a simple
+"thread.isAlive()" call with something like
+"six.threading_is_alive(thread)" in my code, just because someone
+considered that the alias had to go away from the stdlib.
+
+Last December, Serhiy started to talk about removing isAlive(): "It is
+not even documented in Python 3, and can be removed in future."
+https://bugs.python.org/issue35283#msg330242
+
+Antoine Pitrou suggested that "If it's not already deprecated, I'd say
+deprecate it first." And it has been done.
+
+I'm fine with deprecating things, since it doesn't prevent an
+application to be used. Use python3 -Wd (or python3 -X dev) to see
+these warnings if you want to be pedantic, but honestly, keeping the
+alias doesn't hurt anyone. Again, I mostly care about the maintenance
+cost: isAlive() is not documented, it's just 8 lines in threading.py
+and 2 lines in test_threading.py, and it's no like these lines require
+a lot of maintenance.
+
+IMHO the main metric should be to compare to cost to maintain such
+alias vs the pain affecting *all* Python users if we remove it.
+
+Right now, the maintenance cost is close to zero, whereas removing the
+alias would annoy a lot of people who will suddenly no longer be able
+to use their legacy code (written for Python 2 long time ago, but only
+ported to Python 3 recently). Getting a hard AttributeError exception
+is different than getting a silent DeprecationWarning :-)
+
+--
+
+Wait, I'm not against removing things from Python. Don't tell anyone,
+but I *love* removing code, that's my greatest pleasure! IMHO Python
+is way too big and is expensive to maintain. But we should carefully
+discuss *each* feature removal, and plan properly a slow deprecation
+period to make sure that users had enough time to upgrade (and maybe
+extend it if needed).
+
+For Threading.isAlive(), IMHO the fact that Python 2 is still alive is
+simply a strong blocker issue. Let's discuss that that Python 2 usage
+will be closer to 0,1% than 50% :-) (Sorry, I don't think that it's
+really useful to discuss if Python 2 usage is more around 10% or 70%,
+that's not really the point: I made up "50%" :-))
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From songofacandy at gmail.com  Fri Mar 22 05:11:20 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 22 Mar 2019 18:11:20 +0900
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <5C948F55.4040108@canterbury.ac.nz>
+References: <5C948F55.4040108@canterbury.ac.nz>
+Message-ID: <CAEfz+TzWZ-DdRQhs2EV2sUbNbBysDDwsRWZ0wtseCMdSYLMCdg@mail.gmail.com>
+
+On Fri, Mar 22, 2019 at 4:38 PM Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+>
+> A poster on comp.lang.python is asking about array.array('u').
+> He wants an efficient mutable collection of unicode characters
+> that can be initialised from a string.
+>
+> According to the docs, the 'u' code is deprecated and will be
+> removed in 4.0, but no alternative is suggested.
+>
+> Why is this being deprecated, instead of keeping it and making
+> it always 32 bits? It seems like useful functionality that can't
+> be easily obtained another way.
+>
+
+I think it's because there are not much use cases found
+when implementing PEP 393.
+
+If there are use cases enough to keep it in stdlib, I'm OK
+about un-deprecate it and make it always 32bit (int32_t).
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From steve at pearwood.info  Fri Mar 22 05:24:23 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 22 Mar 2019 20:24:23 +1100
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <5C948F55.4040108@canterbury.ac.nz>
+References: <5C948F55.4040108@canterbury.ac.nz>
+Message-ID: <20190322092423.GU12502@ando.pearwood.info>
+
+On Fri, Mar 22, 2019 at 08:31:33PM +1300, Greg Ewing wrote:
+> A poster on comp.lang.python is asking about array.array('u').
+> He wants an efficient mutable collection of unicode characters
+> that can be initialised from a string.
+> 
+> According to the docs, the 'u' code is deprecated and will be
+> removed in 4.0, but no alternative is suggested.
+> 
+> Why is this being deprecated, instead of keeping it and making
+> it always 32 bits? It seems like useful functionality that can't
+> be easily obtained another way.
+
+I can't answer any of those questions, but perhaps the poster can do 
+this instead:
+
+py> a = array('L', '????? ?????'.encode('utf-32be'))
+py> a
+array('L', [220266496, 807469056, 3791650816, 1963196416, 4278190080, 
+536870912, 4194500608, 3036872704, 3288530944, 2969763840, 1107361792])
+
+Getting the string out again is no harder:
+
+py> bytes(a).decode('utf-32be')
+'????? ?????'
+
+But having said that, it would be nice to have an array code which 
+treated the values as single UTF-32 characters:
+
+array('?', ['?', '?', '?', '?', '?', ' ', '?', '?', '?', '?', '?'])
+
+if for no other reason than it looks nicer than a bunch of 32 bit ints.
+
+
+-- 
+Steven
+
+From steve at holdenweb.com  Fri Mar 22 05:30:07 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Fri, 22 Mar 2019 09:30:07 +0000
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CA+3bQGGTtLPcSaHZbHu5g-f+uPm5METL9Gdhs=yS2+CezY_Xpg@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+ <CAEfz+TxCp0Nvj0a_7wdi147maX0mLtJzAJXojWWuMDz2Db+f2w@mail.gmail.com>
+ <CA+3bQGE0az9JHEHihRq-6CXqRW1zF8ZWNikxJoNzYnV6qPTgvw@mail.gmail.com>
+ <CAEfz+Tz+gtGUOKdp4G+cA32fwdpw6PewrUeFBU04CUO4=CMS2A@mail.gmail.com>
+ <CA+3bQGGTtLPcSaHZbHu5g-f+uPm5METL9Gdhs=yS2+CezY_Xpg@mail.gmail.com>
+Message-ID: <CAMofdRDDjDDtjn12BMKo2vUBrfbLOphEZYOZ3e0HwC3S05XVSQ@mail.gmail.com>
+
+On Fri, Mar 22, 2019 at 8:43 AM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Le ven. 22 mars 2019 ? 09:16, Inada Naoki <songofacandy at gmail.com> a
+> ?crit :
+> > > > We have `socket.error` for long time.
+> > >
+> > > And it's perfectly fine, no?
+> > >
+> >
+> > Yes.  Waiting 10+ years to remove aliases is fine.
+>
+> [...]
+
+>
+> Right now, the maintenance cost is close to zero, whereas removing the
+> alias would annoy a lot of people who will suddenly no longer be able
+> to use their legacy code (written for Python 2 long time ago, but only
+> ported to Python 3 recently). Getting a hard AttributeError exception
+> is different than getting a silent DeprecationWarning :-)
+>
+
+Quite. Why expend the effort on a development that will cause unnecessary
+pain?
+
+Generally speaking, end-users will live their lives in blissful ignorance
+of [Pending]DeprecationWarning and should be allowed to do so. When a
+developer wants to migrate them to more recent versions of Python there's a
+chance that warnings will be enabled and examined, but it's by no means
+certain.
+
+I suspect the real value of the warnings is so that the dev team can shrug
+their shoulders when someone complains a feature has gone missing after ten
+years in deprecated status. This is the price of having them normally
+silent, which is certainly worth any trouble it causes by refusing to
+hassle innocent non-developers with warnings they can do nothing about.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190322/040e54e4/attachment.html>
+
+From storchaka at gmail.com  Fri Mar 22 06:33:04 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 22 Mar 2019 12:33:04 +0200
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+Message-ID: <q72dl3$mbp$1@blaine.gmane.org>
+
+22.03.19 04:41, Inada Naoki ????:
+> I'm thinking about removing PendingDeprecationWarning.
+> (previous discussion:
+> https://discuss.python.org/t/pendingdeprecationwarning-is-really-useful/1038)
+> 
+> It was added "not be printed by default" version of DeprecationWarning.
+> But DeprecationWarning is not printed by default now.
+> 
+> We use PendingDeprecationWarning for N-2 release, and change it to
+> DeprecationWarning for N-1 release.  But this workflow seems not worth
+> enough for now.
+> 
+> I want to stop using PendingDeprecationWarning for new deprecation.
+> 
+> More aggressively, I want to remove PendingDeprecationWarning class,
+> and `PendingDeprecationWarning = DeprecationWarning` for backward
+> compatibility.
+> 
+> How do you think?  May I do it in Python 3.8?
+
+What is wrong with PendingDeprecationWarning? What problem do you want 
+to solve at the cost of removing this feature?
+
+Now, when DeprecationWarning is displayed by default in the interactive 
+session, in __main__ and in development runtime mode (and this list can 
+be extended), PendingDeprecationWarning is useful again. Even if the 
+interpreter itself would not use it, it is used in third-party projects.
+
+
+From solipsis at pitrou.net  Fri Mar 22 06:39:05 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 22 Mar 2019 11:39:05 +0100
+Subject: [Python-Dev] Replacement for array.array('u')?
+References: <5C948F55.4040108@canterbury.ac.nz>
+Message-ID: <20190322113905.3fefed62@fsol>
+
+On Fri, 22 Mar 2019 20:31:33 +1300
+Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+> A poster on comp.lang.python is asking about array.array('u').
+> He wants an efficient mutable collection of unicode characters
+> that can be initialised from a string.
+
+TBH, I think anyone trying to use array.array should be directed to
+Numpy these days.  The only reason for array.array being here is that
+it predates Numpy.  Otherwise we'd never have added it.
+
+Regards
+
+Antoine.
+
+
+
+From songofacandy at gmail.com  Fri Mar 22 06:48:21 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 22 Mar 2019 19:48:21 +0900
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <CAEfz+TzWZ-DdRQhs2EV2sUbNbBysDDwsRWZ0wtseCMdSYLMCdg@mail.gmail.com>
+References: <5C948F55.4040108@canterbury.ac.nz>
+ <CAEfz+TzWZ-DdRQhs2EV2sUbNbBysDDwsRWZ0wtseCMdSYLMCdg@mail.gmail.com>
+Message-ID: <CAEfz+TwNukXY7mE=j42sg4JcBPc1baY10xGWFq7mO0bDOdUE+g@mail.gmail.com>
+
+FYI, I have created issue on bugs.python.org about adding deprecation warning
+for array('u').
+https://bugs.python.org/issue36299
+
+I created PR to change Py_UNICODE to Py_UCS4, instead of deprecate it.
+https://github.com/python/cpython/pull/12497
+
+Then, I found same change had made and reverted in the past.
+https://github.com/python/cpython/commit/62bb394729a167a46d950954c4aed5f3ba7b8a69
+
+The issue for the revert is this.
+https://bugs.python.org/issue13072
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From J.Demeyer at UGent.be  Fri Mar 22 06:51:38 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 22 Mar 2019 11:51:38 +0100
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <q72dl3$mbp$1@blaine.gmane.org>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <q72dl3$mbp$1@blaine.gmane.org>
+Message-ID: <5C94BE3A.8010304@UGent.be>
+
+On 2019-03-22 11:33, Serhiy Storchaka wrote:
+> What is wrong with PendingDeprecationWarning?
+
+It serves the same purpose as DeprecationWarning: it indicates that a 
+feature is planned to be removed in the future. There is no point in 
+having two warnings with exactly the same meaning.
+
+> What problem do you want
+> to solve at the cost of removing this feature?
+
+1. Typically, a PendingDeprecationWarning is meant to be promoted to a 
+DeprecationWarning in some future release. It takes a minor effort to do 
+that and it may be forgotten. It's just simpler to use 
+DeprecationWarning from the start.
+
+2. Whenever somebody wants to deprecate something, that person has to 
+decide between the two. That's just more complicated than it needs to be.
+
+And I can easily ask the converse question: what problem do you want to 
+solve by including that feature?
+
+From songofacandy at gmail.com  Fri Mar 22 07:23:32 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 22 Mar 2019 20:23:32 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <q72dl3$mbp$1@blaine.gmane.org>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <q72dl3$mbp$1@blaine.gmane.org>
+Message-ID: <CAEfz+TwkxoQB81ww37GE3USqS6TsUBz+B9Xo5Nsfs_Rju_YtXA@mail.gmail.com>
+
+On Fri, Mar 22, 2019 at 7:36 PM Serhiy Storchaka <storchaka at gmail.com> wrote:
+>
+> >
+> > How do you think?  May I do it in Python 3.8?
+>
+> What is wrong with PendingDeprecationWarning? What problem do you want
+> to solve at the cost of removing this feature?
+>
+
+The main problem is complexity.  In other words, learning cost.
+
+All Python library developer would like to know how to deprecate something.
+
+They will understand "deprecated" means "will be removed in the future
+version" easily.
+
+Then, "will be deprecated" [1] is easy to understand?  "will be (will
+be removed)"
+is very curious.  To understand what PendingDeprecationWarning is for, they
+need to learn history which is not documented in clearly.
+
+[1]: https://docs.python.org/3/library/exceptions.html#PendingDeprecationWarning
+
+If we deprecate PendingDeprecationWarning, people don't have to understand
+what it is for.
+
+
+> Now, when DeprecationWarning is displayed by default in the interactive
+> session, in __main__ and in development runtime mode (and this list can
+> be extended), PendingDeprecationWarning is useful again. Even if the
+> interpreter itself would not use it, it is used in third-party projects.
+>
+
+This benefits seems too small compared to the learning cost.
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From storchaka at gmail.com  Fri Mar 22 07:27:08 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 22 Mar 2019 13:27:08 +0200
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <5C948F55.4040108@canterbury.ac.nz>
+References: <5C948F55.4040108@canterbury.ac.nz>
+Message-ID: <q72gqf$81gc$1@blaine.gmane.org>
+
+22.03.19 09:31, Greg Ewing ????:
+> A poster on comp.lang.python is asking about array.array('u').
+> He wants an efficient mutable collection of unicode characters
+> that can be initialised from a string.
+> 
+> According to the docs, the 'u' code is deprecated and will be
+> removed in 4.0, but no alternative is suggested.
+> 
+> Why is this being deprecated, instead of keeping it and making
+> it always 32 bits? It seems like useful functionality that can't
+> be easily obtained another way.
+
+Making it always 32 bits would be compatibility breaking change. 
+Currently array('u') represents the wchar_t string, and many API on 
+Windows require it.
+
+But we can add a new code, e.g. 'U', for UCS4.
+
+
+From solipsis at pitrou.net  Fri Mar 22 07:33:01 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 22 Mar 2019 12:33:01 +0100
+Subject: [Python-Dev] Replacement for array.array('u')?
+References: <5C948F55.4040108@canterbury.ac.nz>
+ <q72gqf$81gc$1@blaine.gmane.org>
+Message-ID: <20190322123301.7489ae78@fsol>
+
+On Fri, 22 Mar 2019 13:27:08 +0200
+Serhiy Storchaka <storchaka at gmail.com> wrote:
+
+> 22.03.19 09:31, Greg Ewing ????:
+> > A poster on comp.lang.python is asking about array.array('u').
+> > He wants an efficient mutable collection of unicode characters
+> > that can be initialised from a string.
+> > 
+> > According to the docs, the 'u' code is deprecated and will be
+> > removed in 4.0, but no alternative is suggested.
+> > 
+> > Why is this being deprecated, instead of keeping it and making
+> > it always 32 bits? It seems like useful functionality that can't
+> > be easily obtained another way.  
+> 
+> Making it always 32 bits would be compatibility breaking change. 
+> Currently array('u') represents the wchar_t string, and many API on 
+> Windows require it.
+
+The question is: why would you use a array.array() with a Windows C API?
+
+Regards
+
+Antoine.
+
+
+
+From storchaka at gmail.com  Fri Mar 22 07:31:48 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 22 Mar 2019 13:31:48 +0200
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <CA+3bQGHq9H=idLedekjs1WkKxbt3uHunc7Tdtp3d1y2ht0L-yg@mail.gmail.com>
+References: <5C948F55.4040108@canterbury.ac.nz>
+ <CA+3bQGHq9H=idLedekjs1WkKxbt3uHunc7Tdtp3d1y2ht0L-yg@mail.gmail.com>
+Message-ID: <q72h38$g55$1@blaine.gmane.org>
+
+22.03.19 09:45, Victor Stinner ????:
+> Internally, CPython has a _PyUnicodeWriter which is an efficient way
+> to create a string but appending substrings or characters.
+> _PyUnicodeWriter changes the internal storage format depending on
+> characters code points (ascii or latin1: 1 byte/character, BMP: 2 b/c,
+> full UCS: 4 b/c). I tried once to expose it in Python, but I wasn't
+> convinced by performances. The overhead of method calls was quite
+> significant, and I wasn't convinced by "writer += str" performance
+> neither. Maybe I should try again. PyPy also has such object. It
+> avoids the "str += str" hack in ceval.c to avoid very poor performance
+> (_PyUnicodeWriter also uses overallocation which can be controlled
+> with multiple parameters to reduce the number of realloc).
+> 
+> Another alternative would be have to add a "strarray" type similar to
+> bytes/bytearray couple.
+
+Another alternative of mutable string buffer and string builder is 
+io.StringIO.
+
+
+From storchaka at gmail.com  Fri Mar 22 07:49:19 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 22 Mar 2019 13:49:19 +0200
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <5C94BE3A.8010304@UGent.be>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <q72dl3$mbp$1@blaine.gmane.org> <5C94BE3A.8010304@UGent.be>
+Message-ID: <q72i43$32pg$1@blaine.gmane.org>
+
+22.03.19 12:51, Jeroen Demeyer ????:
+> On 2019-03-22 11:33, Serhiy Storchaka wrote:
+>> What is wrong with PendingDeprecationWarning?
+> 
+> It serves the same purpose as DeprecationWarning: it indicates that a 
+> feature is planned to be removed in the future. There is no point in 
+> having two warnings with exactly the same meaning.
+
+But does not flood the end user with warnings, so you can continue to 
+use deprecated features for a while. This makes the transition more smooth.
+
+>> What problem do you want
+>> to solve at the cost of removing this feature?
+> 
+> 1. Typically, a PendingDeprecationWarning is meant to be promoted to a 
+> DeprecationWarning in some future release. It takes a minor effort to do 
+> that and it may be forgotten. It's just simpler to use 
+> DeprecationWarning from the start.
+
+What is wrong if it be forgotten?
+
+Simpler does not mean better.
+
+> 2. Whenever somebody wants to deprecate something, that person has to 
+> decide between the two. That's just more complicated than it needs to be.
+
+If he want to provide a more smooth transition way, he should start with 
+a PendingDeprecationWarning. Otherwise he can use a DeprecationWarning.
+
+> And I can easily ask the converse question: what problem do you want to 
+> solve by including that feature?
+
+It allowed to mark a feature deprecated for developers without harming 
+the end users.
+
+
+From stefan_ml at behnel.de  Fri Mar 22 07:51:49 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Fri, 22 Mar 2019 12:51:49 +0100
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <20190322113905.3fefed62@fsol>
+References: <5C948F55.4040108@canterbury.ac.nz> <20190322113905.3fefed62@fsol>
+Message-ID: <q72i8l$3ded$1@blaine.gmane.org>
+
+Antoine Pitrou schrieb am 22.03.19 um 11:39:
+> On Fri, 22 Mar 2019 20:31:33 +1300 Greg Ewing wrote:
+>> A poster on comp.lang.python is asking about array.array('u').
+>> He wants an efficient mutable collection of unicode characters
+>> that can be initialised from a string.
+> 
+> TBH, I think anyone trying to use array.array should be directed to
+> Numpy these days.  The only reason for array.array being here is that
+> it predates Numpy.  Otherwise we'd never have added it.
+
+Well, maybe it wouldn't get *added* these days anymore, with pip+PyPI
+nicely in place. But being there already, it makes for a nice and efficient
+"batteries included" list replacement for simple data that would otherwise
+waste a lot of object memory.
+
+Stefan
+
+
+From songofacandy at gmail.com  Fri Mar 22 07:52:58 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 22 Mar 2019 20:52:58 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <q72i43$32pg$1@blaine.gmane.org>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <q72dl3$mbp$1@blaine.gmane.org> <5C94BE3A.8010304@UGent.be>
+ <q72i43$32pg$1@blaine.gmane.org>
+Message-ID: <CAEfz+Tx1hMwUkL=7E6OQAaJ9i-scpSu5tyg7FG0i8Zu-YQzjJg@mail.gmail.com>
+
+On Fri, Mar 22, 2019 at 8:49 PM Serhiy Storchaka <storchaka at gmail.com> wrote:
+>
+> > And I can easily ask the converse question: what problem do you want to
+> > solve by including that feature?
+>
+> It allowed to mark a feature deprecated for developers without harming
+> the end users.
+>
+
+Both of DeprecationWarning and PendingDeprecationWarning are not for end users.
+Only FutureWarning is for end users now.
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From storchaka at gmail.com  Fri Mar 22 08:01:54 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 22 Mar 2019 14:01:54 +0200
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+TwkxoQB81ww37GE3USqS6TsUBz+B9Xo5Nsfs_Rju_YtXA@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <q72dl3$mbp$1@blaine.gmane.org>
+ <CAEfz+TwkxoQB81ww37GE3USqS6TsUBz+B9Xo5Nsfs_Rju_YtXA@mail.gmail.com>
+Message-ID: <q72irl$4t79$1@blaine.gmane.org>
+
+22.03.19 13:23, Inada Naoki ????:
+> On Fri, Mar 22, 2019 at 7:36 PM Serhiy Storchaka <storchaka at gmail.com> wrote:
+>> What is wrong with PendingDeprecationWarning? What problem do you want
+>> to solve at the cost of removing this feature?
+>>
+> 
+> The main problem is complexity.  In other words, learning cost.
+
+Do you have evidences that many people have troubles with learning 
+PendingDeprecationWarning?
+
+> All Python library developer would like to know how to deprecate something.
+> 
+> They will understand "deprecated" means "will be removed in the future
+> version" easily.
+> 
+> Then, "will be deprecated" [1] is easy to understand?  "will be (will
+> be removed)"
+> is very curious.  To understand what PendingDeprecationWarning is for, they
+> need to learn history which is not documented in clearly.
+> 
+> [1]: https://docs.python.org/3/library/exceptions.html#PendingDeprecationWarning
+
+Perhaps the better solution of this is to improve the documentation.
+
+PendingDeprecationWarning means that you still can use the deprecated 
+feature.
+
+When we deprecate some feature, we should provide an alternate way to 
+solve the same problem. And it is better if that way is available in few 
+previous Python versions. So the developer which need to support several 
+Python versions could just switch to a modern way. This is how we do, or 
+at least must to do, to be polite with Python programmers.
+
+PendingDeprecationWarning just give us time to add an alternate way if 
+it is not available yet, and give Python programmers time to adapt their 
+code.
+
+> If we deprecate PendingDeprecationWarning, people don't have to understand
+> what it is for.
+> 
+> 
+>> Now, when DeprecationWarning is displayed by default in the interactive
+>> session, in __main__ and in development runtime mode (and this list can
+>> be extended), PendingDeprecationWarning is useful again. Even if the
+>> interpreter itself would not use it, it is used in third-party projects.
+>>
+> 
+> This benefits seems too small compared to the learning cost.
+
+I do not think so.
+
+
+From solipsis at pitrou.net  Fri Mar 22 08:50:04 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 22 Mar 2019 13:50:04 +0100
+Subject: [Python-Dev] Replacement for array.array('u')?
+References: <5C948F55.4040108@canterbury.ac.nz> <20190322113905.3fefed62@fsol>
+ <q72i8l$3ded$1@blaine.gmane.org>
+Message-ID: <20190322135004.2288dbd9@fsol>
+
+On Fri, 22 Mar 2019 12:51:49 +0100
+Stefan Behnel <stefan_ml at behnel.de> wrote:
+> Antoine Pitrou schrieb am 22.03.19 um 11:39:
+> > On Fri, 22 Mar 2019 20:31:33 +1300 Greg Ewing wrote:  
+> >> A poster on comp.lang.python is asking about array.array('u').
+> >> He wants an efficient mutable collection of unicode characters
+> >> that can be initialised from a string.  
+> > 
+> > TBH, I think anyone trying to use array.array should be directed to
+> > Numpy these days.  The only reason for array.array being here is that
+> > it predates Numpy.  Otherwise we'd never have added it.  
+> 
+> Well, maybe it wouldn't get *added* these days anymore, with pip+PyPI
+> nicely in place. But being there already, it makes for a nice and efficient
+> "batteries included" list replacement for simple data that would otherwise
+> waste a lot of object memory.
+
+It's not really "batteries included".  array.array() supports almost no
+useful operation. It's a bare-bones container for which you have to
+implement every useful feature by yourself.
+
+(yes, you can use generic mutable sequence algorithms such
+as heapq or random.shuffle; how often do you need to heapify or shuffle
+an array of unicode codepoints?)
+
+Also, when using a unicode array, there's no substantial win of memory
+compared to a single str object.  You may be losing some actually,
+because of the flexible str representation.
+
+Regards
+
+Antoine.
+
+
+
+From storchaka at gmail.com  Fri Mar 22 10:11:45 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 22 Mar 2019 16:11:45 +0200
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <20190322123301.7489ae78@fsol>
+References: <5C948F55.4040108@canterbury.ac.nz>
+ <q72gqf$81gc$1@blaine.gmane.org> <20190322123301.7489ae78@fsol>
+Message-ID: <q72qf4$6nd4$1@blaine.gmane.org>
+
+22.03.19 13:33, Antoine Pitrou ????:
+> On Fri, 22 Mar 2019 13:27:08 +0200
+> Serhiy Storchaka <storchaka at gmail.com> wrote:
+>> Making it always 32 bits would be compatibility breaking change.
+>> Currently array('u') represents the wchar_t string, and many API on
+>> Windows require it.
+> 
+> The question is: why would you use a array.array() with a Windows C API?
+
+I do not. But maybe it is used. And changing the width of the 'u' code 
+would break such use case.
+
+
+From solipsis at pitrou.net  Fri Mar 22 10:49:14 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 22 Mar 2019 15:49:14 +0100
+Subject: [Python-Dev] Replacement for array.array('u')?
+References: <5C948F55.4040108@canterbury.ac.nz>
+ <q72gqf$81gc$1@blaine.gmane.org> <20190322123301.7489ae78@fsol>
+ <q72qf4$6nd4$1@blaine.gmane.org>
+Message-ID: <20190322154914.08dd503b@fsol>
+
+On Fri, 22 Mar 2019 16:11:45 +0200
+Serhiy Storchaka <storchaka at gmail.com> wrote:
+> 22.03.19 13:33, Antoine Pitrou ????:
+> > On Fri, 22 Mar 2019 13:27:08 +0200
+> > Serhiy Storchaka <storchaka at gmail.com> wrote:  
+> >> Making it always 32 bits would be compatibility breaking change.
+> >> Currently array('u') represents the wchar_t string, and many API on
+> >> Windows require it.  
+> > 
+> > The question is: why would you use a array.array() with a Windows C API?  
+> 
+> I do not. But maybe it is used. And changing the width of the 'u' code 
+> would break such use case.
+
+Right.  But changing the width is not what I had in mind.  Just keep it
+identical until we finally decide to remove it.
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Fri Mar 22 12:08:08 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 22 Mar 2019 17:08:08 +0100
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <q72irl$4t79$1@blaine.gmane.org>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <q72dl3$mbp$1@blaine.gmane.org>
+ <CAEfz+TwkxoQB81ww37GE3USqS6TsUBz+B9Xo5Nsfs_Rju_YtXA@mail.gmail.com>
+ <q72irl$4t79$1@blaine.gmane.org>
+Message-ID: <CA+3bQGFKccWMD=y=3koi8FMXh_1FY-DDmmzz8NBmjn-1EAMtfw@mail.gmail.com>
+
+Le ven. 22 mars 2019 ? 13:05, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+> > The main problem is complexity.  In other words, learning cost.
+>
+> Do you have evidences that many people have troubles with learning
+> PendingDeprecationWarning?
+
+I have no idea when I should use PendingDeprecationWarning rather than
+DeprecationWarning. For example, let's say that we deprecate a feature
+in Python N with an open question of remove it from Python N+1 or N+2.
+Should I started with PendingDeprecationWarning?
+
+The following discussion mentioned that many deprecated features are
+not removed just because everybody forgot to remove it:
+https://discuss.python.org/t/pendingdeprecationwarning-is-really-useful/1038
+
+And I consider that it's perfectly fine to not have a strict plan to
+remove a feature as part of a deprecation. The usage of a deprecated
+feature can evolve. There are a few exceptions of deprecated features
+which were only modified to remove the deprecation, rather than
+removing the feature, because we decided that the fetaure must stay.
+Python language is living, its usage is changing frequently.
+
+About showing warnings: I never ever used a specific filter to only
+hide PendingDeprecationWarning but show DeprecationWarning. When I
+want to fix warnings, I want to fix all of them, pending or not. I
+would like to prepare a project for all future Python versions, not
+only fix DeprecationWarning.
+
+"python3 -X dev", "python3 -Wd" and python3 compiled in debug modes
+all show DeprecationWarning *and* PendingDeprecationWarning. The
+granularity no longer matters.
+
+It was useful to have PendingDeprecationWarning when it was hidden by
+default, whereas DeprecationWarning warnings were displayed by
+default. But now both are hidden by default.
+
+Well, maybe read the whole previous discussion for the full rationale:
+https://discuss.python.org/t/pendingdeprecationwarning-is-really-useful/1038
+
+
+
+> Perhaps the better solution of this is to improve the documentation.
+>
+> PendingDeprecationWarning means that you still can use the deprecated
+> feature.
+
+Honestly, I'm not really excited by using a feature that is tagged to
+be deprecated in the future... IMHO the difference between
+PendingDeprecationWarning and DeprecationWarning is too subtle to be
+useful in practice.
+
+
+> PendingDeprecationWarning just give us time to add an alternate way if
+> it is not available yet, and give Python programmers time to adapt their
+> code.
+
+Do you have some examples?
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From steve.dower at python.org  Fri Mar 22 12:09:40 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 22 Mar 2019 09:09:40 -0700
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <20190322123301.7489ae78@fsol>
+References: <5C948F55.4040108@canterbury.ac.nz>
+ <q72gqf$81gc$1@blaine.gmane.org> <20190322123301.7489ae78@fsol>
+Message-ID: <543c3748-42d9-44bb-d18f-fe8e3c134584@python.org>
+
+On 22Mar2019 0433, Antoine Pitrou wrote:
+> The question is: why would you use a array.array() with a Windows C API?
+
+I started replying to this with a whole lot of examples, and eventually 
+convinced myself that you wouldn't (or shouldn't).
+
+That said, I see value in having a type for array/struct/memoryview that 
+"is the same size as wchar_t", since that will avoid people having to 
+guess (the docs for array in particular are deliberately vague about the 
+actual size of the various types).
+
+This is not the same as "UCS-4" - that's a very Linux-centric point of 
+view. Decoupling it from Py_UNICODE is fine though, since that type will 
+have no meaning eventually. But the PyUnicode_*WideChar APIs are not 
+going away, which means that wchar_t still exists and has to have a 
+known size at compile time.
+
+Cheers,
+Steve
+
+From brett at python.org  Fri Mar 22 13:25:46 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 22 Mar 2019 10:25:46 -0700
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+Message-ID: <CAP1=2W6uE+YXTg8j4o+3z8osipdOAd+rkCZx2QZ-hKmM5A4tDw@mail.gmail.com>
+
+On Fri, Mar 22, 2019 at 12:41 AM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hi,
+>
+> I agree to make PendingDeprecationWarning an alias to
+> DeprecationWarning. I never liked "PendingDeprecationWarning" name,
+> it's way too long to type :-D
+>
+> Le ven. 22 mars 2019 ? 03:45, Inada Naoki <songofacandy at gmail.com> a
+> ?crit :
+> > I want to stop using PendingDeprecationWarning for new deprecation.
+>
+> I'm fine with that.
+>
+> > More aggressively, I want to remove PendingDeprecationWarning class,
+> > and `PendingDeprecationWarning = DeprecationWarning` for backward
+> > compatibility.
+>
+> I'm not sure that I understand well. Do you want to remove the
+> PendingDeprecationWarning builtin symbol, or just make it an alias to
+> DeprecationWarning.
+>
+> I'm fine with "PendingDeprecationWarning = DeprecationWarning".
+>
+
+We can't do that as it will break code. Think of code which is having
+warnings raise exceptions and that are purposefully catching
+PendingDeprecationWarning but not DeprecationWarning; this change would
+break that. These classes are part of the public API of the warnings module
+and so we shouldn't change semantics like that for people who have a
+specific use for those two different classes regardless of how the stdlib
+may choose to use them.
+
+
+>
+> IMHO your email title is misleading. You don't want to *remove*
+> PendingDeprecationWarning, you only want to make it an alias to
+> DeprecationWarning, right? In term of backward compatibility, it's
+> very different :-)
+>
+
+If you want to remove PendingDeprecationWarning that's a discussion we can
+obviously have (which I disagree with as shown in the discuss.python.org
+discussion), but I think aliasing is a non-starter.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190322/cfb3d616/attachment.html>
+
+From songofacandy at gmail.com  Fri Mar 22 13:37:11 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Sat, 23 Mar 2019 02:37:11 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAP1=2W6uE+YXTg8j4o+3z8osipdOAd+rkCZx2QZ-hKmM5A4tDw@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+ <CAP1=2W6uE+YXTg8j4o+3z8osipdOAd+rkCZx2QZ-hKmM5A4tDw@mail.gmail.com>
+Message-ID: <CAEfz+Tzqnrx3Jfcf8hCia4DBCV4hVWxpHhEW8-f8LsfYps1uyQ@mail.gmail.com>
+
+On Sat, Mar 23, 2019 at 2:26 AM Brett Cannon <brett at python.org> wrote:
+>
+>
+> We can't do that as it will break code. Think of code which is having warnings raise exceptions and that are purposefully catching PendingDeprecationWarning but not DeprecationWarning; this change would break that. These classes are part of the public API of the warnings module and so we shouldn't change semantics like that for people who have a specific use for those two different classes regardless of how the stdlib may choose to use them.
+>
+
+Didn't we already do it?  socket.error was independent error class.
+It became alias of OSError from Python 3.3.
+
+There might be some small troubles.  But it was small enough for
+Python minor versions, I think.
+
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From brett at python.org  Fri Mar 22 14:01:44 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 22 Mar 2019 11:01:44 -0700
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+Tzqnrx3Jfcf8hCia4DBCV4hVWxpHhEW8-f8LsfYps1uyQ@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+ <CAP1=2W6uE+YXTg8j4o+3z8osipdOAd+rkCZx2QZ-hKmM5A4tDw@mail.gmail.com>
+ <CAEfz+Tzqnrx3Jfcf8hCia4DBCV4hVWxpHhEW8-f8LsfYps1uyQ@mail.gmail.com>
+Message-ID: <CAP1=2W4+WckF3FmM1RjX7DtbU1HN5V=WqnJawXCeV+evus0Wfw@mail.gmail.com>
+
+On Fri, Mar 22, 2019 at 10:37 AM Inada Naoki <songofacandy at gmail.com> wrote:
+
+> On Sat, Mar 23, 2019 at 2:26 AM Brett Cannon <brett at python.org> wrote:
+> >
+> >
+> > We can't do that as it will break code. Think of code which is having
+> warnings raise exceptions and that are purposefully catching
+> PendingDeprecationWarning but not DeprecationWarning; this change would
+> break that. These classes are part of the public API of the warnings module
+> and so we shouldn't change semantics like that for people who have a
+> specific use for those two different classes regardless of how the stdlib
+> may choose to use them.
+> >
+>
+> Didn't we already do it?  socket.error was independent error class.
+> It became alias of OSError from Python 3.3.
+>
+
+I would argue that makes more sense semantically than what you're proposing
+here as socket.error is a type of OSError while you're suddenly making
+PendingDeprecationWarning a "stronger" exception than it was.
+
+
+>
+> There might be some small troubles.  But it was small enough for
+> Python minor versions, I think.
+>
+
+ I don't think it's worth the cost to users. We can just choose to stop
+using it in the stdlib and not use PendingDeprecationWarning. And if people
+want to force others to define their own PendingDeprecationWarning by
+deprecating that's fine, but the aliasing where it could cause unintended
+exception swallowing for something related to breaking changes seems
+unnecessarily risky to me simply because we don't want to ask users to
+update their code in a backwards-compatible fashion.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190322/e0c2af34/attachment.html>
+
+From status at bugs.python.org  Fri Mar 22 14:08:13 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 22 Mar 2019 18:08:13 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190322180813.555CF52BEA9@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-03-15 - 2019-03-22)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7051 ( +3)
+  closed 41100 (+91)
+  total  48151 (+94)
+
+Open issues with patches: 2817 
+
+
+Issues opened (55)
+==================
+
+#35121: Cookie domain check returns incorrect results
+https://bugs.python.org/issue35121  reopened by xtreak
+
+#36309: Remove tempfile.mktemp()
+https://bugs.python.org/issue36309  opened by John Hagen
+
+#36310: pygettext3.7 Does Not Recognize gettext Calls Within fstrings
+https://bugs.python.org/issue36310  opened by Allie Fitter
+
+#36311: Flaw in Windows code page decoder for large input
+https://bugs.python.org/issue36311  opened by serhiy.storchaka
+
+#36313: error: [Errno 13] Permission denied: '/usr/local/lib/python3.7
+https://bugs.python.org/issue36313  opened by bunhin
+
+#36315: Unable to install Python 3.7.2
+https://bugs.python.org/issue36315  opened by ecesujoy at gmail.com
+
+#36318: Adding support for setting the "disabled" attribute of loggers
+https://bugs.python.org/issue36318  opened by maggyero
+
+#36319: Erro 0xC0000374 on windows 10
+https://bugs.python.org/issue36319  opened by heckad
+
+#36322: Argument typo in dbm.ndbm.open
+https://bugs.python.org/issue36322  opened by rougeth
+
+#36323: IDLE: always display full grep path
+https://bugs.python.org/issue36323  opened by terry.reedy
+
+#36326: Build-out help() to read __slots__ with an optional data dicti
+https://bugs.python.org/issue36326  opened by rhettinger
+
+#36329: use the right python "make -C Doc/ serve"
+https://bugs.python.org/issue36329  opened by matrixise
+
+#36330: Warning about a potential dead code in timemodule and Clang
+https://bugs.python.org/issue36330  opened by matrixise
+
+#36335: Factor out / add bdb.Bdb.is_skipped_frame
+https://bugs.python.org/issue36335  opened by blueyed
+
+#36338: urlparse of urllib returns wrong hostname
+https://bugs.python.org/issue36338  opened by Xianbo Wang
+
+#36339: test_ttk_guionly: test_traversal() fails randomly on AMD64 Win
+https://bugs.python.org/issue36339  opened by vstinner
+
+#36340: 3.7.3rc1 Install Certificates fails on macOS
+https://bugs.python.org/issue36340  opened by Dima.Tisnek
+
+#36341: bind() on AF_UNIX socket may fail in tests run as non-root
+https://bugs.python.org/issue36341  opened by xdegaye
+
+#36342: test_venv failure when executed by test_multiprocessing and th
+https://bugs.python.org/issue36342  opened by xdegaye
+
+#36345: Deprecate Tools/scripts/serve.py in favour of python -m http.s
+https://bugs.python.org/issue36345  opened by matrixise
+
+#36346: Prepare for removing the legacy Unicode C API
+https://bugs.python.org/issue36346  opened by serhiy.storchaka
+
+#36347: Renaming the constants for the .flags of PyMemberDef
+https://bugs.python.org/issue36347  opened by matrixise
+
+#36348: test_imaplib.RemoteIMAP_STARTTLSTest.test_logout() fails rando
+https://bugs.python.org/issue36348  opened by vstinner
+
+#36350: inspect.Signature.parameters and inspect.BoundArguments.argume
+https://bugs.python.org/issue36350  opened by remi.lapeyre
+
+#36351: the ipv6type variable in configure.ac may be set incorrectly w
+https://bugs.python.org/issue36351  opened by xdegaye
+
+#36353: rpath incorrectly handled on OSX by build_ext
+https://bugs.python.org/issue36353  opened by Toon Verstraelen
+
+#36354: Use CreateProcessW for Python 2.7 on Windows.
+https://bugs.python.org/issue36354  opened by Ray Donnelly
+
+#36355: Remove documentation and internal use of the *RESTRICTED const
+https://bugs.python.org/issue36355  opened by josh.r
+
+#36356: Failure to build with address sanitizer
+https://bugs.python.org/issue36356  opened by btharper
+
+#36359: contextvars documentation unclear on thread-locality
+https://bugs.python.org/issue36359  opened by Hameer Abbasi2
+
+#36361: generate correct pyconfig.h when cross-compiling
+https://bugs.python.org/issue36361  opened by xdegaye
+
+#36364: errors in multiprocessing.shared_memory examples
+https://bugs.python.org/issue36364  opened by pierreglaser
+
+#36366: Patcher stop method should be idempotent
+https://bugs.python.org/issue36366  opened by sfreilich
+
+#36368: server process of shared_memory shuts down if KeyboardInterrup
+https://bugs.python.org/issue36368  opened by pierreglaser
+
+#36369: test_weakref super slow on RPi Zero
+https://bugs.python.org/issue36369  opened by DNSGeek
+
+#36370: Check for PyErr_Occurred() after PyImport_GetModule().
+https://bugs.python.org/issue36370  opened by asmeurer
+
+#36372: Flawed handling of URL redirect
+https://bugs.python.org/issue36372  opened by bugburger
+
+#36373: asyncio.gather: no docs for deprecated loop parameter
+https://bugs.python.org/issue36373  opened by dtrauma
+
+#36375: PEP 499 implementation: "python -m foo" binds the main module 
+https://bugs.python.org/issue36375  opened by cameron
+
+#36377: Python 'datastructures.html' docs page needs improvement becau
+https://bugs.python.org/issue36377  opened by shoark7
+
+#36378: Add support to load from paths to json.load
+https://bugs.python.org/issue36378  opened by DaniFojo
+
+#36379: nb_inplace_pow is always called with an invalid argument
+https://bugs.python.org/issue36379  opened by Zuzu_Typ
+
+#36381: Deprecate "#" argument format without PY_SSIZE_T_CLEAN
+https://bugs.python.org/issue36381  opened by inada.naoki
+
+#36383: In Windows 10 virtual environments distutils.sysconfig.get_pyt
+https://bugs.python.org/issue36383  opened by Mark Campanelli
+
+#36384: ipaddress Should not reject IPv4 addresses with leading zeroes
+https://bugs.python.org/issue36384  opened by Joel Croteau
+
+#36387: Refactor getenvironment() in _winapi.c
+https://bugs.python.org/issue36387  opened by serhiy.storchaka
+
+#36388: pdb: do_debug installs sys.settrace handler when used inside p
+https://bugs.python.org/issue36388  opened by blueyed
+
+#36389: Add gc.enable_object_debugger(): detect corrupted Python objec
+https://bugs.python.org/issue36389  opened by vstinner
+
+#36390: IDLE: Refactor formatting methods from editor
+https://bugs.python.org/issue36390  opened by cheryl.sabella
+
+#36392: IPv4Interface Object has no attributte prefixlen
+https://bugs.python.org/issue36392  opened by Eddgar Rojas
+
+#36394: test_multiprocessing_spawn fails on Windows7 3.x buildbot
+https://bugs.python.org/issue36394  opened by pablogsal
+
+#36395: Add deferred single-threaded/fake executor to concurrent.futur
+https://bugs.python.org/issue36395  opened by Brian McCutchon
+
+#36396: Remove fgBg param of idlelib.config.GetHighlight()
+https://bugs.python.org/issue36396  opened by terry.reedy
+
+#36398: A possible crash in structseq.c's structseq_repr()
+https://bugs.python.org/issue36398  opened by ZackerySpytz
+
+#36399: multiprocessing: Queue does not work in virtualenv but works f
+https://bugs.python.org/issue36399  opened by Bernt.R??skar.Brenna
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36395: Add deferred single-threaded/fake executor to concurrent.futur
+https://bugs.python.org/issue36395
+
+#36394: test_multiprocessing_spawn fails on Windows7 3.x buildbot
+https://bugs.python.org/issue36394
+
+#36392: IPv4Interface Object has no attributte prefixlen
+https://bugs.python.org/issue36392
+
+#36388: pdb: do_debug installs sys.settrace handler when used inside p
+https://bugs.python.org/issue36388
+
+#36387: Refactor getenvironment() in _winapi.c
+https://bugs.python.org/issue36387
+
+#36384: ipaddress Should not reject IPv4 addresses with leading zeroes
+https://bugs.python.org/issue36384
+
+#36383: In Windows 10 virtual environments distutils.sysconfig.get_pyt
+https://bugs.python.org/issue36383
+
+#36369: test_weakref super slow on RPi Zero
+https://bugs.python.org/issue36369
+
+#36364: errors in multiprocessing.shared_memory examples
+https://bugs.python.org/issue36364
+
+#36361: generate correct pyconfig.h when cross-compiling
+https://bugs.python.org/issue36361
+
+#36359: contextvars documentation unclear on thread-locality
+https://bugs.python.org/issue36359
+
+#36353: rpath incorrectly handled on OSX by build_ext
+https://bugs.python.org/issue36353
+
+#36351: the ipv6type variable in configure.ac may be set incorrectly w
+https://bugs.python.org/issue36351
+
+#36350: inspect.Signature.parameters and inspect.BoundArguments.argume
+https://bugs.python.org/issue36350
+
+#36341: bind() on AF_UNIX socket may fail in tests run as non-root
+https://bugs.python.org/issue36341
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36398: A possible crash in structseq.c's structseq_repr()
+https://bugs.python.org/issue36398
+
+#36396: Remove fgBg param of idlelib.config.GetHighlight()
+https://bugs.python.org/issue36396
+
+#36394: test_multiprocessing_spawn fails on Windows7 3.x buildbot
+https://bugs.python.org/issue36394
+
+#36390: IDLE: Refactor formatting methods from editor
+https://bugs.python.org/issue36390
+
+#36389: Add gc.enable_object_debugger(): detect corrupted Python objec
+https://bugs.python.org/issue36389
+
+#36388: pdb: do_debug installs sys.settrace handler when used inside p
+https://bugs.python.org/issue36388
+
+#36387: Refactor getenvironment() in _winapi.c
+https://bugs.python.org/issue36387
+
+#36381: Deprecate "#" argument format without PY_SSIZE_T_CLEAN
+https://bugs.python.org/issue36381
+
+#36378: Add support to load from paths to json.load
+https://bugs.python.org/issue36378
+
+#36377: Python 'datastructures.html' docs page needs improvement becau
+https://bugs.python.org/issue36377
+
+#36375: PEP 499 implementation: "python -m foo" binds the main module 
+https://bugs.python.org/issue36375
+
+#36368: server process of shared_memory shuts down if KeyboardInterrup
+https://bugs.python.org/issue36368
+
+#36366: Patcher stop method should be idempotent
+https://bugs.python.org/issue36366
+
+#36364: errors in multiprocessing.shared_memory examples
+https://bugs.python.org/issue36364
+
+#36361: generate correct pyconfig.h when cross-compiling
+https://bugs.python.org/issue36361
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#34160: ElementTree not preserving attribute order
+https://bugs.python.org/issue34160  23 msgs
+
+#36236: Python crash on macOS when CWD is invalid
+https://bugs.python.org/issue36236  13 msgs
+
+#36356: Failure to build with address sanitizer
+https://bugs.python.org/issue36356  11 msgs
+
+#36346: Prepare for removing the legacy Unicode C API
+https://bugs.python.org/issue36346  10 msgs
+
+#36370: Check for PyErr_Occurred() after PyImport_GetModule().
+https://bugs.python.org/issue36370   9 msgs
+
+#36299: array: Deprecate 'u' type in array module
+https://bugs.python.org/issue36299   8 msgs
+
+#35066: Inconsistency between dangling '%' handling in time.strftime()
+https://bugs.python.org/issue35066   6 msgs
+
+#36342: test_venv failure when executed by test_multiprocessing and th
+https://bugs.python.org/issue36342   6 msgs
+
+#36389: Add gc.enable_object_debugger(): detect corrupted Python objec
+https://bugs.python.org/issue36389   6 msgs
+
+#23984: Documentation error: Descriptors
+https://bugs.python.org/issue23984   5 msgs
+
+
+
+Issues closed (83)
+==================
+
+#4071: ntpath.abspath fails for long str paths
+https://bugs.python.org/issue4071  closed by eryksun
+
+#7936: sys.argv contains only scriptname
+https://bugs.python.org/issue7936  closed by terry.reedy
+
+#8677: Modules needing PY_SSIZE_T_CLEAN
+https://bugs.python.org/issue8677  closed by inada.naoki
+
+#10641: kill_python sometimes fails to kill processes on buildbots
+https://bugs.python.org/issue10641  closed by zach.ware
+
+#12616: zip fixer fails on zip()[:-1]
+https://bugs.python.org/issue12616  closed by xtreak
+
+#12622: failfast argument to TextTestRunner not documented
+https://bugs.python.org/issue12622  closed by cheryl.sabella
+
+#13668: mute ImportError in __del__ of _threading_local module
+https://bugs.python.org/issue13668  closed by xtreak
+
+#18016: subprocess should open stdin in mode w+b on windows
+https://bugs.python.org/issue18016  closed by cheryl.sabella
+
+#18249: Incorrect and incomplete help docs for close() method
+https://bugs.python.org/issue18249  closed by adelfino
+
+#19415: test_gdb fails when using --without-doc-strings on Fedora 19
+https://bugs.python.org/issue19415  closed by matrixise
+
+#21960: Better path handling in Idle find in files
+https://bugs.python.org/issue21960  closed by cheryl.sabella
+
+#22587: os.path.abspath(None) behavior is inconsistent between platfor
+https://bugs.python.org/issue22587  closed by SilentGhost
+
+#23216: IDLE grep/find/replace source code needs docstrings
+https://bugs.python.org/issue23216  closed by cheryl.sabella
+
+#26103: Contradiction in definition of "data descriptor" between (dott
+https://bugs.python.org/issue26103  closed by Aaron Hall
+
+#26517: Crash in installer
+https://bugs.python.org/issue26517  closed by cheryl.sabella
+
+#30903: IPv4Network's hostmask attribute doesn't returns string value 
+https://bugs.python.org/issue30903  closed by cheryl.sabella
+
+#31470: Py_Initialize documentation wrong
+https://bugs.python.org/issue31470  closed by cheryl.sabella
+
+#31495: Wrong offset with IndentationError ("expected an indented bloc
+https://bugs.python.org/issue31495  closed by cheryl.sabella
+
+#32142: heapq.heappop - documentation misleading or doesn't work
+https://bugs.python.org/issue32142  closed by cheryl.sabella
+
+#32147: improve performance of binascii.unhexlify() by using conversio
+https://bugs.python.org/issue32147  closed by serhiy.storchaka
+
+#33635: OSError when using pathlib.Path.rglob() to list device files
+https://bugs.python.org/issue33635  closed by cheryl.sabella
+
+#34461: Availability of parsers in etree initializer
+https://bugs.python.org/issue34461  closed by ned.deily
+
+#34965: Python on Docker container using flask is going down after som
+https://bugs.python.org/issue34965  closed by cheryl.sabella
+
+#35284: Incomplete error handling in Python/compile.c:compiler_call()
+https://bugs.python.org/issue35284  closed by serhiy.storchaka
+
+#35388: _PyRuntime_Initialize() called after Py_Finalize() does nothin
+https://bugs.python.org/issue35388  closed by vstinner
+
+#35493: multiprocessing.Pool._worker_handler(): use SIGCHLD to be noti
+https://bugs.python.org/issue35493  closed by pablogsal
+
+#35715: ProcessPool workers hold onto return value of last task in mem
+https://bugs.python.org/issue35715  closed by pablogsal
+
+#35752: test_buffer fails on ppc64le: memoryview pack_single() is misc
+https://bugs.python.org/issue35752  closed by vstinner
+
+#35978: test_venv fails in Travis with GCC
+https://bugs.python.org/issue35978  closed by steve.dower
+
+#36124: Provide convenient C API for storing per-interpreter state
+https://bugs.python.org/issue36124  closed by eric.snow
+
+#36195: initializer is not a valid param in ThreadPoolExecutor
+https://bugs.python.org/issue36195  closed by ned.deily
+
+#36211: show full url when execute "make -C Doc/ serve"
+https://bugs.python.org/issue36211  closed by mdk
+
+#36215: Should AppVeyor run compile Python in debug mode?
+https://bugs.python.org/issue36215  closed by vstinner
+
+#36233: xml ElementTree quotation marks of xml version string
+https://bugs.python.org/issue36233  closed by serhiy.storchaka
+
+#36235: distutils.sysconfig.customize_compiler() overrides CFLAGS var 
+https://bugs.python.org/issue36235  closed by vstinner
+
+#36256: parser module fails on legal input
+https://bugs.python.org/issue36256  closed by pablogsal
+
+#36268: Change default tar format to modern POSIX 2001 (pax) for bette
+https://bugs.python.org/issue36268  closed by serhiy.storchaka
+
+#36272: Recursive logging crashes Interpreter in Python 3
+https://bugs.python.org/issue36272  closed by vinay.sajip
+
+#36276: Python urllib CRLF injection vulnerability
+https://bugs.python.org/issue36276  closed by orsenthil
+
+#36292: Coverity scan: Resource leaks in longobject.c
+https://bugs.python.org/issue36292  closed by vstinner
+
+#36297: Remove unicode_internal codec
+https://bugs.python.org/issue36297  closed by inada.naoki
+
+#36300: eval of comprehension cannot access local variables
+https://bugs.python.org/issue36300  closed by terry.reedy
+
+#36307: Upgrade Travis CI config to Xenial from near-EoL Trusty and re
+https://bugs.python.org/issue36307  closed by inada.naoki
+
+#36308: Fix warning in _PyPathConfig_ComputeArgv0
+https://bugs.python.org/issue36308  closed by matrixise
+
+#36312: Invalid flag for some code page decoders
+https://bugs.python.org/issue36312  closed by serhiy.storchaka
+
+#36314: Pivot_Table Docstring Error
+https://bugs.python.org/issue36314  closed by SilentGhost
+
+#36316: Provide SHA256 checksums for installers
+https://bugs.python.org/issue36316  closed by benjamin.peterson
+
+#36317: Typo in documentation of _PyObject_FastCallDict
+https://bugs.python.org/issue36317  closed by vstinner
+
+#36320: typing.NamedTuple to switch from OrderedDict to regular dict
+https://bugs.python.org/issue36320  closed by rhettinger
+
+#36321: Fix misspelled attribute name in namedtuple()
+https://bugs.python.org/issue36321  closed by rhettinger
+
+#36324: Inverse cumulative normal distribution function
+https://bugs.python.org/issue36324  closed by rhettinger
+
+#36325: Build-out help() to support a class level data dictionary
+https://bugs.python.org/issue36325  closed by rhettinger
+
+#36327: Remove EOLed Py34 from "Status of Python branches"
+https://bugs.python.org/issue36327  closed by xtreak
+
+#36328: tstate may be used uninitialized in Py_NewInterpreter
+https://bugs.python.org/issue36328  closed by vstinner
+
+#36331: check_output is returning non-zero exit status 1
+https://bugs.python.org/issue36331  closed by ned.deily
+
+#36332: compile() error on AST object with assignment expression
+https://bugs.python.org/issue36332  closed by pablogsal
+
+#36333: memory leaks detected with valgrind for python -V
+https://bugs.python.org/issue36333  closed by vstinner
+
+#36334: pathlib.Path  unexpected (wrong) behaviour when combining path
+https://bugs.python.org/issue36334  closed by eryksun
+
+#36336: test_httplib, test_multiprocessing_forkserver leaks on x86 Gen
+https://bugs.python.org/issue36336  closed by vstinner
+
+#36337: Use socket.sendall()/send() send data larger than 2GB will be 
+https://bugs.python.org/issue36337  closed by vstinner
+
+#36343: Certificate added to Win Store not available
+https://bugs.python.org/issue36343  closed by steve.dower
+
+#36344: install_certificates.command too complicated,  copy from pip's
+https://bugs.python.org/issue36344  closed by ned.deily
+
+#36349: Including parentheses in a regular expression pattern enclosed
+https://bugs.python.org/issue36349  closed by matrixise
+
+#36352: Modules/getpath.c should not use hardcoded buffer sizes (MAXPA
+https://bugs.python.org/issue36352  closed by vstinner
+
+#36357: Build 32bit Python on Windows with SSE2 instruction set
+https://bugs.python.org/issue36357  closed by Ma Lin
+
+#36358: bool type does not support True or False as command line argv
+https://bugs.python.org/issue36358  closed by serhiy.storchaka
+
+#36360: undef HAVE_STROPTS_H in pyconfig.h.in is ignored
+https://bugs.python.org/issue36360  closed by Shady Atef
+
+#36362: Detected unused variables in import.c and HAVE_DYNAMIC_LOADING
+https://bugs.python.org/issue36362  closed by brett.cannon
+
+#36363: Wrong type when missname dataclass attribute with existing var
+https://bugs.python.org/issue36363  closed by gvanrossum
+
+#36365: Objects/structseq.c: warning: 'strncpy' specified bound depend
+https://bugs.python.org/issue36365  closed by vstinner
+
+#36367: tokenizer.c memory leak in case of realloc failure
+https://bugs.python.org/issue36367  closed by pablogsal
+
+#36371: FancyGetopt.generate_help crashes with TypeError
+https://bugs.python.org/issue36371  closed by SilentGhost
+
+#36374: A possible null pointer dereference in compile.c's merge_const
+https://bugs.python.org/issue36374  closed by inada.naoki
+
+#36376: Wrong position of SyntaxError in IDLE
+https://bugs.python.org/issue36376  closed by terry.reedy
+
+#36380: collections.Counter in-place operators are unexpectedly slow
+https://bugs.python.org/issue36380  closed by rhettinger
+
+#36382: socket.getfqdn() returns domain "mshome.net"
+https://bugs.python.org/issue36382  closed by markuskramerIgitt
+
+#36385: Add ``elif`` sentence on to avoid multiple ``if``
+https://bugs.python.org/issue36385  closed by rhettinger
+
+#36386: segfault on PyUnicode_DecodeFSDefaultAndSize for uninitialized
+https://bugs.python.org/issue36386  closed by vstinner
+
+#36391: XSS in bugs.python.org 404 error page
+https://bugs.python.org/issue36391  closed by SilentGhost
+
+#36393: python user define function is replacing variable value
+https://bugs.python.org/issue36393  closed by zach.ware
+
+#36397: re.split() incorrectly splitting on zero-width pattern
+https://bugs.python.org/issue36397  closed by mrabarnett
+
+#36400: Add activate script to venv root folder
+https://bugs.python.org/issue36400  closed by brett.cannon
+
+#969718: BASECFLAGS are not passed to module build line
+https://bugs.python.org/issue969718  closed by vstinner
+
+From steve.dower at python.org  Fri Mar 22 14:10:38 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 22 Mar 2019 11:10:38 -0700
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAP1=2W4+WckF3FmM1RjX7DtbU1HN5V=WqnJawXCeV+evus0Wfw@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+ <CAP1=2W6uE+YXTg8j4o+3z8osipdOAd+rkCZx2QZ-hKmM5A4tDw@mail.gmail.com>
+ <CAEfz+Tzqnrx3Jfcf8hCia4DBCV4hVWxpHhEW8-f8LsfYps1uyQ@mail.gmail.com>
+ <CAP1=2W4+WckF3FmM1RjX7DtbU1HN5V=WqnJawXCeV+evus0Wfw@mail.gmail.com>
+Message-ID: <9ded6786-7e84-c8cc-e841-94cfcd59b687@python.org>
+
+On 22Mar2019 1101, Brett Cannon wrote:
+> On Fri, Mar 22, 2019 at 10:37 AM Inada Naoki <songofacandy at gmail.com 
+> <mailto:songofacandy at gmail.com>> wrote:
+>     There might be some small troubles.? But it was small enough for
+>     Python minor versions, I think.
+> 
+> 
+>  ?I don't think it's worth the cost to users. We can just choose to stop 
+> using it in the stdlib and not use PendingDeprecationWarning. And if 
+> people want to force others to define their own 
+> PendingDeprecationWarning by deprecating that's fine, but the aliasing 
+> where it could cause unintended exception swallowing for something 
+> related to breaking changes seems unnecessarily risky to me simply 
+> because we don't want to ask users to update their code in a 
+> backwards-compatible fashion.
+
+What does it mean to put DeprecationWarning on PendingDeprecationWarning 
+and then alias PendingDeprecationWarning to DeprecationWarning?
+
+"If the implementation is hard to explain, it's a bad idea." :)
+
+(FWIW, agree with Brett. We can simply stop using it ourselves without 
+breaking anyone. Of all the things in the stdlib that are hard to 
+maintain, this is nowhere near the top of the list.)
+
+Cheers,
+Steve
+
+From guido at python.org  Fri Mar 22 14:23:55 2019
+From: guido at python.org (Guido van Rossum)
+Date: Fri, 22 Mar 2019 11:23:55 -0700
+Subject: [Python-Dev] Invitation to the PyCon typing summit (Thu, May 2nd,
+ 1-5pm, at PyCon in Cleveland)
+Message-ID: <CAP7+vJL0_Y2gfs3C2-u80ZK2JCfX-Gx=a_2G2kTD9OG3-oqn5A@mail.gmail.com>
+
+The typing summit is primarily a place for developers of type checkers to
+collaborate, but we are also inviting (potential) users of type checkers.
+For example, there are plans to extend the standard Python type system with
+features intended to support numpy, Pandas, tensorflow and similar
+libraries, and we will discuss these at the summit. Therefore developers
+and power-users of such frameworks are especially welcome at the summit.
+
+With Ewa's and Dropbox's help I've arranged a room at PyCon.
+
+
+*When: Thursday May 2nd, 1-5 pm (i.e. the day between the Language Summit
+and the conference proper)*
+*Where: Room 6 at PyCon in Cleveland*
+
+If you're planning to attend, please fill out this form:
+
+https://goo.gl/forms/rG9dVTBbgyBgDK8H2
+
+*If you already emailed me about attending, please still fill out the form!*
+
+(Also if you already registered in response to my invitation on typing-sig,
+I've got your registration info.)
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190322/266bfee5/attachment.html>
+
+From greg.ewing at canterbury.ac.nz  Fri Mar 22 20:01:17 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Sat, 23 Mar 2019 13:01:17 +1300
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <q72gqf$81gc$1@blaine.gmane.org>
+References: <5C948F55.4040108@canterbury.ac.nz>
+ <q72gqf$81gc$1@blaine.gmane.org>
+Message-ID: <5C95774D.9050907@canterbury.ac.nz>
+
+Serhiy Storchaka wrote:
+> Making it always 32 bits would be compatibility breaking change. 
+> Currently array('u') represents the wchar_t string, and many API on 
+> Windows require it.
+
+Ah, I see. It would be helpful if the array module docs made that clear.
+At one point the 3.x docs said that it depended on whether you had a wide
+or narrow unicode Python build, which confused me, because I thought that 
+distinction had gone away in Python 3.
+
+> But we can add a new code, e.g. 'U', for UCS4.
+
++1.
+
+-- 
+Greg
+
+From greg.ewing at canterbury.ac.nz  Fri Mar 22 20:19:01 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Sat, 23 Mar 2019 13:19:01 +1300
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <20190322113905.3fefed62@fsol>
+References: <5C948F55.4040108@canterbury.ac.nz> <20190322113905.3fefed62@fsol>
+Message-ID: <5C957B75.7000402@canterbury.ac.nz>
+
+Antoine Pitrou wrote:
+> TBH, I think anyone trying to use array.array should be directed to
+> Numpy these days.  The only reason for array.array being here is that
+> it predates Numpy.
+
+Numpy is a huge dependency to pull in when you don't need all the
+heavyweight array machinery.
+
+Also, numpy arrays behave very differently from Python sequences
+in many ways. For example, they don't have a flexible size, and
+you can't concatenate them using +.
+
+Arrays from the array module follow the sequence protocol much
+more closely, and that makes them valuable, IMO.
+
+-- 
+Greg
+
+From songofacandy at gmail.com  Fri Mar 22 21:18:57 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Sat, 23 Mar 2019 10:18:57 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAP1=2W4+WckF3FmM1RjX7DtbU1HN5V=WqnJawXCeV+evus0Wfw@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+ <CAP1=2W6uE+YXTg8j4o+3z8osipdOAd+rkCZx2QZ-hKmM5A4tDw@mail.gmail.com>
+ <CAEfz+Tzqnrx3Jfcf8hCia4DBCV4hVWxpHhEW8-f8LsfYps1uyQ@mail.gmail.com>
+ <CAP1=2W4+WckF3FmM1RjX7DtbU1HN5V=WqnJawXCeV+evus0Wfw@mail.gmail.com>
+Message-ID: <CAEfz+TyUGnaABJGph0p9bAdob_Diq5bibPNpv4uGk0=6P79rqA@mail.gmail.com>
+
+On Sat, Mar 23, 2019 at 3:02 AM Brett Cannon <brett at python.org> wrote:
+>
+>>
+>> There might be some small troubles.  But it was small enough for
+>> Python minor versions, I think.
+>
+>
+>  I don't think it's worth the cost to users. We can just choose to stop using it in the stdlib and not use PendingDeprecationWarning. And if people want to force others to define their own PendingDeprecationWarning by deprecating that's fine, but the aliasing where it could cause unintended exception swallowing for something related to breaking changes seems unnecessarily risky to me simply because we don't want to ask users to update their code in a backwards-compatible fashion.
+
+I still can't believe there are real world usage of PendingDeprecationWarning
+other than warnings.warn() and assertRaises().
+
+But I'm OK to not removing actual class.
+
+Stop using it in stdlib reduces maintenance cost like this:
+https://github.com/python/cpython/pull/12494/files
+
+And deprecation in document reduces learning cost.
+People can skip reading and understanding document of PendingDeprecatedWarning.
+
+Keeping PendingDeprecationWarning class for several years is very
+low cost compared to these cost.
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From songofacandy at gmail.com  Fri Mar 22 22:10:00 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Sat, 23 Mar 2019 11:10:00 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+TyUGnaABJGph0p9bAdob_Diq5bibPNpv4uGk0=6P79rqA@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CA+3bQGGC17vzNOgaex92vF1yG3YJ0n4idHC-yBO1BHAQvwnX8Q@mail.gmail.com>
+ <CAP1=2W6uE+YXTg8j4o+3z8osipdOAd+rkCZx2QZ-hKmM5A4tDw@mail.gmail.com>
+ <CAEfz+Tzqnrx3Jfcf8hCia4DBCV4hVWxpHhEW8-f8LsfYps1uyQ@mail.gmail.com>
+ <CAP1=2W4+WckF3FmM1RjX7DtbU1HN5V=WqnJawXCeV+evus0Wfw@mail.gmail.com>
+ <CAEfz+TyUGnaABJGph0p9bAdob_Diq5bibPNpv4uGk0=6P79rqA@mail.gmail.com>
+Message-ID: <CAEfz+Twd9Tw6yz7hkD28PxzTT02O=+pKUj_9oiTjyWif2QMSMA@mail.gmail.com>
+
+I created the PR to deprecate PendingDeprecationWarning only in document.
+https://github.com/python/cpython/pull/12505
+
+On Sat, Mar 23, 2019 at 10:18 AM Inada Naoki <songofacandy at gmail.com> wrote:
+>
+> On Sat, Mar 23, 2019 at 3:02 AM Brett Cannon <brett at python.org> wrote:
+> >
+> >>
+> >> There might be some small troubles.  But it was small enough for
+> >> Python minor versions, I think.
+> >
+> >
+> >  I don't think it's worth the cost to users. We can just choose to stop using it in the stdlib and not use PendingDeprecationWarning. And if people want to force others to define their own PendingDeprecationWarning by deprecating that's fine, but the aliasing where it could cause unintended exception swallowing for something related to breaking changes seems unnecessarily risky to me simply because we don't want to ask users to update their code in a backwards-compatible fashion.
+>
+> I still can't believe there are real world usage of PendingDeprecationWarning
+> other than warnings.warn() and assertRaises().
+>
+> But I'm OK to not removing actual class.
+>
+> Stop using it in stdlib reduces maintenance cost like this:
+> https://github.com/python/cpython/pull/12494/files
+>
+> And deprecation in document reduces learning cost.
+> People can skip reading and understanding document of PendingDeprecatedWarning.
+>
+> Keeping PendingDeprecationWarning class for several years is very
+> low cost compared to these cost.
+>
+> Regards,
+> --
+> Inada Naoki  <songofacandy at gmail.com>
+
+
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
