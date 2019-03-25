@@ -15126,3 +15126,908 @@ in this time.  So I don't push the removal.  It was just an idea.
 -- 
 Inada Naoki  <songofacandy at gmail.com>
 
+From ncoghlan at gmail.com  Sun Mar 24 07:57:46 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 24 Mar 2019 21:57:46 +1000
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+Message-ID: <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+
+On Fri, 22 Mar 2019 at 12:45, Inada Naoki <songofacandy at gmail.com> wrote:
+>
+> Hi, all.
+>
+> I'm thinking about removing PendingDeprecationWarning.
+> (previous discussion:
+> https://discuss.python.org/t/pendingdeprecationwarning-is-really-useful/1038)
+>
+> It was added "not be printed by default" version of DeprecationWarning.
+> But DeprecationWarning is not printed by default now.
+
+No, this was covered in PEP 565, and PendingDeprecationWarning was
+explicitly kept as a way of opting out of the revised semantics of
+DeprecationWarning.
+
+In Python 3.7 and above, the semantics are:
+
+* PendingDeprecationWarning: never shown by default
+* DeprecationWarning: shown by default in the __main__ module
+* FutureWarning: shown by default everywhere
+
+PEP section: https://www.python.org/dev/peps/pep-0565/#additional-use-case-for-futurewarning
+
+The documentation was also updated to match:
+
+* https://docs.python.org/3/library/warnings.html#warning-categories
+* https://docs.python.org/3/library/exceptions.html#warnings
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sun Mar 24 08:21:22 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 24 Mar 2019 22:21:22 +1000
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+Message-ID: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+
+Hi folks,
+
+With the revised PEP 1 published, the Steering Council members have
+been working through the backlog of open PEPs, figuring out which ones
+are at a stage of maturity where we think it makes sense to appoint a
+BDFL-Delegate to continue moving the PEP through the review process,
+and eventually make the final decision on whether or not to accept or
+reject the change.
+
+We'll be announcing those appointments as we go, so I'm happy to
+report that I will be handling the BDFL-Delegate responsibilities for
+the following PEPs:
+
+* PEP 499: Binding "-m" executed modules under their module name as
+well as `__main__`
+* PEP 574: Pickle protocol 5 with out of band data
+
+I'm also pleased to report that Petr Viktorin has agreed to take on
+the responsibility of reviewing the competing proposals to improve the
+way CPython's C API exposes callables for direct invocation by third
+party low level code:
+
+* PEP 576: Exposing the internal FastCallKeywords convention to 3rd
+party modules
+* PEP 580: Revising the callable struct hierarchy internally and in
+the public C API
+* PEP 579: Background information for the problems the other two PEPs
+are attempting to address
+
+Regards,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From mark at hotpy.org  Sun Mar 24 11:22:35 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Sun, 24 Mar 2019 15:22:35 +0000
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+Message-ID: <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+
+Hi Petr,
+
+Regarding PEPs 576 and 580.
+Over the new year, I did a thorough analysis of possible approaches to 
+possible calling conventions for use in the CPython ecosystems and came 
+up with a new PEP.
+The draft can be found here:
+https://github.com/markshannon/peps/blob/new-calling-convention/pep-9999.rst
+
+I was hoping to profile a branch with the various experimental changes 
+cherry-picked together, but don't seemed to have found the time :(
+
+I'd like to have a testable branch, before formally submitting the PEP,
+but I'd thought you should be aware of the PEP.
+
+Cheers,
+Mark.
+
+
+On 24/03/2019 12:21 pm, Nick Coghlan wrote:
+> Hi folks,
+> 
+> With the revised PEP 1 published, the Steering Council members have
+> been working through the backlog of open PEPs, figuring out which ones
+> are at a stage of maturity where we think it makes sense to appoint a
+> BDFL-Delegate to continue moving the PEP through the review process,
+> and eventually make the final decision on whether or not to accept or
+> reject the change.
+> 
+> We'll be announcing those appointments as we go, so I'm happy to
+> report that I will be handling the BDFL-Delegate responsibilities for
+> the following PEPs:
+> 
+> * PEP 499: Binding "-m" executed modules under their module name as
+> well as `__main__`
+> * PEP 574: Pickle protocol 5 with out of band data
+> 
+> I'm also pleased to report that Petr Viktorin has agreed to take on
+> the responsibility of reviewing the competing proposals to improve the
+> way CPython's C API exposes callables for direct invocation by third
+> party low level code:
+> 
+> * PEP 576: Exposing the internal FastCallKeywords convention to 3rd
+> party modules
+> * PEP 580: Revising the callable struct hierarchy internally and in
+> the public C API
+> * PEP 579: Background information for the problems the other two PEPs
+> are attempting to address
+> 
+> Regards,
+> Nick.
+> 
+
+From J.Demeyer at UGent.be  Sun Mar 24 13:00:00 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Sun, 24 Mar 2019 18:00:00 +0100
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+Message-ID: <5C97B790.3070009@UGent.be>
+
+On 2019-03-24 16:22, Mark Shannon wrote:
+> Hi Petr,
+>
+> Regarding PEPs 576 and 580.
+> Over the new year, I did a thorough analysis of possible approaches to
+> possible calling conventions for use in the CPython ecosystems and came
+> up with a new PEP.
+> The draft can be found here:
+> https://github.com/markshannon/peps/blob/new-calling-convention/pep-9999.rst
+
+Thanks for that. Is this new PEP meant to supersede PEP 576?
+
+> I'd like to have a testable branch, before formally submitting the PEP,
+> but I'd thought you should be aware of the PEP.
+
+If you want to bring up this PEP now during the PEP 576/580 discussion, 
+maybe it's best to formally submit it now? Having an official PEP number 
+might simplify the discussion. If it turns out to be a bad idea after 
+all, you can still withdraw it.
+
+In the mean time, I remind you that PEP 576 also doesn't have a complete 
+reference implementation (the PEP links to a "reference implementation" 
+but it doesn't correspond to the text of the PEP).
+
+
+Jeroen.
+
+From J.Demeyer at UGent.be  Sun Mar 24 13:25:05 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Sun, 24 Mar 2019 18:25:05 +0100
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+Message-ID: <5C97BD71.8060601@UGent.be>
+
+On 2019-03-24 16:22, Mark Shannon wrote:
+> The draft can be found here:
+> https://github.com/markshannon/peps/blob/new-calling-convention/pep-9999.rst
+
+I think that this is basically a better version of PEP 576. The idea is 
+the same as PEP 576, but the details are better. Since it's not 
+fundamentally different from PEP 576, I think that this comparison still 
+stands:
+
+https://mail.python.org/pipermail/python-dev/2018-July/154238.html
+
+From J.Demeyer at UGent.be  Sun Mar 24 15:05:36 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Sun, 24 Mar 2019 20:05:36 +0100
+Subject: [Python-Dev] PEP 576/580: on the complexity of function calls
+Message-ID: <5C97D500.905@UGent.be>
+
+Now that the discussion on PEP 576/580 has been opened again, let me 
+write something about the complexity of function calls (*), which is 
+probably the most frequently given reason against PEP 580.
+
+An important fact is the following: *the status-quo is complex*.
+
+Over time, many performance improvements have been made to function 
+calls. Each of these was a relatively small incremental change (for 
+example, METH_FASTCALL with *args only was added before 
+METH_FASTCALL|METH_KEYWORDS with *args and **kwargs). In the end, all 
+these small changes add up to quite a bit of complexity. The fact that 
+this complexity isn't documented anywhere and that it's distributed over 
+several .c files in the CPython sources makes it perhaps not obvious 
+that it's there.
+
+Neither PEP 576 nor PEP 580 tries to remove this complexity. Indeed, the 
+complexity is there for good reasons, as it improves performance of 
+function calls in many ways. But the PEPs handle it in very different ways.
+
+On the one hand, PEP 580 concentrates all the complexity in the 
+protocol. So the protocol looks complex, even though most of it is 
+really just formulating existing complexity. More importantly, since the 
+complexity is moved to the protocol, it becomes quite easy to use PEP 
+580 in a class: you don't need to understand the implementation of PEP 
+580 for that.
+
+On the other hand, PEP 576 keeps the existing complexity out of the 
+protocol. This means that the implementations of classes using PEP 576 
+become more complex, as the existing complexity needs to be implemented 
+somewhere. In fact, with PEP 576 the existing complexity needs to be 
+implemented in many places, leading for example to code duplication 
+between builtin_function_or_method and method_descriptor. This kind of 
+code duplication would again occur for third-party method-like classes.
+
+Note that everything I said above about PEP 576 also applies to the 
+not-yet-PEP
+https://github.com/markshannon/peps/blob/new-calling-convention/pep-9999.rst
+
+Best wishes,
+Jeroen.
+
+
+(*) With "function calls", I mean most importantly calls of instances of 
+builtin_function_or_method, method, method_descriptor and function. But 
+since PEP 576/580 are meant for third-party function/method classes, 
+also those should be considered.
+
+From stephane at wirtel.be  Sun Mar 24 15:52:42 2019
+From: stephane at wirtel.be (=?UTF-8?Q?St=c3=a9phane_Wirtel?=)
+Date: Sun, 24 Mar 2019 20:52:42 +0100
+Subject: [Python-Dev] introduction of __attribute__(deprecated) ?
+Message-ID: <56b8c4f7-510d-2d8f-8c71-4b6bae04c0b7@wirtel.be>
+
+Hi,
+
+I have created the issue https://bugs.python.org/issue36347 because I
+wanted to add a missing macro for the PyMemberDef.flags attribute.
+
+In the Modules/*.c files, we can find descriptions with
+PyMemberDef where the access flag has the 0 value.
+
+Example:
+
+static PyMemberDef members[] = {
+    {"name", T_OBJECT, offsetof(MyObject, name), 0, NULL},
+    {NULL},
+};
+
+So, I didn't know the meaning of this magic number (0) and after a small
+search in structmember.h, this is the default value for an "READWRITE"
+attribute but there is no associated macro to this magic number.
+
+solution: add the macro for the READWRITE mode.
+
+so, my first PR has added the new macro READWRITE, like that
+
+#define READWRITE 0
+
+and improve the documentation in Doc/c-api/structures.rst.
+
+but after a review [1], Serhiy proposed to rename it and the other ones
+because it did not follow the convention for names in the C API.
+Use a prefix for the public names, example Py_ or PY_.
+
+I chose PY_ because PY_WRITE_RESTRICTED already existed.
+
+the next steps were:
+* add the new macros
+* keep the backward-compatibility
+* updated the documentation
+
+I haved pushed the PR for another review
+
+so, but I don't like this definition of READONLY because there is no way
+to generate a warning at the compile time when we use the READONLY macro.
+
+#define PY_READONLY	0
+#define READONLY 	PY_READONLY
+
+after that, I have closed my PR because I was not proud with my "solution".
+
+
+Today, Ronald Oussoren [2] has proposed an other solution based on an
+enum and a new __attribute__, aka deprecated.
+
+I have checked with gcc and clang and this option is interesting because
+we generate a warning when we try to compile a code if we use the
+deprecated READONLY [3]
+
+In the clang documantion, the __attribute__(deprecated) is defined in
+GNU and C++11 standard, like __attribute__(unused).
+
+In the gcc documentation, this attribute also exists
+
+Because we already use __attribute__(unused) we could add
+__attribute__(deprecated).
+
+
+LC_ALL=C clang test.c -o test
+test.c:14:13: warning: 'READONLY' is deprecated: use PY_READONLY
+[-Wdeprecated-declarations]
+    int i = READONLY;
+            ^
+test.c:8:27: note: 'READONLY' has been explicitly marked deprecated here
+    READONLY __attribute((deprecated("use PY_READONLY"))) = PY_READONLY,
+                          ^
+1 warning generated.
+
+LC_ALL=C clang --version test.c -o test
+clang version 7.0.1 (Fedora 7.0.1-6.fc29)
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+
+### GCC
+LC_ALL=C gcc --version test.c -o test
+gcc (GCC) 8.3.1 20190223 (Red Hat 8.3.1-2)
+Copyright (C) 2018 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+LC_ALL=C gcc test.c -o test
+test.c: In function 'main':
+test.c:14:5: warning: 'READONLY' is deprecated: use PY_READONLY
+[-Wdeprecated-declarations]
+     int i = READONLY;
+     ^~~
+test.c:8:5: note: declared here
+     READONLY __attribute((deprecated("use PY_READONLY"))) = PY_READONLY,
+     ^~~~~~~~
+
+So my question is, can we use/add __attribute__(deprecated) in our
+"development" kit?
+
+[1] https://bugs.python.org/issue36347#msg338261
+[2] https://bugs.python.org/issue36347#msg338731
+[3] https://bugs.python.org/issue36347#msg338745
+
+Thank you,
+
+St?phane
+
+From stephane at wirtel.be  Sun Mar 24 16:00:44 2019
+From: stephane at wirtel.be (=?UTF-8?Q?St=c3=a9phane_Wirtel?=)
+Date: Sun, 24 Mar 2019 21:00:44 +0100
+Subject: [Python-Dev] introduction of __attribute__(deprecated) ?
+In-Reply-To: <56b8c4f7-510d-2d8f-8c71-4b6bae04c0b7@wirtel.be>
+References: <56b8c4f7-510d-2d8f-8c71-4b6bae04c0b7@wirtel.be>
+Message-ID: <e84a8892-c003-e134-a03e-fb1baf855dc5@wirtel.be>
+
+And use an enumeration for the constants.
+
+For example:
+
+#include <stdio.h>
+#include <stdlib.h>
+
+enum {
+    PY_READWRITE = 0,
+    PY_READONLY = 1,
+
+    READONLY __attribute((deprecated("use PY_READONLY"))) = PY_READONLY,
+    READWRITE __attribute((deprecated("use PY_READWRITE"))) = PY_READWRITE,
+};
+
+
+
+Le 24/03/19 ? 20:52, St?phane Wirtel a ?crit?:
+> Hi,
+> 
+> I have created the issue https://bugs.python.org/issue36347 because I
+> wanted to add a missing macro for the PyMemberDef.flags attribute.
+> 
+> In the Modules/*.c files, we can find descriptions with
+> PyMemberDef where the access flag has the 0 value.
+> 
+> Example:
+> 
+> static PyMemberDef members[] = {
+>     {"name", T_OBJECT, offsetof(MyObject, name), 0, NULL},
+>     {NULL},
+> };
+> 
+> So, I didn't know the meaning of this magic number (0) and after a small
+> search in structmember.h, this is the default value for an "READWRITE"
+> attribute but there is no associated macro to this magic number.
+> 
+> solution: add the macro for the READWRITE mode.
+> 
+> so, my first PR has added the new macro READWRITE, like that
+> 
+> #define READWRITE 0
+> 
+> and improve the documentation in Doc/c-api/structures.rst.
+> 
+> but after a review [1], Serhiy proposed to rename it and the other ones
+> because it did not follow the convention for names in the C API.
+> Use a prefix for the public names, example Py_ or PY_.
+> 
+> I chose PY_ because PY_WRITE_RESTRICTED already existed.
+> 
+> the next steps were:
+> * add the new macros
+> * keep the backward-compatibility
+> * updated the documentation
+> 
+> I haved pushed the PR for another review
+> 
+> so, but I don't like this definition of READONLY because there is no way
+> to generate a warning at the compile time when we use the READONLY macro.
+> 
+> #define PY_READONLY	0
+> #define READONLY 	PY_READONLY
+> 
+> after that, I have closed my PR because I was not proud with my "solution".
+> 
+> 
+> Today, Ronald Oussoren [2] has proposed an other solution based on an
+> enum and a new __attribute__, aka deprecated.
+> 
+> I have checked with gcc and clang and this option is interesting because
+> we generate a warning when we try to compile a code if we use the
+> deprecated READONLY [3]
+> 
+> In the clang documantion, the __attribute__(deprecated) is defined in
+> GNU and C++11 standard, like __attribute__(unused).
+> 
+> In the gcc documentation, this attribute also exists
+> 
+> Because we already use __attribute__(unused) we could add
+> __attribute__(deprecated).
+> 
+> 
+> LC_ALL=C clang test.c -o test
+> test.c:14:13: warning: 'READONLY' is deprecated: use PY_READONLY
+> [-Wdeprecated-declarations]
+>     int i = READONLY;
+>             ^
+> test.c:8:27: note: 'READONLY' has been explicitly marked deprecated here
+>     READONLY __attribute((deprecated("use PY_READONLY"))) = PY_READONLY,
+>                           ^
+> 1 warning generated.
+> 
+> LC_ALL=C clang --version test.c -o test
+> clang version 7.0.1 (Fedora 7.0.1-6.fc29)
+> Target: x86_64-unknown-linux-gnu
+> Thread model: posix
+> InstalledDir: /usr/bin
+> 
+> ### GCC
+> LC_ALL=C gcc --version test.c -o test
+> gcc (GCC) 8.3.1 20190223 (Red Hat 8.3.1-2)
+> Copyright (C) 2018 Free Software Foundation, Inc.
+> This is free software; see the source for copying conditions.  There is NO
+> warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+> 
+> LC_ALL=C gcc test.c -o test
+> test.c: In function 'main':
+> test.c:14:5: warning: 'READONLY' is deprecated: use PY_READONLY
+> [-Wdeprecated-declarations]
+>      int i = READONLY;
+>      ^~~
+> test.c:8:5: note: declared here
+>      READONLY __attribute((deprecated("use PY_READONLY"))) = PY_READONLY,
+>      ^~~~~~~~
+> 
+> So my question is, can we use/add __attribute__(deprecated) in our
+> "development" kit?
+> 
+> [1] https://bugs.python.org/issue36347#msg338261
+> [2] https://bugs.python.org/issue36347#msg338731
+> [3] https://bugs.python.org/issue36347#msg338745
+> 
+> Thank you,
+> 
+> St?phane
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/stephane%40wirtel.be
+> 
+
+From tjreedy at udel.edu  Sun Mar 24 17:02:34 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sun, 24 Mar 2019 17:02:34 -0400
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+Message-ID: <q78r9d$uvr$1@blaine.gmane.org>
+
+On 3/24/2019 8:21 AM, Nick Coghlan wrote:
+
+> We'll be announcing those appointments as we go, so I'm happy to
+> report that I will be handling the BDFL-Delegate responsibilities for
+> the following PEPs:
+
+Where do we discuss these?
+
+If a delegate has a provisional view, it might help focus discussion if 
+that were known.
+
+> * PEP 499: Binding "-m" executed modules under their module name as
+> well as `__main__`
+
+My brief response: +1 unless there is a good reason not.  There have 
+been multiple double module problems reported on python-list and likely 
+stackoverflow.  And would there be any impact on circular imports?
+
+-- 
+Terry Jan Reedy
+
+
+From vstinner at redhat.com  Sun Mar 24 18:07:37 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sun, 24 Mar 2019 23:07:37 +0100
+Subject: [Python-Dev] introduction of __attribute__(deprecated) ?
+In-Reply-To: <56b8c4f7-510d-2d8f-8c71-4b6bae04c0b7@wirtel.be>
+References: <56b8c4f7-510d-2d8f-8c71-4b6bae04c0b7@wirtel.be>
+Message-ID: <CA+3bQGGaUC+1k03=t8mqUo1fhfrRrZ=zUNHBhBcE93Dt9TH16g@mail.gmail.com>
+
+Le dim. 24 mars 2019 ? 20:56, St?phane Wirtel <stephane at wirtel.be> a ?crit :
+> So my question is, can we use/add __attribute__(deprecated) in our
+> "development" kit?
+
+There is already Py_DEPRECATED(VERSION_UNUSED) macro which uses
+__attribute__((__deprecated__)) on GCC >= 3.1.
+
+You can find the doc of a few macros in
+https://docs.python.org/dev/c-api/intro.html#useful-macros but this
+macro isn't documented there.
+
+pyport.h and pymacro.h contain most of the "macros".
+
+Victor
+
+From stephane at wirtel.be  Sun Mar 24 18:44:19 2019
+From: stephane at wirtel.be (=?UTF-8?Q?St=c3=a9phane_Wirtel?=)
+Date: Sun, 24 Mar 2019 23:44:19 +0100
+Subject: [Python-Dev] introduction of __attribute__(deprecated) ?
+In-Reply-To: <CA+3bQGGaUC+1k03=t8mqUo1fhfrRrZ=zUNHBhBcE93Dt9TH16g@mail.gmail.com>
+References: <56b8c4f7-510d-2d8f-8c71-4b6bae04c0b7@wirtel.be>
+ <CA+3bQGGaUC+1k03=t8mqUo1fhfrRrZ=zUNHBhBcE93Dt9TH16g@mail.gmail.com>
+Message-ID: <374b5c31-afc4-c0f6-9ecd-0fc14ebb2d10@wirtel.be>
+
+Thanks Victor, I have updated my PR with the Py_DEPRECATED macro.
+
+
+Le 24/03/19 ? 23:07, Victor Stinner a ?crit?:
+> Le dim. 24 mars 2019 ? 20:56, St?phane Wirtel <stephane at wirtel.be> a ?crit :
+>> So my question is, can we use/add __attribute__(deprecated) in our
+>> "development" kit?
+> 
+> There is already Py_DEPRECATED(VERSION_UNUSED) macro which uses
+> __attribute__((__deprecated__)) on GCC >= 3.1.
+> 
+> You can find the doc of a few macros in
+> https://docs.python.org/dev/c-api/intro.html#useful-macros but this
+> macro isn't documented there.
+> 
+> pyport.h and pymacro.h contain most of the "macros".
+> 
+> Victor
+> 
+
+From cs at cskk.id.au  Sun Mar 24 19:00:36 2019
+From: cs at cskk.id.au (Cameron Simpson)
+Date: Mon, 25 Mar 2019 10:00:36 +1100
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <q78r9d$uvr$1@blaine.gmane.org>
+References: <q78r9d$uvr$1@blaine.gmane.org>
+Message-ID: <20190324230036.GA72432@cskk.homeip.net>
+
+On 24Mar2019 17:02, Terry Reedy <tjreedy at udel.edu> wrote:
+>On 3/24/2019 8:21 AM, Nick Coghlan wrote:
+>>* PEP 499: Binding "-m" executed modules under their module name as
+>>well as `__main__`
+>
+>My brief response: +1 unless there is a good reason not.
+
+There turn out to be some subtle side effects. The test suite turned up 
+one (easily fixed) in pdb, but there are definitely some more things to 
+investigate.  Nick has pointed out pickle and the "python -i" option.  
+I'm digging into these. (Naturally, I have _never_ before used the pdb 
+or pickle modules, or the -i option :-)
+
+>There have been multiple double module problems reported on python-list 
+>and likely stackoverflow.  And would there be any impact on circular 
+>imports?
+
+Well, by binding the -m module to both __main__ and its name as denoted 
+on the command line one circular import is directly short circuited.  
+Aside from the -m module itself, I don't think there should be any other 
+direct effect on circular imports.
+
+Did you have a specific scenario in mind?
+
+Cheers,
+Cameron Simpson <cs at cskk.id.au>
+
+From tjreedy at udel.edu  Sun Mar 24 22:01:14 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sun, 24 Mar 2019 22:01:14 -0400
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <20190324230036.GA72432@cskk.homeip.net>
+References: <q78r9d$uvr$1@blaine.gmane.org>
+ <20190324230036.GA72432@cskk.homeip.net>
+Message-ID: <q79cpe$5b4d$1@blaine.gmane.org>
+
+On 3/24/2019 7:00 PM, Cameron Simpson wrote:
+> On 24Mar2019 17:02, Terry Reedy <tjreedy at udel.edu> wrote:
+>> On 3/24/2019 8:21 AM, Nick Coghlan wrote:
+>>> * PEP 499: Binding "-m" executed modules under their module name as
+>>> well as `__main__`
+>>
+>> My brief response: +1 unless there is a good reason not.
+> 
+> There turn out to be some subtle side effects. The test suite turned up 
+> one (easily fixed) in pdb, but there are definitely some more things to 
+> investigate.? Nick has pointed out pickle and the "python -i" option. 
+> I'm digging into these. (Naturally, I have _never_ before used the pdb 
+> or pickle modules, or the -i option :-)
+> 
+>> There have been multiple double module problems reported on 
+>> python-list and likely stackoverflow.? And would there be any impact 
+>> on circular imports?
+> 
+> Well, by binding the -m module to both __main__ and its name as denoted 
+> on the command line one circular import is directly short circuited. 
+> Aside from the -m module itself, I don't think there should be any other 
+> direct effect on circular imports.
+> 
+> Did you have a specific scenario in mind?
+
+I was thinking about IDLE and its tangled web of circular inports, but I 
+am now convinced that this change will not affect it.  Indeed, 
+idlelib/pyshell.py already implements idea of the proposal, ending with
+
+if __name__ == "__main__":
+     sys.modules['pyshell'] = sys.modules['__main__']
+     main()
+
+(It turns out that this fails for other reasons, which I am looking 
+into.  The current recommendation is to start IDLE by runing any of 
+__main__.py (via python -m idlelib), idle.py, idlew.py, or idle.bat.)
+
+-- 
+Terry Jan Reedy
+
+
+
+From tjreedy at udel.edu  Sun Mar 24 23:22:39 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sun, 24 Mar 2019 23:22:39 -0400
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <q79cpe$5b4d$1@blaine.gmane.org>
+References: <q78r9d$uvr$1@blaine.gmane.org>
+ <20190324230036.GA72432@cskk.homeip.net> <q79cpe$5b4d$1@blaine.gmane.org>
+Message-ID: <q79hi1$6vdj$1@blaine.gmane.org>
+
+On 3/24/2019 10:01 PM, Terry Reedy wrote:
+> On 3/24/2019 7:00 PM, Cameron Simpson wrote:
+
+>> Did you have a specific scenario in mind?
+> 
+> I was thinking about IDLE and its tangled web of circular inports, but I 
+> am now convinced that this change will not affect it.? Indeed, 
+> idlelib/pyshell.py already implements idea of the proposal, ending with
+> 
+> if __name__ == "__main__":
+>  ??? sys.modules['pyshell'] = sys.modules['__main__']
+>  ??? main()
+
+After more investigation, I realized that to stop having duplicate modulue:
+1. The alias should be 'idlelib.pyshell', not 'pyshell', at least when 
+imports are all absolute.
+2. It should be done at the top of the file, before the import of 
+modules that import pyshell.
+
+If I run python f:/dev/3x/lib/idlelib/pyshell.py, the PEP patch would 
+have to notice that pyshell is a module within idlelib and alias 
+'__main__' to 'idlelib.pyshell', not 'pyshell'.  Would the same be true 
+if within-package import were all relative?
+
+> (It turns out that this fails for other reasons, which I am looking 
+> into.
+
+Since starting IDLE with pyshell once worked in the past, it appears to 
+be because the startup command for run.py was outdated.  Will fix.
+
+-- 
+Terry Jan Reedy
+
+
+
+From cs at cskk.id.au  Mon Mar 25 00:27:46 2019
+From: cs at cskk.id.au (Cameron Simpson)
+Date: Mon, 25 Mar 2019 15:27:46 +1100
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <q79hi1$6vdj$1@blaine.gmane.org>
+References: <q79hi1$6vdj$1@blaine.gmane.org>
+Message-ID: <20190325042746.GA22616@cskk.homeip.net>
+
+On 24Mar2019 23:22, Terry Reedy <tjreedy at udel.edu> wrote:
+>On 3/24/2019 10:01 PM, Terry Reedy wrote:
+>>On 3/24/2019 7:00 PM, Cameron Simpson wrote:
+>>>Did you have a specific scenario in mind?
+>>
+>>I was thinking about IDLE and its tangled web of circular inports, 
+>>but I am now convinced that this change will not affect it.? Indeed, 
+>>idlelib/pyshell.py already implements idea of the proposal, ending 
+>>with
+>>
+>>if __name__ == "__main__":
+>> ??? sys.modules['pyshell'] = sys.modules['__main__']
+>> ??? main()
+>
+>After more investigation, I realized that to stop having duplicate modulue:
+>1. The alias should be 'idlelib.pyshell', not 'pyshell', at least when 
+>imports are all absolute.
+
+The PEP499 patch effectively uses __main__.__spec__.name for the name of 
+the alias. Does that simplify your issue?
+
+The current PR is here if you want to look at it:
+
+    https://github.com/python/cpython/pull/12490
+
+>2. It should be done at the top of the file, before the import of 
+>modules that import pyshell.
+
+Hmm, if PEP499 comes in you shouldn't need to do this at all. If PEP499 
+gets delayed or rejected I guess you're supporting this without it. Yes, 
+you'll want to do it before any other imports happen (well, as you say, 
+before any which import pyshell).
+
+What about (untested):
+
+    if __name__ == '__main__':
+        if __spec__.name not in sys.modules:
+            sys.modules[__spec__.name] = sys.modules['__main__']
+
+as a forward compatible setup?
+
+>If I run python f:/dev/3x/lib/idlelib/pyshell.py, the PEP patch would 
+>have to notice that pyshell is a module within idlelib and alias 
+>'__main__' to 'idlelib.pyshell', not 'pyshell'.  Would the same be true 
+>if within-package import were all relative?
+
+I think so because we're using .__spec__.name, which I though was post 
+import name resolution.
+
+Testing in my PEP499 branch:
+
+Test 1:
+
+    [~/src/cpython-cs at github(git:PEP499-cs)]fleet*> ./python.exe -i  Lib/idlelib/pyshell.py
+    Traceback (most recent call last):
+      File "<string>", line 1, in <module>
+    ModuleNotFoundError: No module named 'run'
+    >>> sys.modules['__main__']
+    <module '__main__' (<_frozen_importlib_external.SourceFileLoader object at 0x1088e6040>)>
+    >>> sys.modules['pyshell']
+    <module '__main__' (<_frozen_importlib_external.SourceFileLoader object at 0x1088e6040>)>
+    >>> sys.modules['idlelib.pyshell']
+    <module 'idlelib.pyshell' from '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+
+So pyshell and idlelib.pyshell are distinct here. __main__ and pyshell 
+are the same module, courtesy of your sys.modules assignment at the 
+bottom of pyshell.py. Test 3 below will be with that commented out.
+
+Test 2:
+
+    [~/src/cpython-cs at github(git:PEP499-cs)]fleet*> PYTHONPATH=$PWD/Lib ./python.exe -i -m idlelib.pyshell
+    Traceback (most recent call last):
+      File "<string>", line 1, in <module>
+    ModuleNotFoundError: No module named 'run'
+    >>> sys.modules['__main__']
+    <module 'idlelib.pyshell' from '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+    >>> sys.modules['pyshell']
+    <module 'idlelib.pyshell' from '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+    >>> sys.modules['idlelib.pyshell']
+    <module 'idlelib.pyshell' from '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+    >>> id(sys.modules['__main__'])
+    4551072712
+    >>> id(sys.modules['pyshell'])
+    4551072712
+    >>> id(sys.modules['idlelib.pyshell'])
+    4551072712
+
+So this has __main__ and idlelib.pyshell the same module from the PEP499 
+patch and pyshell also the same from your sys.modules assignment.
+
+Test 3, with the pyshell.py sys.modules assignment commented out:
+
+    [~/src/cpython-cs at github(git:PEP499-cs)]fleet*> PYTHONPATH=$PWD/Lib ./python.exe -i -m idlelib.pyshell
+    Traceback (most recent call last):
+      File "<string>", line 1, in <module>
+    ModuleNotFoundError: No module named 'run'
+    >>> sys.modules['__main__']
+    <module 'idlelib.pyshell' from '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+    >>> sys.modules['pyshell']
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    KeyError: 'pyshell'
+    >>> sys.modules['idlelib.pyshell']
+    <module 'idlelib.pyshell' from '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+    >>> id(sys.modules['__main__'])
+    4552379336
+    >>> id(sys.modules['idlelib.pyshell'])
+    4552379336
+
+Here we've got __main__ and idlelib.pyshell the same module and no 
+'pyshell' in sys.modules.
+
+I don't think I understand your "relative import" scenario.
+
+Cheers,
+Cameron Simpson <cs at cskk.id.au>
+
+From songofacandy at gmail.com  Mon Mar 25 00:39:11 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Mon, 25 Mar 2019 13:39:11 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+Message-ID: <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+
+On Sun, Mar 24, 2019 at 8:57 PM Nick Coghlan <ncoghlan at gmail.com> wrote:
+>
+> >
+> > It was added "not be printed by default" version of DeprecationWarning.
+> > But DeprecationWarning is not printed by default now.
+>
+> No, this was covered in PEP 565, and PendingDeprecationWarning was
+> explicitly kept as a way of opting out of the revised semantics of
+> DeprecationWarning.
+
+I know PEP 565.  And I don't think difference between PendingDeprecationWarning
+and DeprecationWarning is still too small to have two categories.  For example,
+
+$ cat foo.py
+import warnings
+def foo():
+    warnings.warn("foo", DeprecationWarning)
+
+$ python3
+Python 3.7.2 (default, Feb 12 2019, 08:15:36)
+[Clang 10.0.0 (clang-1000.11.45.5)] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import foo
+>>> foo.foo()
+>>>
+(no warning shown)
+
+$ cat >bar.py
+import foo
+foo.foo()
+
+$ python3 bar.py
+(no warning shown)
+
+
+I can't find I'm using deprecated APIs even when I'm using REPL.
+When people want to check use of deprecated APIs, they need to
+use -X dev or -Wd option anyway.
+
+We have many ways to deprecation:
+
+* Document only deprecation (no warning) -- no actual removal is planned.
+* FutureWarning -- to warn end users.
+* DeprecationWarning -- to warn Python developers.
+* PendingDeprecationWarning -- to warn Python developers.
+
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
