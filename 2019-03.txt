@@ -16031,3 +16031,628 @@ We have many ways to deprecation:
 -- 
 Inada Naoki  <songofacandy at gmail.com>
 
+From tjreedy at udel.edu  Mon Mar 25 03:52:45 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Mon, 25 Mar 2019 03:52:45 -0400
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <20190325042746.GA22616@cskk.homeip.net>
+References: <q79hi1$6vdj$1@blaine.gmane.org>
+ <20190325042746.GA22616@cskk.homeip.net>
+Message-ID: <09eceb89-a207-b65b-2990-18a1ace92a79@udel.edu>
+
+On 3/25/2019 12:27 AM, Cameron Simpson wrote:
+> On 24Mar2019 23:22, Terry Reedy <tjreedy at udel.edu> wrote:
+>> On 3/24/2019 10:01 PM, Terry Reedy wrote:
+>>> On 3/24/2019 7:00 PM, Cameron Simpson wrote:
+>>>> Did you have a specific scenario in mind?
+>>>
+>>> I was thinking about IDLE and its tangled web of circular inports, 
+>>> but I am now convinced that this change will not affect it.? Indeed, 
+>>> idlelib/pyshell.py already implements idea of the proposal, ending with
+>>>
+>>> if __name__ == "__main__":
+>>> ??? sys.modules['pyshell'] = sys.modules['__main__']
+>>> ??? main()
+>>
+>> After more investigation, I realized that to stop having duplicate 
+>> modulue:
+>> 1. The alias should be 'idlelib.pyshell', not 'pyshell', at least when 
+>> imports are all absolute.
+> 
+> The PEP499 patch effectively uses __main__.__spec__.name for the name of 
+> the alias. Does that simplify your issue?
+> 
+> The current PR is here if you want to look at it:
+> 
+>  ?? https://github.com/python/cpython/pull/12490
+
+The new test passes on Win10.
+
+>> 2. It should be done at the top of the file, before the import of 
+>> modules that import pyshell.
+> 
+> Hmm, if PEP499 comes in you shouldn't need to do this at all. If PEP499 
+> gets delayed or rejected I guess you're supporting this without it. Yes, 
+> you'll want to do it before any other imports happen (well, as you say, 
+> before any which import pyshell).
+> 
+> What about (untested):
+> 
+>  ?? if __name__ == '__main__':
+>  ?????? if __spec__.name not in sys.modules:
+
+When I start pyshell in my master repository directory on windows with
+   python -m idlelib.pyshell
+__spec__.name is 'idlelib.pyshell, which I currently hard-coded.
+When I start with what should be equivalent
+   python f:/dev/3x/lib/idlelib/pyshell.py
+__spec__ is None and __spec__.name an attribute error.
+
+>  ?????????? sys.modules[__spec__.name] = sys.modules['__main__']
+> 
+> as a forward compatible setup?
+> 
+>> If I run python f:/dev/3x/lib/idlelib/pyshell.py, the PEP patch would 
+>> have to notice that pyshell is a module within idlelib and alias 
+>> '__main__' to 'idlelib.pyshell', not 'pyshell'.? Would the same be 
+>> true if within-package import were all relative?
+> 
+> I think so because we're using .__spec__.name, which I though was post 
+> import name resolution.
+
+You must be doing something different when __spec__ is None ;-).  I 
+tested the patch and it does not raise AttributeError with the command 
+above.
+
+> Testing in my PEP499 branch:
+> 
+> Test 1:
+> 
+>  ?? [~/src/cpython-cs at github(git:PEP499-cs)]fleet*> ./python.exe -i  
+> Lib/idlelib/pyshell.py
+>  ?? Traceback (most recent call last):
+>  ???? File "<string>", line 1, in <module>
+>  ?? ModuleNotFoundError: No module named 'run'
+
+This is because of an obsolete 'command = ...' around 420.  The if line 
+is correct always and the if/then not needed.
+
+>  ?? >>> sys.modules['__main__']
+>  ?? <module '__main__' (<_frozen_importlib_external.SourceFileLoader 
+> object at 0x1088e6040>)>
+>  ?? >>> sys.modules['pyshell']
+>  ?? <module '__main__' (<_frozen_importlib_external.SourceFileLoader 
+> object at 0x1088e6040>)>
+>  ?? >>> sys.modules['idlelib.pyshell']
+>  ?? <module 'idlelib.pyshell' from 
+> '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+> 
+> So pyshell and idlelib.pyshell are distinct here.
+
+I verified that the module was being executed twice by putting 
+print('running') at the top.
+
+  __main__ and pyshell
+> are the same module, courtesy of your sys.modules assignment at the 
+> bottom of pyshell.py.
+
+Obsolete and removed.
+
+  Test 3 below will be with that commented out.
+> 
+> Test 2:
+> 
+>  ?? [~/src/cpython-cs at github(git:PEP499-cs)]fleet*> PYTHONPATH=$PWD/Lib 
+> ./python.exe -i -m idlelib.pyshell
+>  ?? Traceback (most recent call last):
+>  ???? File "<string>", line 1, in <module>
+>  ?? ModuleNotFoundError: No module named 'run'
+>  ?? >>> sys.modules['__main__']
+>  ?? <module 'idlelib.pyshell' from 
+> '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+>  ?? >>> sys.modules['pyshell']
+>  ?? <module 'idlelib.pyshell' from 
+> '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+>  ?? >>> sys.modules['idlelib.pyshell']
+>  ?? <module 'idlelib.pyshell' from 
+> '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+>  ?? >>> id(sys.modules['__main__'])
+>  ?? 4551072712
+>  ?? >>> id(sys.modules['pyshell'])
+>  ?? 4551072712
+>  ?? >>> id(sys.modules['idlelib.pyshell'])
+>  ?? 4551072712
+> 
+> So this has __main__ and idlelib.pyshell the same module from the PEP499 
+> patch and pyshell also the same from your sys.modules assignment.
+> 
+> Test 3, with the pyshell.py sys.modules assignment commented out:
+> 
+>  ?? [~/src/cpython-cs at github(git:PEP499-cs)]fleet*> PYTHONPATH=$PWD/Lib 
+> ./python.exe -i -m idlelib.pyshell
+>  ?? Traceback (most recent call last):
+>  ???? File "<string>", line 1, in <module>
+>  ?? ModuleNotFoundError: No module named 'run'
+>  ?? >>> sys.modules['__main__']
+>  ?? <module 'idlelib.pyshell' from 
+> '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+>  ?? >>> sys.modules['pyshell']
+>  ?? Traceback (most recent call last):
+>  ???? File "<stdin>", line 1, in <module>
+>  ?? KeyError: 'pyshell'
+>  ?? >>> sys.modules['idlelib.pyshell']
+>  ?? <module 'idlelib.pyshell' from 
+> '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+>  ?? >>> id(sys.modules['__main__'])
+>  ?? 4552379336
+>  ?? >>> id(sys.modules['idlelib.pyshell'])
+>  ?? 4552379336
+> 
+> Here we've got __main__ and idlelib.pyshell the same module and no 
+> 'pyshell' in sys.modules.
+
+> I don't think I understand your "relative import" scenario.
+
+If files other that pyshell used relative 'import ./pyshell' instead of 
+absolute 'import idlelib.pyshell', would the sys.modules key still be 
+'idlelib.pyshell' or 'pyshell'?   Which is to ask, would the alias 
+needed to avoid a second pyshell module still be 'idlelib.pyshell' or 
+'pyshell'?
+
+
+
+From cs at cskk.id.au  Mon Mar 25 06:30:22 2019
+From: cs at cskk.id.au (Cameron Simpson)
+Date: Mon, 25 Mar 2019 21:30:22 +1100
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <09eceb89-a207-b65b-2990-18a1ace92a79@udel.edu>
+References: <09eceb89-a207-b65b-2990-18a1ace92a79@udel.edu>
+Message-ID: <20190325103022.GA39362@cskk.homeip.net>
+
+On 25Mar2019 03:52, Terry Reedy <tjreedy at udel.edu> wrote:
+>On 3/25/2019 12:27 AM, Cameron Simpson wrote:
+>>>>I was thinking about IDLE and its tangled web of circular inports, 
+>>>>but I am now convinced that this change will not affect it.? Indeed, 
+>>>>idlelib/pyshell.py already implements idea of the proposal, ending 
+>>>>with
+>>>>
+>>>>if __name__ == "__main__":
+>>>>??? sys.modules['pyshell'] = sys.modules['__main__']
+>>>>??? main()
+>>>
+>>>After more investigation, I realized that to stop having duplicate 
+>>>modulue:
+>>>1. The alias should be 'idlelib.pyshell', not 'pyshell', at least 
+>>>when imports are all absolute.
+>>
+>>The PEP499 patch effectively uses __main__.__spec__.name for the name 
+>>of the alias. Does that simplify your issue?
+[...]
+>>What about (untested):
+>>
+>> ?? if __name__ == '__main__':
+>> ?????? if __spec__.name not in sys.modules:
+>> ?????????? sys.modules[__spec__.name] = sys.modules['__main__']
+>
+>When I start pyshell in my master repository directory on windows with
+>  python -m idlelib.pyshell
+>__spec__.name is 'idlelib.pyshell, which I currently hard-coded.
+>When I start with what should be equivalent
+>  python f:/dev/3x/lib/idlelib/pyshell.py
+>__spec__ is None and __spec__.name an attribute error.
+
+Um, yes. I presume that since no "import" has been done, there's no 
+import spec (.__spec__).
+
+Clearly the above needs to accomodate this, possibly with a fallback 
+guess. Is sniffing the end components of __file__ at all sane? ending in 
+idlelib/pyshell.py or pyshell.py? Or is that just getting baroque?
+
+I don't think these are strictly the same from some kind of purist 
+viewpoint: the path might be anything - _is_ it reasonable to suppose 
+that it has a module name (== importable/finding through the import 
+path)?
+
+>>>If I run python f:/dev/3x/lib/idlelib/pyshell.py, the PEP patch would 
+>>>have to notice that pyshell is a module within idlelib and alias 
+>>>'__main__' to 'idlelib.pyshell', not 'pyshell'.? Would the same be 
+>>>true if within-package import were all relative?
+>>
+>>I think so because we're using .__spec__.name, which I though was 
+>>post import name resolution.
+>
+>You must be doing something different when __spec__ is None ;-).  I 
+>tested the patch and it does not raise AttributeError with the command 
+>above.
+
+Indeed. I may have fudged a bit when I said "The PEP499 patch 
+effectively uses __main__.__spec__.name". It modifies runpy.py's 
+_run_module_as_main function, and that is called for the "python -m 
+module_name" invocation, so it can get the module spec because it has a 
+module name.
+
+So the patch doesn't have to cope with __spec__ being None.
+
+As you say, __spec__ is None for "python path/to/file.py" so __spec__ 
+isn't any use there. Apologies.
+
+[...]
+>>Test 3, with the pyshell.py sys.modules assignment commented out:
+>>
+>> ?? [~/src/cpython-cs at github(git:PEP499-cs)]fleet*> PYTHONPATH=$PWD/Lib ./python.exe -i -m idlelib.pyshell
+[...]
+>> ?? >>> sys.modules['__main__']
+>> ?? <module 'idlelib.pyshell' from '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+>> ?? >>> sys.modules['pyshell']
+>> ?? Traceback (most recent call last):
+>> ???? File "<stdin>", line 1, in <module>
+>> ?? KeyError: 'pyshell'
+>> ?? >>> sys.modules['idlelib.pyshell']
+>> ?? <module 'idlelib.pyshell' from '/Users/cameron/src/cpython-cs at github/Lib/idlelib/pyshell.py'>
+>> ?? >>> id(sys.modules['__main__'])
+>> ?? 4552379336
+>> ?? >>> id(sys.modules['idlelib.pyshell'])
+>> ?? 4552379336
+>>
+>>Here we've got __main__ and idlelib.pyshell the same module and no 
+>>'pyshell' in sys.modules.
+>
+>>I don't think I understand your "relative import" scenario.
+>
+>If files other that pyshell used relative 'import ./pyshell' instead 
+>of absolute 'import idlelib.pyshell', would the sys.modules key still 
+>be 'idlelib.pyshell' or 'pyshell'?   Which is to ask, would the alias 
+>needed to avoid a second pyshell module still be 'idlelib.pyshell' or 
+>'pyshell'?
+
+Ok.
+
+As I understand it Python 3 imports are absolute: without a leading dot 
+a name is absolute, so "import pyshell" should install 
+sys.module['pyshell'] _provided_ that 'pyshell' can be found in the 
+module search path.
+
+Conversely, an "import .pyshell" is an import relative to the current 
+module's package name, equivalent to an import of the absolute path 
+"package.name.pyshell", for whatever the package name is. So (a) you can 
+only import '.pyshell' from within a package containing a 'pyshell.py' 
+file and (b) you can't import import '.pyshell' if you're not in a 
+package.
+
+I stuffed a "test2.py" into the local idlelib like this:
+
+    import sys
+    print("running", __file__, __name__)
+    print(repr(sorted(sys.modules)))
+    print(repr(sys.paht))
+    from pyshell import idle_showwarning
+    print(repr(sorted(sys.modules)))
+
+and fiddled with the "from pyshell import idle_showwarning" line.
+
+(I'm presuming this is what you have in mind, since "import ./pyshell" 
+elicits a syntax error.)
+
+Using "./python.exe -m idlelib.test2":
+
+  Plain "pyshell" gets an ImportError - no such module.
+
+  Using ".pyshell" imports the pyshell module as "idlelib.pyshell" in 
+  sys.modules.
+
+Which was encouraging until I went "./python.exe Lib/idlelib/test2.py".  
+This puts Lib/idlelib (as an absolute path) at the start of sys.path.
+
+A plain "pyshell" import works and installs sys.modules['pyshell'].
+
+Conversely, trying the ".pyshell" import gets:
+
+  ModuleNotFoundError: No module named '__main__.pyshell'; '__main__' is not a package
+
+So we can get 'pyshell' or 'idlelib.pyshell' into sys.modules depending 
+how we invoke python.
+
+HOWEVER, if you're importing the 'pyshell' from idlelib _as found in the 
+module search path_, whether absolutely as 'idlelib.pyshell' or 
+relatives as '.pyshell' from within the idlelib package, you should 
+always get 'idlelib.pyshell' in the sys.modules map.
+
+And I don't think you should need to worry about a circular import 
+importing some top level name 'pyshell' because that's not using the 
+idlelib package, so I'd argue it isn't your problem.
+
+Thoughts?
+
+Cheers,
+Cameron Simpson <cs at cskk.id.au>
+
+From ncoghlan at gmail.com  Mon Mar 25 07:53:07 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Mon, 25 Mar 2019 21:53:07 +1000
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+Message-ID: <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+
+On Mon, 25 Mar 2019 at 14:39, Inada Naoki <songofacandy at gmail.com> wrote:
+> We have many ways to deprecation:
+>
+> * Document only deprecation (no warning) -- no actual removal is planned.
+> * FutureWarning -- to warn end users.
+> * DeprecationWarning -- to warn Python developers.
+> * PendingDeprecationWarning -- to warn Python developers.
+
+The key difference between the last two:
+
+* DeprecationWarning: the decision has already been made, you have
+little chance of getting the deprecation reversed
+* PendingDeprecationWarning: full deprecation is being considered, now
+is the time to get in touch if you'd like to avoid full deprecation
+
+Hence the last one only showing up to those folks that are running
+automated tests or otherwise enabling all warnings.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From solipsis at pitrou.net  Mon Mar 25 08:51:05 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 25 Mar 2019 13:51:05 +0100
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+ <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+Message-ID: <20190325135105.7091ec67@fsol>
+
+On Mon, 25 Mar 2019 21:53:07 +1000
+Nick Coghlan <ncoghlan at gmail.com> wrote:
+
+> On Mon, 25 Mar 2019 at 14:39, Inada Naoki <songofacandy at gmail.com> wrote:
+> > We have many ways to deprecation:
+> >
+> > * Document only deprecation (no warning) -- no actual removal is planned.
+> > * FutureWarning -- to warn end users.
+> > * DeprecationWarning -- to warn Python developers.
+> > * PendingDeprecationWarning -- to warn Python developers.  
+> 
+> The key difference between the last two:
+> 
+> * DeprecationWarning: the decision has already been made, you have
+> little chance of getting the deprecation reversed
+> * PendingDeprecationWarning: full deprecation is being considered, now
+> is the time to get in touch if you'd like to avoid full deprecation
+
+Are people actually aware of this difference?  Personally I am (was)
+not.
+
+Regards
+
+Antoine.
+
+
+
+From songofacandy at gmail.com  Mon Mar 25 09:11:57 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Mon, 25 Mar 2019 22:11:57 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+ <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+Message-ID: <CAEfz+Tzj5uh3K9yOF-k+1S1_s_32CSz2_Ad4kB6WH+Y7m_c1BA@mail.gmail.com>
+
+On Mon, Mar 25, 2019 at 8:53 PM Nick Coghlan <ncoghlan at gmail.com> wrote:
+>
+> On Mon, 25 Mar 2019 at 14:39, Inada Naoki <songofacandy at gmail.com> wrote:
+> > We have many ways to deprecation:
+> >
+> > * Document only deprecation (no warning) -- no actual removal is planned.
+> > * FutureWarning -- to warn end users.
+> > * DeprecationWarning -- to warn Python developers.
+> > * PendingDeprecationWarning -- to warn Python developers.
+>
+> The key difference between the last two:
+>
+> * DeprecationWarning: the decision has already been made, you have
+> little chance of getting the deprecation reversed
+> * PendingDeprecationWarning: full deprecation is being considered, now
+> is the time to get in touch if you'd like to avoid full deprecation
+>
+> Hence the last one only showing up to those folks that are running
+> automated tests or otherwise enabling all warnings.
+>
+> Cheers,
+> Nick.
+>
+
+PendingDeprecationWarning was added when DeprecationWarning is
+shown by default and it is too noisy for end users.
+
+After Python 2.7 and 3.2, there are no difference between two classes.
+
+PEP 565 tried to introduce difference again.  But the difference is
+still too little.
+
+I have not seen DeprecationWarning enabled by PEP 565.
+I see both warning when I'm using PYTHONWARNINGS=default or -Wd,
+or running test.
+
+I don't think it's worth enough to try giving meaning to
+PendingDeprecationWarning
+again.  C, Rust, Java, Ruby, PHP, don't have PendingDeprecation.
+Programmers only need Deprecation.  Why programmers need PendingDeprecation
+only in Python?
+
+If it is really important, I think we need easy option to enable only
+DeprecationWarning.
+It must be as easy as -Wd.
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From gzlist at googlemail.com  Mon Mar 25 11:12:00 2019
+From: gzlist at googlemail.com (Martin (gzlist))
+Date: Mon, 25 Mar 2019 15:12:00 +0000
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <543c3748-42d9-44bb-d18f-fe8e3c134584@python.org>
+References: <5C948F55.4040108@canterbury.ac.nz>
+ <q72gqf$81gc$1@blaine.gmane.org> <20190322123301.7489ae78@fsol>
+ <543c3748-42d9-44bb-d18f-fe8e3c134584@python.org>
+Message-ID: <CAOG+YdrUv8H2PXCuhGfF7q32BFtzhsH5oYv4fwATRb4G4tFmng@mail.gmail.com>
+
+On Fri, 22 Mar 2019 at 16:12, Steve Dower <steve.dower at python.org> wrote:
+>
+> On 22Mar2019 0433, Antoine Pitrou wrote:
+> > The question is: why would you use a array.array() with a Windows C API?
+>
+> I started replying to this with a whole lot of examples, and eventually
+> convinced myself that you wouldn't (or shouldn't).
+>
+> That said, I see value in having a type for array/struct/memoryview that
+> "is the same size as wchar_t", since that will avoid people having to
+> guess (the docs for array in particular are deliberately vague about the
+> actual size of the various types).
+
+This is pretty much what ctypes provides for dealing with unicode?
+
+https://docs.python.org/3/library/ctypes.html#ctypes.create_unicode_buffer
+
+Seems a fine place to have things that help with win32 api interactions.
+
+Martin
+
+From steve.dower at python.org  Mon Mar 25 11:48:59 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 25 Mar 2019 08:48:59 -0700
+Subject: [Python-Dev] Replacement for array.array('u')?
+In-Reply-To: <CAOG+YdrUv8H2PXCuhGfF7q32BFtzhsH5oYv4fwATRb4G4tFmng@mail.gmail.com>
+References: <5C948F55.4040108@canterbury.ac.nz>
+ <q72gqf$81gc$1@blaine.gmane.org> <20190322123301.7489ae78@fsol>
+ <543c3748-42d9-44bb-d18f-fe8e3c134584@python.org>
+ <CAOG+YdrUv8H2PXCuhGfF7q32BFtzhsH5oYv4fwATRb4G4tFmng@mail.gmail.com>
+Message-ID: <e1fc1993-7389-cb3d-993f-93419e15ed98@python.org>
+
+On 25Mar2019 0812, Martin (gzlist) wrote:
+> On Fri, 22 Mar 2019 at 16:12, Steve Dower <steve.dower at python.org> wrote:
+>>
+>> On 22Mar2019 0433, Antoine Pitrou wrote:
+>>> The question is: why would you use a array.array() with a Windows C API?
+>>
+>> I started replying to this with a whole lot of examples, and eventually
+>> convinced myself that you wouldn't (or shouldn't).
+>>
+>> That said, I see value in having a type for array/struct/memoryview that
+>> "is the same size as wchar_t", since that will avoid people having to
+>> guess (the docs for array in particular are deliberately vague about the
+>> actual size of the various types).
+> 
+> This is pretty much what ctypes provides for dealing with unicode?
+> 
+> https://docs.python.org/3/library/ctypes.html#ctypes.create_unicode_buffer
+> 
+> Seems a fine place to have things that help with win32 api interactions.
+
+Sure, though there are other reasons to deal with "pure" data that would 
+benefit from having the data type in array. I don't need to directly 
+refer to an existing buffer in memory, just to easily create/reinterpret 
+bytes (for which memoryview is often better, though it inherits its 
+codes from struct, which has no 'u' code, which is probably why I end up 
+using array instead ;) )
+
+Also, I keep finding that every time I deploy Python these days, it's 
+critical to remove ctypes to reduce the attack surface area (I'm getting 
+it into more and more high value systems where the rules are more 
+strict). So I'm a big fan of treating ctypes as optional.
+
+Cheers,
+Steve
+
+From brett at python.org  Mon Mar 25 14:22:41 2019
+From: brett at python.org (Brett Cannon)
+Date: Mon, 25 Mar 2019 11:22:41 -0700
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <q78r9d$uvr$1@blaine.gmane.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <q78r9d$uvr$1@blaine.gmane.org>
+Message-ID: <CAP1=2W4-MTa4==eorSyRrmXNqgSyoqE_bpR6UL2_C0ruy7yZZQ@mail.gmail.com>
+
+On Sun, Mar 24, 2019 at 2:03 PM Terry Reedy <tjreedy at udel.edu> wrote:
+
+> On 3/24/2019 8:21 AM, Nick Coghlan wrote:
+>
+> > We'll be announcing those appointments as we go, so I'm happy to
+> > report that I will be handling the BDFL-Delegate responsibilities for
+> > the following PEPs:
+>
+> Where do we discuss these?
+>
+
+Either as a topic on discuss.python.org or as a separate thread here on
+python-dev.
+
+-Brett
+
+
+>
+> If a delegate has a provisional view, it might help focus discussion if
+> that were known.
+>
+> > * PEP 499: Binding "-m" executed modules under their module name as
+> > well as `__main__`
+>
+> My brief response: +1 unless there is a good reason not.  There have
+> been multiple double module problems reported on python-list and likely
+> stackoverflow.  And would there be any impact on circular imports?
+>
+> --
+> Terry Jan Reedy
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190325/8949a800/attachment.html>
+
+From nad at python.org  Mon Mar 25 20:05:40 2019
+From: nad at python.org (Ned Deily)
+Date: Mon, 25 Mar 2019 20:05:40 -0400
+Subject: [Python-Dev] [RELEASE] Python 3.7.3 is now available
+Message-ID: <A942C00C-74D5-489D-93E2-0AA176F67CA8@python.org>
+
+https://blog.python.org/2019/03/python-373-is-now-available.html
+
+Python 3.7.3 is now available. Python 3.7.3 is the next
+maintenance release of Python 3.7, the latest feature release of Python.
+You can find Python 3.7.3 here:
+   https://www.python.org/downloads/release/python-373/
+
+See the What?s New In Python 3.7 document for more information about the
+many new features and optimizations included in the 3.7 series. Detailed
+information about the changes made in 3.7.3 can be found in its change log.
+
+Thanks to all of the many volunteers who help make Python Development and
+these releases possible! Please consider supporting our efforts by
+volunteering yourself or through organization contributions to the Python
+Software Foundation.
+
+https://docs.python.org/3.7/whatsnew/3.7.html
+https://docs.python.org/3.7/whatsnew/changelog.html#python-3-7-3-final
+https://www.python.org/psf/
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
