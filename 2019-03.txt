@@ -16656,3 +16656,151 @@ https://www.python.org/psf/
   nad at python.org -- []
 
 
+From Peixing.Xin at windriver.com  Tue Mar 26 03:57:18 2019
+From: Peixing.Xin at windriver.com (Xin, Peixing)
+Date: Tue, 26 Mar 2019 07:57:18 +0000
+Subject: [Python-Dev] Anyone can help to review these 2 PRs?
+Message-ID: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BA4559@ALA-MBD.corp.ad.wrs.com>
+
+Hi, Experts:
+
+I have 2 PRs to get review for days. Anyone can give your hands? Thanks in advance. BTW, they are about CPython working on VxWorks RTOS.
+
+https://github.com/python/cpython/pull/12394
+https://github.com/python/cpython/pull/12428
+
+Thanks,
+Peixing
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190326/ceeecc89/attachment.html>
+
+From lukasz at langa.pl  Tue Mar 26 05:11:55 2019
+From: lukasz at langa.pl (=?utf-8?Q?=C5=81ukasz_Langa?=)
+Date: Tue, 26 Mar 2019 10:11:55 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a3 is now available for testing
+Message-ID: <17D69CA4-6E33-4FA4-BFF8-0642EC620639@langa.pl>
+
+It's time for the third alpha of Python 3.8.0. Go get it here:
+https://www.python.org/downloads/release/python-380a3/
+
+Python 3.8.0a3 is the third of four planned alpha releases of Python 3.8,
+the next feature release of Python.  During the alpha phase, Python 3.8
+remains under heavy development: additional features will be added
+and existing features may be modified or deleted.  Please keep in mind
+that this is a preview release and its use is not recommended for
+production environments.  The last alpha release, 3.8.0a4, is planned
+for 2019-04-29.
+
+I am happy to say that this time all buildbots were properly green. Thank you to everybody who worked on that.
+
+- ?
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190326/1a72a4c7/attachment.sig>
+
+From stephane at wirtel.be  Tue Mar 26 07:23:26 2019
+From: stephane at wirtel.be (=?UTF-8?Q?St=c3=a9phane_Wirtel?=)
+Date: Tue, 26 Mar 2019 12:23:26 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a3 is now available for
+ testing
+In-Reply-To: <17D69CA4-6E33-4FA4-BFF8-0642EC620639@langa.pl>
+References: <17D69CA4-6E33-4FA4-BFF8-0642EC620639@langa.pl>
+Message-ID: <1cc7d757-6fc3-fc75-6ac3-f26357e7c3cb@wirtel.be>
+
+?ukasz,
+
+I have proposed a PR for the update of this docker image:
+quay.io/python-devs/ci-image
+
+I have also updated the versions to 3.4.10, 3.5.7, 3.7.3 and of course
+to Python 3.8.0a3.
+
+By the way, this image will contain the last versions of Python 3.x
+
+https://gitlab.com/python-devs/ci-images/merge_requests/9
+
+Bonne journ?e,
+
+St?phane
+
+Le 26/03/19 ? 10:11, ?ukasz Langa a ?crit?:
+> It's time for the third alpha of Python 3.8.0. Go get it here:
+> https://www.python.org/downloads/release/python-380a3/
+> 
+> Python 3.8.0a3 is the third of four planned alpha releases of Python 3.8,
+> the next feature release of Python.  During the alpha phase, Python 3.8
+> remains under heavy development: additional features will be added
+> and existing features may be modified or deleted.  Please keep in mind
+> that this is a preview release and its use is not recommended for
+> production environments.  The last alpha release, 3.8.0a4, is planned
+> for 2019-04-29.
+> 
+> I am happy to say that this time all buildbots were properly green. Thank you to everybody who worked on that.
+
+From barry at python.org  Tue Mar 26 12:44:45 2019
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 26 Mar 2019 09:44:45 -0700
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a3 is now available for
+ testing
+In-Reply-To: <1cc7d757-6fc3-fc75-6ac3-f26357e7c3cb@wirtel.be>
+References: <17D69CA4-6E33-4FA4-BFF8-0642EC620639@langa.pl>
+ <1cc7d757-6fc3-fc75-6ac3-f26357e7c3cb@wirtel.be>
+Message-ID: <FEEEC638-C460-4E6C-9A68-1FEA213BAD30@python.org>
+
+On Mar 26, 2019, at 04:23, St?phane Wirtel <stephane at wirtel.be> wrote:
+> 
+> I have proposed a PR for the update of this docker image:
+> quay.io/python-devs/ci-image
+> 
+> I have also updated the versions to 3.4.10, 3.5.7, 3.7.3 and of course
+> to Python 3.8.0a3.
+> 
+> By the way, this image will contain the last versions of Python 3.x
+> 
+> https://gitlab.com/python-devs/ci-images/merge_requests/9
+
+Thank you St?phane!  This is now merged and the updated image is available.
+
+Cheers,
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190326/801f5dc3/attachment.sig>
+
+From stephane at wirtel.be  Tue Mar 26 13:15:57 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Tue, 26 Mar 2019 18:15:57 +0100
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a3 is now available for
+ testing
+In-Reply-To: <FEEEC638-C460-4E6C-9A68-1FEA213BAD30@python.org>
+References: <17D69CA4-6E33-4FA4-BFF8-0642EC620639@langa.pl>
+ <1cc7d757-6fc3-fc75-6ac3-f26357e7c3cb@wirtel.be>
+ <FEEEC638-C460-4E6C-9A68-1FEA213BAD30@python.org>
+Message-ID: <20190326171557.GB11340@xps>
+
+>Thank you St?phane!  This is now merged and the updated image is available.
+Thank you to you Barry.
+
+I have proposed an idea where we could generate the new image without
+any human action, excepted when there is a fail with the build
+step.
+
+
+Cheers,
+
+St?phane
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
