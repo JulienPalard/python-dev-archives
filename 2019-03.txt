@@ -16804,3 +16804,1950 @@ St?phane
 -- 
 St?phane Wirtel - https://wirtel.be - @matrixise
 
+From songofacandy at gmail.com  Wed Mar 27 06:24:57 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Wed, 27 Mar 2019 19:24:57 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+Tzj5uh3K9yOF-k+1S1_s_32CSz2_Ad4kB6WH+Y7m_c1BA@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+ <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+ <CAEfz+Tzj5uh3K9yOF-k+1S1_s_32CSz2_Ad4kB6WH+Y7m_c1BA@mail.gmail.com>
+Message-ID: <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+
+On Mon, Mar 25, 2019 at 10:11 PM Inada Naoki <songofacandy at gmail.com> wrote:
+>
+> C, Rust, Java, Ruby, PHP, don't have PendingDeprecation.
+> Programmers only need Deprecation.  Why programmers need PendingDeprecation
+> only in Python?
+>
+
+Any comments about this?
+
+I want to document PendingDeprecationWarning is deprecated [1].
+May I merge the PR?  Should I start poll on discuss.python.org?
+
+[1]: https://github.com/python/cpython/pull/12505/files
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From encukou at gmail.com  Wed Mar 27 09:50:21 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Wed, 27 Mar 2019 14:50:21 +0100
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+Message-ID: <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+
+On Sun, Mar 24, 2019 at 4:22 PM Mark Shannon <mark at hotpy.org> wrote:
+>
+> Hi Petr,
+>
+> Regarding PEPs 576 and 580.
+> Over the new year, I did a thorough analysis of possible approaches to
+> possible calling conventions for use in the CPython ecosystems and came
+> up with a new PEP.
+> The draft can be found here:
+> https://github.com/markshannon/peps/blob/new-calling-convention/pep-9999.rst
+>
+> I was hoping to profile a branch with the various experimental changes
+> cherry-picked together, but don't seemed to have found the time :(
+>
+> I'd like to have a testable branch, before formally submitting the PEP,
+> but I'd thought you should be aware of the PEP.
+>
+> Cheers,
+> Mark.
+
+Hello Mark,
+Thank you for letting me know! I wish I knew of this back in January,
+when you committed the first draft. This is unfair to the competing
+PEP, which is ready and was waiting for the new govenance. We have
+lost three months that could be spent pondering the ideas in the
+pre-PEP.
+Do you think you will find the time to piece things together? Is there
+anything that you already know should be changed?
+
+Do you have any comments on [Jeroen's comparison]?
+
+The pre-PEP is simpler then PEP 580, because it solves simpler issues.
+I'll need to confirm that it won't paint us into a corner -- that
+there's a way to address all the issues in PEP 579 in the future.
+
+The pre-PEP claims speedups of 2% in initial experiments, with
+expected overall performance gain of 4% for the standard benchmark
+suite. That's pretty big.
+As far as I can see, PEP 580 claims not much improvement in CPython,
+but rather large improvements for extensions (Mistune with Cython).
+
+The pre-PEP has a complication around offsetting arguments by 1 to
+allow bound methods forward calls cheaply. I fear that this optimizes
+for current usage with its limitations.
+PEP 580's cc_parent allows bound methods to have access to the class,
+and through that, the module object where they are defined and the
+corresponding module state. To support this, vector calls would need a
+two-argument offset.
+(That seems to illustrate the main difference between the motivations
+of the two PEPs: one focuses on extensibility; the other on optimizing
+existing use cases.)
+
+The pre-PEP's "any third-party class implementing the new call
+interface will not be usable as a base class" looks quite limiting.
+
+
+
+[Jeroen's comparison]:
+https://mail.python.org/pipermail/python-dev/2018-July/154238.html
+
+From J.Demeyer at UGent.be  Wed Mar 27 11:13:10 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 27 Mar 2019 16:13:10 +0100
+Subject: [Python-Dev] PEP 576bis discussion
+In-Reply-To: <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+Message-ID: <5C9B9306.3050502@UGent.be>
+
+By lack of a better name, I'm using the name PEP 576bis to refer to
+https://github.com/markshannon/peps/blob/new-calling-convention/pep-9999.rst 
+(This is why this should get a PEP number soon, even if the PEP is not 
+completely done yet).
+
+On 2019-03-27 14:50, Petr Viktorin wrote:
+> The pre-PEP is simpler then PEP 580, because it solves simpler issues.
+> I'll need to confirm that it won't paint us into a corner -- that
+> there's a way to address all the issues in PEP 579 in the future.
+
+One potential issue is calling bound methods (in the duck typing sense) 
+when the LOAD_METHOD optimization is *not* used. This would happen for 
+example when storing a bound method object somewhere and then calling it 
+(possibly repeatedly). Perhaps that's not a very common thing and we 
+should just live with that. However, since __self__ is part of the PEP 
+580 protocol, it allows calling a bound method object without any 
+performance penalty compared to calling the underlying function directly.
+
+Similarly, a follow-up of PEP 580 could allow zero-overhead calling of 
+static/class methods (I didn't put this in PEP 580 because it's already 
+too long).
+
+> As far as I can see, PEP 580 claims not much improvement in CPython,
+> but rather large improvements for extensions (Mistune with Cython).
+
+Cython is indeed the main reason for PEP 580.
+
+> The pre-PEP has a complication around offsetting arguments by 1 to
+> allow bound methods forward calls cheaply.
+
+I honestly don't understand what this "offset by one" means or why it's 
+useful. It should be better explained in the PEP.
+
+> The pre-PEP's "any third-party class implementing the new call
+> interface will not be usable as a base class" looks quite limiting.
+
+I agree, this is pretty bad. However, I don't think that there is a need 
+for this limitation. PEP 580 solves this by only inheriting the 
+Py_TPFLAGS_HAVE_CCALL flag in specific cases. PEP 576bis could do 
+something similar.
+
+Finally, I don't agree with this sentence from PEP 576bis: PEP 580 is 
+specifically targetted at function-like objects, and doesn't support 
+other callables like classes, partial functions, or proxies.
+
+It's true that classes are not supported (and I wonder how PEP 576bis 
+deals with that, it would be good to explain that more explicitly) but 
+other callables are not a problem.
+
+
+Jeroen.
+
+From steve.dower at python.org  Wed Mar 27 11:26:33 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 27 Mar 2019 08:26:33 -0700
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+ <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+ <CAEfz+Tzj5uh3K9yOF-k+1S1_s_32CSz2_Ad4kB6WH+Y7m_c1BA@mail.gmail.com>
+ <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+Message-ID: <18ccdacf-8fc8-5130-b4ba-89df84e02987@python.org>
+
+On 27Mar2019 0324, Inada Naoki wrote:
+> On Mon, Mar 25, 2019 at 10:11 PM Inada Naoki <songofacandy at gmail.com> wrote:
+>>
+>> C, Rust, Java, Ruby, PHP, don't have PendingDeprecation.
+>> Programmers only need Deprecation.  Why programmers need PendingDeprecation
+>> only in Python?
+>>
+> 
+> Any comments about this?
+> 
+> I want to document PendingDeprecationWarning is deprecated [1].
+> May I merge the PR?  Should I start poll on discuss.python.org?
+> 
+> [1]: https://github.com/python/cpython/pull/12505/files
+
+There are two questions here:
+
+1. Are we going to stop using it in CPython and the standard library?
+2. Do we want everyone else to stop using it for their own purposes?
+
+I think the first one is easy for us to answer (and personally, I don't 
+care which way we go with it). However, deciding to stop using it 
+ourselves is not the same as deprecating the class. So in this case, we 
+would document that it is no longer used in CPython but is still 
+available for other projects.
+
+The second question is harder to answer, and in the absence of input 
+from those who are already using it (or the absence of evidence that 
+nobody else is using it), the best we can do is evaluate how much of a 
+maintenance burden the class is.
+
+In my opinion, it is a very low maintenance burden, and a very low 
+cognitive burden on users, and so the cost of deprecating it on 
+third-parties who are using it vastly outweighs the cost of leaving it 
+alone.
+
+If someone can show that either no third-parties are using it, or all 
+those that do will probably never explicitly support Python 3.8 or 
+later, or all those that do would prefer to stop using it, then I'll 
+happily change my mind here. But right now, it seems like deprecating it 
+will cause an unknown amount of churn for minimal benefit.
+
+At most, I'd document it as "this will probably not survive to the next 
+major change release, even though we aren't planning to do one yet" 
+(much like the Py_UNICODE APIs). Ironically, PendingDeprecationWarning 
+seems a pretty accurate way of indicating this state.
+
+Cheers,
+Steve
+
+From p.f.moore at gmail.com  Wed Mar 27 11:45:15 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Wed, 27 Mar 2019 15:45:15 +0000
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <18ccdacf-8fc8-5130-b4ba-89df84e02987@python.org>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+ <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+ <CAEfz+Tzj5uh3K9yOF-k+1S1_s_32CSz2_Ad4kB6WH+Y7m_c1BA@mail.gmail.com>
+ <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+ <18ccdacf-8fc8-5130-b4ba-89df84e02987@python.org>
+Message-ID: <CACac1F-bNawCZce_HJpToWPTh=_WPtZ1aFN43UpTOVRb4SyLvw@mail.gmail.com>
+
+On Wed, 27 Mar 2019 at 15:29, Steve Dower <steve.dower at python.org> wrote:
+> If someone can show that either no third-parties are using it, or all
+> those that do will probably never explicitly support Python 3.8 or
+> later, or all those that do would prefer to stop using it, then I'll
+> happily change my mind here. But right now, it seems like deprecating it
+> will cause an unknown amount of churn for minimal benefit.
+
+FWIW, https://searchcode.com/?q=PendingDeprecationWarning&lan=19 says
+there are about 6.786 results. I haven't looked extensively, but
+Django seems to be in there. The msgpack library that is vendored by
+pip (ironically, maintained by INADA-San) also uses it in one place.
+
+Personally, I don't think deprecation is worth the disruption.
+Paul
+
+From brett at python.org  Wed Mar 27 12:58:21 2019
+From: brett at python.org (Brett Cannon)
+Date: Wed, 27 Mar 2019 09:58:21 -0700
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+ <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+ <CAEfz+Tzj5uh3K9yOF-k+1S1_s_32CSz2_Ad4kB6WH+Y7m_c1BA@mail.gmail.com>
+ <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+Message-ID: <CAP1=2W693W0y0N-J7HFOUiEOkSXbYsJrOE-EjqRM1XAxJCdgvw@mail.gmail.com>
+
+On Wed, Mar 27, 2019 at 3:26 AM Inada Naoki <songofacandy at gmail.com> wrote:
+
+> On Mon, Mar 25, 2019 at 10:11 PM Inada Naoki <songofacandy at gmail.com>
+> wrote:
+> >
+> > C, Rust, Java, Ruby, PHP, don't have PendingDeprecation.
+> > Programmers only need Deprecation.  Why programmers need
+> PendingDeprecation
+> > only in Python?
+> >
+>
+> Any comments about this?
+>
+
+You know my views on this. :) Leave it and we start to consistently use if
+for deprecations that are more than a release away from removal (and for
+those not reading discuss.python.org, I proposed over there introducing a
+warnings._deprecate() function for the stdlib which will do the right thing
+based on sys.version_info() and the stated start/end for the deprecation).
+
+It might also make sense to hold off on anything official until we decide
+on something like PEP 387 and how we want to officially communicate
+deprecations.
+
+-Brett
+
+
+>
+> I want to document PendingDeprecationWarning is deprecated [1].
+> May I merge the PR?  Should I start poll on discuss.python.org?
+>
+> [1]: https://github.com/python/cpython/pull/12505/files
+>
+> --
+> Inada Naoki  <songofacandy at gmail.com>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190327/32bbf300/attachment.html>
+
+From vstinner at redhat.com  Wed Mar 27 13:48:59 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 27 Mar 2019 18:48:59 +0100
+Subject: [Python-Dev] New Python Initialization API
+Message-ID: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+
+Hi,
+
+I would like to add a new C API to initialize Python. I would like
+your opinion on the whole API before making it public. The code is
+already implemented. Doc of the new API:
+
+   https://pythondev.readthedocs.io/init_config.html
+
+
+To make the API public, _PyWstrList, _PyInitError, _PyPreConfig,
+_PyCoreConfig and related functions should be made public.
+
+By the way, I would suggest to rename "_PyCoreConfig" to just
+"PyConfig" :-) I don't think that "core init" vs "main init" is really
+relevant: more about that below.
+
+
+Let's start with two examples using the new API.
+
+Example of simple initialization to enable isolated mode:
+
+    _PyCoreConfig config = _PyCoreConfig_INIT;
+    config.isolated = 1;
+
+    _PyInitError err = _Py_InitializeFromConfig(&config);
+    if (_Py_INIT_FAILED(err)) {
+        _Py_ExitInitError(err);
+    }
+    /* ... use Python API here ... */
+    Py_Finalize();
+
+Example using the pre-initialization to enable the UTF-8 Mode (and use the
+"legacy" Py_Initialize() function):
+
+    _PyPreConfig preconfig = _PyPreConfig_INIT;
+    preconfig.utf8_mode = 1;
+
+    _PyInitError err = _Py_PreInitialize(&preconfig);
+    if (_Py_INIT_FAILED(err)) {
+        _Py_ExitInitError(err);
+    }
+
+    /* at this point, Python will only speak UTF-8 */
+
+    Py_Initialize();
+    /* ... use Python API here ... */
+    Py_Finalize();
+
+Since November 2017, I'm refactoring the Python Initialization code to
+cleanup the code and prepare a new ("better") API to configure Python
+Initialization. I just fixed the last issues that Nick Coghlan asked
+me to fix (add a pre-initialization step: done, fix mojibake: done).
+My work is inspired by Nick Coghlan's PEP 432, but it is not
+implementing it directly. I had other motivations than Nick even if we
+are somehow going towards the same direction.
+
+Nick wants to get a half-initialized Python ("core init"), configure
+Python using the Python API and Python objects, and then finish the
+implementation ("main init").
+
+I chose a different approach: put *everything* into a single C
+structure (_PyCoreConfig) using C types. Using the structure, you
+should be able to do what Nick wanted to do, but with C rather than
+Python. Nick: please tell me if I'm wrong :-)
+
+This work is also connected to Eric Snow's work on sub-interpreters
+(PEP 554) and moving global variables into structures. For example,
+I'm using his _PyRuntime structure to store a new "preconfig" state
+(pre-initialization configuration, more about that below).
+
+In November 2017, when I started to work on the Python Initialization
+(bpo-32030), I identified the following problems:
+
+* Many parts of the code were interdependent
+* Code executed early in Py_Main() used the Python API before the Python API
+  was fully initialized. Like code parsing -W command line option which
+  used PyUnicode_FromWideChar() and PyList_Append().
+* Error handling used Py_FatalError() which didn't let the caller to decide
+  how to handle the error. Moreover, exit() was used to exit Python,
+whereas libpython shouldn't do that: a library should not exit the
+whole process! (imagine when Python is embedded inside an application)
+
+One year and a half later, I implemented the following solutions:
+
+* Py_Main() and Py_Initialize() code has been reorganized to respect
+  priorities between global configuration variables (ex:
+  Py_IgnoreEnvironmentFlag), environment variables (ex: PYTHONPATH), command
+  line arguments (ex: -X utf8), configuration files (ex: pyenv.cfg), and the
+  new _PyPreConfig and _PyCoreConfig structures which store the whole
+  configuration.
+* Python Initialization no longer uses the Python API but only C types
+  like wchar_t* strings, a new _PyWstrList structure and PyMem_RawMalloc()
+  memory allocator (PyMem_Malloc() is no longer used during init).
+* The code has been modified to use a new _PyInitError structure. The caller
+  of the top function gets control to cleanup everything before handling the
+  error (display a fatal error message or simply exit Python).
+
+The new _PyCoreConfig structure has the top-priority and provides a single
+structure for all configuration parameters.
+
+It becomes possible to override the code computing the "path configuration"
+like sys.path to fully control where Python looks to import modules. It
+becomes possible to use an empty list of paths to only allow builtin modules.
+
+A new "pre-initialization" steps is responsible to configure the bare minimum
+before the Python initialization: memory allocators and encodings
+(LC_CTYPE locale
+and the UTF-8 mode). The LC_CTYPE is no longer coerced and the UTF-8 Mode is
+no longer enabled automatically depending on the user configuration to prevent
+mojibake. Previously, calling Py_DecodeLocale() to get a Unicode wchar_t*
+string from a bytes wchar* string created mojibake when called before
+Py_Initialize() if the LC_CTYPE locale was coerced and/or if the UTF-8 Mode was
+enabled.
+
+The pre-initialization step ensures that the encodings and memory allocators
+are well defined *before* Py_Initialize() is called.
+
+Since the new API is currently private, I didn't document it in
+Python. Moreover, the code changed a lot last year :-) But it should
+now be way more stable. I started to document it in a separated
+webpage:
+
+   https://pythondev.readthedocs.io/init_config.html
+
+The plan is to put it in the Python documentation once it becomes public.
+
+Victor
+--
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From alexander.belopolsky at gmail.com  Wed Mar 27 14:34:48 2019
+From: alexander.belopolsky at gmail.com (Alexander Belopolsky)
+Date: Wed, 27 Mar 2019 14:34:48 -0400
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+Message-ID: <CAP7h-xZANmsqjbdOY985YWwYZCMWgZ25qmg0GuTd-_4+WYK9Mg@mail.gmail.com>
+
+> To make the API public, _PyWstrList, _PyInitError, _PyPreConfig,
+> _PyCoreConfig and related functions should be made public.
+
+Would you consider making _Py_UnixMain public as well?
+
+It is useful for high level embedding and not trivial for 3rd parties to
+reimplement.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190327/d1984f0f/attachment.html>
+
+From steve.dower at python.org  Wed Mar 27 15:37:00 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 27 Mar 2019 12:37:00 -0700
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+Message-ID: <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+
+On 27Mar2019 1048, Victor Stinner wrote:
+> Since November 2017, I'm refactoring the Python Initialization code to
+> cleanup the code and prepare a new ("better") API to configure Python
+> Initialization. I just fixed the last issues that Nick Coghlan asked
+> me to fix (add a pre-initialization step: done, fix mojibake: done).
+> My work is inspired by Nick Coghlan's PEP 432, but it is not
+> implementing it directly. I had other motivations than Nick even if we
+> are somehow going towards the same direction.
+
+I this this should be its own PEP, since as you say it is not 
+implementing the only PEP we have (or alternatively, maybe you should 
+collaborate to update PEP 432 so that it reflects what you think we 
+ought to be implementing).
+
+Having formal writeups of both ideas is important to help decide between 
+the two. It's not good to overrule a PEP by pretending that your change 
+isn't big enough to need its own.
+
+(Not trying to devalue the work you've been doing so far, since it's 
+great! But internal changes are one thing, while updating the public, 
+documented interfaces deserves a more thorough process.)
+
+Cheers,
+Steve
+
+From brett at python.org  Wed Mar 27 16:23:01 2019
+From: brett at python.org (Brett Cannon)
+Date: Wed, 27 Mar 2019 13:23:01 -0700
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+Message-ID: <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+
+On Wed, Mar 27, 2019 at 12:39 PM Steve Dower <steve.dower at python.org> wrote:
+
+> On 27Mar2019 1048, Victor Stinner wrote:
+> > Since November 2017, I'm refactoring the Python Initialization code to
+> > cleanup the code and prepare a new ("better") API to configure Python
+> > Initialization. I just fixed the last issues that Nick Coghlan asked
+> > me to fix (add a pre-initialization step: done, fix mojibake: done).
+> > My work is inspired by Nick Coghlan's PEP 432, but it is not
+> > implementing it directly. I had other motivations than Nick even if we
+> > are somehow going towards the same direction.
+>
+> I this this should be its own PEP, since as you say it is not
+> implementing the only PEP we have (or alternatively, maybe you should
+> collaborate to update PEP 432 so that it reflects what you think we
+> ought to be implementing).
+>
+
+I agree that if this isn't doing what PEP 432 set out but going its own way
+we should probably discuss in regards to 432.
+
+-Brett
+
+
+>
+> Having formal writeups of both ideas is important to help decide between
+> the two. It's not good to overrule a PEP by pretending that your change
+> isn't big enough to need its own.
+>
+> (Not trying to devalue the work you've been doing so far, since it's
+> great! But internal changes are one thing, while updating the public,
+> documented interfaces deserves a more thorough process.)
+>
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190327/d211cfcc/attachment.html>
+
+From J.Demeyer at UGent.be  Wed Mar 27 18:18:44 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 27 Mar 2019 23:18:44 +0100
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+Message-ID: <5C9BF6C4.2060808@UGent.be>
+
+On 2019-03-27 14:50, Petr Viktorin wrote:
+> The pre-PEP claims speedups of 2% in initial experiments, with
+> expected overall performance gain of 4% for the standard benchmark
+> suite. That's pretty big.
+
+I re-did my earlier benchmarks for PEP 580 and these are the results:
+https://gist.github.com/jdemeyer/f0d63be8f30dc34cc989cd11d43df248
+
+In general, the PEP 580 timings seem slightly better than vanilla 
+CPython, similar to what Mark got. I'm speculating that the speedup in 
+both cases comes from the removal of type checks and dispatching 
+depending on that, and instead using a single protocol that directly 
+does what needs to be done.
+
+
+Jeroen.
+
+From brett at python.org  Wed Mar 27 18:32:00 2019
+From: brett at python.org (Brett Cannon)
+Date: Wed, 27 Mar 2019 15:32:00 -0700
+Subject: [Python-Dev] Rejecting PEP 502
+Message-ID: <CAP1=2W5qgv4MG7rxBcjX4TffeUvYGxakJ2HvsoWxitMS5LZLoQ@mail.gmail.com>
+
+https://www.python.org/dev/peps/pep-0502/
+
+Thanks to Mike G. Miller for the informational PEP, but since the PEP was
+written with an opinionated voice and the details of the PEP aren't
+critical as they should be captured by PEP 498  anyway, we didn't think it
+was worth trying to touch the PEP up to change its voice.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190327/9b61418b/attachment.html>
+
+From greg at krypto.org  Wed Mar 27 18:59:25 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 27 Mar 2019 15:59:25 -0700
+Subject: [Python-Dev] PEP 556 threaded garbage collection & linear recursion
+ in gc
+Message-ID: <CAGE7PN+8o8AVMpXh84ZqH7cN69r9rr3yq=-enE5JaF6eXzi2aQ@mail.gmail.com>
+
+https://www.python.org/dev/peps/pep-0556/
+
+This PEP is currently Deferred as nobody is actively working on a test
+implementation.
+
+A situation came up the other day where I *believe* this could've helped.
+
+Scenario (admittedly not one most environments run into): A Python process
+with a C++ extension module implementing a threaded server (threads spawned
+by C++) that could call back into CPython within server request handlers.
+(ie: how all threaded servers tend to work regardless of core loop
+implementation language)
+
+Python code in the application had done something (unknown to me, I didn't
+dive into their code) that built up large enough presumably nested or
+recursive data structures that the garbage collector, when triggered, would
+wind up in very deep recursion.  This caused a stack overflow as the C++
+spawned threads were only being given a 256k stack (to conserve virtual
+address space - there can potentially be a _ton_ of threads in this code).
+
+That had a C++ stack trace 1000+ levels deep repeating the pattern of
+
+...
+    @     0x564d59bd21de         32  func_dealloc
+    @     0x564d59bce0c1         32  cell_dealloc
+    @     0x564d5839db41         48  tupledealloc
+    @     0x564d59bd21de         32  func_dealloc
+    @     0x564d59bce0c1         32  cell_dealloc
+    @     0x564d5839db41         48  tupledealloc
+...
+
+If our gc were done on a thread of its own spawned by Python, with a
+typical normal larger default stack size (8mb) this would've been less
+likely to trigger a crash (though obviously still possible if the recursion
+is linear).
+
+I know, there are obvious workarounds to this situation of all sorts.  My
+point is more that synchronously triggering gc _within_ a thread that
+happens to invoke the periodic "hey, lets do another gc run" logic the eval
+loop is undesirable.
+
+I'm not making any plans to work on an implementation for this PEP,
+deferred seems accurate. Just dropping a note that I'd still be interested
+in seeing something other than synchronous gc in arbitrary threads happen
+when a process has multiple threads.
+
+*Another* take away from this is that it *appears* possible to cause our gc
+to go into linear recursion.  Yuck!  I'd file an issue on that, but doing
+so requires making some example code to construct such a scenario first...
+
+Food for thought in case these kinds of things are something anyone else
+has encountered.
+
+-Greg
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190327/8b90cf69/attachment.html>
+
+From tim.peters at gmail.com  Wed Mar 27 20:38:01 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Wed, 27 Mar 2019 19:38:01 -0500
+Subject: [Python-Dev] PEP 556 threaded garbage collection & linear
+ recursion in gc
+In-Reply-To: <CAGE7PN+8o8AVMpXh84ZqH7cN69r9rr3yq=-enE5JaF6eXzi2aQ@mail.gmail.com>
+References: <CAGE7PN+8o8AVMpXh84ZqH7cN69r9rr3yq=-enE5JaF6eXzi2aQ@mail.gmail.com>
+Message-ID: <CAExdVN=JCWJQOPUxd=ApSUDzBMm58FzKBeS0ELLBuEmvwVvdFQ@mail.gmail.com>
+
+[Gregory P. Smith <greg at krypto.org>]
+> ...
+> A situation came up the other day where I believe this could've helped.
+>
+> Scenario (admittedly not one most environments run into): A Python process
+> with a C++ extension module implementing a threaded server (threads
+> spawned by C++) that could call back into CPython within server request
+> handlers.  (ie: how all threaded servers tend to work regardless of core
+> loop implementation language)
+>
+> Python code in the application had done something (unknown to me, I
+> didn't dive into their code) that built up large enough presumably nested
+> or recursive data structures that the garbage collector, when triggered,
+> would wind up in very deep recursion.  This caused a stack overflow
+>  as the C++ spawned threads were only being given a 256k stack (to
+> conserve virtual address space - there can potentially be a _ton_ of
+> threads in this code).
+>
+> That had a C++ stack trace 1000+ levels deep repeating the pattern of
+>
+> ...
+>     @     0x564d59bd21de         32  func_dealloc
+>     @     0x564d59bce0c1         32  cell_dealloc
+>     @     0x564d5839db41         48  tupledealloc
+>     @     0x564d59bd21de         32  func_dealloc
+>     @     0x564d59bce0c1         32  cell_dealloc
+>     @     0x564d5839db41         48  tupledealloc
+> ...
+>
+> If our gc were done on a thread of its own spawned by Python, with a typical
+> normal larger default stack size (8mb) this would've been less likely
+> to trigger a crash (though obviously still possible if the recursion is linear).
+
+Just noting that gc is probably a red herring in that scenario.  gc
+(cleverly!) determines the set of trash objects without needing any
+recursive graph crawls.  And gc doesn't deallocate anything - not
+directly.  It simply applies Py_DECREF to trash objects, once for each
+PyObject* found pointing to them.  _If_ deallocation occurs as a
+result, it's the same as if the user had done `del` on the appropriate
+object manually.  The recursion then occurs in the chain of
+XXX_dealloc calls, which in turn do more Py_DECREFs of their own, and
+which have nothing in particular to do with gc.  Approximately the
+same stack depth would be hit in a Python built without gc if the user
+did the same sequence of `del`s by hand to break trash cycles.
+
+The good news is that the "trashcan" mechanism - which predates gc -
+was introduced to limit call depth in the presence of some potentially
+unbounded chains of dealloc calls.  So teach trashcan about the
+pattern here, and the stack depth problem goes away, with or without
+gc.
+
+The bad news is that the traschcan mechanism is excruciating, a
+long-time source of subtle bugs of its own :-(
+
+Note:  without actual code to run, it's possible that trashcan is
+_already_ trying to limit stack depth in this specific case, but the
+stack size is too small to accommodate the largest depth of recursive
+calls trashcan is willing to allow before interfering.  Or some bug
+snuck into trashcan, or its invoking code, that causes it to fail to
+work as intended due to some unknown detail of the code above.
+There's just no way to guess without code to provoke it.
+
+
+> Another take away from this is that it appears possible to cause our gc
+> to go into linear recursion.
+
+As above, it's probably not gc, but deallocation as a side effect of
+Py_DECREF dropping a refcount to 0.  gc is just one way Py_DECREF can
+get invoked.
+
+From vstinner at redhat.com  Wed Mar 27 21:30:17 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 28 Mar 2019 02:30:17 +0100
+Subject: [Python-Dev] PEP 587: Python Initialization Configuration
+Message-ID: <CA+3bQGFePnvb9E0W8p0jZYo9nt9CHkKama7xzLi2vfMn5JSfAg@mail.gmail.com>
+
+Hi,
+
+Since Steve Dower asked me to write a formal PEP for my proposal of a
+new C API to initialize Python, here you have!
+
+This new PEP will be shortly rendered as HTML at:
+https://www.python.org/dev/peps/pep-0587/
+
+The Rationale might be a little bit weak at this point and there are
+still 3 small open questions, but the whole PEP should give you a
+better overview of my proposal than my previous email :-)
+
+I chose to start with a new PEP rather than updating PEP 432. I didn't
+feel able to just "update" the PEP 432, my proposal is different. The
+main difference between my PEP 587 and Nick Coghlan's PEP 432 is that
+my PEP 587 only allows to configure Python *before* its
+initialization, whereas Nick wanted to give control between its
+"Initializing" and "Initialized" initialization phases. Moreover, my
+PEP only uses C types rather Nick wanted to use Python types.
+
+By setting the private PyConfig._init_main field to 1, my PEP 587
+allows to stop Python initialization early to get a bare minimum
+working Python only with builtin types and no importlib. If I
+understood correctly, with my PEP, it remains possible to *extend*
+Python C API later to implement what Nick wants. Nick: please correct
+me if I'm wrong :-)
+
+Victor
+
+
+PEP: 587
+Title: Python Initialization Configuration
+Author: Victor Stinner <vstinner at redhat.com>
+Discussions-To: python-dev at python.org
+Status: Draft
+Type: Standards Track
+Content-Type: text/x-rst
+Created: 27-Mar-2018
+Python-Version: 3.8
+
+Abstract
+========
+
+Add a new C API to configure the Python Initialization providing finer
+control on the whole configuration and better error reporting.
+
+
+Rationale
+=========
+
+Python is highly configurable but its configuration evolved organically:
+configuration parameters is scattered all around the code using
+different ways to set them (mostly global configuration variables and
+functions).  A straightforward and reliable way to configure Python is
+needed. Some configuration parameters are not accessible from the C API,
+or not easily.
+
+The C API of Python 3.7 Initialization takes ``wchar_t*`` strings as
+input whereas the Python filesystem encoding is set during the
+initialization.
+
+
+Python Initialization C API
+===========================
+
+This PEP proposes to add the following new structures, functions and
+macros.
+
+New structures (4):
+
+* ``PyConfig``
+* ``PyInitError``
+* ``PyPreConfig``
+* ``PyWideCharList``
+
+New functions (8):
+
+* ``Py_PreInitialize(config)``
+* ``Py_PreInitializeFromArgs(config, argc, argv)``
+* ``Py_PreInitializeFromWideArgs(config, argc, argv)``
+* ``Py_InitializeFromConfig(config)``
+* ``Py_InitializeFromArgs(config, argc, argv)``
+* ``Py_InitializeFromWideArgs(config, argc, argv)``
+* ``Py_UnixMain(argc, argv)``
+* ``Py_ExitInitError(err)``
+
+New macros (6):
+
+* ``Py_INIT_OK()``
+* ``Py_INIT_ERR(MSG)``
+* ``Py_INIT_USER_ERR(MSG)``
+* ``Py_INIT_NO_MEMORY()``
+* ``Py_INIT_EXIT(EXITCODE)``
+* ``Py_INIT_FAILED(err)``
+
+
+PyWideCharList
+--------------
+
+``PyWideCharList`` is a list of ``wchar_t*`` strings.
+
+Example to initialize a string from C static array::
+
+    static wchar_t* argv[2] = {
+        L"-c",
+        L"pass",
+    };
+    PyWideCharList config_argv = PyWideCharList_INIT;
+    config_argv.length = Py_ARRAY_LENGTH(argv);
+    config_argv.items = argv;
+
+``PyWideCharList`` structure fields:
+
+* ``length`` (``Py_ssize_t``)
+* ``items`` (``wchar_t**``)
+
+If *length* is non-zero, *items* must be non-NULL and all strings must
+be non-NULL.
+
+.. note::
+   The "WideChar" name comes from the existing Python C API. Example:
+   ``PyUnicode_FromWideChar(const wchar_t *str, Py_ssize_t size)``.
+
+PyInitError
+-----------
+
+``PyInitError`` is a structure to store an error message or an exit code
+for the Python Initialization.
+
+Example::
+
+    PyInitError alloc(void **ptr, size_t size)
+    {
+        *ptr = PyMem_RawMalloc(size);
+        if (*ptr == NULL) {
+            return Py_INIT_NO_MEMORY();
+        }
+        return Py_INIT_OK();
+    }
+
+    int main(int argc, char **argv)
+    {
+        void *ptr;
+        PyInitError err = alloc(&ptr, 16);
+        if (Py_INIT_FAILED(err)) {
+            Py_ExitInitError(err);
+        }
+        PyMem_Free(ptr);
+        return 0;
+    }
+
+``PyInitError`` fields:
+
+* ``exitcode`` (``int``): if greater or equal to zero, argument passed to
+  ``exit()``
+* ``msg`` (``const char*``): error message
+* ``prefix`` (``const char*``): string displayed before the message,
+  usually rendered as ``prefix: msg``.
+* ``user_err`` (int): if non-zero, the error is caused by the user
+  configuration, otherwise it's an internal Python error.
+
+Macro to create an error:
+
+* ``Py_INIT_OK()``: success
+* ``Py_INIT_NO_MEMORY()``: memory allocation failure (out of memory)
+* ``Py_INIT_ERR(MSG)``: Python internal error
+* ``Py_INIT_USER_ERR(MSG)``: error caused by user configuration
+* ``Py_INIT_EXIT(STATUS)``: exit Python with the specified status
+
+Other macros and functions:
+
+* ``Py_INIT_FAILED(err)``: Is the result an error or an exit?
+* ``Py_ExitInitError(err)``: call ``exit(status)`` for
+  an error created by ``Py_INIT_EXIT(status)``,
+  call ``Py_FatalError(msg)`` for other errors. Must not be called for
+  an error created by ``Py_INIT_OK()``.
+
+Pre-Initialization with PyPreConfig
+-----------------------------------
+
+``PyPreConfig`` structure is used to pre-initialize Python:
+
+* Set the memory allocator
+* Configure the LC_CTYPE locale
+* Set the UTF-8 mode
+
+Example using the pre-initialization to enable the UTF-8 Mode::
+
+    PyPreConfig preconfig = PyPreConfig_INIT;
+    preconfig.utf8_mode = 1;
+
+    PyInitError err = Py_PreInitialize(&preconfig);
+    if (Py_INIT_FAILED(err)) {
+        Py_ExitInitError(err);
+    }
+
+    /* at this point, Python will speak UTF-8 */
+
+    Py_Initialize();
+    /* ... use Python API here ... */
+    Py_Finalize();
+
+Functions to pre-initialize Python:
+
+* ``PyInitError Py_PreInitialize(const PyPreConfig *config)``
+* ``PyInitError Py_PreInitializeFromArgs( const PyPreConfig *config,
+int argc, char **argv)``
+* ``PyInitError Py_PreInitializeFromWideArgs( const PyPreConfig
+*config, int argc, wchar_t **argv)``
+
+These functions can be called with *config* set to ``NULL``. The caller
+is responsible to handler error using ``Py_INIT_FAILED()`` and
+``Py_ExitInitError()``.
+
+``PyPreConfig`` fields:
+
+* ``allocator``: name of the memory allocator (ex: ``"malloc"``)
+* ``coerce_c_locale_warn``: if non-zero, emit a warning if the C locale
+  is coerced.
+* ``coerce_c_locale``: if equals to 2, coerce the C locale; if equals to
+  1, read the LC_CTYPE to decide if it should be coerced.
+* ``dev_mode``: see ``PyConfig.dev_mode``
+* ``isolated``: see ``PyConfig.isolated``
+* ``legacy_windows_fs_encoding`` (Windows only): if non-zero, set the
+  Python filesystem encoding to ``"mbcs"``.
+* ``use_environment``: see ``PyConfig.use_environment``
+* ``utf8_mode``: if non-zero, enable the UTF-8 mode
+
+The C locale coercion (PEP 538) and the UTF-8 Mode (PEP 540) are
+disabled by default in ``PyPreConfig``. Set ``coerce_c_locale``,
+``coerce_c_locale_warn`` and ``utf8_mode`` to ``-1`` to let Python
+enable them depending on the user configuration.
+
+Initialization with PyConfig
+----------------------------
+
+The ``PyConfig`` structure contains all parameters to configure Python.
+
+Example of Python initialization enabling the isolated mode::
+
+    PyConfig config = PyConfig_INIT;
+    config.isolated = 1;
+
+    PyInitError err = Py_InitializeFromConfig(&config);
+    if (Py_INIT_FAILED(err)) {
+        Py_ExitInitError(err);
+    }
+    /* ... use Python API here ... */
+    Py_Finalize();
+
+
+Functions to initialize Python:
+
+* ``PyInitError Py_InitializeFromConfig(const PyConfig *config)``
+* ``PyInitError Py_InitializeFromArgs(const PyConfig *config, int
+argc, char **argv)``
+* ``PyInitError Py_InitializeFromWideArgs(const PyConfig *config, int
+argc, wchar_t **argv)``
+
+These functions can be called with *config* set to ``NULL``. The caller
+is responsible to handler error using ``Py_INIT_FAILED()`` and
+``Py_ExitInitError()``.
+
+PyConfig fields:
+
+* ``argv``: ``sys.argv``
+* ``base_exec_prefix``: ``sys.base_exec_prefix``
+* ``base_prefix``: ``sys.base_prefix``
+* ``buffered_stdio``: if equals to 0, enable unbuffered mode, make
+  stdout and stderr streams to be unbuffered.
+* ``bytes_warning``: if equals to 1, issue a warning when comparing
+  ``bytes`` or ``bytearray`` with ``str``, or comparing ``bytes`` with
+  ``int``. If equal or greater to 2, raise a ``BytesWarning`` exception.
+* ``dll_path`` (Windows only): Windows DLL path
+* ``dump_refs``: if non-zero, display all objects still alive at exit
+* ``exec_prefix``: ``sys.exec_prefix``
+* ``executable``: ``sys.executable``
+* ``faulthandler``: if non-zero, call ``faulthandler.enable()``
+* ``filesystem_encoding``: Filesystem encoding,
+  ``sys.getfilesystemencoding()``
+* ``filesystem_errors``: Filesystem encoding errors,
+  ``sys.getfilesystemencodeerrors()``
+* ``hash_seed``, ``use_hash_seed``: randomized hash function seed
+* ``home``: Python home
+* ``import_time``: if non-zero, profile import time
+* ``inspect``: enter interactive mode after executing a script or a
+  command
+* ``install_signal_handlers``: install signal handlers?
+* ``interactive``: interactive mode
+* ``legacy_windows_stdio`` (Windows only): if non-zero, use
+  ``io.FileIO`` instead of ``WindowsConsoleIO`` for ``sys.stdin``,
+  ``sys.stdout`` and ``sys.stderr``.
+* ``malloc_stats``: if non-zero, dump memory allocation statistics
+  at exit
+* ``module_search_path_env``: ``PYTHONPATH`` environment variale value
+* ``module_search_paths``, ``use_module_search_paths``: ``sys.path``
+* ``optimization_level``: compilation optimization level
+* ``parser_debug``: if non-zero, turn on parser debugging output (for
+  expert only, depending on compilation options).
+* ``prefix``: ``sys.prefix``
+* ``program_name``: Program name
+* ``program``: ``argv[0]`` or an empty string
+* ``pycache_prefix``: ``.pyc`` cache prefix
+* ``quiet``: quiet mode (ex: don't display the copyright and version
+  messages even in interactive mode)
+* ``run_command``: ``-c COMMAND`` argument
+* ``run_filename``: ``python3 SCRIPT`` argument
+* ``run_module``: ``python3 -m MODULE`` argument
+* ``show_alloc_count``: show allocation counts at exit
+* ``show_ref_count``: show total reference count at exit
+* ``site_import``: import the ``site`` module at startup?
+* ``skip_source_first_line``: skip the first line of the source
+* ``stdio_encoding``, ``stdio_errors``: encoding and encoding errors of
+  ``sys.stdin``, ``sys.stdout`` and ``sys.stderr``
+* ``tracemalloc``: if non-zero, call ``tracemalloc.start(value)``
+* ``user_site_directory``: if non-zero, add user site directory to
+  ``sys.path``
+* ``verbose``: if non-zero, enable verbose mode
+* ``warnoptions``: options of the ``warnings`` module to build filters
+* ``write_bytecode``: if non-zero, write ``.pyc`` files
+* ``xoptions``: ``sys._xoptions``
+
+There are also private fields which are for internal-usage only:
+
+* ``_check_hash_pycs_mode``
+* ``_frozen``
+* ``_init_main``
+* ``_install_importlib``
+
+New Py_UnixMain() function
+--------------------------
+
+Python 3.7 provides a high-level ``Py_Main()`` function which requires
+to pass command line arguments as ``wchar_t*`` strings. It is
+non-trivial to use the correct encoding to decode bytes. Python has its
+own set of issues with C locale coercion and UTF-8 Mode.
+
+This PEP adds a new ``Py_UnixMain()`` function which takes command line
+arguments as bytes::
+
+    int Py_UnixMain(int argc, char **argv)
+
+Memory allocations and Py_DecodeLocale()
+----------------------------------------
+
+New pre-initialization and initialization APIs use constant
+``PyPreConfig`` or ``PyConfig`` structures. If memory is allocated
+dynamically, the caller is responsible to release it.  Using static
+strings is just fine.
+
+Python memory allocation functions like ``PyMem_RawMalloc()`` must not
+be used before Python pre-initialization.  Using ``malloc()`` and
+``free()`` is always safe.
+
+``Py_DecodeLocale()`` must only be used after the pre-initialization.
+
+
+XXX Open Questions
+==================
+
+This PEP is still a draft with open questions which should be answered:
+
+* Do we need to add an API for import ``inittab``?
+* What about the stable ABI? Should we add a version into
+  ``PyPreConfig`` and ``PyConfig`` structures somehow? The Windows API
+  is known for its ABI stability and it stores the structure size into
+  the structure directly. Do the same?
+* The PEP 432 stores ``PYTHONCASEOK`` into the config. Do we need
+  to add something for that into ``PyConfig``? How would it be exposed
+  at the Python level for ``importlib``? Passed as an argument to
+  ``importlib._bootstrap._setup()`` maybe?
+
+
+Backwards Compatibility
+=======================
+
+This PEP only adds a new API: it leaves the existing API unchanged and
+has no impact on the backwards compatibility.
+
+
+Alternative: PEP 432
+====================
+
+This PEP is inspired by Nick Coghlan's PEP 432 with a main difference:
+it only allows to configure Python before its initialization.
+
+The PEP 432 uses three initialization phases: Pre-Initialization,
+Initializing, Initialized. It is possible to configure Python between
+Initializing and Initialized phases using Python objects.
+
+This PEP only uses C types like ``int`` and ``wchar_t*`` (and
+``PyWideCharList`` structure). All parameters must be configured at once
+before the Python initialization using the ``PyConfig`` structure.
+
+
+Annex: Python Configuration
+===========================
+
+Priority and Rules
+------------------
+
+Priority of configuration parameters, highest to lowest:
+
+* ``PyConfig``
+* ``PyPreConfig``
+* Configuration files
+* Command line options
+* Environment variables
+* Global configuration variables
+
+Priority of warning options, highest to lowest:
+
+* ``PyConfig.warnoptions``
+* ``PyConfig.dev_mode`` (add ``"default"``)
+* ``PYTHONWARNINGS`` environment variables
+* ``-W WARNOPTION`` command line argument
+* ``PyConfig.bytes_warning`` (add ``"error::BytesWarning"`` if greater
+  than 1, or add ``"default::BytesWarning``)
+
+Rules on ``PyConfig`` and ``PyPreConfig`` parameters:
+
+* If ``isolated`` is non-zero, ``use_environment`` and
+  ``user_site_directory`` are set to 0
+* If ``legacy_windows_fs_encoding`` is non-zero, ``utf8_mode`` is set to
+  0
+* If ``dev_mode`` is non-zero, ``allocator`` is set to ``"debug"``,
+  ``faulthandler`` is set to 1, and ``"default"`` filter is added to
+  ``warnoptions``. But ``PYTHONMALLOC`` has the priority over
+  ``dev_mode`` to set the memory allocator.
+
+Configuration Files
+-------------------
+
+Python configuration files:
+
+* ``pyvenv.cfg``
+* ``python._pth`` (Windows only)
+* ``pybuilddir.txt`` (Unix only)
+
+Global Configuration Variables
+------------------------------
+
+Global configuration variables mapped to ``PyPreConfig`` fields:
+
+========================================  ================================
+Variable                                  Field
+========================================  ================================
+``Py_LegacyWindowsFSEncodingFlag``        ``legacy_windows_fs_encoding``
+``Py_LegacyWindowsFSEncodingFlag``        ``legacy_windows_fs_encoding``
+``Py_UTF8Mode``                           ``utf8_mode``
+``Py_UTF8Mode``                           ``utf8_mode``
+========================================  ================================
+
+Global configuration variables mapped to ``PyConfig`` fields:
+
+========================================  ================================
+Variable                                  Field
+========================================  ================================
+``Py_BytesWarningFlag``                   ``bytes_warning``
+``Py_DebugFlag``                          ``parser_debug``
+``Py_DontWriteBytecodeFlag``              ``write_bytecode``
+``Py_FileSystemDefaultEncodeErrors``      ``filesystem_errors``
+``Py_FileSystemDefaultEncoding``          ``filesystem_encoding``
+``Py_FrozenFlag``                         ``_frozen``
+``Py_HasFileSystemDefaultEncoding``       ``filesystem_encoding``
+``Py_HashRandomizationFlag``              ``use_hash_seed``, ``hash_seed``
+``Py_IgnoreEnvironmentFlag``              ``use_environment``
+``Py_InspectFlag``                        ``inspect``
+``Py_InteractiveFlag``                    ``interactive``
+``Py_IsolatedFlag``                       ``isolated``
+``Py_LegacyWindowsStdioFlag``             ``legacy_windows_stdio``
+``Py_NoSiteFlag``                         ``site_import``
+``Py_NoUserSiteDirectory``                ``user_site_directory``
+``Py_OptimizeFlag``                       ``optimization_level``
+``Py_QuietFlag``                          ``quiet``
+``Py_UnbufferedStdioFlag``                ``buffered_stdio``
+``Py_VerboseFlag``                        ``verbose``
+``_Py_HasFileSystemDefaultEncodeErrors``  ``filesystem_errors``
+``Py_BytesWarningFlag``                   ``bytes_warning``
+``Py_DebugFlag``                          ``parser_debug``
+``Py_DontWriteBytecodeFlag``              ``write_bytecode``
+``Py_FileSystemDefaultEncodeErrors``      ``filesystem_errors``
+``Py_FileSystemDefaultEncoding``          ``filesystem_encoding``
+``Py_FrozenFlag``                         ``_frozen``
+``Py_HasFileSystemDefaultEncoding``       ``filesystem_encoding``
+``Py_HashRandomizationFlag``              ``use_hash_seed``, ``hash_seed``
+``Py_IgnoreEnvironmentFlag``              ``use_environment``
+``Py_InspectFlag``                        ``inspect``
+``Py_InteractiveFlag``                    ``interactive``
+``Py_IsolatedFlag``                       ``isolated``
+``Py_LegacyWindowsStdioFlag``             ``legacy_windows_stdio``
+``Py_NoSiteFlag``                         ``site_import``
+``Py_NoUserSiteDirectory``                ``user_site_directory``
+``Py_OptimizeFlag``                       ``optimization_level``
+``Py_QuietFlag``                          ``quiet``
+``Py_UnbufferedStdioFlag``                ``buffered_stdio``
+``Py_VerboseFlag``                        ``verbose``
+``_Py_HasFileSystemDefaultEncodeErrors``  ``filesystem_errors``
+========================================  ================================
+
+
+``Py_LegacyWindowsFSEncodingFlag`` and ``Py_LegacyWindowsStdioFlag`` are
+only available on Windows.
+
+Command Line Arguments
+----------------------
+
+Usage::
+
+    python3 [options]
+    python3 [options] -c COMMAND
+    python3 [options] -m MODULE
+    python3 [options] SCRIPT
+
+
+Command line options mapped to pseudo-action on ``PyConfig`` fields:
+
+================================  ================================
+Option                            ``PyConfig`` field
+================================  ================================
+``-b``                            ``bytes_warning++``
+``-B``                            ``write_bytecode = 0``
+``-c COMMAND``                    ``run_module = COMMAND``
+``--check-hash-based-pycs=MODE``  ``_check_hash_pycs_mode = MODE``
+``-d``                            ``parser_debug++``
+``-E``                            ``use_environment = 0``
+``-i``                            ``inspect++`` and ``interactive++``
+``-I``                            ``isolated = 1``
+``-m MODULE``                     ``run_module = MODULE``
+``-O``                            ``optimization_level++``
+``-q``                            ``quiet++``
+``-R``                            ``use_hash_seed = 0``
+``-s``                            ``user_site_directory = 0``
+``-S``                            ``site_import``
+``-t``                            ignored (kept for backwards compatibility)
+``-u``                            ``buffered_stdio = 0``
+``-v``                            ``verbose++``
+``-W WARNING``                    add ``WARNING`` to ``warnoptions``
+``-x``                            ``skip_source_first_line = 1``
+``-X XOPTION``                    add ``XOPTION`` to ``xoptions``
+================================  ================================
+
+``-h``, ``-?`` and ``-V`` options are handled outside ``PyConfig``.
+
+Environment Variables
+---------------------
+
+Environment variables mapped to ``PyPreConfig`` fields:
+
+=================================  =============================================
+Variable                           ``PyPreConfig`` field
+=================================  =============================================
+``PYTHONCOERCECLOCALE``            ``coerce_c_locale``, ``coerce_c_locale_warn``
+``PYTHONDEVMODE``                  ``dev_mode``
+``PYTHONLEGACYWINDOWSFSENCODING``  ``legacy_windows_fs_encoding``
+``PYTHONMALLOC``                   ``allocator``
+``PYTHONUTF8``                     ``utf8_mode``
+=================================  =============================================
+
+Environment variables mapped to ``PyConfig`` fields:
+
+=================================  ====================================
+Variable                           ``PyConfig`` field
+=================================  ====================================
+``PYTHONDEBUG``                    ``parser_debug``
+``PYTHONDEVMODE``                  ``dev_mode``
+``PYTHONDONTWRITEBYTECODE``        ``write_bytecode``
+``PYTHONDUMPREFS``                 ``dump_refs``
+``PYTHONEXECUTABLE``               ``program_name``
+``PYTHONFAULTHANDLER``             ``faulthandler``
+``PYTHONHASHSEED``                 ``use_hash_seed``, ``hash_seed``
+``PYTHONHOME``                     ``home``
+``PYTHONINSPECT``                  ``inspect``
+``PYTHONIOENCODING``               ``stdio_encoding``, ``stdio_errors``
+``PYTHONLEGACYWINDOWSSTDIO``       ``legacy_windows_stdio``
+``PYTHONMALLOCSTATS``              ``malloc_stats``
+``PYTHONNOUSERSITE``               ``user_site_directory``
+``PYTHONOPTIMIZE``                 ``optimization_level``
+``PYTHONPATH``                     ``module_search_path_env``
+``PYTHONPROFILEIMPORTTIME``        ``import_time``
+``PYTHONPYCACHEPREFIX,``           ``pycache_prefix``
+``PYTHONTRACEMALLOC``              ``tracemalloc``
+``PYTHONUNBUFFERED``               ``buffered_stdio``
+``PYTHONVERBOSE``                  ``verbose``
+``PYTHONWARNINGS``                 ``warnoptions``
+=================================  ====================================
+
+``PYTHONLEGACYWINDOWSFSENCODING`` and ``PYTHONLEGACYWINDOWSSTDIO`` are
+specific to Windows.
+
+``PYTHONDEVMODE`` is mapped to ``PyPreConfig.dev_mode`` and
+``PyConfig.dev_mode``.
+
+
+Annex: Python 3.7 API
+=====================
+
+Python 3.7 has 4 functions in its C API to initialize and finalize
+Python:
+
+* ``Py_Initialize()``, ``Py_InitializeEx()``: initialize Python
+* ``Py_Finalize()``, ``Py_FinalizeEx()``: finalize Python
+
+Python can be configured using scattered global configuration variables
+(like ``Py_IgnoreEnvironmentFlag``) and using the following functions:
+
+* ``PyImport_AppendInittab()``
+* ``PyImport_ExtendInittab()``
+* ``PyMem_SetAllocator()``
+* ``PyMem_SetupDebugHooks()``
+* ``PyObject_SetArenaAllocator()``
+* ``Py_SetPath()``
+* ``Py_SetProgramName()``
+* ``Py_SetPythonHome()``
+* ``Py_SetStandardStreamEncoding()``
+* ``PySys_AddWarnOption()``
+* ``PySys_AddXOption()``
+* ``PySys_ResetWarnOptions()``
+
+There is also a high-level ``Py_Main()`` function.
+
+
+Copyright
+=========
+
+This document has been placed in the public domain.
+
+From vstinner at redhat.com  Wed Mar 27 21:34:39 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 28 Mar 2019 02:34:39 +0100
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CAP7h-xZANmsqjbdOY985YWwYZCMWgZ25qmg0GuTd-_4+WYK9Mg@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <CAP7h-xZANmsqjbdOY985YWwYZCMWgZ25qmg0GuTd-_4+WYK9Mg@mail.gmail.com>
+Message-ID: <CA+3bQGEtmE2vB-bEbrHCDgKCJ=YRPPedwCYANgE4fshBzSQ1Dw@mail.gmail.com>
+
+Le mer. 27 mars 2019 ? 19:35, Alexander Belopolsky
+<alexander.belopolsky at gmail.com> a ?crit :
+> Would you consider making _Py_UnixMain public as well?
+>
+> It is useful for high level embedding and not trivial for 3rd parties to reimplement.
+
+Right, Py_Main() is causing a lot of practice issues, especially
+mojibake because of the C locale coercion (PEP 538) and UTF-8 Mode
+(PEP 540): both added in Python 3.7. I added that to the Rationale of
+my PEP 587.
+
+I just fixed the mojibake issue in Python 3.8 by disabling C locale
+coercion and UTF-8 Mode by default. I'm not sure if nor how Python 3.7
+should be fixed in a minor 3.7.x release.
+
+Making _Py_UnixMain() public has already been discussed here:
+https://discuss.python.org/t/adding-char-based-apis-for-unix/916
+
+My PEP 587 allows to pass command line arguments as bytes (char*) or
+Unicode (wchar_t*).
+
+Ok, I just added Py_UnixMain() to the PEP (just make it part of the public API).
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Wed Mar 27 21:41:43 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 28 Mar 2019 02:41:43 +0100
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+Message-ID: <CA+3bQGGSo=jxxaHFHHrnifiOWydPJiNCLavcPy8upN9PcKtTeA@mail.gmail.com>
+
+Ah, I forgot to say that a major enhancement for the implementation is
+that I wrote a lot of new unit tests for the existing Python
+Initialization API. Python 3.7 has most of these tests. I wrote even
+more tests for my new private initialization API ;-)
+
+I wrote these tests to specify and validate the priority between the
+different ways to configuration Python and "rules" (a parameter
+setting other parameters):
+https://github.com/python/peps/blob/master/pep-0587.rst#priority-and-rules
+
+Victor
+
+Le mer. 27 mars 2019 ? 18:48, Victor Stinner <vstinner at redhat.com> a ?crit :
+>
+> Hi,
+>
+> I would like to add a new C API to initialize Python. I would like
+> your opinion on the whole API before making it public. The code is
+> already implemented. Doc of the new API:
+>
+>    https://pythondev.readthedocs.io/init_config.html
+>
+>
+> To make the API public, _PyWstrList, _PyInitError, _PyPreConfig,
+> _PyCoreConfig and related functions should be made public.
+>
+> By the way, I would suggest to rename "_PyCoreConfig" to just
+> "PyConfig" :-) I don't think that "core init" vs "main init" is really
+> relevant: more about that below.
+>
+>
+> Let's start with two examples using the new API.
+>
+> Example of simple initialization to enable isolated mode:
+>
+>     _PyCoreConfig config = _PyCoreConfig_INIT;
+>     config.isolated = 1;
+>
+>     _PyInitError err = _Py_InitializeFromConfig(&config);
+>     if (_Py_INIT_FAILED(err)) {
+>         _Py_ExitInitError(err);
+>     }
+>     /* ... use Python API here ... */
+>     Py_Finalize();
+>
+> Example using the pre-initialization to enable the UTF-8 Mode (and use the
+> "legacy" Py_Initialize() function):
+>
+>     _PyPreConfig preconfig = _PyPreConfig_INIT;
+>     preconfig.utf8_mode = 1;
+>
+>     _PyInitError err = _Py_PreInitialize(&preconfig);
+>     if (_Py_INIT_FAILED(err)) {
+>         _Py_ExitInitError(err);
+>     }
+>
+>     /* at this point, Python will only speak UTF-8 */
+>
+>     Py_Initialize();
+>     /* ... use Python API here ... */
+>     Py_Finalize();
+>
+> Since November 2017, I'm refactoring the Python Initialization code to
+> cleanup the code and prepare a new ("better") API to configure Python
+> Initialization. I just fixed the last issues that Nick Coghlan asked
+> me to fix (add a pre-initialization step: done, fix mojibake: done).
+> My work is inspired by Nick Coghlan's PEP 432, but it is not
+> implementing it directly. I had other motivations than Nick even if we
+> are somehow going towards the same direction.
+>
+> Nick wants to get a half-initialized Python ("core init"), configure
+> Python using the Python API and Python objects, and then finish the
+> implementation ("main init").
+>
+> I chose a different approach: put *everything* into a single C
+> structure (_PyCoreConfig) using C types. Using the structure, you
+> should be able to do what Nick wanted to do, but with C rather than
+> Python. Nick: please tell me if I'm wrong :-)
+>
+> This work is also connected to Eric Snow's work on sub-interpreters
+> (PEP 554) and moving global variables into structures. For example,
+> I'm using his _PyRuntime structure to store a new "preconfig" state
+> (pre-initialization configuration, more about that below).
+>
+> In November 2017, when I started to work on the Python Initialization
+> (bpo-32030), I identified the following problems:
+>
+> * Many parts of the code were interdependent
+> * Code executed early in Py_Main() used the Python API before the Python API
+>   was fully initialized. Like code parsing -W command line option which
+>   used PyUnicode_FromWideChar() and PyList_Append().
+> * Error handling used Py_FatalError() which didn't let the caller to decide
+>   how to handle the error. Moreover, exit() was used to exit Python,
+> whereas libpython shouldn't do that: a library should not exit the
+> whole process! (imagine when Python is embedded inside an application)
+>
+> One year and a half later, I implemented the following solutions:
+>
+> * Py_Main() and Py_Initialize() code has been reorganized to respect
+>   priorities between global configuration variables (ex:
+>   Py_IgnoreEnvironmentFlag), environment variables (ex: PYTHONPATH), command
+>   line arguments (ex: -X utf8), configuration files (ex: pyenv.cfg), and the
+>   new _PyPreConfig and _PyCoreConfig structures which store the whole
+>   configuration.
+> * Python Initialization no longer uses the Python API but only C types
+>   like wchar_t* strings, a new _PyWstrList structure and PyMem_RawMalloc()
+>   memory allocator (PyMem_Malloc() is no longer used during init).
+> * The code has been modified to use a new _PyInitError structure. The caller
+>   of the top function gets control to cleanup everything before handling the
+>   error (display a fatal error message or simply exit Python).
+>
+> The new _PyCoreConfig structure has the top-priority and provides a single
+> structure for all configuration parameters.
+>
+> It becomes possible to override the code computing the "path configuration"
+> like sys.path to fully control where Python looks to import modules. It
+> becomes possible to use an empty list of paths to only allow builtin modules.
+>
+> A new "pre-initialization" steps is responsible to configure the bare minimum
+> before the Python initialization: memory allocators and encodings
+> (LC_CTYPE locale
+> and the UTF-8 mode). The LC_CTYPE is no longer coerced and the UTF-8 Mode is
+> no longer enabled automatically depending on the user configuration to prevent
+> mojibake. Previously, calling Py_DecodeLocale() to get a Unicode wchar_t*
+> string from a bytes wchar* string created mojibake when called before
+> Py_Initialize() if the LC_CTYPE locale was coerced and/or if the UTF-8 Mode was
+> enabled.
+>
+> The pre-initialization step ensures that the encodings and memory allocators
+> are well defined *before* Py_Initialize() is called.
+>
+> Since the new API is currently private, I didn't document it in
+> Python. Moreover, the code changed a lot last year :-) But it should
+> now be way more stable. I started to document it in a separated
+> webpage:
+>
+>    https://pythondev.readthedocs.io/init_config.html
+>
+> The plan is to put it in the Python documentation once it becomes public.
+>
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From dimaqq at gmail.com  Wed Mar 27 21:59:43 2019
+From: dimaqq at gmail.com (Dima Tisnek)
+Date: Thu, 28 Mar 2019 10:59:43 +0900
+Subject: [Python-Dev] Mistake in 3.7.3 Changelog
+Message-ID: <CAGGBzXJQSemK7n68XPkLpP3cEv+61knbPmoBGqe_Kuui0Eb2xQ@mail.gmail.com>
+
+Hi list,
+
+Sorry, I'm not sure where to post this.
+
+The Changelog reads:
+
+bpo-12477: Fix bug in parsermodule when parsing a state in a DFA that
+has two or more arcs with labels of the same type. Patch by Pablo
+Galindo.
+
+The `12477` is actually a master github pull request number, not a
+Python bug number.
+
+Correct BPO is https://bugs.python.org/issue36256
+
+Cheers,
+d
+
+From songofacandy at gmail.com  Wed Mar 27 22:27:49 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Thu, 28 Mar 2019 11:27:49 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <18ccdacf-8fc8-5130-b4ba-89df84e02987@python.org>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+ <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+ <CAEfz+Tzj5uh3K9yOF-k+1S1_s_32CSz2_Ad4kB6WH+Y7m_c1BA@mail.gmail.com>
+ <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+ <18ccdacf-8fc8-5130-b4ba-89df84e02987@python.org>
+Message-ID: <CAEfz+TytJj=oMXKUE5T8dJj0Jq6ZRp6Uex-JSwmpSaOt39Mx2Q@mail.gmail.com>
+
+On Thu, Mar 28, 2019 at 12:26 AM Steve Dower <steve.dower at python.org> wrote:
+>
+[snip]
+> 2. Do we want everyone else to stop using it for their own purposes?
+[snip]
+>
+> The second question is harder to answer, and in the absence of input
+> from those who are already using it (or the absence of evidence that
+> nobody else is using it), the best we can do is evaluate how much of a
+> maintenance burden the class is.
+>
+> In my opinion, it is a very low maintenance burden, and a very low
+> cognitive burden on users, and so the cost of deprecating it on
+> third-parties who are using it vastly outweighs the cost of leaving it
+> alone.
+
+As of my personal experience,  I used PendingDeprecationWarning
+because it was convention, not because it is useful.
+
+I didn't know "right way" to chose DeprecationWarning or
+PendingDeprecationWarning.
+So I need to survey convention in CPython.
+
+I think I'm not only alone.  Many developers may pay costs:
+
+1. Confused by two warning class.
+2. Survey convention
+3. Follow the convention (replace PendingDeprecationWarning to
+    DeprecationWarning in N-1 release)
+
+>
+> If someone can show that either no third-parties are using it, or all
+> those that do will probably never explicitly support Python 3.8 or
+> later, or all those that do would prefer to stop using it, then I'll
+> happily change my mind here. But right now, it seems like deprecating it
+> will cause an unknown amount of churn for minimal benefit.
+>
+
+Even though "document only" deprecation?
+I don't propose raising DeprecationWarning for use of PendingDeprecationWarning.
+
+If you dislike document it as ".. deprecated:: 3.8", I'm OK to use "..
+note::" directive.
+
+
+> At most, I'd document it as "this will probably not survive to the next
+> major change release, even though we aren't planning to do one yet"
+> (much like the Py_UNICODE APIs). Ironically, PendingDeprecationWarning
+> seems a pretty accurate way of indicating this state.
+>
+> Cheers,
+> Steve
+
+I think it is still confusing.  In case of Py_UNICODE, there are 10+ years until
+"next major change release."  But it's not true for everytime.  If
+there are only
+two years until "next major version", we should absolutely use
+DeprecationWarning.
+
+And we used "document only deprecation" instead of PendingDeprecationWarning.
+For example, array('u') have not raised PendingDeprecationWarning for long time.
+Only document says "Deprecated since version 3.3, will be removed in
+version 4.0." [1]
+
+[1] https://docs.python.org/3/library/array.html
+
+I prefer document only deprecation to PendingDeprecationWarning for somehting
+"It will not removed in foreseeable future.  But it will probably
+removed in the future."
+
+Note that -Wd and testing tool enable both of PendingDeprecationWarning and
+DeprecationWarning.  If we use PendingDeprecationWarning for them, it
+will be too noisy.
+
+
+I don't think it's worth enough to try "Make PendingDeprecationWarning
+useful again!".
+I want to document "PendingDeprecationWarning is not useful anymore".
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From nad at python.org  Wed Mar 27 22:37:08 2019
+From: nad at python.org (Ned Deily)
+Date: Wed, 27 Mar 2019 22:37:08 -0400
+Subject: [Python-Dev] Mistake in 3.7.3 Changelog
+In-Reply-To: <CAGGBzXJQSemK7n68XPkLpP3cEv+61knbPmoBGqe_Kuui0Eb2xQ@mail.gmail.com>
+References: <CAGGBzXJQSemK7n68XPkLpP3cEv+61knbPmoBGqe_Kuui0Eb2xQ@mail.gmail.com>
+Message-ID: <EE2FD92E-030E-4CF7-9E62-E1A323093081@python.org>
+
+On Mar 27, 2019, at 21:59, Dima Tisnek <dimaqq at gmail.com> wrote:
+> The Changelog reads:
+> 
+> bpo-12477: Fix bug in parsermodule when parsing a state in a DFA that
+> has two or more arcs with labels of the same type. Patch by Pablo
+> Galindo.
+> 
+> The `12477` is actually a master github pull request number, not a
+> Python bug number.
+> 
+> Correct BPO is https://bugs.python.org/issue36256
+
+Thanks for the report!  I'll see that it gets fixed.
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From nad at python.org  Thu Mar 28 00:24:45 2019
+From: nad at python.org (Ned Deily)
+Date: Thu, 28 Mar 2019 00:24:45 -0400
+Subject: [Python-Dev] Mistake in 3.7.3 Changelog
+In-Reply-To: <EE2FD92E-030E-4CF7-9E62-E1A323093081@python.org>
+References: <CAGGBzXJQSemK7n68XPkLpP3cEv+61knbPmoBGqe_Kuui0Eb2xQ@mail.gmail.com>
+ <EE2FD92E-030E-4CF7-9E62-E1A323093081@python.org>
+Message-ID: <4A10E6CB-2136-4162-833A-0CD4262A5E3B@python.org>
+
+On Mar 27, 2019, at 22:37, Ned Deily <nad at python.org> wrote:
+> On Mar 27, 2019, at 21:59, Dima Tisnek <dimaqq at gmail.com> wrote:
+>> Correct BPO is https://bugs.python.org/issue36256
+> Thanks for the report!  I'll see that it gets fixed.
+
+    https://github.com/python/cpython/pull/12600
+
+There were also a couple more in master/3.8:
+    https://github.com/python/cpython/pull/12599
+
+The on-line docs for 3.7 and dev should reflect the changes within a few hours.
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Thu Mar 28 00:27:07 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Thu, 28 Mar 2019 13:27:07 +0900
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGEtmE2vB-bEbrHCDgKCJ=YRPPedwCYANgE4fshBzSQ1Dw@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <CAP7h-xZANmsqjbdOY985YWwYZCMWgZ25qmg0GuTd-_4+WYK9Mg@mail.gmail.com>
+ <CA+3bQGEtmE2vB-bEbrHCDgKCJ=YRPPedwCYANgE4fshBzSQ1Dw@mail.gmail.com>
+Message-ID: <23708.19739.463707.444487@turnbull.sk.tsukuba.ac.jp>
+
+Victor Stinner writes:
+
+ > I just fixed the mojibake issue in Python 3.8 by disabling C locale
+ > coercion and UTF-8 Mode by default. I'm not sure if nor how Python 3.7
+ > should be fixed in a minor 3.7.x release.
+
+That sounds like a potential regression.  Those two features were
+added *and turned on by default* (which really means "if you detect
+LC_TYPE=C, coerce") to relieve previously existing mojibake/
+UnicodeError issues due to ASCII-only environments that are difficult
+to configure (such as containers).  Turning them on by default was the
+controversial part -- it was known that on or off, some environments
+would have problems, and that's why they needed PEPs.  Do those issues
+return now?  If so, where is the PEP rationale for defaulting to "on"
+faulty?
+
+
+
+
+
+From greg at krypto.org  Thu Mar 28 01:23:41 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 27 Mar 2019 22:23:41 -0700
+Subject: [Python-Dev] PEP 556 threaded garbage collection & linear
+ recursion in gc
+In-Reply-To: <CAExdVN=JCWJQOPUxd=ApSUDzBMm58FzKBeS0ELLBuEmvwVvdFQ@mail.gmail.com>
+References: <CAGE7PN+8o8AVMpXh84ZqH7cN69r9rr3yq=-enE5JaF6eXzi2aQ@mail.gmail.com>
+ <CAExdVN=JCWJQOPUxd=ApSUDzBMm58FzKBeS0ELLBuEmvwVvdFQ@mail.gmail.com>
+Message-ID: <CAGE7PNKWeK8AuuH3QDeUTLwLu8a00wZx3EvnBnf9S=TYsA+Kug@mail.gmail.com>
+
+Good point, I hadn't considered that it was regular common ref count 0
+dealloc chaining.  The processes unfortunately didn't have faulthandler
+enabled so there wasn't much info from where in the python code it happened
+(now fixed).  I'll see if anything looks particularly unusual next time I
+hear of such a report.
+
+-G
+
+On Wed, Mar 27, 2019, 5:38 PM Tim Peters <tim.peters at gmail.com> wrote:
+
+> [Gregory P. Smith <greg at krypto.org>]
+> > ...
+> > A situation came up the other day where I believe this could've helped.
+> >
+> > Scenario (admittedly not one most environments run into): A Python
+> process
+> > with a C++ extension module implementing a threaded server (threads
+> > spawned by C++) that could call back into CPython within server request
+> > handlers.  (ie: how all threaded servers tend to work regardless of core
+> > loop implementation language)
+> >
+> > Python code in the application had done something (unknown to me, I
+> > didn't dive into their code) that built up large enough presumably nested
+> > or recursive data structures that the garbage collector, when triggered,
+> > would wind up in very deep recursion.  This caused a stack overflow
+> >  as the C++ spawned threads were only being given a 256k stack (to
+> > conserve virtual address space - there can potentially be a _ton_ of
+> > threads in this code).
+> >
+> > That had a C++ stack trace 1000+ levels deep repeating the pattern of
+> >
+> > ...
+> >     @     0x564d59bd21de         32  func_dealloc
+> >     @     0x564d59bce0c1         32  cell_dealloc
+> >     @     0x564d5839db41         48  tupledealloc
+> >     @     0x564d59bd21de         32  func_dealloc
+> >     @     0x564d59bce0c1         32  cell_dealloc
+> >     @     0x564d5839db41         48  tupledealloc
+> > ...
+> >
+> > If our gc were done on a thread of its own spawned by Python, with a
+> typical
+> > normal larger default stack size (8mb) this would've been less likely
+> > to trigger a crash (though obviously still possible if the recursion is
+> linear).
+>
+> Just noting that gc is probably a red herring in that scenario.  gc
+> (cleverly!) determines the set of trash objects without needing any
+> recursive graph crawls.  And gc doesn't deallocate anything - not
+> directly.  It simply applies Py_DECREF to trash objects, once for each
+> PyObject* found pointing to them.  _If_ deallocation occurs as a
+> result, it's the same as if the user had done `del` on the appropriate
+> object manually.  The recursion then occurs in the chain of
+> XXX_dealloc calls, which in turn do more Py_DECREFs of their own, and
+> which have nothing in particular to do with gc.  Approximately the
+> same stack depth would be hit in a Python built without gc if the user
+> did the same sequence of `del`s by hand to break trash cycles.
+>
+> The good news is that the "trashcan" mechanism - which predates gc -
+> was introduced to limit call depth in the presence of some potentially
+> unbounded chains of dealloc calls.  So teach trashcan about the
+> pattern here, and the stack depth problem goes away, with or without
+> gc.
+>
+> The bad news is that the traschcan mechanism is excruciating, a
+> long-time source of subtle bugs of its own :-(
+>
+> Note:  without actual code to run, it's possible that trashcan is
+> _already_ trying to limit stack depth in this specific case, but the
+> stack size is too small to accommodate the largest depth of recursive
+> calls trashcan is willing to allow before interfering.  Or some bug
+> snuck into trashcan, or its invoking code, that causes it to fail to
+> work as intended due to some unknown detail of the code above.
+> There's just no way to guess without code to provoke it.
+>
+>
+> > Another take away from this is that it appears possible to cause our gc
+> > to go into linear recursion.
+>
+> As above, it's probably not gc, but deallocation as a side effect of
+> Py_DECREF dropping a refcount to 0.  gc is just one way Py_DECREF can
+> get invoked.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190327/aa3db392/attachment.html>
+
+From tim.peters at gmail.com  Thu Mar 28 02:33:29 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Thu, 28 Mar 2019 01:33:29 -0500
+Subject: [Python-Dev] PEP 556 threaded garbage collection & linear
+ recursion in gc
+In-Reply-To: <CAGE7PNKWeK8AuuH3QDeUTLwLu8a00wZx3EvnBnf9S=TYsA+Kug@mail.gmail.com>
+References: <CAGE7PN+8o8AVMpXh84ZqH7cN69r9rr3yq=-enE5JaF6eXzi2aQ@mail.gmail.com>
+ <CAExdVN=JCWJQOPUxd=ApSUDzBMm58FzKBeS0ELLBuEmvwVvdFQ@mail.gmail.com>
+ <CAGE7PNKWeK8AuuH3QDeUTLwLu8a00wZx3EvnBnf9S=TYsA+Kug@mail.gmail.com>
+Message-ID: <CAExdVNmD6ycgpVFBtQ_O-1=_QgTo9KutKQV7MxihnsF9Zq0Fqw@mail.gmail.com>
+
+[Gregory P. Smith <greg at krypto.org>]
+> Good point, I hadn't considered that it was regular common ref
+> count 0 dealloc chaining.
+
+It pretty much has to be whenever you see a chain of XXX_dealloc
+routines in a stack trace.  gcmodule.c never even looks at a
+tp_dealloc slot directly, let alone directly invoke a deallocation
+method.  That all happens indirectly, as a result of what Py_DECREF
+does.  Then once you're first inside one tp_dealloc method, gc is
+completely irrelevant - it's that tp_dealloc for the top-level
+container does its own Py_DECREF on a contained container, which in
+turn can do _its_ own Py_DECREF on one of its contained containers
+.... etc.  You can get an arbitrarily deep stack of XXX_dealloc calls
+then, and there's really no other way to get that.
+
+BTW,  "container" here is used in a very broad C-level sense, not a
+high-level Python sense:  any PyObject that contains a pointer to a
+PyObject is "a container" in the intended sense.
+
+> The processes unfortunately didn't have faulthandler enabled so there wasn't
+> much info from where in the python code it happened (now fixed).
+
+It's quite possible that the top-level container was Py_DECREF'ed by
+code in gcmodule.c.  But gc gets blamed at first for a lot of stuff
+that's not actually its fault ;-)
+
+>  I'll see if anything looks particularly unusual next time I hear of such a report.
+
+The trashcan mechanism is the one and only hack in the code intended
+to stop unbounded XXX_dealloc stacks, so that's what needs looking at.
+Alas, it's hard to work with because it's so very low-level, and
+there's nothing portable that can be relied on about stack sizes or
+requirements across platforms or compilers.
+
+Some possibilities:
+
+- The trashcan code is buggy.
+
+- The  maximum container dealloc stack depth trashcan intends to allow
+(PyTrash_UNWIND_LEVEL = 50) is too large for the C stack a thread gets
+under this app on this platform using this compiler.
+
+- One or more of the specific container types involved in this app's
+dealloc chain doesn't use the trashcan gimmick at all, so is invisible
+to trashcan's count of how deep the call stack has gotten.
+
+For example, cell_dealloc was in your stack trace, but I see no use of
+trashcan code in that function (Py_TRASHCAN_SAFE_BEGIN /
+Py_TRASHCAN_SAFE_END).  So the trashcan hack has no idea that
+cell_dealloc calls are on the stack.
+
+And likewise for func_dealloc.- looks like calls to that are also
+invisible to the trashcan.
+
+tupledealloc is cool, though.
+
+IIRC, Christian Tismer introduced the trashcan because code only he
+wrote ;-) was blowing the stack when very deeply nested lists and/or
+tuples became trash.
+
+>From a quick scan of the current code, looks like it was later added
+to only a few types that aren't container types in the Python sense.
+
+Which may or may not matter here.  Your stack trace showed a
+tupledealloc in one of every three slots, so even if two of every
+three slots were invisible to the traschcan, the call stack "should
+have been" limited to a maximum of about PyTrash_UNWIND_LEVEL  * 3 =
+150 XXX_dealloc functions.  But you saw a stack 1000+ levels deep.  So
+something else that isn't immediately apparent is also going on.
+
