@@ -18751,3 +18751,1799 @@ have been" limited to a maximum of about PyTrash_UNWIND_LEVEL  * 3 =
 150 XXX_dealloc functions.  But you saw a stack 1000+ levels deep.  So
 something else that isn't immediately apparent is also going on.
 
+From vstinner at redhat.com  Thu Mar 28 04:48:22 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 28 Mar 2019 09:48:22 +0100
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <23708.19739.463707.444487@turnbull.sk.tsukuba.ac.jp>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <CAP7h-xZANmsqjbdOY985YWwYZCMWgZ25qmg0GuTd-_4+WYK9Mg@mail.gmail.com>
+ <CA+3bQGEtmE2vB-bEbrHCDgKCJ=YRPPedwCYANgE4fshBzSQ1Dw@mail.gmail.com>
+ <23708.19739.463707.444487@turnbull.sk.tsukuba.ac.jp>
+Message-ID: <CA+3bQGHtnLr14hwH7urMDje0q63S4O8Ga_SBPzJ3eywGy-VwCg@mail.gmail.com>
+
+Le jeu. 28 mars 2019 ? 05:27, Stephen J. Turnbull
+<turnbull.stephen.fw at u.tsukuba.ac.jp> a ?crit :
+> Victor Stinner writes:
+>
+>  > I just fixed the mojibake issue in Python 3.8 by disabling C locale
+>  > coercion and UTF-8 Mode by default. I'm not sure if nor how Python 3.7
+>  > should be fixed in a minor 3.7.x release.
+>
+> That sounds like a potential regression.  Those two features were
+> added *and turned on by default* (which really means "if you detect
+> LC_TYPE=C, coerce") to relieve previously existing mojibake/
+> UnicodeError issues due to ASCII-only environments that are difficult
+> to configure (such as containers).  Turning them on by default was the
+> controversial part -- it was known that on or off, some environments
+> would have problems, and that's why they needed PEPs.  Do those issues
+> return now?  If so, where is the PEP rationale for defaulting to "on"
+> faulty?
+
+If you use "python3.8", there is no change. I'm only talking about the
+specific case of Python embedded in an application: when you use the C
+API.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From solipsis at pitrou.net  Thu Mar 28 05:27:23 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 28 Mar 2019 10:27:23 +0100
+Subject: [Python-Dev] PEP 556 threaded garbage collection & linear
+ recursion in gc
+In-Reply-To: <CAGE7PN+8o8AVMpXh84ZqH7cN69r9rr3yq=-enE5JaF6eXzi2aQ@mail.gmail.com>
+References: <CAGE7PN+8o8AVMpXh84ZqH7cN69r9rr3yq=-enE5JaF6eXzi2aQ@mail.gmail.com>
+Message-ID: <20190328102723.25bed461@fsol>
+
+On Wed, 27 Mar 2019 15:59:25 -0700
+"Gregory P. Smith" <greg at krypto.org> wrote:
+> 
+> That had a C++ stack trace 1000+ levels deep repeating the pattern of
+> 
+> ...
+>     @     0x564d59bd21de         32  func_dealloc
+>     @     0x564d59bce0c1         32  cell_dealloc
+>     @     0x564d5839db41         48  tupledealloc
+>     @     0x564d59bd21de         32  func_dealloc
+>     @     0x564d59bce0c1         32  cell_dealloc
+>     @     0x564d5839db41         48  tupledealloc
+> ...
+
+As Tim said, if you still have a core dump somewhere (or can reproduce
+the issue) it would be nice to know why the "trashcan" mechanism didn't
+trigger.
+
+Regards
+
+Antoine.
+
+From J.Demeyer at UGent.be  Thu Mar 28 06:06:00 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 28 Mar 2019 11:06:00 +0100
+Subject: [Python-Dev] PEP 556 threaded garbage collection & linear
+ recursion in gc
+In-Reply-To: <CAExdVN=JCWJQOPUxd=ApSUDzBMm58FzKBeS0ELLBuEmvwVvdFQ@mail.gmail.com>
+References: <CAGE7PN+8o8AVMpXh84ZqH7cN69r9rr3yq=-enE5JaF6eXzi2aQ@mail.gmail.com>
+ <CAExdVN=JCWJQOPUxd=ApSUDzBMm58FzKBeS0ELLBuEmvwVvdFQ@mail.gmail.com>
+Message-ID: <5C9C9C88.7020904@UGent.be>
+
+On 2019-03-28 01:38, Tim Peters wrote:
+> The bad news is that the traschcan mechanism is excruciating, a
+> long-time source of subtle bugs of its own :-(
+
+It just happens that I created a PR to fix some of the trashcan 
+problems: see https://bugs.python.org/issue35983 and 
+https://github.com/python/cpython/pull/11841
+
+From vano at mail.mipt.ru  Thu Mar 28 06:24:10 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Thu, 28 Mar 2019 13:24:10 +0300
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+Message-ID: <f8b4ebc4-ee9b-2557-cf74-76babd717da3@mail.mipt.ru>
+
+
+On 27.03.2019 20:48, Victor Stinner wrote:
+> Hi,
+>
+> I would like to add a new C API to initialize Python. I would like
+> your opinion on the whole API before making it public. The code is
+> already implemented. Doc of the new API:
+>
+>     https://pythondev.readthedocs.io/init_config.html
+>
+>
+> To make the API public, _PyWstrList, _PyInitError, _PyPreConfig,
+> _PyCoreConfig and related functions should be made public.
+>
+> By the way, I would suggest to rename "_PyCoreConfig" to just
+> "PyConfig" :-) I don't think that "core init" vs "main init" is really
+> relevant: more about that below.
+>
+>
+> Let's start with two examples using the new API.
+>
+> Example of simple initialization to enable isolated mode:
+>
+>      _PyCoreConfig config = _PyCoreConfig_INIT;
+>      config.isolated = 1;
+>
+>      _PyInitError err = _Py_InitializeFromConfig(&config);
+By my outsider observation, the `config' argument and return code are asking to be added to Py_Initialize instead, 
+`_Py_InitializeFromConfig` and `_Py_PreInitialize` look redundant.
+>      if (_Py_INIT_FAILED(err)) {
+>          _Py_ExitInitError(err);
+>      }
+>      /* ... use Python API here ... */
+>      Py_Finalize();
+>
+> Example using the pre-initialization to enable the UTF-8 Mode (and use the
+> "legacy" Py_Initialize() function):
+>
+>      _PyPreConfig preconfig = _PyPreConfig_INIT;
+>      preconfig.utf8_mode = 1;
+>
+>      _PyInitError err = _Py_PreInitialize(&preconfig);
+>      if (_Py_INIT_FAILED(err)) {
+>          _Py_ExitInitError(err);
+>      }
+>
+>      /* at this point, Python will only speak UTF-8 */
+>
+>      Py_Initialize();
+>      /* ... use Python API here ... */
+>      Py_Finalize();
+>
+> Since November 2017, I'm refactoring the Python Initialization code to
+> cleanup the code and prepare a new ("better") API to configure Python
+> Initialization. I just fixed the last issues that Nick Coghlan asked
+> me to fix (add a pre-initialization step: done, fix mojibake: done).
+> My work is inspired by Nick Coghlan's PEP 432, but it is not
+> implementing it directly. I had other motivations than Nick even if we
+> are somehow going towards the same direction.
+>
+> Nick wants to get a half-initialized Python ("core init"), configure
+> Python using the Python API and Python objects, and then finish the
+> implementation ("main init").
+>
+> I chose a different approach: put *everything* into a single C
+> structure (_PyCoreConfig) using C types. Using the structure, you
+> should be able to do what Nick wanted to do, but with C rather than
+> Python. Nick: please tell me if I'm wrong :-)
+>
+> This work is also connected to Eric Snow's work on sub-interpreters
+> (PEP 554) and moving global variables into structures. For example,
+> I'm using his _PyRuntime structure to store a new "preconfig" state
+> (pre-initialization configuration, more about that below).
+>
+> In November 2017, when I started to work on the Python Initialization
+> (bpo-32030), I identified the following problems:
+>
+> * Many parts of the code were interdependent
+> * Code executed early in Py_Main() used the Python API before the Python API
+>    was fully initialized. Like code parsing -W command line option which
+>    used PyUnicode_FromWideChar() and PyList_Append().
+> * Error handling used Py_FatalError() which didn't let the caller to decide
+>    how to handle the error. Moreover, exit() was used to exit Python,
+> whereas libpython shouldn't do that: a library should not exit the
+> whole process! (imagine when Python is embedded inside an application)
+>
+> One year and a half later, I implemented the following solutions:
+>
+> * Py_Main() and Py_Initialize() code has been reorganized to respect
+>    priorities between global configuration variables (ex:
+>    Py_IgnoreEnvironmentFlag), environment variables (ex: PYTHONPATH), command
+>    line arguments (ex: -X utf8), configuration files (ex: pyenv.cfg), and the
+>    new _PyPreConfig and _PyCoreConfig structures which store the whole
+>    configuration.
+> * Python Initialization no longer uses the Python API but only C types
+>    like wchar_t* strings, a new _PyWstrList structure and PyMem_RawMalloc()
+>    memory allocator (PyMem_Malloc() is no longer used during init).
+> * The code has been modified to use a new _PyInitError structure. The caller
+>    of the top function gets control to cleanup everything before handling the
+>    error (display a fatal error message or simply exit Python).
+>
+> The new _PyCoreConfig structure has the top-priority and provides a single
+> structure for all configuration parameters.
+>
+> It becomes possible to override the code computing the "path configuration"
+> like sys.path to fully control where Python looks to import modules. It
+> becomes possible to use an empty list of paths to only allow builtin modules.
+>
+> A new "pre-initialization" steps is responsible to configure the bare minimum
+> before the Python initialization: memory allocators and encodings
+> (LC_CTYPE locale
+> and the UTF-8 mode). The LC_CTYPE is no longer coerced and the UTF-8 Mode is
+> no longer enabled automatically depending on the user configuration to prevent
+> mojibake. Previously, calling Py_DecodeLocale() to get a Unicode wchar_t*
+> string from a bytes wchar* string created mojibake when called before
+> Py_Initialize() if the LC_CTYPE locale was coerced and/or if the UTF-8 Mode was
+> enabled.
+>
+> The pre-initialization step ensures that the encodings and memory allocators
+> are well defined *before* Py_Initialize() is called.
+>
+> Since the new API is currently private, I didn't document it in
+> Python. Moreover, the code changed a lot last year :-) But it should
+> now be way more stable. I started to document it in a separated
+> webpage:
+>
+>     https://pythondev.readthedocs.io/init_config.html
+>
+> The plan is to put it in the Python documentation once it becomes public.
+>
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vano%40mail.mipt.ru
+
+-- 
+Regards,
+Ivan
+
+
+From vstinner at redhat.com  Thu Mar 28 10:03:26 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 28 Mar 2019 15:03:26 +0100
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+Message-ID: <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+
+Le mer. 27 mars 2019 ? 21:26, Brett Cannon <brett at python.org> a ?crit :
+> On Wed, Mar 27, 2019 at 12:39 PM Steve Dower <steve.dower at python.org> wrote:
+>> I this this should be its own PEP, since as you say it is not
+>> implementing the only PEP we have (or alternatively, maybe you should
+>> collaborate to update PEP 432 so that it reflects what you think we
+>> ought to be implementing).
+>
+> I agree that if this isn't doing what PEP 432 set out but going its own way we should probably discuss in regards to 432.
+
+I'm sorry, I was in a hurry when I wrote the new PEP 587 and it seems
+like I created some confusion. My PEP 587 is very similar to the PEP
+432, because it is basically an implementation of the PEP 432 design.
+I am collaborating closely with Nick Coghlan and Eric Snow on the
+Python Initialization for 1 year and a half, and I just continued the
+work they started.
+
+The PEP 432 has been written in 2012 and has a "broader scope". Since
+the PEP has been written, the code has been modified slowly towards
+PEP 432 design, but not "exactly" the expected design, because of
+concrete practical issues of the implementation.
+
+The PEP 587 is the updated *implementation* of the PEP 432 which can
+be seen as the overall *design*.
+
+The PEP 587 is only a subset of the PEP 432: C API to initialize
+Python, whereas PEP 432 goes further by introducing the concepts of
+"core" and "main" initialization. The "core initialization" is a bare
+minimum working Python only with builtin types, partial sys module and
+no importlib. "Main initialization" is a fully working Python. This
+part is out of the scope of the PEP 587, but the PEP 587 should be
+flexible enough to allow to implement it later.
+
+In fact, there is already a PyConfig._init_config flag (currently
+named _PyCoreConfig._init_main) which only initializes Python up to
+the "core initialization" if set to 0. This parameter is private since
+it's unclear to me what should be the exact scope of "core" vs "main"
+init.
+
+I wrote a PR to clarify the relationship between the PEP 587 and the PEP 432:
+https://github.com/python/peps/pull/955/files
+
+Victor
+
+From steve.dower at python.org  Thu Mar 28 11:32:57 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 28 Mar 2019 08:32:57 -0700
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+Message-ID: <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+
+On 28Mar2019 0703, Victor Stinner wrote:
+> In fact, there is already a PyConfig._init_config flag (currently
+> named _PyCoreConfig._init_main) which only initializes Python up to
+> the "core initialization" if set to 0. This parameter is private since
+> it's unclear to me what should be the exact scope of "core" vs "main"
+> init.
+
+We tried to set up a video call between the interested people (Eric, 
+Nick, myself, yourself, couple of others) to clarify this point, and you 
+refused to join ;)
+
+That said, the call never happened (honestly, there's not a lot of point 
+in doing it without you being part of it), so we still don't have a 
+clear idea of where the line should be drawn. But there are enough of us 
+with fuzzy but valid ideas in our heads that we really need that 
+brainstorming session to mix them together and find something feasible. 
+Maybe we're best to put it off until PyCon at this point.
+
+Cheers,
+Steve
+
+From pablogsal at gmail.com  Thu Mar 28 12:37:08 2019
+From: pablogsal at gmail.com (Pablo Galindo Salgado)
+Date: Thu, 28 Mar 2019 16:37:08 +0000
+Subject: [Python-Dev] PEP 570
+Message-ID: <CAFjbc8FG2ihd96pQXF_i9HXb2VO=0cMFZjG4_5AJReoJS4uc+w@mail.gmail.com>
+
+Hi everyone,
+
+We have submitted PEP 570 for consideration to the steering council:
+
+https://github.com/python/steering-council/issues/4
+
+The discussion is happening on discourse:
+
+https://discuss.python.org/t/pep-570-python-positional-only-parameters/1078
+
+To eliminate splitting the discussion into two forums (discourse and
+python-dev),
+we kindly ask you to go to discourse if you want to participate in the
+debate :)
+
+Here is the full document of the PEP:
+
+https://www.python.org/dev/peps/pep-0570/
+
+Pablo Galindo Salgado
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190328/fbf4aafa/attachment.html>
+
+From brian.kuhl at windriver.com  Thu Mar 28 13:15:46 2019
+From: brian.kuhl at windriver.com (Kuhl, Brian)
+Date: Thu, 28 Mar 2019 17:15:46 +0000
+Subject: [Python-Dev] VxWorks and Python
+Message-ID: <6C486AB80682E24095E3E77A408D68F20149A5DF1E@ALA-MBD.corp.ad.wrs.com>
+
+Hi Python developers,
+Victor suggested I post a little background to help the maintainers understand VxWorks a little better.
+It can be found here
+https://github.com/Wind-River/cpython/wiki/Python-on-VxWorks
+If you'd like more detail in a particular area, please feel free to reply on or off list.
+
+I'd also like to mention again, that Wind River is interested in setting up a short term consulting arrangement, with any core dev that's available.
+To help accelerate Peixing's PRs acceptance
+https://github.com/python/cpython/pulls?utf8=%E2%9C%93&q=is%3Apr+is%3Aopen+bpo-31904
+and generally improve Cpython.
+
+Wind River operates globally so don't let you location dissuade you.
+
+Many thanks for all your help,
+
+Brian
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190328/a748a233/attachment.html>
+
+From nas-python at arctrix.com  Thu Mar 28 15:39:28 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Thu, 28 Mar 2019 13:39:28 -0600
+Subject: [Python-Dev] PEP 556 threaded garbage collection & linear
+ recursion in gc
+In-Reply-To: <20190328102723.25bed461@fsol>
+References: <CAGE7PN+8o8AVMpXh84ZqH7cN69r9rr3yq=-enE5JaF6eXzi2aQ@mail.gmail.com>
+ <20190328102723.25bed461@fsol>
+Message-ID: <20190328193928.pg2g3skia5ggpkjx@python.ca>
+
+On 2019-03-28, Antoine Pitrou wrote:
+> On Wed, 27 Mar 2019 15:59:25 -0700
+> "Gregory P. Smith" <greg at krypto.org> wrote:
+> > 
+> > That had a C++ stack trace 1000+ levels deep repeating the pattern of
+> > 
+> > ...
+> >     @     0x564d59bd21de         32  func_dealloc
+> >     @     0x564d59bce0c1         32  cell_dealloc
+> >     @     0x564d5839db41         48  tupledealloc
+> >     @     0x564d59bd21de         32  func_dealloc
+> >     @     0x564d59bce0c1         32  cell_dealloc
+> >     @     0x564d5839db41         48  tupledealloc
+> > ...
+> 
+> As Tim said, if you still have a core dump somewhere (or can reproduce
+> the issue) it would be nice to know why the "trashcan" mechanism didn't
+> trigger.
+
+To expand on this, every time tupledealloc gets called,
+Py_TRASHCAN_SAFE_BEGIN also gets invoked.  It increments
+tstate->trash_delete_nesting.  As Tim suggests, maybe
+PyTrash_UNWIND_LEVEL is too large given the size of the C stack
+frames from func_dealloc + cell_dealloc + tupledealloc.
+
+That theory seems hard to believe though, unless the C stack is
+quite small.  I see PyTrash_UNWIND_LEVEL = 50.  Perhaps the stack
+could have been mostly used up before the dealloc sequence started.
+
+The other option is that there is some bug in the trashcan
+mechanism.  It certainly is some very tricky code.
+
+Regards,
+
+  Neil
+
+From steve.dower at python.org  Thu Mar 28 18:35:46 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 28 Mar 2019 15:35:46 -0700
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+Message-ID: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+
+Hi all
+
+Time is short, but I'm hoping to get PEP 578 (formerly PEP 551) into 
+Python 3.8. Here's the current text for review and comment before I 
+submit to the Steering Council.
+
+The formatted text is at https://www.python.org/dev/peps/pep-0578/ 
+(update just pushed, so give it an hour or so, but it's fundamentally 
+the same as what's there)
+
+No Discourse post, because we don't have a python-dev equivalent there 
+yet, so please reply here for this one.
+
+Implementation is at https://github.com/zooba/cpython/tree/pep-578/ and 
+my backport to 3.7 (https://github.com/zooba/cpython/tree/pep-578-3.7/) 
+is already getting some real use (though this will not be added to 3.7, 
+unless people *really* want it, so the backport is just for reference).
+
+Cheers,
+Steve
+
+=====
+
+PEP: 578
+Title: Python Runtime Audit Hooks
+Version: $Revision$
+Last-Modified: $Date$
+Author: Steve Dower <steve.dower at python.org>
+Status: Draft
+Type: Standards Track
+Content-Type: text/x-rst
+Created: 16-Jun-2018
+Python-Version: 3.8
+Post-History:
+
+Abstract
+========
+
+This PEP describes additions to the Python API and specific behaviors
+for the CPython implementation that make actions taken by the Python
+runtime visible to auditing tools. Visibility into these actions
+provides opportunities for test frameworks, logging frameworks, and
+security tools to monitor and optionally limit actions taken by the
+runtime.
+
+This PEP proposes adding two APIs to provide insights into a running
+Python application: one for arbitrary events, and another specific to
+the module import system. The APIs are intended to be available in all
+Python implementations, though the specific messages and values used
+are unspecified here to allow implementations the freedom to determine
+how best to provide information to their users. Some examples likely
+to be used in CPython are provided for explanatory purposes.
+
+See PEP 551 for discussion and recommendations on enhancing the
+security of a Python runtime making use of these auditing APIs.
+
+Background
+==========
+
+Python provides access to a wide range of low-level functionality on
+many common operating systems. While this is incredibly useful for
+"write-once, run-anywhere" scripting, it also makes monitoring of
+software written in Python difficult. Because Python uses native system
+APIs directly, existing monitoring tools either suffer from limited
+context or auditing bypass.
+
+Limited context occurs when system monitoring can report that an
+action occurred, but cannot explain the sequence of events leading to
+it. For example, network monitoring at the OS level may be able to
+report "listening started on port 5678", but may not be able to
+provide the process ID, command line, parent process, or the local
+state in the program at the point that triggered the action. Firewall
+controls to prevent such an action are similarly limited, typically
+to process names or some global state such as the current user, and
+in any case rarely provide a useful log file correlated with other
+application messages.
+
+Auditing bypass can occur when the typical system tool used for an
+action would ordinarily report its use, but accessing the APIs via
+Python do not trigger this. For example, invoking "curl" to make HTTP
+requests may be specifically monitored in an audited system, but
+Python's "urlretrieve" function is not.
+
+Within a long-running Python application, particularly one that
+processes user-provided information such as a web app, there is a risk
+of unexpected behavior. This may be due to bugs in the code, or
+deliberately induced by a malicious user. In both cases, normal
+application logging may be bypassed resulting in no indication that
+anything out of the ordinary has occurred.
+
+Additionally, and somewhat unique to Python, it is very easy to affect
+the code that is run in an application by manipulating either the
+import system's search path or placing files earlier on the path than
+intended. This is often seen when developers create a script with the
+same name as the module they intend to use - for example, a
+``random.py`` file that attempts to import the standard library
+``random`` module.
+
+This is not sandboxing, as this proposal does not attempt to prevent
+malicious behavior (though it enables some new options to do so).
+See the `Why Not A Sandbox`_ section below for further discussion.
+
+Overview of Changes
+===================
+
+The aim of these changes is to enable both application developers and
+system administrators to integrate Python into their existing
+monitoring systems without dictating how those systems look or behave.
+
+We propose two API changes to enable this: an Audit Hook?and Verified
+Open Hook. Both are available from Python and native code, allowing
+applications and frameworks written in pure Python code to take
+advantage of the extra messages, while also allowing embedders or
+system administrators to deploy builds of Python where auditing is
+always enabled.
+
+Only CPython is bound to provide the native APIs as described here.
+Other implementations should provide the pure Python APIs, and
+may provide native versions as appropriate for their underlying
+runtimes. Auditing events are likewise considered implementation
+specific, but are bound by normal feature compatibility guarantees.
+
+Audit Hook
+----------
+
+In order to observe actions taken by the runtime (on behalf of the
+caller), an API is required to raise messages from within certain
+operations. These operations are typically deep within the Python
+runtime or standard library, such as dynamic code compilation, module
+imports, DNS resolution, or use of certain modules such as ``ctypes``.
+
+The following new C APIs allow embedders and CPython implementors to
+send and receive audit hook messages::
+
+    # Add an auditing hook
+    typedef int (*hook_func)(const char *event, PyObject *args,
+                             void *userData);
+    int PySys_AddAuditHook(hook_func hook, void *userData);
+
+    # Raise an event with all auditing hooks
+    int PySys_Audit(const char *event, PyObject *args);
+
+    # Internal API used during Py_Finalize() - not publicly accessible
+    void _Py_ClearAuditHooks(void);
+
+The new Python APIs for receiving and raising audit hooks are::
+
+    # Add an auditing hook
+    sys.addaudithook(hook: Callable[[str, tuple]])
+
+    # Raise an event with all auditing hooks
+    sys.audit(str, *args)
+
+
+Hooks are added by calling ``PySys_AddAuditHook()`` from C at any time,
+including before ``Py_Initialize()``, or by calling
+``sys.addaudithook()`` from Python code. Hooks cannot be removed or
+replaced.
+
+When events of interest are occurring, code can either call
+``PySys_Audit()`` from C (while the GIL is held) or ``sys.audit()``. The
+string argument is the name of the event, and the tuple contains
+arguments. A given event name should have a fixed schema for arguments,
+which should be considered a public API (for each x.y version release),
+and thus should only change between feature releases with updated
+documentation.
+
+For maximum compatibility, events using the same name as an event in
+the reference interpreter CPython should make every attempt to use
+compatible arguments. Including the name or an abbreviation of the
+implementation in implementation-specific event names will also help
+prevent collisions. For example, a ``pypy.jit_invoked`` event is clearly
+distinguised from an ``ipy.jit_invoked`` event.
+
+When an event is audited, each hook is called in the order it was added
+with the event name and tuple. If any hook returns with an exception
+set, later hooks are ignored and *in general* the Python runtime should
+terminate. This is intentional to allow hook implementations to decide
+how to respond to any particular event. The typical responses will be to
+log the event, abort the operation with an exception, or to immediately
+terminate the process with an operating system exit call.
+
+When an event is audited but no hooks have been set, the ``audit()``
+function should impose minimal overhead. Ideally, each argument is a
+reference to existing data?rather than a value calculated just for the
+auditing call.
+
+As hooks may be Python objects, they need to be freed during
+``Py_Finalize()``. To do this, we add an internal API
+``_Py_ClearAuditHooks()`` that releases any Python hooks and any
+memory held. This is an internal function with no public export, and
+we recommend it raise its own audit event for all current hooks to
+ensure that unexpected calls are observed.
+
+Below in `Suggested Audit Hook Locations`_, we recommend some important
+operations that should raise audit events.
+
+Python implementations should document which operations will raise
+audit events, along with the event schema. It is intentional that
+``sys.addaudithook(print)`` be a trivial way to display all messages.
+
+Verified Open Hook
+------------------
+
+Most operating systems have a mechanism to distinguish between files
+that can be executed and those that can not. For example, this may be an
+execute bit in the permissions field, a verified hash of the file
+contents to detect potential code tampering, or file system path
+restrictions. These are an important security mechanism for preventing
+execution of data or code that is not approved for a given environment.
+Currently, Python has no way to integrate with these when launching
+scripts or importing modules.
+
+The new public C API for the verified open hook is::
+
+    # Set the handler
+    typedef PyObject *(*hook_func)(PyObject *path, void *userData)
+    int PyImport_SetOpenForImportHook(hook_func handler, void *userData)
+
+    # Open a file using the handler
+    PyObject *PyImport_OpenForImport(const char *path)
+
+The new public Python API for the verified open hook is::
+
+    # Open a file using the handler
+    importlib.util.open_for_import(path : str) -> io.IOBase
+
+
+The ``importlib.util.open_for_import()`` function is a drop-in
+replacement?for ``open(str(pathlike), 'rb')``. Its default behaviour is
+to open a file for raw, binary access. To change the behaviour a new
+handler should be set. Handler functions only accept ``str`` arguments.
+The C API ``PyImport_OpenForImport`` function assumes UTF-8 encoding.
+
+A custom handler may be set by calling ``PyImport_SetOpenForImportHook()``
+from C at any time, including before ``Py_Initialize()``. However, if a
+hook has already been set then the call will fail. When
+``open_for_import()`` is called with a hook set, the hook will be passed
+the path and its return value will be returned directly. The returned
+object should be an open file-like object that supports reading raw
+bytes. This is explicitly intended to allow a ``BytesIO`` instance if
+the open handler has already read the entire file into memory.
+
+Note that these hooks can import and call the ``_io.open()`` function on
+CPython without triggering themselves. They can also use ``_io.BytesIO``
+to return a compatible result using an in-memory buffer.
+
+If the hook determines that the file should not be loaded, it should
+raise an exception of its choice, as well as performing any other
+logging.
+
+All import and execution functionality involving code from a file will
+be changed to use ``open_for_import()`` unconditionally. It is important
+to note that calls to ``compile()``, ``exec()`` and ``eval()`` do not go
+through this function - an audit hook that includes the code from these
+calls is the best opportunity to validate code that is read from the
+file. Given the current decoupling between import and execution in
+Python, most imported code will go through both ``open_for_import()``
+and the log hook for ``compile``, and so care should be taken to avoid
+repeating verification steps.
+
+There is no Python API provided for changing the open hook. To modify
+import behavior from Python code, use the existing functionality
+provided by ``importlib``.
+
+API Availability
+----------------
+
+While all the functions added here are considered public and stable API,
+the behavior of the functions is implementation specific. Most
+descriptions here refer?to the CPython?implementation, and while other
+implementations should provide the functions, there is no requirement
+that they behave the same.
+
+For example, ``sys.addaudithook()`` and ``sys.audit()`` should exist but
+may do nothing. This allows code to make calls to ``sys.audit()``
+without having to test for existence, but it should not assume that its
+call will have any effect. (Including existence tests in
+security-critical code allows another vector to bypass auditing, so it
+is preferable that the function always exist.)
+
+``importlib.util.open_for_import(path)`` should at a minimum always
+return ``_io.open(path, 'rb')``. Code using the function should make no
+further assumptions about what may occur, and implementations other than
+CPython are not required to let developers override the behavior of this
+function with a hook.
+
+Suggested Audit Hook Locations
+==============================
+
+The locations and parameters in calls to ``sys.audit()`` or
+``PySys_Audit()`` are to be determined by individual Python
+implementations. This is to allow maximum freedom for implementations
+to expose the operations that are most relevant to their platform,
+and to avoid or ignore potentially expensive or noisy events.
+
+Table 1 acts as both suggestions of operations that should trigger
+audit events on all implementations, and examples of event schemas.
+
+Table 2 provides further examples that are not required, but are
+likely to be available in CPython.
+
+Refer to the documentation associated with your version of Python to
+see which operations provide audit events.
+
+.. csv-table:: Table 1: Suggested Audit Hooks
+    :header: "API Function", "Event Name", "Arguments", "Rationale"
+    :widths: 2, 2, 3, 6
+
+    ``PySys_AddAuditHook``, ``sys.addaudithook``, "", "Detect when new
+    audit hooks are being added.
+    "
+    ``PyImport_SetOpenForImportHook``, ``setopenforimporthook``, "", "
+    Detects any attempt to set the ``open_for_import`` hook.
+    "
+    "``compile``, ``exec``, ``eval``, ``PyAst_CompileString``,
+    ``PyAST_obj2mod``", ``compile``, "``(code, filename_or_none)``", "
+    Detect dynamic code compilation, where ``code`` could be a string or
+    AST. Note that this will be called for regular imports of source
+    code, including those that were opened with ``open_for_import``.
+    "
+    "``exec``, ``eval``, ``run_mod``", ``exec``, "``(code_object,)``", "
+    Detect dynamic execution of code objects. This only occurs for
+    explicit calls, and is not raised for normal function invocation.
+    "
+    ``import``, ``import``, "``(module, filename, sys.path,
+    sys.meta_path, sys.path_hooks)``", "Detect when modules are
+    imported. This is raised before the module name is resolved to a
+    file. All arguments other than the module name may be ``None`` if
+    they are not used or available.
+    "
+    "``open``", ``open``, "``(path, mode, flags)``", "Detect when a file
+    is about to be opened. *path* and *mode* are the usual parameters to
+    ``open`` if available, while *flags* is provided instead of *mode*
+    in some cases.
+    "
+    ``PyEval_SetProfile``, ``sys.setprofile``, "", "Detect when code is
+    injecting trace functions. Because of the implementation, exceptions
+    raised from the hook will abort the operation, but will not be
+    raised in Python code. Note that ``threading.setprofile`` eventually
+    calls this function, so the event will be audited for each thread.
+    "
+    ``PyEval_SetTrace``, ``sys.settrace``, "", "Detect when code is
+    injecting trace functions. Because of the implementation, exceptions
+    raised from the hook will abort the operation, but will not be
+    raised in Python code. Note that ``threading.settrace`` eventually
+    calls this function, so the event will be audited for each thread.
+    "
+    "``_PyObject_GenericSetAttr``, ``check_set_special_type_attr``,
+    ``object_set_class``, ``func_set_code``, ``func_set_[kw]defaults``","
+    ``object.__setattr__``","``(object, attr, value)``","Detect monkey
+    patching of types and objects. This event
+    is raised for the ``__class__`` attribute and any attribute on
+    ``type`` objects.
+    "
+    "``_PyObject_GenericSetAttr``",``object.__delattr__``,"``(object,
+    attr)``","Detect deletion of object attributes. This event is raised
+    for any attribute on ``type`` objects.
+    "
+    "``Unpickler.find_class``",``pickle.find_class``,"``(module_name,
+    global_name)``","Detect imports and global name lookup when
+    unpickling.
+    "
+
+
+.. csv-table:: Table 2: Potential CPython Audit Hooks
+    :header: "API Function", "Event Name", "Arguments", "Rationale"
+    :widths: 2, 2, 3, 6
+
+    ``_PySys_ClearAuditHooks``, ``sys._clearaudithooks``, "", "Notifies
+    hooks they are being cleaned up, mainly in case the event is
+    triggered unexpectedly. This event cannot be aborted.
+    "
+    ``code_new``, ``code.__new__``, "``(bytecode, filename, name)``", "
+    Detect dynamic creation of code objects. This only occurs for
+    direct instantiation, and is not raised for normal compilation.
+    "
+    ``func_new_impl``, ``function.__new__``, "``(code,)``", "Detect
+    dynamic creation of function objects. This only occurs for direct
+    instantiation, and is not raised for normal compilation.
+    "
+    "``_ctypes.dlopen``, ``_ctypes.LoadLibrary``", ``ctypes.dlopen``, "
+    ``(module_or_path,)``", "Detect when native modules are used.
+    "
+    ``_ctypes._FuncPtr``, ``ctypes.dlsym``, "``(lib_object, name)``", "
+    Collect information about specific symbols retrieved from native
+    modules.
+    "
+    ``_ctypes._CData``, ``ctypes.cdata``, "``(ptr_as_int,)``", "Detect
+    when code is accessing arbitrary memory using ``ctypes``.
+    "
+    "``new_mmap_object``",``mmap.__new__``,"``(fileno, map_size, access,
+    offset)``", "Detects creation of mmap objects. On POSIX, access may
+    have been calculated from the ``prot`` and ``flags`` arguments.
+    "
+    ``sys._getframe``, ``sys._getframe``, "``(frame_object,)``", "Detect
+    when code is accessing frames directly.
+    "
+    ``sys._current_frames``, ``sys._current_frames``, "", "Detect when
+    code is accessing frames directly.
+    "
+    "``socket.bind``, ``socket.connect``, ``socket.connect_ex``,
+    ``socket.getaddrinfo``, ``socket.getnameinfo``, ``socket.sendmsg``,
+    ``socket.sendto``", ``socket.address``, "``(address,)``", "Detect
+    access to network resources. The address is unmodified from the
+    original call.
+    "
+    "``member_get``, ``func_get_code``, ``func_get_[kw]defaults``
+    ",``object.__getattr__``,"``(object, attr)``","Detect access to
+    restricted attributes. This event is raised for any built-in
+    members that are marked as restricted, and members that may allow
+    bypassing imports.
+    "
+    "``urllib.urlopen``",``urllib.Request``,"``(url, data, headers,
+    method)``", "Detects URL requests.
+    "
+
+Performance Impact
+==================
+
+The important performance impact is the case where events are being
+raised but there are no hooks attached. This is the unavoidable case -
+once a developer has added audit hooks they have explicitly chosen to
+trade performance for functionality. Performance impact with hooks added
+are not of interest here, since this is opt-in functionality.
+
+Analysis using the Python Performance Benchmark Suite [1]_ shows no
+significant impact, with the vast majority of benchmarks showing
+between 1.05x faster to 1.05x slower.
+
+In our opinion, the performance impact of the set of auditing points
+described in this PEP is negligible.
+
+Rejected Ideas
+==============
+
+Separate module for audit hooks
+-------------------------------
+
+The proposal is to add a new module for audit hooks, hypothetically
+``audit``. This would separate the API and implementation from the
+``sys`` module, and allow naming the C functions ``PyAudit_AddHook`` and
+``PyAudit_Audit`` rather than the current variations.
+
+Any such module would need to be a built-in module that is guaranteed to
+always be present. The nature of these hooks is that they must be
+callable without condition, as any conditional imports or calls provide
+opportunities to intercept and suppress or modify events.
+
+Given it is one of the most core modules, the ``sys`` module is somewhat
+protected against module shadowing attacks. Replacing ``sys`` with a
+sufficiently functional module that the application can still run is a
+much more complicated task than replacing a module with only one
+function of interest. An attacker that has the ability to shadow the
+``sys`` module is already capable of running arbitrary code from files,
+whereas an ``audit`` module could be replaced with a single line in a
+``.pth`` file anywhere on the search path::
+
+     import sys; sys.modules['audit'] = type('audit', (object,),
+         {'audit': lambda *a: None, 'addhook': lambda *a: None})
+
+Multiple layers of protection already exist for monkey patching attacks
+against either ``sys`` or ``audit``, but assignments or insertions to
+``sys.modules`` are not audited.
+
+This idea is rejected because it makes it trivial to suppress all calls
+to ``audit``.
+
+Flag in sys.flags to indicate "audited" mode
+--------------------------------------------
+
+The proposal is to add a value in ``sys.flags`` to indicate when Python
+is running in a "secure" or "audited" mode. This would allow
+applications to detect when some features are enabled or when hooks
+have been added and modify their behaviour appropriately.
+
+Currently, we are not aware of any legitimate reasons for a program to
+behave differently in the presence of audit hooks.
+
+Both application-level APIs ``sys.audit`` and
+``importlib.util.open_for_import`` are always present and functional,
+regardless of whether the regular ``python`` entry point or some
+alternative entry point is used. Callers cannot determine whether any
+hooks have been added (except by performing side-channel analysis), nor
+do they need to. The calls should be fast enough that callers do not
+need to avoid them, and the program is responsible for ensuring that
+any added hooks are fast enough to not affect application performance.
+
+The argument that this is "security by obscurity" is valid, but
+irrelevant. Security by obscurity is only an issue when there are no
+other protective mechanisms; obscurity as the first step in avoiding
+attack is strongly recommended (see `this article
+<https://danielmiessler.com/study/security-by-obscurity/>`_ for
+discussion).
+
+This idea is rejected because there are no appropriate reasons for an
+application to change its behaviour based on whether these APIs are in
+use.
+
+Why Not A Sandbox
+=================
+
+Sandboxing CPython has been attempted many times in the past, and each
+past attempt has failed. Fundamentally, the problem is that certain
+functionality has to be restricted when executing the sandboxed code,
+but otherwise needs to be available for normal operation of Python. For
+example, completely removing the ability to compile strings into
+bytecode also breaks the ability to import modules from source code, and
+if it is not completely removed then there are too many ways to get
+access to that functionality indirectly. There is not yet any feasible
+way to generically determine whether a given operation is "safe" or not.
+Further information and references available at [2]_.
+
+This proposal does not attempt to restrict functionality, but simply
+exposes the fact that the functionality is being used. Particularly for
+intrusion scenarios, detection is significantly more important than
+early prevention (as early prevention will generally drive attackers to
+use an alternate, less-detectable, approach). The availability of audit
+hooks alone does not change the attack surface of Python in any way, but
+they enable defenders to integrate Python into their environment in ways
+that are currently not possible.
+
+Since audit hooks have the ability to safely prevent an operation
+occuring, this feature does enable the ability to provide some level of
+sandboxing. In most cases, however, the intention is to enable logging
+rather than creating a sandbox.
+
+Relationship to PEP 551
+=======================
+
+This API was originally presented as part of
+`PEP 551 <https://www.python.org/dev/peps/pep-0551/>`_ Security
+Transparency in the Python Runtime.
+
+For simpler review purposes, and due to the broader applicability of
+these APIs beyond security, the API design is now presented separately.
+
+PEP 551 is an informational PEP discussing how to integrate Python into
+a secure or audited environment.
+
+References
+==========
+
+.. [1] Python Performance Benchmark Suite 
+`<https://github.com/python/performance>`_
+
+.. [2] Python Security model - Sandbox 
+`<https://python-security.readthedocs.io/security.html#sandbox>`_
+
+Copyright
+=========
+
+Copyright (c) 2019 by Microsoft Corporation. This material may be
+distributed only subject to the terms and conditions set forth in the
+Open Publication License, v1.0 or later (the latest version is presently
+available at http://www.opencontent.org/openpub/).
+
+From steve.dower at python.org  Thu Mar 28 18:55:21 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 28 Mar 2019 15:55:21 -0700
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+Message-ID: <c71c319a-32aa-58d7-a34c-53856d90cf9d@python.org>
+
+The implementation can be viewed as a PR at 
+https://github.com/python/cpython/pull/12613
+
+On 28Mar2019 1535, Steve Dower wrote:
+> Hi all
+> 
+> Time is short, but I'm hoping to get PEP 578 (formerly PEP 551) into 
+> Python 3.8. Here's the current text for review and comment before I 
+> submit to the Steering Council.
+> 
+> The formatted text is at https://www.python.org/dev/peps/pep-0578/ 
+> (update just pushed, so give it an hour or so, but it's fundamentally 
+> the same as what's there)
+> 
+> No Discourse post, because we don't have a python-dev equivalent there 
+> yet, so please reply here for this one.
+> 
+> Implementation is at https://github.com/zooba/cpython/tree/pep-578/ and 
+> my backport to 3.7 (https://github.com/zooba/cpython/tree/pep-578-3.7/) 
+> is already getting some real use (though this will not be added to 3.7, 
+> unless people *really* want it, so the backport is just for reference).
+> 
+> Cheers,
+> Steve
+> 
+> =====
+> 
+> PEP: 578
+> Title: Python Runtime Audit Hooks
+> Version: $Revision$
+> Last-Modified: $Date$
+> Author: Steve Dower <steve.dower at python.org>
+> Status: Draft
+> Type: Standards Track
+> Content-Type: text/x-rst
+> Created: 16-Jun-2018
+> Python-Version: 3.8
+> Post-History:
+> 
+> Abstract
+> ========
+> 
+> This PEP describes additions to the Python API and specific behaviors
+> for the CPython implementation that make actions taken by the Python
+> runtime visible to auditing tools. Visibility into these actions
+> provides opportunities for test frameworks, logging frameworks, and
+> security tools to monitor and optionally limit actions taken by the
+> runtime.
+> 
+> This PEP proposes adding two APIs to provide insights into a running
+> Python application: one for arbitrary events, and another specific to
+> the module import system. The APIs are intended to be available in all
+> Python implementations, though the specific messages and values used
+> are unspecified here to allow implementations the freedom to determine
+> how best to provide information to their users. Some examples likely
+> to be used in CPython are provided for explanatory purposes.
+> 
+> See PEP 551 for discussion and recommendations on enhancing the
+> security of a Python runtime making use of these auditing APIs.
+> 
+> Background
+> ==========
+> 
+> Python provides access to a wide range of low-level functionality on
+> many common operating systems. While this is incredibly useful for
+> "write-once, run-anywhere" scripting, it also makes monitoring of
+> software written in Python difficult. Because Python uses native system
+> APIs directly, existing monitoring tools either suffer from limited
+> context or auditing bypass.
+> 
+> Limited context occurs when system monitoring can report that an
+> action occurred, but cannot explain the sequence of events leading to
+> it. For example, network monitoring at the OS level may be able to
+> report "listening started on port 5678", but may not be able to
+> provide the process ID, command line, parent process, or the local
+> state in the program at the point that triggered the action. Firewall
+> controls to prevent such an action are similarly limited, typically
+> to process names or some global state such as the current user, and
+> in any case rarely provide a useful log file correlated with other
+> application messages.
+> 
+> Auditing bypass can occur when the typical system tool used for an
+> action would ordinarily report its use, but accessing the APIs via
+> Python do not trigger this. For example, invoking "curl" to make HTTP
+> requests may be specifically monitored in an audited system, but
+> Python's "urlretrieve" function is not.
+> 
+> Within a long-running Python application, particularly one that
+> processes user-provided information such as a web app, there is a risk
+> of unexpected behavior. This may be due to bugs in the code, or
+> deliberately induced by a malicious user. In both cases, normal
+> application logging may be bypassed resulting in no indication that
+> anything out of the ordinary has occurred.
+> 
+> Additionally, and somewhat unique to Python, it is very easy to affect
+> the code that is run in an application by manipulating either the
+> import system's search path or placing files earlier on the path than
+> intended. This is often seen when developers create a script with the
+> same name as the module they intend to use - for example, a
+> ``random.py`` file that attempts to import the standard library
+> ``random`` module.
+> 
+> This is not sandboxing, as this proposal does not attempt to prevent
+> malicious behavior (though it enables some new options to do so).
+> See the `Why Not A Sandbox`_ section below for further discussion.
+> 
+> Overview of Changes
+> ===================
+> 
+> The aim of these changes is to enable both application developers and
+> system administrators to integrate Python into their existing
+> monitoring systems without dictating how those systems look or behave.
+> 
+> We propose two API changes to enable this: an Audit Hook?and Verified
+> Open Hook. Both are available from Python and native code, allowing
+> applications and frameworks written in pure Python code to take
+> advantage of the extra messages, while also allowing embedders or
+> system administrators to deploy builds of Python where auditing is
+> always enabled.
+> 
+> Only CPython is bound to provide the native APIs as described here.
+> Other implementations should provide the pure Python APIs, and
+> may provide native versions as appropriate for their underlying
+> runtimes. Auditing events are likewise considered implementation
+> specific, but are bound by normal feature compatibility guarantees.
+> 
+> Audit Hook
+> ----------
+> 
+> In order to observe actions taken by the runtime (on behalf of the
+> caller), an API is required to raise messages from within certain
+> operations. These operations are typically deep within the Python
+> runtime or standard library, such as dynamic code compilation, module
+> imports, DNS resolution, or use of certain modules such as ``ctypes``.
+> 
+> The following new C APIs allow embedders and CPython implementors to
+> send and receive audit hook messages::
+> 
+>  ?? # Add an auditing hook
+>  ?? typedef int (*hook_func)(const char *event, PyObject *args,
+>  ??????????????????????????? void *userData);
+>  ?? int PySys_AddAuditHook(hook_func hook, void *userData);
+> 
+>  ?? # Raise an event with all auditing hooks
+>  ?? int PySys_Audit(const char *event, PyObject *args);
+> 
+>  ?? # Internal API used during Py_Finalize() - not publicly accessible
+>  ?? void _Py_ClearAuditHooks(void);
+> 
+> The new Python APIs for receiving and raising audit hooks are::
+> 
+>  ?? # Add an auditing hook
+>  ?? sys.addaudithook(hook: Callable[[str, tuple]])
+> 
+>  ?? # Raise an event with all auditing hooks
+>  ?? sys.audit(str, *args)
+> 
+> 
+> Hooks are added by calling ``PySys_AddAuditHook()`` from C at any time,
+> including before ``Py_Initialize()``, or by calling
+> ``sys.addaudithook()`` from Python code. Hooks cannot be removed or
+> replaced.
+> 
+> When events of interest are occurring, code can either call
+> ``PySys_Audit()`` from C (while the GIL is held) or ``sys.audit()``. The
+> string argument is the name of the event, and the tuple contains
+> arguments. A given event name should have a fixed schema for arguments,
+> which should be considered a public API (for each x.y version release),
+> and thus should only change between feature releases with updated
+> documentation.
+> 
+> For maximum compatibility, events using the same name as an event in
+> the reference interpreter CPython should make every attempt to use
+> compatible arguments. Including the name or an abbreviation of the
+> implementation in implementation-specific event names will also help
+> prevent collisions. For example, a ``pypy.jit_invoked`` event is clearly
+> distinguised from an ``ipy.jit_invoked`` event.
+> 
+> When an event is audited, each hook is called in the order it was added
+> with the event name and tuple. If any hook returns with an exception
+> set, later hooks are ignored and *in general* the Python runtime should
+> terminate. This is intentional to allow hook implementations to decide
+> how to respond to any particular event. The typical responses will be to
+> log the event, abort the operation with an exception, or to immediately
+> terminate the process with an operating system exit call.
+> 
+> When an event is audited but no hooks have been set, the ``audit()``
+> function should impose minimal overhead. Ideally, each argument is a
+> reference to existing data?rather than a value calculated just for the
+> auditing call.
+> 
+> As hooks may be Python objects, they need to be freed during
+> ``Py_Finalize()``. To do this, we add an internal API
+> ``_Py_ClearAuditHooks()`` that releases any Python hooks and any
+> memory held. This is an internal function with no public export, and
+> we recommend it raise its own audit event for all current hooks to
+> ensure that unexpected calls are observed.
+> 
+> Below in `Suggested Audit Hook Locations`_, we recommend some important
+> operations that should raise audit events.
+> 
+> Python implementations should document which operations will raise
+> audit events, along with the event schema. It is intentional that
+> ``sys.addaudithook(print)`` be a trivial way to display all messages.
+> 
+> Verified Open Hook
+> ------------------
+> 
+> Most operating systems have a mechanism to distinguish between files
+> that can be executed and those that can not. For example, this may be an
+> execute bit in the permissions field, a verified hash of the file
+> contents to detect potential code tampering, or file system path
+> restrictions. These are an important security mechanism for preventing
+> execution of data or code that is not approved for a given environment.
+> Currently, Python has no way to integrate with these when launching
+> scripts or importing modules.
+> 
+> The new public C API for the verified open hook is::
+> 
+>  ?? # Set the handler
+>  ?? typedef PyObject *(*hook_func)(PyObject *path, void *userData)
+>  ?? int PyImport_SetOpenForImportHook(hook_func handler, void *userData)
+> 
+>  ?? # Open a file using the handler
+>  ?? PyObject *PyImport_OpenForImport(const char *path)
+> 
+> The new public Python API for the verified open hook is::
+> 
+>  ?? # Open a file using the handler
+>  ?? importlib.util.open_for_import(path : str) -> io.IOBase
+> 
+> 
+> The ``importlib.util.open_for_import()`` function is a drop-in
+> replacement?for ``open(str(pathlike), 'rb')``. Its default behaviour is
+> to open a file for raw, binary access. To change the behaviour a new
+> handler should be set. Handler functions only accept ``str`` arguments.
+> The C API ``PyImport_OpenForImport`` function assumes UTF-8 encoding.
+> 
+> A custom handler may be set by calling ``PyImport_SetOpenForImportHook()``
+> from C at any time, including before ``Py_Initialize()``. However, if a
+> hook has already been set then the call will fail. When
+> ``open_for_import()`` is called with a hook set, the hook will be passed
+> the path and its return value will be returned directly. The returned
+> object should be an open file-like object that supports reading raw
+> bytes. This is explicitly intended to allow a ``BytesIO`` instance if
+> the open handler has already read the entire file into memory.
+> 
+> Note that these hooks can import and call the ``_io.open()`` function on
+> CPython without triggering themselves. They can also use ``_io.BytesIO``
+> to return a compatible result using an in-memory buffer.
+> 
+> If the hook determines that the file should not be loaded, it should
+> raise an exception of its choice, as well as performing any other
+> logging.
+> 
+> All import and execution functionality involving code from a file will
+> be changed to use ``open_for_import()`` unconditionally. It is important
+> to note that calls to ``compile()``, ``exec()`` and ``eval()`` do not go
+> through this function - an audit hook that includes the code from these
+> calls is the best opportunity to validate code that is read from the
+> file. Given the current decoupling between import and execution in
+> Python, most imported code will go through both ``open_for_import()``
+> and the log hook for ``compile``, and so care should be taken to avoid
+> repeating verification steps.
+> 
+> There is no Python API provided for changing the open hook. To modify
+> import behavior from Python code, use the existing functionality
+> provided by ``importlib``.
+> 
+> API Availability
+> ----------------
+> 
+> While all the functions added here are considered public and stable API,
+> the behavior of the functions is implementation specific. Most
+> descriptions here refer?to the CPython?implementation, and while other
+> implementations should provide the functions, there is no requirement
+> that they behave the same.
+> 
+> For example, ``sys.addaudithook()`` and ``sys.audit()`` should exist but
+> may do nothing. This allows code to make calls to ``sys.audit()``
+> without having to test for existence, but it should not assume that its
+> call will have any effect. (Including existence tests in
+> security-critical code allows another vector to bypass auditing, so it
+> is preferable that the function always exist.)
+> 
+> ``importlib.util.open_for_import(path)`` should at a minimum always
+> return ``_io.open(path, 'rb')``. Code using the function should make no
+> further assumptions about what may occur, and implementations other than
+> CPython are not required to let developers override the behavior of this
+> function with a hook.
+> 
+> Suggested Audit Hook Locations
+> ==============================
+> 
+> The locations and parameters in calls to ``sys.audit()`` or
+> ``PySys_Audit()`` are to be determined by individual Python
+> implementations. This is to allow maximum freedom for implementations
+> to expose the operations that are most relevant to their platform,
+> and to avoid or ignore potentially expensive or noisy events.
+> 
+> Table 1 acts as both suggestions of operations that should trigger
+> audit events on all implementations, and examples of event schemas.
+> 
+> Table 2 provides further examples that are not required, but are
+> likely to be available in CPython.
+> 
+> Refer to the documentation associated with your version of Python to
+> see which operations provide audit events.
+> 
+> .. csv-table:: Table 1: Suggested Audit Hooks
+>  ?? :header: "API Function", "Event Name", "Arguments", "Rationale"
+>  ?? :widths: 2, 2, 3, 6
+> 
+>  ?? ``PySys_AddAuditHook``, ``sys.addaudithook``, "", "Detect when new
+>  ?? audit hooks are being added.
+>  ?? "
+>  ?? ``PyImport_SetOpenForImportHook``, ``setopenforimporthook``, "", "
+>  ?? Detects any attempt to set the ``open_for_import`` hook.
+>  ?? "
+>  ?? "``compile``, ``exec``, ``eval``, ``PyAst_CompileString``,
+>  ?? ``PyAST_obj2mod``", ``compile``, "``(code, filename_or_none)``", "
+>  ?? Detect dynamic code compilation, where ``code`` could be a string or
+>  ?? AST. Note that this will be called for regular imports of source
+>  ?? code, including those that were opened with ``open_for_import``.
+>  ?? "
+>  ?? "``exec``, ``eval``, ``run_mod``", ``exec``, "``(code_object,)``", "
+>  ?? Detect dynamic execution of code objects. This only occurs for
+>  ?? explicit calls, and is not raised for normal function invocation.
+>  ?? "
+>  ?? ``import``, ``import``, "``(module, filename, sys.path,
+>  ?? sys.meta_path, sys.path_hooks)``", "Detect when modules are
+>  ?? imported. This is raised before the module name is resolved to a
+>  ?? file. All arguments other than the module name may be ``None`` if
+>  ?? they are not used or available.
+>  ?? "
+>  ?? "``open``", ``open``, "``(path, mode, flags)``", "Detect when a file
+>  ?? is about to be opened. *path* and *mode* are the usual parameters to
+>  ?? ``open`` if available, while *flags* is provided instead of *mode*
+>  ?? in some cases.
+>  ?? "
+>  ?? ``PyEval_SetProfile``, ``sys.setprofile``, "", "Detect when code is
+>  ?? injecting trace functions. Because of the implementation, exceptions
+>  ?? raised from the hook will abort the operation, but will not be
+>  ?? raised in Python code. Note that ``threading.setprofile`` eventually
+>  ?? calls this function, so the event will be audited for each thread.
+>  ?? "
+>  ?? ``PyEval_SetTrace``, ``sys.settrace``, "", "Detect when code is
+>  ?? injecting trace functions. Because of the implementation, exceptions
+>  ?? raised from the hook will abort the operation, but will not be
+>  ?? raised in Python code. Note that ``threading.settrace`` eventually
+>  ?? calls this function, so the event will be audited for each thread.
+>  ?? "
+>  ?? "``_PyObject_GenericSetAttr``, ``check_set_special_type_attr``,
+>  ?? ``object_set_class``, ``func_set_code``, ``func_set_[kw]defaults``","
+>  ?? ``object.__setattr__``","``(object, attr, value)``","Detect monkey
+>  ?? patching of types and objects. This event
+>  ?? is raised for the ``__class__`` attribute and any attribute on
+>  ?? ``type`` objects.
+>  ?? "
+>  ?? "``_PyObject_GenericSetAttr``",``object.__delattr__``,"``(object,
+>  ?? attr)``","Detect deletion of object attributes. This event is raised
+>  ?? for any attribute on ``type`` objects.
+>  ?? "
+>  ?? "``Unpickler.find_class``",``pickle.find_class``,"``(module_name,
+>  ?? global_name)``","Detect imports and global name lookup when
+>  ?? unpickling.
+>  ?? "
+> 
+> 
+> .. csv-table:: Table 2: Potential CPython Audit Hooks
+>  ?? :header: "API Function", "Event Name", "Arguments", "Rationale"
+>  ?? :widths: 2, 2, 3, 6
+> 
+>  ?? ``_PySys_ClearAuditHooks``, ``sys._clearaudithooks``, "", "Notifies
+>  ?? hooks they are being cleaned up, mainly in case the event is
+>  ?? triggered unexpectedly. This event cannot be aborted.
+>  ?? "
+>  ?? ``code_new``, ``code.__new__``, "``(bytecode, filename, name)``", "
+>  ?? Detect dynamic creation of code objects. This only occurs for
+>  ?? direct instantiation, and is not raised for normal compilation.
+>  ?? "
+>  ?? ``func_new_impl``, ``function.__new__``, "``(code,)``", "Detect
+>  ?? dynamic creation of function objects. This only occurs for direct
+>  ?? instantiation, and is not raised for normal compilation.
+>  ?? "
+>  ?? "``_ctypes.dlopen``, ``_ctypes.LoadLibrary``", ``ctypes.dlopen``, "
+>  ?? ``(module_or_path,)``", "Detect when native modules are used.
+>  ?? "
+>  ?? ``_ctypes._FuncPtr``, ``ctypes.dlsym``, "``(lib_object, name)``", "
+>  ?? Collect information about specific symbols retrieved from native
+>  ?? modules.
+>  ?? "
+>  ?? ``_ctypes._CData``, ``ctypes.cdata``, "``(ptr_as_int,)``", "Detect
+>  ?? when code is accessing arbitrary memory using ``ctypes``.
+>  ?? "
+>  ?? "``new_mmap_object``",``mmap.__new__``,"``(fileno, map_size, access,
+>  ?? offset)``", "Detects creation of mmap objects. On POSIX, access may
+>  ?? have been calculated from the ``prot`` and ``flags`` arguments.
+>  ?? "
+>  ?? ``sys._getframe``, ``sys._getframe``, "``(frame_object,)``", "Detect
+>  ?? when code is accessing frames directly.
+>  ?? "
+>  ?? ``sys._current_frames``, ``sys._current_frames``, "", "Detect when
+>  ?? code is accessing frames directly.
+>  ?? "
+>  ?? "``socket.bind``, ``socket.connect``, ``socket.connect_ex``,
+>  ?? ``socket.getaddrinfo``, ``socket.getnameinfo``, ``socket.sendmsg``,
+>  ?? ``socket.sendto``", ``socket.address``, "``(address,)``", "Detect
+>  ?? access to network resources. The address is unmodified from the
+>  ?? original call.
+>  ?? "
+>  ?? "``member_get``, ``func_get_code``, ``func_get_[kw]defaults``
+>  ?? ",``object.__getattr__``,"``(object, attr)``","Detect access to
+>  ?? restricted attributes. This event is raised for any built-in
+>  ?? members that are marked as restricted, and members that may allow
+>  ?? bypassing imports.
+>  ?? "
+>  ?? "``urllib.urlopen``",``urllib.Request``,"``(url, data, headers,
+>  ?? method)``", "Detects URL requests.
+>  ?? "
+> 
+> Performance Impact
+> ==================
+> 
+> The important performance impact is the case where events are being
+> raised but there are no hooks attached. This is the unavoidable case -
+> once a developer has added audit hooks they have explicitly chosen to
+> trade performance for functionality. Performance impact with hooks added
+> are not of interest here, since this is opt-in functionality.
+> 
+> Analysis using the Python Performance Benchmark Suite [1]_ shows no
+> significant impact, with the vast majority of benchmarks showing
+> between 1.05x faster to 1.05x slower.
+> 
+> In our opinion, the performance impact of the set of auditing points
+> described in this PEP is negligible.
+> 
+> Rejected Ideas
+> ==============
+> 
+> Separate module for audit hooks
+> -------------------------------
+> 
+> The proposal is to add a new module for audit hooks, hypothetically
+> ``audit``. This would separate the API and implementation from the
+> ``sys`` module, and allow naming the C functions ``PyAudit_AddHook`` and
+> ``PyAudit_Audit`` rather than the current variations.
+> 
+> Any such module would need to be a built-in module that is guaranteed to
+> always be present. The nature of these hooks is that they must be
+> callable without condition, as any conditional imports or calls provide
+> opportunities to intercept and suppress or modify events.
+> 
+> Given it is one of the most core modules, the ``sys`` module is somewhat
+> protected against module shadowing attacks. Replacing ``sys`` with a
+> sufficiently functional module that the application can still run is a
+> much more complicated task than replacing a module with only one
+> function of interest. An attacker that has the ability to shadow the
+> ``sys`` module is already capable of running arbitrary code from files,
+> whereas an ``audit`` module could be replaced with a single line in a
+> ``.pth`` file anywhere on the search path::
+> 
+>  ??? import sys; sys.modules['audit'] = type('audit', (object,),
+>  ??????? {'audit': lambda *a: None, 'addhook': lambda *a: None})
+> 
+> Multiple layers of protection already exist for monkey patching attacks
+> against either ``sys`` or ``audit``, but assignments or insertions to
+> ``sys.modules`` are not audited.
+> 
+> This idea is rejected because it makes it trivial to suppress all calls
+> to ``audit``.
+> 
+> Flag in sys.flags to indicate "audited" mode
+> --------------------------------------------
+> 
+> The proposal is to add a value in ``sys.flags`` to indicate when Python
+> is running in a "secure" or "audited" mode. This would allow
+> applications to detect when some features are enabled or when hooks
+> have been added and modify their behaviour appropriately.
+> 
+> Currently, we are not aware of any legitimate reasons for a program to
+> behave differently in the presence of audit hooks.
+> 
+> Both application-level APIs ``sys.audit`` and
+> ``importlib.util.open_for_import`` are always present and functional,
+> regardless of whether the regular ``python`` entry point or some
+> alternative entry point is used. Callers cannot determine whether any
+> hooks have been added (except by performing side-channel analysis), nor
+> do they need to. The calls should be fast enough that callers do not
+> need to avoid them, and the program is responsible for ensuring that
+> any added hooks are fast enough to not affect application performance.
+> 
+> The argument that this is "security by obscurity" is valid, but
+> irrelevant. Security by obscurity is only an issue when there are no
+> other protective mechanisms; obscurity as the first step in avoiding
+> attack is strongly recommended (see `this article
+> <https://danielmiessler.com/study/security-by-obscurity/>`_ for
+> discussion).
+> 
+> This idea is rejected because there are no appropriate reasons for an
+> application to change its behaviour based on whether these APIs are in
+> use.
+> 
+> Why Not A Sandbox
+> =================
+> 
+> Sandboxing CPython has been attempted many times in the past, and each
+> past attempt has failed. Fundamentally, the problem is that certain
+> functionality has to be restricted when executing the sandboxed code,
+> but otherwise needs to be available for normal operation of Python. For
+> example, completely removing the ability to compile strings into
+> bytecode also breaks the ability to import modules from source code, and
+> if it is not completely removed then there are too many ways to get
+> access to that functionality indirectly. There is not yet any feasible
+> way to generically determine whether a given operation is "safe" or not.
+> Further information and references available at [2]_.
+> 
+> This proposal does not attempt to restrict functionality, but simply
+> exposes the fact that the functionality is being used. Particularly for
+> intrusion scenarios, detection is significantly more important than
+> early prevention (as early prevention will generally drive attackers to
+> use an alternate, less-detectable, approach). The availability of audit
+> hooks alone does not change the attack surface of Python in any way, but
+> they enable defenders to integrate Python into their environment in ways
+> that are currently not possible.
+> 
+> Since audit hooks have the ability to safely prevent an operation
+> occuring, this feature does enable the ability to provide some level of
+> sandboxing. In most cases, however, the intention is to enable logging
+> rather than creating a sandbox.
+> 
+> Relationship to PEP 551
+> =======================
+> 
+> This API was originally presented as part of
+> `PEP 551 <https://www.python.org/dev/peps/pep-0551/>`_ Security
+> Transparency in the Python Runtime.
+> 
+> For simpler review purposes, and due to the broader applicability of
+> these APIs beyond security, the API design is now presented separately.
+> 
+> PEP 551 is an informational PEP discussing how to integrate Python into
+> a secure or audited environment.
+> 
+> References
+> ==========
+> 
+> .. [1] Python Performance Benchmark Suite 
+> `<https://github.com/python/performance>`_
+> 
+> .. [2] Python Security model - Sandbox 
+> `<https://python-security.readthedocs.io/security.html#sandbox>`_
+> 
+> Copyright
+> =========
+> 
+> Copyright (c) 2019 by Microsoft Corporation. This material may be
+> distributed only subject to the terms and conditions set forth in the
+> Open Publication License, v1.0 or later (the latest version is presently
+> available at http://www.opencontent.org/openpub/).
+
+
+From vstinner at redhat.com  Thu Mar 28 20:02:16 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 29 Mar 2019 01:02:16 +0100
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+Message-ID: <CA+3bQGEodqbHk4A4fPAzRYeDmX0OG51DWN_Rq28aJfHt15UWdw@mail.gmail.com>
+
+Hi,
+
+I read quickly the PEP, I'm not sure that I understood it correctly,
+so here are some early questions more about the usage of the PEP, than
+its implementation.
+
+> This is not sandboxing, as this proposal does not attempt to prevent
+> malicious behavior (though it enables some new options to do so).
+> See the `Why Not A Sandbox`_ section below for further discussion.
+
+I don't understand well the overall security model. If malicious
+behaviors can still occur, what is the the purpose of auditing? For
+example, if an audit hook writes events into a local log file, the
+attacker can easily remove this log file, no?
+
+While you say that it's not a sandbox, you designed multiple
+protections to protect auditing, and the design is very close to a
+sandbox.
+
+Example:
+
+    "``_PyObject_GenericSetAttr``, ``check_set_special_type_attr``,
+    ``object_set_class``, ``func_set_code``, ``func_set_[kw]defaults``","
+    ``object.__setattr__``","``(object, attr, value)``","Detect monkey
+    patching of types and objects. This event
+    is raised for the ``__class__`` attribute and any attribute on
+    ``type`` objects.
+
+It reminds me Python 2 Bastion module which has simply been removed
+because it was unsafe:
+https://docs.python.org/2/library/bastion.html
+
+For example, using ctypes, you can access directly the underlying
+dictionary of a type and modify "private" attributes. It's just an
+example.
+
+
+I wrote pysandbox in the past, and it was broken by default, as you
+wrote in the PEP :-)
+
+   The failure of pysandbox (2013)
+   https://lwn.net/Articles/574215/
+
+If you want to secure Python, run Python in a sandbox, don't try to
+"add" a sandbox "on top" of Python (I know that it's more complicated
+in practice).
+
+Or use PyPy sandbox which has a very different design.
+
+
+Le jeu. 28 mars 2019 ? 23:39, Steve Dower <steve.dower at python.org> a ?crit :
+> This PEP describes additions to the Python API and specific behaviors
+> for the CPython implementation that make actions taken by the Python
+> runtime visible to auditing tools. Visibility into these actions
+> provides opportunities for test frameworks, logging frameworks, and
+> security tools to monitor and optionally limit actions taken by the
+> runtime.
+
+Is it possible to implement these features without adding a new API or
+modifying Python?
+
+Short example adding logs to open():
+---
+import builtins
+import functools
+
+def add_log(name, func):
+    @functools.wraps(func)
+    def wrapper(*args):
+        print(name, args)
+        return func(*args)
+    return wrapper
+
+builtins.open = add_log("open", builtins.open)
+
+open(__file__).close()
+---
+
+
+> Verified Open Hook
+> ------------------
+>
+> Most operating systems have a mechanism to distinguish between files
+> that can be executed and those that can not. For example, this may be an
+> execute bit in the permissions field, a verified hash of the file
+> contents to detect potential code tampering, or file system path
+> restrictions. These are an important security mechanism for preventing
+> execution of data or code that is not approved for a given environment.
+> Currently, Python has no way to integrate with these when launching
+> scripts or importing modules.
+
+In my experience, it doesn't work just because Python has too many
+functions opening files indirectly or call external C libraries which
+open files.
+
+I vaguely recall an exploit in my pysandbox project which uses the
+internal code of Python which displays a traceback... to read the
+content of an arbitrary file on the disk :-( Game over. I would never
+expect that there are so many ways to read a file in Python...
+
+Even when I restricted pysandbox to the bare minimum of the Python
+language (with no import), multiple exploits have been found.
+Moreover, at the end, Python just became useful.
+
+More generally, there are a lot of codes in Python which allow
+arbitrary code injection :-( (Most of them are now fixed, hopefully!)
+
+I did my best to modify as much functions as possible to implement the
+PEP 446 "Make newly created file descriptors non-inheritable", but I
+know that *many* functions call directly open() or fopen() and so
+create inheritable file descriptors. For example, the Python ssl
+module takes directly filenames and OpenSSL open directly files. It's
+just one example.
+
+You will never be able to cover all cases.
+
+Having a single function which allows to open an arbitrary file
+without triggering an audit event would defeat the whole purpose of
+auditing, no? Again, maybe I didn't understand well the overall
+purpose of the PEP, sorry.
+
+
+> Table 2 provides further examples that are not required, but are
+> likely to be available in CPython.
+> (...)
+> Performance Impact
+> ==================
+>
+> The important performance impact is the case where events are being
+> raised but there are no hooks attached. This is the unavoidable case -
+> once a developer has added audit hooks they have explicitly chosen to
+> trade performance for functionality.
+
+(The Linux kernel uses advance tooling to inject hooks: it has no
+impact on performances when no hook is used. Machine code of functions
+is patched to inject a hook. Impressive stuff :-))
+
+Here I expect a small overhead. But the global overhead will be
+proportional to the number of hooks, no? Maybe it's not significant
+with the proposed list of events, but it will be more significant with
+100 or 1000 events?
+
+I'm not saying that it's a blocker issue, I'm just thinking aloud to
+make sure that I understood correctly :-)
+
+Victor
+--
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Thu Mar 28 23:08:42 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Fri, 29 Mar 2019 12:08:42 +0900
+Subject: [Python-Dev] A request for PEP announcement format [was: PEP 570]
+In-Reply-To: <CAFjbc8FG2ihd96pQXF_i9HXb2VO=0cMFZjG4_5AJReoJS4uc+w@mail.gmail.com>
+References: <CAFjbc8FG2ihd96pQXF_i9HXb2VO=0cMFZjG4_5AJReoJS4uc+w@mail.gmail.com>
+Message-ID: <23709.35898.906806.70203@turnbull.sk.tsukuba.ac.jp>
+
+A proponent writes:
+
+ > We have submitted PEP 570 for consideration to the steering
+ > council:
+
+I would like to ask *future* proponents to please include the title
+explicitly in the first mention.  (This is not a criticism of the
+previous post.  How could he know I would write this?)
+
+In this case, it's here:
+
+ > https://discuss.python.org/t/pep-570-Python-Positional-Only-Parameters/1078
+
+(sorry, case changed for emphasis so clicking won't work) so no great
+harm done!
+
+Thanks in advance!
+
+Steve
+
+From jcgoble3 at gmail.com  Thu Mar 28 23:24:57 2019
+From: jcgoble3 at gmail.com (Jonathan Goble)
+Date: Thu, 28 Mar 2019 23:24:57 -0400
+Subject: [Python-Dev] A request for PEP announcement format [was: PEP
+ 570]
+In-Reply-To: <23709.35898.906806.70203@turnbull.sk.tsukuba.ac.jp>
+References: <CAFjbc8FG2ihd96pQXF_i9HXb2VO=0cMFZjG4_5AJReoJS4uc+w@mail.gmail.com>
+ <23709.35898.906806.70203@turnbull.sk.tsukuba.ac.jp>
+Message-ID: <CAK256p24z86FvHyHbywnT1sH9ZYCrPvgjuGh1xrJ=CVUsre6Qg@mail.gmail.com>
+
+On Thu, Mar 28, 2019 at 11:11 PM Stephen J. Turnbull <
+turnbull.stephen.fw at u.tsukuba.ac.jp> wrote:
+
+>  >
+> https://discuss.python.org/t/pep-570-Python-Positional-Only-Parameters/1078
+>
+> (sorry, case changed for emphasis so clicking won't work)
+>
+
+Clicking actually did work for me. Not only is that portion of the link not
+case-sensitive, but it doesn't even matter what it is or if it's present at
+all. https://discuss.python.org/t/pep-570-fgfdgfdgdfgd-parameters/1078 and
+https://discuss.python.org/t/1078 both lead to the same thread, but if I
+change the number at the end to 1077, I get a different thread.
+
+So the system only uses the number at the end to identify the thread, and
+the text is strictly for the benefit of human readability and not parsed by
+the server. File that in the "probably useless information" category of
+your brain. ;-)
+
+*goes back to lurking*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190328/8d87ef0c/attachment.html>
+
+From J.Demeyer at UGent.be  Fri Mar 29 02:25:26 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 29 Mar 2019 07:25:26 +0100
+Subject: [Python-Dev] A request for PEP announcement format [was: PEP
+ 570]
+In-Reply-To: <23709.35898.906806.70203@turnbull.sk.tsukuba.ac.jp>
+References: <CAFjbc8FG2ihd96pQXF_i9HXb2VO=0cMFZjG4_5AJReoJS4uc+w@mail.gmail.com>
+ <23709.35898.906806.70203@turnbull.sk.tsukuba.ac.jp>
+Message-ID: <5C9DBA56.2020006@UGent.be>
+
+On 2019-03-29 04:08, Stephen J. Turnbull wrote:
+> In this case, it's here:
+>
+>   > https://discuss.python.org/t/pep-570-Python-Positional-Only-Parameters/1078
+
+So, are we supposed to discuss PEPs on discuss.python.org now? That's 
+fine for me, should I create a thread like that for PEP 580 too?
+
