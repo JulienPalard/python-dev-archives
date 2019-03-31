@@ -23485,3 +23485,1155 @@ Regards,
 -- 
 Inada Naoki  <songofacandy at gmail.com>
 
+From ncoghlan at gmail.com  Sat Mar 30 06:28:44 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sat, 30 Mar 2019 20:28:44 +1000
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+ <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+ <CAEfz+Tzj5uh3K9yOF-k+1S1_s_32CSz2_Ad4kB6WH+Y7m_c1BA@mail.gmail.com>
+ <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+Message-ID: <CADiSq7e64Ju1HA-nr8g_0vG7ChGHdhvUVsNpnyO0iYE1ECtS3w@mail.gmail.com>
+
+On Wed, 27 Mar 2019 at 20:29, Inada Naoki <songofacandy at gmail.com> wrote:
+>
+> On Mon, Mar 25, 2019 at 10:11 PM Inada Naoki <songofacandy at gmail.com> wrote:
+> >
+> > C, Rust, Java, Ruby, PHP, don't have PendingDeprecation.
+> > Programmers only need Deprecation.  Why programmers need PendingDeprecation
+> > only in Python?
+> >
+>
+> Any comments about this?
+>
+> I want to document PendingDeprecationWarning is deprecated [1].
+> May I merge the PR?  Should I start poll on discuss.python.org?
+
+No, just leave it alone, as removing it is pointless churn for no good
+reason. If folks don't want to use it, they don't have to use it.
+
+Regards,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sat Mar 30 06:31:25 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sat, 30 Mar 2019 20:31:25 +1000
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CAEfz+TytJj=oMXKUE5T8dJj0Jq6ZRp6Uex-JSwmpSaOt39Mx2Q@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+ <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+ <CAEfz+Tzj5uh3K9yOF-k+1S1_s_32CSz2_Ad4kB6WH+Y7m_c1BA@mail.gmail.com>
+ <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+ <18ccdacf-8fc8-5130-b4ba-89df84e02987@python.org>
+ <CAEfz+TytJj=oMXKUE5T8dJj0Jq6ZRp6Uex-JSwmpSaOt39Mx2Q@mail.gmail.com>
+Message-ID: <CADiSq7etd9fs2OmmoWMYzuzLxe793PpmCd=8Mrv+tdmFjwdZ=Q@mail.gmail.com>
+
+On Thu, 28 Mar 2019 at 12:31, Inada Naoki <songofacandy at gmail.com> wrote:
+> I didn't know "right way" to chose DeprecationWarning or
+> PendingDeprecationWarning.
+
+That's just a documentation fix: "If you're not sure whether to use
+DeprecationWarning or PendingDeprecationWarning, use
+DeprecationWarning".
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sat Mar 30 07:07:34 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sat, 30 Mar 2019 21:07:34 +1000
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+Message-ID: <CADiSq7eF7hPV3SMjYSmKT3o5WgNb=MX-qDFw9KOzx12XXt70rg@mail.gmail.com>
+
+On Sat, 30 Mar 2019 at 12:45, Steve Dower <steve.dower at python.org> wrote:
+>
+> On 29Mar.2019 1830, Victor Stinner wrote:
+> > The purpose of the PEP 587 is to have a working document so everyone
+> > can look at the proposed API (stay focused to the API rather than
+> > bothering with the implementation). IMHO it's now time to get more
+> > people looking at the Python Initialization.
+> >
+> >> But there are enough of us
+> >> with fuzzy but valid ideas in our heads that we really need that
+> >> brainstorming session to mix them together and find something feasible.
+> >> Maybe we're best to put it off until PyCon at this point.
+> >
+> > Python 3.8 feature freeze is scheduled at the end of May, less than
+> > one month after the PyCon. It might be a little bit too late, no?
+>
+> I don't think we want to rush this in for 3.8 at this point anyway. The
+> design of how Python is embedded is one of those things that could
+> drastically affect the scenarios it gets used for in the future
+> (probably half of my tasks at work right now involve embedding CPython),
+> so I'd like to get it right.
+
+Victor and I chatted about this, and I think it would be good to get
+something in to Python 3.8 that gives applications embedding CPython
+access to the same level of control that we have from the native
+CPython CLI application - the long and the short of the *nix embedding
+bug reports that have come in since Python 3.7 was released is that
+locale coercion and UTF-8 mode don't quite work properly when an
+application is relying solely on the Py_Initialize() and Py_Main()
+APIs and doesn't have access to the extra preconfiguration steps that
+have been added to get everything to work nicely together and avoid
+mojibake in the native CPython CLI app. Victor's gone to great lengths
+to try to make them work, but the unfortunate fact is that by the time
+they're called, too many other things have often happened in the
+embedding application for CPython to be able to get all the data
+completely self-consistent.
+
+Thus the two changes go hand in hand: reverting the old initialization
+APIs back to their Python 3.6 behaviour to fix the embedding
+regressions our two PEPs inadvertently introduced for some
+applications when running in the POSIX locale, while also exposing new
+initialization APIs so embedding apps can explicitly opt in to
+behaving the same way as the CPython CLI does. Affected apps would
+then switch to Python 3.8 at the earliest opportunity, and stop
+supporting Python 3.7 as the embedded Python version.
+
+The absolute bare minimum version of PEP 587 that we need for that
+purpose is to expose the PreInitialize API, as that's the one that
+allows the active text encoding to be set early enough to avoid
+mojibake: https://www.python.org/dev/peps/pep-0587/#pre-initialization-with-pypreconfig
+
+The rest of the proposal in PEP 587 then comes from wanting to publish
+an API that matches the one we're now using ourselves, rather than
+coming up with something more speculative.
+
+However, I was also going to suggest that you (Steve) might make a
+good BDFL-Delegate for these PEPs - there aren't that many of us
+familiar with this part of the code base, and Victor, Eric, and I are
+all way too close to the concrete API design to judge it objectively,
+while you not only maintain the embeddable CPython bundle for Windows,
+you also have access to users of that bundle that might be able to
+provide you with additional feedback :)
+
+Cheers,
+Nick.
+
+P.S. I've also posted a draft update to PEP 432 that modifies it to
+reflect Victor's extraction of the part we already have as a private
+API to PEP 587:https://github.com/python/peps/pull/965
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sat Mar 30 10:47:32 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 31 Mar 2019 00:47:32 +1000
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <2cb3740e-ebc2-1839-1d2e-73d1b9f0a445@python.org>
+ <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+Message-ID: <CADiSq7ftogxBEZMu1suwMhpyBPehPteqU4EJr4YqxprpFYP-Nw@mail.gmail.com>
+
+On Sat, 30 Mar 2019 at 06:14, Steve Dower <steve.dower at python.org> wrote:
+> On 29Mar2019 1218, Christian Heimes wrote:
+> > On 28/03/2019 23.35, Steve Dower wrote:
+> >> There is no Python API provided for changing the open hook. To modify
+> >> import behavior from Python code, use the existing functionality
+> >> provided by ``importlib``.
+> >
+> > I think that the import hook needs to be extended. It only works for
+> > simple Python files or pyc files. There are at least two other important
+> > scenarios: zipimport and shared libraries.
+> >
+> > For example how does the importhook work in regarding of alternative
+> > importers like zipimport? What does the import hook 'see' for an import
+> > from a zipfile?
+>
+> Yes, good point. I think opening the zip file with open_for_import() is
+> the right place to do it, as this operation relates to opening the file
+> on disk rather than files within it.
+
+I like this PEP in principle, but the specific "open_for_import" name
+bothers me a lot, as it implies that "importing" is the only situation
+where a file will be opened for code execution. Accordingly, I think
+proceeding with that name will increase the risk of unintentional
+audit bypasses, as folks (both within the core development team and
+outside it) use the regular open function for data that they then pass
+to exec(), or for some other purpose that nevertheless allows
+arbitrary code execution (e.g. the shelve module loading pickle files
+from disk).
+
+If this part of the API were lower down the stack (e.g.
+"_io.open_for_code_execution") then I think it would make more sense -
+APIs like tokenize.open(), runpy.run_path(), PyRun_SimpleFile(),
+shelve, etc, could use that, without having to introduce a dependency
+on importlib to get access to the functionality.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sat Mar 30 11:08:11 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 31 Mar 2019 01:08:11 +1000
+Subject: [Python-Dev] Tests for internal functionality
+In-Reply-To: <q6jpgk$2uhn$1@blaine.gmane.org>
+References: <87f2d4c9-b9e8-6a63-e4a8-e464a0d63be6@mail.mipt.ru>
+ <q6jpgk$2uhn$1@blaine.gmane.org>
+Message-ID: <CADiSq7cJxEA52yp_HE4baGTUCL5JLUyiLCpLGb-A6A=mxwiDFw@mail.gmail.com>
+
+On Sun, 17 Mar 2019 at 07:27, Terry Reedy <tjreedy at udel.edu> wrote:
+>
+> On 3/16/2019 3:10 AM, Ivan Pozdeev via Python-Dev wrote:
+> > In https://github.com/python/cpython/pull/6541 , I was requested to add
+> > tests for an internal C function.
+> >
+> > As I wrote in
+> > https://github.com/python/cpython/pull/6541#issuecomment-445514807 ,
+> > it's not clear from the codebase
+> >
+> > 1) where tests for internal (as opposed to public) functionality should
+> > be located
+>
+> In the same file where they would be if public, which is what you seemed
+> to find.  Label somehow, such as 'class InternalsTest(TestCase):' or
+> 'test__private' (with double __ indicating test of _private).
+
+A belated follow-up here: in most cases, such tests should be marked
+with https://docs.python.org/3/library/test.html#test.support.cpython_only,
+so they get skipped automatically when the test suite is run against
+another implementation.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sat Mar 30 11:26:49 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 31 Mar 2019 01:26:49 +1000
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <20190325103022.GA39362@cskk.homeip.net>
+References: <09eceb89-a207-b65b-2990-18a1ace92a79@udel.edu>
+ <20190325103022.GA39362@cskk.homeip.net>
+Message-ID: <CADiSq7cCD_xhB58jqd3QL8+RuJ4bL8OjdUKQSBV+cJ_ZGPqp=g@mail.gmail.com>
+
+On Mon, 25 Mar 2019 at 20:34, Cameron Simpson <cs at cskk.id.au> wrote:
+> Clearly the above needs to accomodate this, possibly with a fallback
+> guess. Is sniffing the end components of __file__ at all sane? ending in
+> idlelib/pyshell.py or pyshell.py? Or is that just getting baroque?
+>
+> I don't think these are strictly the same from some kind of purist
+> viewpoint: the path might be anything - _is_ it reasonable to suppose
+> that it has a module name (== importable/finding through the import
+> path)?
+
+Directly executing files from inside Python packages is explicitly
+unsupported, and nigh guaranteed to result in a broken import setup,
+as relative imports won't work, and absolute imports will most likely
+result in a second copy of the script module getting loaded.
+
+The problem is that __main__ always thinks it is a top-level module
+for directly executed scripts - it needs the package structure
+information from the "-m" switch to learn otherwise.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From steve.dower at python.org  Sat Mar 30 12:00:13 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Sat, 30 Mar 2019 09:00:13 -0700
+Subject: [Python-Dev] Strange umask(?)/st_mode issue
+In-Reply-To: <55e6f051-179d-73b4-4cca-b91c5c81b498@python.org>
+References: <13f98061-6f64-2e8b-de66-d84a7be00a17@python.org>
+ <20190330023947.GA62291@cskk.homeip.net>
+ <55e6f051-179d-73b4-4cca-b91c5c81b498@python.org>
+Message-ID: <3210441d-6094-b53e-6bf7-4b7c4cfb16ea@python.org>
+
+On 29Mar.2019 1944, Steve Dower wrote:
+> On 29Mar.2019 1939, Cameron Simpson wrote:
+>> Can you get a branch into your pipeline? Then you could just hack the
+>> tarfile test with something quick and dirty like:
+>>
+>> ?? pid = os.getpid()
+>> ?? system("strace -p %d 2>/path/to/strace.out &" % pid)
+>> ?? time.sleep(2)?? # get strace heaps of time to start
+>>
+>> just before the tarfile open. A ghastly hack but it would get you
+>> debugging info. You could even decide to remove the strace.out file if
+>> the umask issue doesn't show, if it is erratic (can't see why it would
+>> be though).
+> 
+> Perfect, I'll give this a go. Thanks!
+
+I set up a PR to collect this trace and the results are at:
+https://github.com/python/cpython/pull/12625
+
+However, I suspect it's a non-result:
+
+umask(022)                              = 022
+open("/home/vsts/work/1/s/build/test_python_5154/@test_5154_tmp-tardir/tmp.tar",
+O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
+write(3, "BZh91AY&SYY{\270\344\0\0\24P\0\300\0\4\0\0\10
+\0000\314\5)\246"..., 46) = 46
+close(3)                                = 0
+stat("/home/vsts/work/1/s/build/test_python_5154/@test_5154_tmp-tardir/tmp.tar",
+{st_mode=S_IFREG|0666, st_size=46, ...}) = 0
+
+Happy to take more suggestions if anyone has them.
+
+Thanks,
+Steve
+
+From steve.dower at python.org  Sat Mar 30 12:05:10 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Sat, 30 Mar 2019 09:05:10 -0700
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <CAEfz+Tyuwzc6PfTDkCFUcrU6GkZH4uuFf6hPN1EqFoxiv1JA5A@mail.gmail.com>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <CAEfz+Tyuwzc6PfTDkCFUcrU6GkZH4uuFf6hPN1EqFoxiv1JA5A@mail.gmail.com>
+Message-ID: <f8db2c1b-08ed-512d-2e84-7564da5436bd@python.org>
+
+On 29Mar.2019 2020, Inada Naoki wrote:
+> I don't like adding more Python callback from low level.
+> 
+> Python runtime is very complicated already, especially __del__,
+> shutdown process, and multi threading.  Python callback from low level
+> is source of very difficult bugs always.
+
+Asynchronous callbacks, sure. These are all synchronous and always as
+part of a Python operation while the GIL is held (I think putting them
+immediately after parameter validation is the best place, but am
+hesitant to make that a hard rule).
+
+> Additionally, if we used the PEP for logging complex application,
+> the log will be unreliable.  
+
+I think "then don't do that" is a valid response here. There are plenty
+of ways to use Python features incorrectly and cause problems (I've
+diagnosed many of them :) ). This doesn't make that any more or less true.
+
+> 1. Want to open file A in C code, call callback.
+> 2. In the callback, "A is opened" is logged.
+> 3. In the same callback, import may be happened and logged.
+> 4. In the same callback, other thread may be run and any thing can be logged.
+> 5. Many many other things happens and callback is called.
+> 6. Then, open the file A.
+> 
+> In this example, logged event ordering and timing is very different from
+> real event ordering and timing.
+
+Yep. If you implement a bad hook then you get bad results. But at least
+the user can fix that themselves (since they caused it themselves).
+
+I've already used these hooks for a number of useful purposes, and it
+isn't difficult to write one that works just fine.
+
+> I prefer low level tool to trace low level thing, although it lacks some
+> application context.  Maybe, DTrace will become more important tool.
+> 
+> https://techcommunity.microsoft.com/t5/Windows-Kernel-Internals/DTrace-on-Windows/ba-p/362902
+
+See my other reply about this. DTrace on Windows is a very long way from
+being suitable for production environments.
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Sat Mar 30 12:13:30 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Sat, 30 Mar 2019 09:13:30 -0700
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <CADiSq7ftogxBEZMu1suwMhpyBPehPteqU4EJr4YqxprpFYP-Nw@mail.gmail.com>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <2cb3740e-ebc2-1839-1d2e-73d1b9f0a445@python.org>
+ <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+ <CADiSq7ftogxBEZMu1suwMhpyBPehPteqU4EJr4YqxprpFYP-Nw@mail.gmail.com>
+Message-ID: <6ded2c50-bf28-1376-7b0c-9cc6839be56b@python.org>
+
+On 30Mar.2019 0747, Nick Coghlan wrote:
+> I like this PEP in principle, but the specific "open_for_import" name
+> bothers me a lot, as it implies that "importing" is the only situation
+> where a file will be opened for code execution. 
+> 
+> If this part of the API were lower down the stack (e.g.
+> "_io.open_for_code_execution") then I think it would make more sense -
+> APIs like tokenize.open(), runpy.run_path(), PyRun_SimpleFile(),
+> shelve, etc, could use that, without having to introduce a dependency
+> on importlib to get access to the functionality.
+
+It was called "open_for_exec" at one point, though I forget exactly why
+we changed it. But I have no problem with moving it. Something like this?
+
+PyImport_OpenForImport -> PyIO_OpenForExec
+PyImport_SetOpenForImportHook -> PyIO_SetOpenForExecHook
+importlib.util.open_for_import -> _io.open_for_exec
+
+Or more in line with Nick's suggestion:
+
+PyImport_OpenForImport -> PyIO_OpenExecutableCode
+PyImport_SetOpenForImportHook -> PyIO_SetOpenExecutableCodeHook
+importlib.util.open_for_import -> _io.open_executable_code
+
+I dropped "For", but I don't really care that much about the name. I'd
+be okay dropping either "executable" or "code" as well - I don't really
+have a good sense of which will make people more likely to use this
+correctly.
+
+Cheers,
+Steve
+
+From mark at hotpy.org  Sat Mar 30 12:30:58 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Sat, 30 Mar 2019 16:30:58 +0000
+Subject: [Python-Dev] BDFL-Delegate appointments for several PEPs
+In-Reply-To: <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+Message-ID: <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org>
+
+Hi Petr,
+
+On 27/03/2019 1:50 pm, Petr Viktorin wrote:
+> On Sun, Mar 24, 2019 at 4:22 PM Mark Shannon <mark at hotpy.org> wrote:
+>>
+>> Hi Petr,
+>>
+>> Regarding PEPs 576 and 580.
+>> Over the new year, I did a thorough analysis of possible approaches to
+>> possible calling conventions for use in the CPython ecosystems and came
+>> up with a new PEP.
+>> The draft can be found here:
+>> https://github.com/markshannon/peps/blob/new-calling-convention/pep-9999.rst
+>>
+>> I was hoping to profile a branch with the various experimental changes
+>> cherry-picked together, but don't seemed to have found the time :(
+>>
+>> I'd like to have a testable branch, before formally submitting the PEP,
+>> but I'd thought you should be aware of the PEP.
+>>
+>> Cheers,
+>> Mark.
+> 
+> Hello Mark,
+> Thank you for letting me know! I wish I knew of this back in January,
+> when you committed the first draft. This is unfair to the competing
+> PEP, which is ready and was waiting for the new govenance. We have
+> lost three months that could be spent pondering the ideas in the
+> pre-PEP.
+
+I realize this is less than ideal. I had planned to publish this in 
+December, but life intervened. Nothing bad, just too busy.
+
+> Do you think you will find the time to piece things together? Is there
+> anything that you already know should be changed?
+
+I've submitted the final PEP and minimal implementation
+https://github.com/python/peps/pull/960
+https://github.com/python/cpython/compare/master...markshannon:vectorcall-minimal
+
+> 
+> Do you have any comments on [Jeroen's comparison]?
+
+It is rather out of date, but two comments.
+1. `_PyObject_FastCallKeywords()` is used as an example of a call in 
+CPython. It is an internal implementation detail and not a common path.
+2. The claim that PEP 580 allows "certain optimizations because other 
+code can make assumptions" is flawed. In general, the caller cannot make 
+assumptions about the callee or vice-versa. Python is a dynamic language.
+
+> 
+> The pre-PEP is simpler then PEP 580, because it solves simpler issues.
+
+The fundamental issue being addressed is the same, and it is this:
+Currently third-party C code can either be called quickly or have access 
+to the callable object, not both. Both PEPs address this.
+
+> I'll need to confirm that it won't paint us into a corner -- that
+> there's a way to address all the issues in PEP 579 in the future.
+
+PEP 579 is mainly a list of supposed flaws with the 
+'builtin_function_or_method' class.
+The general thrust of PEP 579 seems to be that builtin-functions and 
+builtin-methods should be more flexible and extensible than they are. I 
+don't agree. If you want different behaviour, then use a different 
+object. Don't try an cram all this extra behaviour into a pre-existing 
+object.
+
+However, if we assume that we are talking about callables implemented in 
+C, in general, then there are 3 key issues covered by PEP 579.
+
+1. Inspection and documentation; it is hard for extensions to have 
+docstrings and signatures. Worth addressing, but completely orthogonal 
+to PEP 590.
+2. Extensibility and performance; extensions should have the power of 
+Python functions without suffering slow calls. Allowing the C code 
+access to the callable object is a general solution to this problem. 
+Both PEP 580 and PEP 590 do this.
+3. Exposing the underlying implementation and signature of the C code, 
+so that optimisers can avoid unnecessary boxing. This may be worth 
+doing, but until we have an adaptive optimiser capable of exploiting 
+this information, this is premature. Neither PEP 580 nor PEP 590 
+explicit allow or prevent this.
+
+> 
+> The pre-PEP claims speedups of 2% in initial experiments, with
+> expected overall performance gain of 4% for the standard benchmark
+> suite. That's pretty big.
+
+That's because there is a lot of code around calls in CPython, and it 
+has grown in a rather haphazard fashion. Victor's work to add the 
+"FASTCALL" protocol has helped. PEP 590 seeks to formalise and extend 
+that, so that it can be used more consistently and efficiently.
+
+> As far as I can see, PEP 580 claims not much improvement in CPython,
+> but rather large improvements for extensions (Mistune with Cython).
+
+Calls to and from extension code are slow because they have to use the 
+`tp_call` calling convention (or lose access to the callable object).
+With a calling convention that does not have any special cases,
+extensions can be as fast as builtin functions. Both PEP 580 and PEP 590 
+attempt to do this, but PEP 590 is more efficient.
+
+> 
+> The pre-PEP has a complication around offsetting arguments by 1 to
+> allow bound methods forward calls cheaply. I fear that this optimizes
+> for current usage with its limitations.
+
+It's optimising for the common case, while allowing the less common.
+Bound methods and classes need to add one additional argument. Other 
+rarer cases, like `partial` may need to allocate memory, but can still 
+add or remove any number of arguments.
+
+> PEP 580's cc_parent allows bound methods to have access to the class,
+> and through that, the module object where they are defined and the
+> corresponding module state. To support this, vector calls would need a
+> two-argument offset.
+
+Not true. The first argument in the vector call is the callable itself. 
+Through that it, any callable can access its class, its module or any 
+other object it wants.
+
+> (That seems to illustrate the main difference between the motivations
+> of the two PEPs: one focuses on extensibility; the other on optimizing
+> existing use cases.)
+
+I'll reiterate that PEP 590 is more general than PEP 580 and that once 
+the callable's code has access to the callable object (as both PEPs 
+allow) then anything is possible. You can't can get more extensible than 
+that.
+
+> 
+> The pre-PEP's "any third-party class implementing the new call
+> interface will not be usable as a base class" looks quite limiting.
+
+PEP 580 has the same limitation for the same reasons. The limitation is 
+necessary for correctness if an object supports calls via `__call__` and 
+through another calling convention.
+
+> 
+> 
+> 
+> [Jeroen's comparison]:
+> https://mail.python.org/pipermail/python-dev/2018-July/154238.html
+> 
+
+
+Cheers,
+Mark.
+
+From vano at mail.mipt.ru  Sat Mar 30 14:26:30 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Sat, 30 Mar 2019 21:26:30 +0300
+Subject: [Python-Dev] Strange umask(?)/st_mode issue
+In-Reply-To: <3210441d-6094-b53e-6bf7-4b7c4cfb16ea@python.org>
+References: <13f98061-6f64-2e8b-de66-d84a7be00a17@python.org>
+ <20190330023947.GA62291@cskk.homeip.net>
+ <55e6f051-179d-73b4-4cca-b91c5c81b498@python.org>
+ <3210441d-6094-b53e-6bf7-4b7c4cfb16ea@python.org>
+Message-ID: <f4a5d491-b8f0-fc25-0beb-fc01dad589ca@mail.mipt.ru>
+
+On 30.03.2019 19:00, Steve Dower wrote:
+> On 29Mar.2019 1944, Steve Dower wrote:
+>> On 29Mar.2019 1939, Cameron Simpson wrote:
+>>> Can you get a branch into your pipeline? Then you could just hack the
+>>> tarfile test with something quick and dirty like:
+>>>
+>>>  ?? pid = os.getpid()
+>>>  ?? system("strace -p %d 2>/path/to/strace.out &" % pid)
+>>>  ?? time.sleep(2)?? # get strace heaps of time to start
+>>>
+>>> just before the tarfile open. A ghastly hack but it would get you
+>>> debugging info. You could even decide to remove the strace.out file if
+>>> the umask issue doesn't show, if it is erratic (can't see why it would
+>>> be though).
+>> Perfect, I'll give this a go. Thanks!
+> I set up a PR to collect this trace and the results are at:
+> https://github.com/python/cpython/pull/12625
+>
+> However, I suspect it's a non-result:
+>
+> umask(022)                              = 022
+> open("/home/vsts/work/1/s/build/test_python_5154/@test_5154_tmp-tardir/tmp.tar",
+> O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
+> write(3, "BZh91AY&SYY{\270\344\0\0\24P\0\300\0\4\0\0\10
+> \0000\314\5)\246"..., 46) = 46
+> close(3)                                = 0
+> stat("/home/vsts/work/1/s/build/test_python_5154/@test_5154_tmp-tardir/tmp.tar",
+> {st_mode=S_IFREG|0666, st_size=46, ...}) = 0
+>
+> Happy to take more suggestions if anyone has them.
+
+According to https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops&tabs=yaml#use-a-microsoft-hosted-agent 
+, MS uses Ubuntu 16.04
+
+http://manpages.ubuntu.com/manpages/xenial/man2/umask.2.html suggests that umask is ignored if the parent directory has a default ACL (a 
+newly-created dir inherits those from its parent).
+
+As per https://linuxconfig.org/how-to-manage-acls-on-linux , the following commands should show if acls are enabled on the current FS and if 
+any are active on the dir:
+
+DEVICE=$(df <location> | tail -n +2 | awk '{print $1}')
+sudo tune2fs -l $DEVICE | grep -w "Default mount options"
+mount | grep -w $DEVICE
+getfacl <location>
+
+In `getfacl' output for a directory, entries that start with "default:" list the default ACL .
+
+`setfacl -b <location>' removes all ACLs from location.
+
+> Thanks,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vano%40mail.mipt.ru
+
+-- 
+Regards,
+Ivan
+
+
+From greg at krypto.org  Sat Mar 30 14:30:14 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Sat, 30 Mar 2019 11:30:14 -0700
+Subject: [Python-Dev] Strange umask(?)/st_mode issue
+In-Reply-To: <3210441d-6094-b53e-6bf7-4b7c4cfb16ea@python.org>
+References: <13f98061-6f64-2e8b-de66-d84a7be00a17@python.org>
+ <20190330023947.GA62291@cskk.homeip.net>
+ <55e6f051-179d-73b4-4cca-b91c5c81b498@python.org>
+ <3210441d-6094-b53e-6bf7-4b7c4cfb16ea@python.org>
+Message-ID: <CAGE7PNLeN1bRFMQMuQ6AFrYYwEzcPYVDhy5hXG-FbRju5FDpCA@mail.gmail.com>
+
+I wouldn't expect it to be the case in a CI environment but I believe a
+umask can be overridden if the filesystem is mounted and configured with
+acls set?  (oh, hah, Ivan just said the same thing)
+
+-gps
+
+On Sat, Mar 30, 2019 at 9:05 AM Steve Dower <steve.dower at python.org> wrote:
+
+> On 29Mar.2019 1944, Steve Dower wrote:
+> > On 29Mar.2019 1939, Cameron Simpson wrote:
+> >> Can you get a branch into your pipeline? Then you could just hack the
+> >> tarfile test with something quick and dirty like:
+> >>
+> >>    pid = os.getpid()
+> >>    system("strace -p %d 2>/path/to/strace.out &" % pid)
+> >>    time.sleep(2)   # get strace heaps of time to start
+> >>
+> >> just before the tarfile open. A ghastly hack but it would get you
+> >> debugging info. You could even decide to remove the strace.out file if
+> >> the umask issue doesn't show, if it is erratic (can't see why it would
+> >> be though).
+> >
+> > Perfect, I'll give this a go. Thanks!
+>
+> I set up a PR to collect this trace and the results are at:
+> https://github.com/python/cpython/pull/12625
+>
+> However, I suspect it's a non-result:
+>
+> umask(022)                              = 022
+>
+> open("/home/vsts/work/1/s/build/test_python_5154/@test_5154_tmp-tardir/tmp.tar",
+> O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
+> write(3, "BZh91AY&SYY{\270\344\0\0\24P\0\300\0\4\0\0\10
+> \0000\314\5)\246"..., 46) = 46
+> close(3)                                = 0
+>
+> stat("/home/vsts/work/1/s/build/test_python_5154/@test_5154_tmp-tardir/tmp.tar",
+> {st_mode=S_IFREG|0666, st_size=46, ...}) = 0
+>
+> Happy to take more suggestions if anyone has them.
+>
+> Thanks,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190330/9c169221/attachment.html>
+
+From kushal at locationd.net  Sat Mar 30 14:00:25 2019
+From: kushal at locationd.net (Kushal Kumaran)
+Date: Sat, 30 Mar 2019 11:00:25 -0700
+Subject: [Python-Dev] Strange umask(?)/st_mode issue
+In-Reply-To: <3210441d-6094-b53e-6bf7-4b7c4cfb16ea@python.org> (Steve Dower's
+ message of "Sat, 30 Mar 2019 09:00:13 -0700")
+References: <13f98061-6f64-2e8b-de66-d84a7be00a17@python.org>
+ <20190330023947.GA62291@cskk.homeip.net>
+ <55e6f051-179d-73b4-4cca-b91c5c81b498@python.org>
+ <3210441d-6094-b53e-6bf7-4b7c4cfb16ea@python.org>
+Message-ID: <87va0044zq.fsf@copper.locationd.net>
+
+Steve Dower <steve.dower at python.org> writes:
+
+> On 29Mar.2019 1944, Steve Dower wrote:
+>> On 29Mar.2019 1939, Cameron Simpson wrote:
+>>> Can you get a branch into your pipeline? Then you could just hack the
+>>> tarfile test with something quick and dirty like:
+>>>
+>>> ?? pid = os.getpid()
+>>> ?? system("strace -p %d 2>/path/to/strace.out &" % pid)
+>>> ?? time.sleep(2)?? # get strace heaps of time to start
+>>>
+>>> just before the tarfile open. A ghastly hack but it would get you
+>>> debugging info. You could even decide to remove the strace.out file if
+>>> the umask issue doesn't show, if it is erratic (can't see why it would
+>>> be though).
+>> 
+>> Perfect, I'll give this a go. Thanks!
+>
+> I set up a PR to collect this trace and the results are at:
+> https://github.com/python/cpython/pull/12625
+>
+> However, I suspect it's a non-result:
+>
+> umask(022)                              = 022
+> open("/home/vsts/work/1/s/build/test_python_5154/@test_5154_tmp-tardir/tmp.tar",
+> O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 3
+> write(3, "BZh91AY&SYY{\270\344\0\0\24P\0\300\0\4\0\0\10
+> \0000\314\5)\246"..., 46) = 46
+> close(3)                                = 0
+> stat("/home/vsts/work/1/s/build/test_python_5154/@test_5154_tmp-tardir/tmp.tar",
+> {st_mode=S_IFREG|0666, st_size=46, ...}) = 0
+>
+> Happy to take more suggestions if anyone has them.
+>
+
+The file must exist already.  Try moving the strace capturing to before
+the unlink.
+
+-- 
+regards,
+kushal
+
+From J.Demeyer at UGent.be  Sat Mar 30 18:36:50 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Sat, 30 Mar 2019 23:36:50 +0100
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org>
+Message-ID: <5C9FEF82.50207@UGent.be>
+
+On 2019-03-30 17:30, Mark Shannon wrote:
+> 2. The claim that PEP 580 allows "certain optimizations because other
+> code can make assumptions" is flawed. In general, the caller cannot make
+> assumptions about the callee or vice-versa. Python is a dynamic language.
+
+PEP 580 is meant for extension classes, not Python classes. Extension 
+classes are not dynamic. When you implement tp_call in a given way, the 
+user cannot change it. So if a class implements the C call protocol or 
+the vectorcall protocol, callers can make assumptions about what that means.
+
+> PEP 579 is mainly a list of supposed flaws with the
+> 'builtin_function_or_method' class.
+> The general thrust of PEP 579 seems to be that builtin-functions and
+> builtin-methods should be more flexible and extensible than they are. I
+> don't agree. If you want different behaviour, then use a different
+> object. Don't try an cram all this extra behaviour into a pre-existing
+> object.
+
+I think that there is a misunderstanding here. I fully agree with the 
+"use a different object" solution. This isn't a new solution: it's 
+already possible to implement those different objects (Cython does it). 
+It's just that this solution comes at a performance cost and that's what 
+we want to avoid.
+
+> I'll reiterate that PEP 590 is more general than PEP 580 and that once
+> the callable's code has access to the callable object (as both PEPs
+> allow) then anything is possible. You can't can get more extensible than
+> that.
+
+I would argue the opposite: PEP 590 defines a fixed protocol that is not 
+easy to extend. PEP 580 on the other hand uses a new data structure 
+PyCCallDef which could easily be extended in the future (this will 
+intentionally never be part of the stable ABI, so we can do that).
+
+I have also argued before that the generality of PEP 590 is a bad thing 
+rather than a good thing: by defining a more rigid protocol as in PEP 
+580, more optimizations are possible.
+
+> PEP 580 has the same limitation for the same reasons. The limitation is
+> necessary for correctness if an object supports calls via `__call__` and
+> through another calling convention.
+
+I don't think that this limitation is needed in either PEP. As I 
+explained at the top of this email, it can easily be solved by not using 
+the protocol for Python classes. What is wrong with my proposal in PEP 
+580: https://www.python.org/dev/peps/pep-0580/#inheritance
+
+
+Jeroen.
+
+From steve.dower at python.org  Sat Mar 30 20:48:56 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Sat, 30 Mar 2019 17:48:56 -0700
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+Message-ID: <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+
+Here is my first review of https://www.python.org/dev/peps/pep-0587/ and
+in general I think it's very good. There are some things I'd like to
+consider changing before we embed them permanently in a public API, and
+as I'm still keen to have the ability to write Python code for
+configuration (to replace getpath.c, for example) I have a bias towards
+making that work more smoothly with these changes when we get to it.
+
+I think my biggest point (about halfway down) is that I'd rather use
+argv/environ/etc. to *initialize* PyConfig and then only use the config
+for initializing the runtime. That way it's more transparent for users
+and more difficult for us to add options that embedders can't access.
+
+The appendix is excellent, by the way. Very useful detail to have
+written down.
+
+Cheers,
+Steve
+
+
+> ``PyWideCharList`` is a list of ``wchar_t*`` strings.
+
+I always forget whether "const" is valid in C99, but if it is, can we
+make this a list of const strings?
+
+I also prefer a name like ``PyWideStringList``, since that's what it is
+(the other places we use WideChar in the C API refer only to a single
+string, as far as I'm aware).
+
+> ``PyInitError`` is a structure to store an error message or an exit code
+> for the Python Initialization.
+
+I love this struct! Currently it's private, but I wonder whether it's
+worth making it public as PyError (or PyErrorInfo)? We obviously can't
+replace all uses of int as a return value throughout the API, but I
+think it has uses elsewhere and we may as well protect against having to
+rename in the future.
+
+> * ``exitcode`` (``int``): if greater or equal to zero, argument passed to
+>  ``exit()``
+
+Windows is likely to need/want negative exit codes, as many system
+errors are represented as 0x80000000|(source of error)|(specific code).
+
+> * ``user_err`` (int): if non-zero, the error is caused by the user
+>   configuration, otherwise it's an internal Python error.
+
+Maybe we could just encode this as "positive exitcode is user error,
+negative is internal error"? I'm pretty sure struct return values are
+passed by reference in most C calling conventions, so the size of the
+struct isn't a big deal, but without a proper bool type it may look like
+this is a second error code (like errno/winerror in a few places).
+
+> ``PyPreConfig`` structure is used to pre-initialize Python:
+>
+> * Set the memory allocator
+> * Configure the LC_CTYPE locale
+> * Set the UTF-8 mode
+
+I think we should have the isolated flag in here - oh wait, we do - I
+think we should have the isolated/use_environment options listed in this
+list :)
+
+> Functions to pre-initialize Python:
+>
+> * ``PyInitError Py_PreInitialize(const PyPreConfig *config)``
+> * ``PyInitError Py_PreInitializeFromArgs( const PyPreConfig *config,
+int argc, char **argv)``
+> * ``PyInitError Py_PreInitializeFromWideArgs( const PyPreConfig
+*config, int argc, wchar_t **argv)``
+
+I hope to one day be able to support multiple runtimes per process - can
+we have an opaque PyRuntime object exposed publicly now and passed into
+these functions?
+
+(FWIW, I think we're a long way from being able to support multiple
+runtimes *simultaneously*, so the initial implementation here would be
+to have a PyRuntime_Create() that returns our global one once and then
+errors until it's finalised. The migration path is probably to enable
+switching of the current runtime via a dedicated function (i.e. one
+active at a time, probably with thread local storage), since we have no
+"context" parameter for C API functions, and obviously there are still
+complexities such as poorly written extension modules that nonetheless
+can be dealt with in embedding scenarios by simply not using them. This
+doesn't seem like an unrealistic future, *unless* we add a whole lot of
+new APIs now that can't allow it :) )
+
+> ``PyPreConfig`` fields:
+>
+> * ``coerce_c_locale_warn``: if non-zero, emit a warning if the C locale
+>   is coerced.
+> * ``coerce_c_locale``: if equals to 2, coerce the C locale; if equals to
+>   1, read the LC_CTYPE to decide if it should be coerced.
+
+Can we use another value for coerce_c_locale to determine whether to
+warn or not? Save a field.
+
+> * ``legacy_windows_fs_encoding`` (Windows only): if non-zero, set the
+>   Python filesystem encoding to ``"mbcs"``.
+> * ``utf8_mode``: if non-zero, enable the UTF-8 mode
+
+Why not just set the encodings here? The "PreInitializeFromArgs"
+functions can override it based on the other variables we have, and
+embedders have a more obvious question to answer than "do I want legacy
+behaviour in my app".
+
+Obviously we are not ready to import most encodings after pre
+initialization, but I think that's okay. Embedders who set something
+outside the range of what can be used without importing encodings will
+get an error to that effect if we try.
+
+In fact, I'd be totally okay with letting embedders specify their own
+function pointer here to do encoding/decoding between Unicode and the OS
+preferred encoding. That would let them use any approach they like.
+Similarly for otherwise-unprintable messages (On an earlier project when
+I was embedding Python into Windows Store apps - back when their API was
+more heavily restricted - this would have been very helpful.)
+
+> Example of Python initialization enabling the isolated mode::
+>
+>     PyConfig config = PyConfig_INIT;
+>     config.isolated = 1;
+
+Haven't we already used extenal values by this point that should have
+been isolated? I'd rather have the isolation up front. Or better yet,
+make isolation the default unless you call one of the "FromArgs"
+functions, and then we don't actually need the config setting at all.
+
+> PyConfig fields:
+
+Before I start discussing individual groups of fields, I would really
+like to see the following significant change here (because it'll help
+keep us honest and prevent us breaking embedders in the future).
+
+Currently you have three functions, that take a PyConfig and optionally
+also use the environment/argv to figure out the settings:
+
+> * ``PyInitError Py_InitializeFromConfig(const PyConfig *config)``
+> * ``PyInitError Py_InitializeFromArgs(const PyConfig *config, int
+argc, char **argv)``
+> * ``PyInitError Py_InitializeFromWideArgs(const PyConfig *config, int
+argc, wchar_t **argv)``
+
+I would much prefer to see this flipped around, so that there is one
+initialize function taking PyConfig, and two functions that will fill
+out the PyConfig based on the environment:
+
+(note two of the "const"s are gone)
+
+* ``PyInitError Py_SetConfigFromArgs(PyConfig *config, int argc, char
+**argv)``
+* ``PyInitError Py_SetConfigFromWideArgs(PyConfig *config, int argc,
+wchar_t **argv)``
+* ``PyInitError Py_InitializeFromConfig(const PyConfig *config)``
+
+This means that callers who want to behave like Python will request an
+equivalent config and then use it. Those callers who want to be *nearly*
+like Python can change things in between. And the precedence rules get
+simpler because Py_SetConfig* just overwrites anything:
+
+PyConfig config = PyConfig_INIT;
+Py_SetConfigFromWideArgs(&config, argc, argv);
+/* optionally change any settings */
+Py_InitializeFromConfig(&config);
+
+We could even split out PyMainConfig here and have another function to
+collect the settings to pass to Py_RunMain() (such as the script or
+module name, things to print on exit, etc.).
+
+Our python.c then uses this configuration, so it gets a few lines longer
+than at present. But it becomes a more useful example for people who
+want a nearly-like-Python version, and also ensures that any new
+configuration we support will be available to embedders.
+
+So with that said, here's what I think about the fields:
+
+> * ``argv``: ``sys.argv``
+> * ``base_exec_prefix``: ``sys.base_exec_prefix``
+> * ``base_prefix``: ``sys.base_prefix``
+> * ``exec_prefix``: ``sys.exec_prefix``
+> * ``executable``: ``sys.executable``
+> * ``prefix``: ``sys.prefix``
+> * ``xoptions``: ``sys._xoptions``
+
+I like all of these, as they nicely map to their sys members.
+
+> * ``module_search_path_env``: ``PYTHONPATH`` environment variale value
+> * ``module_search_paths``, ``use_module_search_paths``: ``sys.path``
+
+Why not just have "path" to mirror sys.path? If we go to a Py_SetConfig
+approach then all the logic for inferring the path is in there, and if
+we don't then the FromArgs() function will either totally override or
+ignore it. Either way, no embedder needs to set these individually.
+
+> * ``home``: Python home
+> * ``program_name``: Program name
+> * ``program``: ``argv[0]`` or an empty string
+> * ``user_site_directory``: if non-zero, add user site directory to
+>   ``sys.path``
+
+Similarly, these play a role when inferring the regular Python sys.path,
+but are not something you should need to use when embedding.
+
+> * ``dll_path`` (Windows only): Windows DLL path
+
+I'd have to look up exactly how this is used, but I don't think it's
+configurable (certainly not by this point where it's already been loaded).
+
+> * ``filesystem_encoding``: Filesystem encoding,
+>   ``sys.getfilesystemencoding()``
+> * ``filesystem_errors``: Filesystem encoding errors,
+>   ``sys.getfilesystemencodeerrors()``
+
+See above. If we need these earlier in initialization (and I agree we
+probably do), then let's just put them in the pre-initialize config.
+
+> * ``dump_refs``: if non-zero, display all objects still alive at exit
+> * ``inspect``: enter interactive mode after executing a script or a
+>   command
+> * ``interactive``: interactive mode
+> * ``malloc_stats``: if non-zero, dump memory allocation statistics
+>   at exit
+> * ``quiet``: quiet mode (ex: don't display the copyright and version
+>   messages even in interactive mode)
+> * ``show_alloc_count``: show allocation counts at exit
+> * ``show_ref_count``: show total reference count at exit
+> * ``site_import``: import the ``site`` module at startup?
+> * ``skip_source_first_line``: skip the first line of the source
+
+These all seem to be flags specific to regular Python and not embedders
+(providing we have ways for embedders to achieve the same thing through
+their own API calls, but even if we don't, I'd still rather not codify
+them as public runtime API). Having them be an optional flag for
+Py_RunMain() or a PyMainConfig struct would keep them closer to where
+they belong.
+
+> * ``faulthandler``: if non-zero, call ``faulthandler.enable()``
+> * ``install_signal_handlers``: install signal handlers?
+> * ``tracemalloc``: if non-zero, call ``tracemalloc.start(value)``
+
+Probably it's not a good idea to install signal handlers too early, but
+I think the other two should be able to start any time between pre-init
+and actual init, no? So make PyFaultHandler_Init() and
+PyTraceMalloc_Init() public and say "if you want them, call them".
+
+> * ``run_command``: ``-c COMMAND`` argument
+> * ``run_filename``: ``python3 SCRIPT`` argument
+> * ``run_module``: ``python3 -m MODULE`` argument
+
+I think these should be in a separate configuration struct for
+Py_RunMain(), probably along with the section above too.
+
+(The other fields all seem fine to me.)
+
+> This PEP adds a new ``Py_UnixMain()`` function which takes command line
+> arguments as bytes::
+>
+>     int Py_UnixMain(int argc, char **argv)
+
+I was part of the discussion about this, so I have some more context
+than what's in the PEP.
+
+Given your next example shows this function would be about six lines
+long, why do we want to add it? Better to deprecate Py_Main() completely
+and just copy/paste those six lines from elsewhere (which also helps in
+the case where you need to do one little thing more and end up having to
+find those six lines anyway, as in the same example).
+
+> Open Questions
+> ==============
+>
+> * Do we need to add an API for import ``inittab``?
+
+I don't think so. Once embedders have a three-step initialization
+(pre-init, init, runmain) there are two valid places they can call their
+own init functions.
+
+> * What about the stable ABI? Should we add a version into
+>   ``PyPreConfig`` and ``PyConfig`` structures somehow? The Windows API
+>   is known for its ABI stability and it stores the structure size into
+>   the structure directly. Do the same?
+
+Yeah, I think so. We already have the Py*_INIT macros, so we could just
+use a version number that we increment manually, and that will let us
+optionally ignore added members (or deprecated members that have not
+been physically removed).
+
+(Though I'd rather make it easier for applications to include a local
+copy of Python rather than have to safely deal with whatever is
+installed on the system. But that's a Windows-ism, so making both
+approaches work is important :) )
+
+> * The PEP 432 stores ``PYTHONCASEOK`` into the config. Do we need
+>   to add something for that into ``PyConfig``? How would it be exposed
+>   at the Python level for ``importlib``? Passed as an argument to
+>   ``importlib._bootstrap._setup()`` maybe? It can be added later if
+>   needed.
+
+Could we convert it into an xoption? It's very rarely used, to my knowledge.
+
+> * ``python._pth`` (Windows only)
+
+I'd like to make this for all platforms, though my understanding was
+that since Python is not really relocatable on other OS's it isn't so
+important. And if the rest of this change happens it'll be easier to
+implement anyway :)
+
+
