@@ -24637,3 +24637,128 @@ important. And if the rest of this change happens it'll be easier to
 implement anyway :)
 
 
+From christian at python.org  Sun Mar 31 08:38:38 2019
+From: christian at python.org (Christian Heimes)
+Date: Sun, 31 Mar 2019 14:38:38 +0200
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <2cb3740e-ebc2-1839-1d2e-73d1b9f0a445@python.org>
+ <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+Message-ID: <8466c9c4-b5dc-c6c5-6fe4-a49dc2f4f968@python.org>
+
+On 29/03/2019 21.10, Steve Dower wrote:
+>> For example how does the importhook work in regarding of alternative
+>> importers like zipimport? What does the import hook 'see' for an import
+>> from a zipfile?
+> 
+> Yes, good point. I think opening the zip file with open_for_import() is
+> the right place to do it, as this operation relates to opening the file
+> on disk rather than files within it.
+
++1
+
+>> Shared libraries are trickier. libc doesn't define a way to dlopen()
+>> from a file descriptor. dlopen() takes a file name, but a file name
+>> leaves the audit hook open to a TOCTOU attack.
+> 
+> For Windows, at least, the operating system can run its own validation
+> on native modules (if you're using a feature like DeviceGuard, for
+> example), so the hook likely isn't necessary for those purposes. I
+> believe some configurations of Linux allow this as well?
+> 
+> But there's likely no better option here than a combination of good ACLs
+> and checking by filename, which at least lets you whitelist the files
+> you know you want to allow. Similarly for the zip file - if you trust a
+> particular file and trust your ACLs, checking by filename is fine. That
+> said, specific audit events for "I'm about to open this zip/dlopen this
+> file for import" are very easy to add. (The PEP proposes many examples,
+> but is not trying to be exhaustive. If accepted, we should feel free to
+> add new events as we identify places where they matter.)
+
+The Linux effort is called Integrity Measurement Architecture (IMA) and
+Linux Extended Verification Module (EVM). I have no practical experience
+with IMA yet.
+
+I don't like the fact that the PEP requires users to learn and use an
+additional layer to handle native code. Although we cannot provide a
+fully secure hook for native code, we could at least try to provide a
+best effort hook and document the limitations. A bit more information
+would make the verified open function more useful, too.
+
+PyObject *PyImport_OpenForExecution(
+    const char *path,
+    const char *intent,
+    int flags,
+    PyObject *context
+)
+
+- Path is an absolute (!) file path. The PEP doesn't specify if the file
+name is relative or absolute. IMO it should be always absolute.
+
+- The new intent argument lets the caller pass information how it
+intents to use the file, e.g. pythoncode, zipimport, nativecode (for
+loading a shared library/DLL), ctypes, ... This allows the verify hook
+to react on the intent and provide different verifications for e.g.
+Python code and native modules.
+
+- The flags argument is for additional flags, e.g. return an opened file
+or None, open the file in text or binary mode, ...
+
+- Context is an optional Python object from the caller's context. For
+the import system, it could be the loader instance.
+
+Examples:
+
+PyImport_OpenForImport(
+    '/usr/lib64/python3.7/__pycache__/os.cpython-37.pyc',
+    'bytecode',
+    PY_IMPORT_OPENFILE,
+    SourceFileLoader_instance
+) -> fileobject
+
+PyImport_OpenForImport(
+    '/lib64/libc.so.6',
+    'ctypes',
+    PY_IMPORT_NONE,
+    NULL
+) -> None
+
+> Aside: an important aspect of this per-file approach to execution is
+> that the idea is generally to *enable* the files you trust, rather than
+> disable the files that are bad. So the detection routines are typically
+> "does this match a known hash" or "is this in a secure location", which
+> for a carefully deployed system are already known values, rather than
+> trying to figure out whether a file might do a bad thing. If you can't
+> validate the files in your deployment match the ones you thought you
+> were deploying, you are so far from needing this that it doesn't even
+> matter, but most of the deployments I work with are *at least* this well
+> controlled.
+
+Absolutely!
+
+On Linux, trust settings could be stored in extended file attributes.
+Linux has multiple namespaces for extended attributes. User attributes
+can be modified by every process that has write permission to an inode.
+The security namespace is only writable for processes with
+CAP_SYS_ADMIN. A secure loader could check for presence of
+'user.org.python.bytecode' attribute or compare the content of the file
+to hashsum in 'security.org.python.bytecode.sha256'.
+
+Christian
+
+
+From aratzml at opendeusto.es  Sun Mar 31 06:30:41 2019
+From: aratzml at opendeusto.es (Aratz Manterola Lasa)
+Date: Sun, 31 Mar 2019 12:30:41 +0200
+Subject: [Python-Dev] Actor Model in Python
+Message-ID: <CAHGMwNOyA_W4ebhMn8gg8DTfjO-5MFdfZAOthQjTVcuWEAkRqQ@mail.gmail.com>
+
+Hello,
+I was wondering if there was any Python project aiming to implement the
+actor model for python concurrency. ?Does anyone know it?
+Aratz.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190331/8a61ceab/attachment.html>
+
