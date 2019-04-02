@@ -13,3 +13,393 @@ I added benchmarks for PEP 590:
 
 https://gist.github.com/jdemeyer/f0d63be8f30dc34cc989cd11d43df248
 
+From songofacandy at gmail.com  Mon Apr  1 04:26:31 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Mon, 1 Apr 2019 17:26:31 +0900
+Subject: [Python-Dev] Removing PendingDeprecationWarning
+In-Reply-To: <CADiSq7etd9fs2OmmoWMYzuzLxe793PpmCd=8Mrv+tdmFjwdZ=Q@mail.gmail.com>
+References: <CAEfz+Tzht97YUsYXFjErc4uKP3J89Yx2ycqhbfk=OkY0w37Yog@mail.gmail.com>
+ <CADiSq7d-01UmD9tDg-VEotMGpUSpXgbH8TuuDQFCKWi7jC-39Q@mail.gmail.com>
+ <CAEfz+Tzak3XDzSqV=JwWOZN4MkEK8RCTh7rQuNZijVbZ3pE_Aw@mail.gmail.com>
+ <CADiSq7eagL+3ZSPvveUocF9-3OB5B_ryyH0DNMTZD72sOJoG7w@mail.gmail.com>
+ <CAEfz+Tzj5uh3K9yOF-k+1S1_s_32CSz2_Ad4kB6WH+Y7m_c1BA@mail.gmail.com>
+ <CAEfz+TxwTgN=cu0t1OoKqNdJTSrNpvYkVvqUoTHOsE4RgQA9OA@mail.gmail.com>
+ <18ccdacf-8fc8-5130-b4ba-89df84e02987@python.org>
+ <CAEfz+TytJj=oMXKUE5T8dJj0Jq6ZRp6Uex-JSwmpSaOt39Mx2Q@mail.gmail.com>
+ <CADiSq7etd9fs2OmmoWMYzuzLxe793PpmCd=8Mrv+tdmFjwdZ=Q@mail.gmail.com>
+Message-ID: <CAEfz+TzAv_oHVk0k2Bnh1KKETCdG=u63kR=bZrsCt2WT+e+QEQ@mail.gmail.com>
+
+On Sat, Mar 30, 2019 at 7:31 PM Nick Coghlan <ncoghlan at gmail.com> wrote:
+>
+> That's just a documentation fix: "If you're not sure whether to use
+> DeprecationWarning or PendingDeprecationWarning, use
+> DeprecationWarning".
+>
+
+Current proposed patch is:
+
+"""
+.. note::
+   PendingDeprecationWarning was introduced as an "ignored by default"
+   version of DeprecationWarning. But :exc:`DeprecationWarning` is also
+   ignored by default since Python 2.7 and 3.2.
+   There is not much difference between PendingDeprecationWarning and
+   DeprecationWarning nowadays. DeprecationWarning is recommended
+   in general.
+"""
+
+https://github.com/python/cpython/pull/12505/files#diff-4d7187c7266c3f79727d358de3b3d228
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From steve.dower at python.org  Mon Apr  1 12:12:26 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 1 Apr 2019 09:12:26 -0700
+Subject: [Python-Dev] Strange umask(?)/st_mode issue
+In-Reply-To: <CAGE7PNLeN1bRFMQMuQ6AFrYYwEzcPYVDhy5hXG-FbRju5FDpCA@mail.gmail.com>
+References: <13f98061-6f64-2e8b-de66-d84a7be00a17@python.org>
+ <20190330023947.GA62291@cskk.homeip.net>
+ <55e6f051-179d-73b4-4cca-b91c5c81b498@python.org>
+ <3210441d-6094-b53e-6bf7-4b7c4cfb16ea@python.org>
+ <CAGE7PNLeN1bRFMQMuQ6AFrYYwEzcPYVDhy5hXG-FbRju5FDpCA@mail.gmail.com>
+Message-ID: <c478fae6-349e-022e-3b70-81470c0a0b5a@python.org>
+
+On 30Mar2019 1130, Gregory P. Smith wrote:
+> I wouldn't expect it to be the case in a CI environment but I believe a 
+> umask can be overridden if the filesystem is mounted and configured with 
+> acls set?? (oh, hah, Ivan just said the same thing)
+
+Yep, it appears this is the case. The Pipelines team got back to me and 
+it seems to be a known issue - the workaround they gave me was to run 
+"sudo setfacl -Rb /home/vsts" at the start, so I've merged that in for 
+now (to master and 3.7).
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Mon Apr  1 12:31:36 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 1 Apr 2019 09:31:36 -0700
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <8466c9c4-b5dc-c6c5-6fe4-a49dc2f4f968@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <2cb3740e-ebc2-1839-1d2e-73d1b9f0a445@python.org>
+ <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+ <8466c9c4-b5dc-c6c5-6fe4-a49dc2f4f968@python.org>
+Message-ID: <f87504d1-4cc0-e74c-d32e-1e06cde29c39@python.org>
+
+On 31Mar2019 0538, Christian Heimes wrote:
+> I don't like the fact that the PEP requires users to learn and use an
+> additional layer to handle native code. Although we cannot provide a
+> fully secure hook for native code, we could at least try to provide a
+> best effort hook and document the limitations. A bit more information
+> would make the verified open function more useful, too.
+
+So instead they need to learn a significantly more complicated API? :) 
+(I was very happy to be able to say "it's the same as open(p, 'rb')").
+
+> PyObject *PyImport_OpenForExecution(
+>      const char *path,
+>      const char *intent,
+>      int flags,
+>      PyObject *context
+> )
+> 
+> - Path is an absolute (!) file path. The PEP doesn't specify if the file
+> name is relative or absolute. IMO it should be always absolute.
+
+Yeah, this is fair enough. I'll add it as a requirement.
+
+> - The new intent argument lets the caller pass information how it
+> intents to use the file, e.g. pythoncode, zipimport, nativecode (for
+> loading a shared library/DLL), ctypes, ... This allows the verify hook
+> to react on the intent and provide different verifications for e.g.
+> Python code and native modules.
+
+I had an intent argument at one point and the feedback I got (from teams 
+who wanted to implement it) is that they wouldn't trust it anyway :)
+
+In each case there should be associated audit events for tracking the 
+intent (and interrupting at that point if it doesn't like the intended 
+action), but for the simple case of "let me open this specific file" it 
+doesn't really add much. And it almost certainly shouldn't impact 
+decision making.
+
+> - The flags argument is for additional flags, e.g. return an opened file
+> or None, open the file in text or binary mode, ...
+
+This just makes it harder for the hook implementer - now you have to 
+allow encoding/errors arguments and probably more. And as mentioned 
+above, there should be an audit event showing the intent before this 
+call, and a hook can reject it at that point (rather than verify without 
+actually returning the verified content).
+
+> - Context is an optional Python object from the caller's context. For
+> the import system, it could be the loader instance.
+
+I think the audit event covers this, unless you have some way of using 
+this context in mind that I can't think of?
+
+Cheers,
+Steve
+
+
+From steve.dower at python.org  Mon Apr  1 13:42:58 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 1 Apr 2019 10:42:58 -0700
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <6ded2c50-bf28-1376-7b0c-9cc6839be56b@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <2cb3740e-ebc2-1839-1d2e-73d1b9f0a445@python.org>
+ <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+ <CADiSq7ftogxBEZMu1suwMhpyBPehPteqU4EJr4YqxprpFYP-Nw@mail.gmail.com>
+ <6ded2c50-bf28-1376-7b0c-9cc6839be56b@python.org>
+Message-ID: <16bc5fae-47c0-e9f6-da60-e0e46cb84c78@python.org>
+
+On 30Mar2019 0913, Steve Dower wrote:
+> On 30Mar.2019 0747, Nick Coghlan wrote:
+>> I like this PEP in principle, but the specific "open_for_import" name
+>> bothers me a lot, as it implies that "importing" is the only situation
+>> where a file will be opened for code execution.
+>>
+>> If this part of the API were lower down the stack (e.g.
+>> "_io.open_for_code_execution") then I think it would make more sense -
+>> APIs like tokenize.open(), runpy.run_path(), PyRun_SimpleFile(),
+>> shelve, etc, could use that, without having to introduce a dependency
+>> on importlib to get access to the functionality.
+> 
+> It was called "open_for_exec" at one point, though I forget exactly why
+> we changed it. But I have no problem with moving it. Something like this?
+> 
+> PyImport_OpenForImport -> PyIO_OpenForExec
+> PyImport_SetOpenForImportHook -> PyIO_SetOpenForExecHook
+> importlib.util.open_for_import -> _io.open_for_exec
+> 
+> Or more in line with Nick's suggestion:
+> 
+> PyImport_OpenForImport -> PyIO_OpenExecutableCode
+> PyImport_SetOpenForImportHook -> PyIO_SetOpenExecutableCodeHook
+> importlib.util.open_for_import -> _io.open_executable_code
+> 
+> I dropped "For", but I don't really care that much about the name. I'd
+> be okay dropping either "executable" or "code" as well - I don't really
+> have a good sense of which will make people more likely to use this
+> correctly.
+
+Looking at what we already have, perhaps putting it under 
+"PyFile_OpenForExecute" would make the most sense? We don't currently 
+have any public "PyIO" types or functions.
+
+Bikeshedding now, but as I'm the only one really participating in it, I 
+think it's allowed :)
+
+Cheers,
+Steve
+
+
+From cs at cskk.id.au  Mon Apr  1 18:35:39 2019
+From: cs at cskk.id.au (Cameron Simpson)
+Date: Tue, 2 Apr 2019 09:35:39 +1100
+Subject: [Python-Dev] Strange umask(?)/st_mode issue
+In-Reply-To: <c478fae6-349e-022e-3b70-81470c0a0b5a@python.org>
+References: <c478fae6-349e-022e-3b70-81470c0a0b5a@python.org>
+Message-ID: <20190401223539.GA47505@cskk.homeip.net>
+
+On 01Apr2019 09:12, Steve Dower <steve.dower at python.org> wrote:
+>On 30Mar2019 1130, Gregory P. Smith wrote:
+>>I wouldn't expect it to be the case in a CI environment but I 
+>>believe a umask can be overridden if the filesystem is mounted and 
+>>configured with acls set?? (oh, hah, Ivan just said the same thing)
+>
+>Yep, it appears this is the case. The Pipelines team got back to me 
+>and it seems to be a known issue - the workaround they gave me was to 
+>run "sudo setfacl -Rb /home/vsts" at the start, so I've merged that in 
+>for now (to master and 3.7).
+
+Could that be done _without_ sudo to just the local directory containing 
+the test tar file? If that works then you don't need any nasty 
+privileged sudo use (which will just break on platforms without sudo 
+anyway).
+
+Cheers,
+Cameron Simpson <cs at cskk.id.au>
+
+From steve.dower at python.org  Mon Apr  1 18:44:13 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 1 Apr 2019 15:44:13 -0700
+Subject: [Python-Dev] Strange umask(?)/st_mode issue
+In-Reply-To: <20190401223539.GA47505@cskk.homeip.net>
+References: <c478fae6-349e-022e-3b70-81470c0a0b5a@python.org>
+ <20190401223539.GA47505@cskk.homeip.net>
+Message-ID: <ab393c80-d5c3-e723-43a9-bccd35936813@python.org>
+
+On 01Apr2019 1535, Cameron Simpson wrote:
+> On 01Apr2019 09:12, Steve Dower <steve.dower at python.org> wrote:
+>> On 30Mar2019 1130, Gregory P. Smith wrote:
+>>> I wouldn't expect it to be the case in a CI environment but I believe 
+>>> a umask can be overridden if the filesystem is mounted and configured 
+>>> with acls set?? (oh, hah, Ivan just said the same thing)
+>>
+>> Yep, it appears this is the case. The Pipelines team got back to me 
+>> and it seems to be a known issue - the workaround they gave me was to 
+>> run "sudo setfacl -Rb /home/vsts" at the start, so I've merged that in 
+>> for now (to master and 3.7).
+> 
+> Could that be done _without_ sudo to just the local directory containing 
+> the test tar file? If that works then you don't need any nasty 
+> privileged sudo use (which will just break on platforms without sudo 
+> anyway).
+
+I tried something similar to that and it didn't work. My guess is it's 
+to do with the actual mount point? (I also tried without sudo at first, 
+and when I didn't work, I tried it with sudo. I hear that's how to 
+decide whether you need it or not ;) )
+
+In any case, it only applies to the Azure Pipelines build definition, so 
+there aren't any other platforms where it'll be used.
+
+Cheers,
+Steve
+
+From cs at cskk.id.au  Mon Apr  1 19:49:29 2019
+From: cs at cskk.id.au (Cameron Simpson)
+Date: Tue, 2 Apr 2019 10:49:29 +1100
+Subject: [Python-Dev] Strange umask(?)/st_mode issue
+In-Reply-To: <ab393c80-d5c3-e723-43a9-bccd35936813@python.org>
+References: <ab393c80-d5c3-e723-43a9-bccd35936813@python.org>
+Message-ID: <20190401234929.GA53667@cskk.homeip.net>
+
+On 01Apr2019 15:44, Steve Dower <steve.dower at python.org> wrote:
+>On 01Apr2019 1535, Cameron Simpson wrote:
+>>On 01Apr2019 09:12, Steve Dower <steve.dower at python.org> wrote:
+>>>On 30Mar2019 1130, Gregory P. Smith wrote:
+>>>>I wouldn't expect it to be the case in a CI environment but I 
+>>>>believe a umask can be overridden if the filesystem is mounted 
+>>>>and configured with acls set?? (oh, hah, Ivan just said the same 
+>>>>thing)
+>>>
+>>>Yep, it appears this is the case. The Pipelines team got back to 
+>>>me and it seems to be a known issue - the workaround they gave me 
+>>>was to run "sudo setfacl -Rb /home/vsts" at the start, so I've 
+>>>merged that in for now (to master and 3.7).
+>>
+>>Could that be done _without_ sudo to just the local directory 
+>>containing the test tar file? If that works then you don't need any 
+>>nasty privileged sudo use (which will just break on platforms 
+>>without sudo anyway).
+>
+>I tried something similar to that and it didn't work. My guess is it's 
+>to do with the actual mount point? (I also tried without sudo at 
+>first, and when I didn't work, I tried it with sudo. I hear that's how 
+>to decide whether you need it or not ;) )
+>
+>In any case, it only applies to the Azure Pipelines build definition, 
+>so there aren't any other platforms where it'll be used.
+
+Ok then.
+
+Curious: is the sudo now in the build setup? I'm just thinking that this 
+isn't a tarfile specific fix but a "get correct POSIX umask semantics" 
+fix, so it should apply to the entire environment.
+
+Or am I naive?
+
+Cheers,
+Cameron Simpson <cs at cskk.id.au>
+
+From greg at krypto.org  Mon Apr  1 19:59:43 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Mon, 1 Apr 2019 16:59:43 -0700
+Subject: [Python-Dev] Strange umask(?)/st_mode issue
+In-Reply-To: <20190401234929.GA53667@cskk.homeip.net>
+References: <ab393c80-d5c3-e723-43a9-bccd35936813@python.org>
+ <20190401234929.GA53667@cskk.homeip.net>
+Message-ID: <CAGE7PNJFPQjKL2NJUFggPFYeBUufisxzEhPnmfJyCt44ew6rOQ@mail.gmail.com>
+
+On Mon, Apr 1, 2019 at 4:49 PM Cameron Simpson <cs at cskk.id.au> wrote:
+
+> On 01Apr2019 15:44, Steve Dower <steve.dower at python.org> wrote:
+> >On 01Apr2019 1535, Cameron Simpson wrote:
+> >>On 01Apr2019 09:12, Steve Dower <steve.dower at python.org> wrote:
+> >>>On 30Mar2019 1130, Gregory P. Smith wrote:
+> >>>>I wouldn't expect it to be the case in a CI environment but I
+> >>>>believe a umask can be overridden if the filesystem is mounted
+> >>>>and configured with acls set?  (oh, hah, Ivan just said the same
+> >>>>thing)
+> >>>
+> >>>Yep, it appears this is the case. The Pipelines team got back to
+> >>>me and it seems to be a known issue - the workaround they gave me
+> >>>was to run "sudo setfacl -Rb /home/vsts" at the start, so I've
+> >>>merged that in for now (to master and 3.7).
+> >>
+> >>Could that be done _without_ sudo to just the local directory
+> >>containing the test tar file? If that works then you don't need any
+> >>nasty privileged sudo use (which will just break on platforms
+> >>without sudo anyway).
+> >
+> >I tried something similar to that and it didn't work. My guess is it's
+> >to do with the actual mount point? (I also tried without sudo at
+> >first, and when I didn't work, I tried it with sudo. I hear that's how
+> >to decide whether you need it or not ;) )
+> >
+> >In any case, it only applies to the Azure Pipelines build definition,
+> >so there aren't any other platforms where it'll be used.
+>
+> Ok then.
+>
+> Curious: is the sudo now in the build setup? I'm just thinking that this
+> isn't a tarfile specific fix but a "get correct POSIX umask semantics"
+> fix, so it should apply to the entire environment.
+>
+> Or am I naive?
+>
+
+I'm reading between the lines and assuming we're not the only user of their
+CI complaining about this environment change. ;)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190401/ebd27f4d/attachment.html>
+
+From vano at mail.mipt.ru  Mon Apr  1 23:14:00 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Tue, 2 Apr 2019 06:14:00 +0300
+Subject: [Python-Dev] Strange umask(?)/st_mode issue
+In-Reply-To: <ab393c80-d5c3-e723-43a9-bccd35936813@python.org>
+References: <c478fae6-349e-022e-3b70-81470c0a0b5a@python.org>
+ <20190401223539.GA47505@cskk.homeip.net>
+ <ab393c80-d5c3-e723-43a9-bccd35936813@python.org>
+Message-ID: <67704a69-45aa-47dc-8b97-e18e886752bf@mail.mipt.ru>
+
+On 02.04.2019 1:44, Steve Dower wrote:
+> On 01Apr2019 1535, Cameron Simpson wrote:
+>> On 01Apr2019 09:12, Steve Dower <steve.dower at python.org> wrote:
+>>> On 30Mar2019 1130, Gregory P. Smith wrote:
+>>>> I wouldn't expect it to be the case in a CI environment but I believe a umask can be overridden if the filesystem is mounted and 
+>>>> configured with acls set? (oh, hah, Ivan just said the same thing)
+>>>
+>>> Yep, it appears this is the case. The Pipelines team got back to me and it seems to be a known issue - the workaround they gave me was 
+>>> to run "sudo setfacl -Rb /home/vsts" at the start, so I've merged that in for now (to master and 3.7).
+>>
+>> Could that be done _without_ sudo to just the local directory containing the test tar file? If that works then you don't need any nasty 
+>> privileged sudo use (which will just break on platforms without sudo anyway).
+>
+> I tried something similar to that and it didn't work. My guess is it's to do with the actual mount point? (I also tried without sudo at 
+> first, and when I didn't work, I tried it with sudo. I hear that's how to decide whether you need it or not ;) )
+>
+> In any case, it only applies to the Azure Pipelines build definition, so there aren't any other platforms where it'll be used.
+>
+https://github.com/python/cpython/pull/12655
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vano%40mail.mipt.ru
+
+-- 
+Regards,
+Ivan
+
+
