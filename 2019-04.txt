@@ -403,3 +403,602 @@ Regards,
 Ivan
 
 
+From Peixing.Xin at windriver.com  Tue Apr  2 05:46:14 2019
+From: Peixing.Xin at windriver.com (Xin, Peixing)
+Date: Tue, 2 Apr 2019 09:46:14 +0000
+Subject: [Python-Dev] =?windows-1252?q?how_to_rerun_the_job_=93Azure_Pipe?=
+ =?windows-1252?q?lines_PR=94=3F?=
+Message-ID: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BAAF35@ALA-MBD.corp.ad.wrs.com>
+
+Hi, Experts:
+
+Anyone can tell how to rerun the job ?Azure Pipelines PR? for my PR? Sometimes my PR failed but this is caused by externals. The next day this external issue was fixed then I might want to rerun this specific job on my PR to get the new result. How can I reach this?
+
+[cid:image001.png at 01D4E97B.F67B1E20]
+
+Thanks,
+Peixing
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190402/86d08742/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image001.png
+Type: image/png
+Size: 4252 bytes
+Desc: image001.png
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190402/86d08742/attachment.png>
+
+From tir.karthi at gmail.com  Tue Apr  2 08:22:56 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Tue, 2 Apr 2019 17:52:56 +0530
+Subject: [Python-Dev] 
+	=?utf-8?q?how_to_rerun_the_job_=E2=80=9CAzure_Pipel?=
+	=?utf-8?b?aW5lcyBQUuKAnT8=?=
+In-Reply-To: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BAAF35@ALA-MBD.corp.ad.wrs.com>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BAAF35@ALA-MBD.corp.ad.wrs.com>
+Message-ID: <CAAjsFLQJ+jDk4N+h=pct+r2W4R87dPZ5uDacJvCQ2ZdbedE5Bw@mail.gmail.com>
+
+Closing and re-opening the PR will trigger the CI run again that might help
+in this case but it will run all the jobs.
+
+-- 
+Regards,
+Karthikeyan S
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190402/582c7a43/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image001.png
+Type: image/png
+Size: 4252 bytes
+Desc: not available
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190402/582c7a43/attachment-0001.png>
+
+From cspealma at redhat.com  Tue Apr  2 11:17:20 2019
+From: cspealma at redhat.com (Calvin Spealman)
+Date: Tue, 2 Apr 2019 11:17:20 -0400
+Subject: [Python-Dev] PEP-582 and multiple Python installations
+Message-ID: <CACo5Rz4X+d7mQ1EH=w4geg2q=PMVvrnm3L2sD5+wyd42B_LvsQ@mail.gmail.com>
+
+ (I originally posted this to python-ideas, where I was told none of this
+PEP's authors subscribe so probably no one will see it there, so I'm
+posting it here to raise the issue where it can get seen and hopefully
+discussed)
+
+While the PEP does show the version number as part of the path to the
+actual packages, implying support for multiple versions, this doesn't seem
+to be spelled out in the actual text. Presumably __pypackages__/3.8/ might
+sit beside __pypackages__/3.9/, etc. to keep future versions capable of
+installing packages for each version, the way virtualenv today is bound to
+one version of Python.
+
+I'd like to raise a potential edge case that might be a problem, and likely
+an increasingly common one: users with multiple installations of the *same*
+version of Python. This is actually a common setup for Windows users who
+use WSL, Microsoft's Linux-on-Windows solution, as you could have both the
+Windows and Linux builds of a given Python version installed on the same
+machine. The currently implied support for multiple versions would not be
+able to separate these and could create problems if users pip install a
+Windows binary package through Powershell and then try to run a script in
+Bash from the same directory, causing the Linux version of Python to try to
+use Windows python packages.
+
+I'm not actually sure what the solution here is. Mostly I wanted to raise
+the concern, because I'm very keen on WSL being a great entry path for new
+developers and I want to make that a better experience, not a more
+confusing one. Maybe that version number could include some other unique
+identify, maybe based on Python's own executable. A hash maybe? I don't
+know if anything like that already exists to uniquely identify a Python
+build or installation.
+
+
+-- 
+
+CALVIN SPEALMAN
+
+SENIOR QUALITY ENGINEER
+
+cspealma at redhat.com  M: +1.336.210.5107
+<https://red.ht/sig>
+TRIED. TESTED. TRUSTED. <https://redhat.com/trusted>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190402/fee4fe99/attachment.html>
+
+From steve.dower at python.org  Tue Apr  2 12:09:30 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 2 Apr 2019 09:09:30 -0700
+Subject: [Python-Dev] 
+ =?utf-8?q?how_to_rerun_the_job_=E2=80=9CAzure_Pipel?=
+ =?utf-8?b?aW5lcyBQUuKAnT8=?=
+In-Reply-To: <CAAjsFLQJ+jDk4N+h=pct+r2W4R87dPZ5uDacJvCQ2ZdbedE5Bw@mail.gmail.com>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BAAF35@ALA-MBD.corp.ad.wrs.com>
+ <CAAjsFLQJ+jDk4N+h=pct+r2W4R87dPZ5uDacJvCQ2ZdbedE5Bw@mail.gmail.com>
+Message-ID: <05055b7d-922f-2b93-4425-4068564313ad@python.org>
+
+On 02Apr2019 0522, Karthikeyan wrote:
+> Closing and re-opening the PR will trigger the CI run again that might 
+> help in this case but it will run all the jobs.
+
+Yes, I believe this is still the best way to re-run Pipelines jobs.
+
+For people with logins (not yet everyone in the GitHub org, but I hear 
+that's coming) you can requeue the build, but last time I tried it 
+didn't sync back to the pull request properly (I think it needs GitHub 
+to cooperate, which is why triggering it from GitHub works best.)
+
+The Pipelines team is aware of this and working on it, so I expect the 
+integration to improve over time. For now, close/reopen the PR.
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Tue Apr  2 12:10:59 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 2 Apr 2019 09:10:59 -0700
+Subject: [Python-Dev] PEP-582 and multiple Python installations
+In-Reply-To: <CACo5Rz4X+d7mQ1EH=w4geg2q=PMVvrnm3L2sD5+wyd42B_LvsQ@mail.gmail.com>
+References: <CACo5Rz4X+d7mQ1EH=w4geg2q=PMVvrnm3L2sD5+wyd42B_LvsQ@mail.gmail.com>
+Message-ID: <2b889555-db6f-6c69-0347-ebb89d6fec21@python.org>
+
+On 02Apr2019 0817, Calvin Spealman wrote:
+> (I originally posted this to python-ideas, where I was told none of this 
+> PEP's authors subscribe so probably no one will see it there, so I'm 
+> posting it here to raise the issue where it can get seen and hopefully 
+> discussed)
+
+Correct, thanks for posting. (I thought we had a "discussions-to" tag 
+with distutils-sig on it, but apparently not.)
+
+> While the PEP does show the version number as part of the path to the 
+> actual packages, implying support for multiple versions, this doesn't 
+> seem to be spelled out in the actual text. Presumably 
+> __pypackages__/3.8/ might sit beside __pypackages__/3.9/, etc. to keep 
+> future versions capable of installing packages for each version, the way 
+> virtualenv today is bound to one version of Python.
+> 
+> I'd like to raise a potential edge case that might be a problem, and 
+> likely an increasingly common one: users with multiple installations of 
+> the *same* version of Python. This is actually a common setup for 
+> Windows users who use WSL, Microsoft's Linux-on-Windows solution, as you 
+> could have both the Windows and Linux builds of a given Python version 
+> installed on the same machine. The currently implied support for 
+> multiple versions would not be able to separate these and could create 
+> problems if users pip install a Windows binary package through 
+> Powershell and then try to run a script in Bash from the same directory, 
+> causing the Linux version of Python to try to use Windows python packages.
+> 
+> I'm not actually sure what the solution here is. Mostly I wanted to 
+> raise the concern, because I'm very keen on WSL being a great entry path 
+> for new developers and I want to make that a better experience, not a 
+> more confusing one. Maybe that version number could include some other 
+> unique identify, maybe based on Python's own executable. A hash maybe? I 
+> don't know if anything like that already exists to uniquely identify a 
+> Python build or installation.
+
+Yes, this is a situation we're aware of, and it's caught in the conflict 
+of "who is this feature meant to support".
+
+Since all platforms have a unique extension module suffix (e.g. 
+"module.cp38-win32.pyd"), it would be possible to support this with 
+"fat" packages that include all binaries (or some clever way of merging 
+wheels for multiple platforms).
+
+And since this is already in CPython itself, it leads to about the only 
+reasonable solution - instead of "3.8", use the extension module suffix 
+"cp38-win32". (Wheel tags are not in core CPython, so we can't use those.)
+
+But while this seems obvious, it also reintroduces problems that this 
+has the potential to fix - suddenly, just like installing into your 
+global environment, your packages are not project-specific anymore but 
+are Python-specific. Which is one of the major confusions people run 
+into ("I pip installed X but now can't import it in python").
+
+So the main points of discussion right now are "whose problem does this 
+solve" and "when do we tell people they need a full venv". And that 
+discussion is mostly happening at 
+https://discuss.python.org/t/pep-582-python-local-packages-directory/963/
+
+Cheers,
+Steve
+
+From pviktori at redhat.com  Tue Apr  2 08:49:56 2019
+From: pviktori at redhat.com (Petr Viktorin)
+Date: Tue, 2 Apr 2019 14:49:56 +0200
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <5C9FEF82.50207@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+Message-ID: <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+
+On 3/30/19 11:36 PM, Jeroen Demeyer wrote:
+> On 2019-03-30 17:30, Mark Shannon wrote:
+>> 2. The claim that PEP 580 allows "certain optimizations because other
+>> code can make assumptions" is flawed. In general, the caller cannot make
+>> assumptions about the callee or vice-versa. Python is a dynamic language.
+> 
+> PEP 580 is meant for extension classes, not Python classes. Extension 
+> classes are not dynamic. When you implement tp_call in a given way, the 
+> user cannot change it. So if a class implements the C call protocol or 
+> the vectorcall protocol, callers can make assumptions about what that 
+> means.
+> 
+>> PEP 579 is mainly a list of supposed flaws with the
+>> 'builtin_function_or_method' class.
+>> The general thrust of PEP 579 seems to be that builtin-functions and
+>> builtin-methods should be more flexible and extensible than they are. I
+>> don't agree. If you want different behaviour, then use a different
+>> object. Don't try an cram all this extra behaviour into a pre-existing
+>> object.
+> 
+> I think that there is a misunderstanding here. I fully agree with the 
+> "use a different object" solution. This isn't a new solution: it's 
+> already possible to implement those different objects (Cython does it). 
+> It's just that this solution comes at a performance cost and that's what 
+> we want to avoid.
+
+It does seem like there is some misunderstanding.
+
+PEP 580 defines a CCall structure, which includes the function pointer, 
+flags, "self" and "parent". Like the current implementation, it has 
+various METH_ flags for various C signatures. When called, the info from 
+CCall is matched up (in relatively complex ways) to what the C function 
+expects.
+
+PEP 590 only adds the "vectorcall". It does away with flags and only has 
+one C signatures, which is designed to fit all the existing ones, and is 
+well optimized. Storing the "self"/"parent", and making sure they're 
+passed to the C function is the responsibility of the callable object.
+There's an optimization for "self" (offsetting using 
+PY_VECTORCALL_ARGUMENTS_OFFSET), and any supporting info can be provided 
+as part of "self".
+
+>> I'll reiterate that PEP 590 is more general than PEP 580 and that once
+>> the callable's code has access to the callable object (as both PEPs
+>> allow) then anything is possible. You can't can get more extensible than
+>> that.
+
+Anything is possible, but if one of the possibilities becomes common and 
+useful, PEP 590 would make it hard to optimize for it.
+Python has grown many "METH_*" signatures over the years as we found 
+more things that need to be passed to callables. Why would 
+"METH_VECTORCALL" be the last? If it won't (if you think about it as one 
+more way to call functions), then dedicating a tp_* slot to it sounds 
+quite expensive.
+
+
+In one of the ways to call C functions in PEP 580, the function gets 
+access to:
+- the arguments,
+- "self", the object
+- the class that the method was found in (which is not necessarily 
+type(self))
+I still have to read the details, but when combined with 
+LOAD_METHOD/CALL_METHOD optimization (avoiding creation of a "bound 
+method" object), it seems impossible to do this efficiently with just 
+the callable's code and callable's object.
+
+
+> I would argue the opposite: PEP 590 defines a fixed protocol that is not 
+> easy to extend. PEP 580 on the other hand uses a new data structure 
+> PyCCallDef which could easily be extended in the future (this will 
+> intentionally never be part of the stable ABI, so we can do that).
+> 
+> I have also argued before that the generality of PEP 590 is a bad thing 
+> rather than a good thing: by defining a more rigid protocol as in PEP 
+> 580, more optimizations are possible.
+>
+>> PEP 580 has the same limitation for the same reasons. The limitation is
+>> necessary for correctness if an object supports calls via `__call__` and
+>> through another calling convention.
+> 
+> I don't think that this limitation is needed in either PEP. As I 
+> explained at the top of this email, it can easily be solved by not using 
+> the protocol for Python classes. What is wrong with my proposal in PEP 
+> 580: https://www.python.org/dev/peps/pep-0580/#inheritance
+
+
+I'll add Jeroen's notes from the review of the proposed PEP 590
+(https://github.com/python/peps/pull/960):
+
+The statement "PEP 580 is specifically targetted at function-like 
+objects, and doesn't support other callables like classes, partial 
+functions, or proxies" is factually false. The motivation for PEP 580 is 
+certainly function/method-like objects but it's a general protocol that 
+every class can implement. For certain classes, it may not be easy or 
+desirable to do that but it's always possible.
+
+Given that `PY_METHOD_DESCRIPTOR` is a flag for tp_flags, shouldn't it 
+be called `Py_TPFLAGS_METHOD_DESCRIPTOR` or something?
+
+Py_TPFLAGS_HAVE_VECTOR_CALL should be Py_TPFLAGS_HAVE_VECTORCALL, to be 
+consistent with tp_vectorcall_offset and other uses of "vectorcall" (not 
+"vector call")
+
+
+And mine, so far:
+
+I'm not clear on the constness of the "args" array.
+If it is mutable (PyObject **), you can't, for example, directly pass a 
+tuple's storage (or any other array that could be used in the call).
+If it is not (PyObject * const *), you can't insert the "self" argument in.
+The reference implementations seems to be inconsistent here. What's the 
+intention?
+
+
+From mark at hotpy.org  Tue Apr  2 15:38:23 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Tue, 2 Apr 2019 20:38:23 +0100
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <5CA1A217.1030007@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <5CA1A217.1030007@UGent.be>
+Message-ID: <ce2d2166-b928-2ee5-18a1-71215daafa83@hotpy.org>
+
+Hi,
+
+On 01/04/2019 6:31 am, Jeroen Demeyer wrote:
+> I added benchmarks for PEP 590:
+> 
+> https://gist.github.com/jdemeyer/f0d63be8f30dc34cc989cd11d43df248
+
+Thanks. As expected for calls to C function for both PEPs and master 
+perform about the same, as they are using almost the same calling 
+convention under the hood.
+
+As an example of the advantage that a general fast calling convention 
+gives you, I have implemented the vectorcall versions of list() and range()
+
+https://github.com/markshannon/cpython/compare/vectorcall-minimal...markshannon:vectorcall-examples
+
+Which gives a roughly 30% reduction in time for creating ranges, or 
+lists from small tuples.
+
+https://gist.github.com/markshannon/5cef3a74369391f6ef937d52cca9bfc8
+
+Cheers,
+Mark.
+
+From mark at hotpy.org  Tue Apr  2 17:12:11 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Tue, 2 Apr 2019 22:12:11 +0100
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+Message-ID: <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+
+Hi,
+
+On 02/04/2019 1:49 pm, Petr Viktorin wrote:
+> On 3/30/19 11:36 PM, Jeroen Demeyer wrote:
+>> On 2019-03-30 17:30, Mark Shannon wrote:
+>>> 2. The claim that PEP 580 allows "certain optimizations because other
+>>> code can make assumptions" is flawed. In general, the caller cannot make
+>>> assumptions about the callee or vice-versa. Python is a dynamic 
+>>> language.
+>>
+>> PEP 580 is meant for extension classes, not Python classes. Extension 
+>> classes are not dynamic. When you implement tp_call in a given way, 
+>> the user cannot change it. So if a class implements the C call 
+>> protocol or the vectorcall protocol, callers can make assumptions 
+>> about what that means.
+>>
+>>> PEP 579 is mainly a list of supposed flaws with the
+>>> 'builtin_function_or_method' class.
+>>> The general thrust of PEP 579 seems to be that builtin-functions and
+>>> builtin-methods should be more flexible and extensible than they are. I
+>>> don't agree. If you want different behaviour, then use a different
+>>> object. Don't try an cram all this extra behaviour into a pre-existing
+>>> object.
+>>
+>> I think that there is a misunderstanding here. I fully agree with the 
+>> "use a different object" solution. This isn't a new solution: it's 
+>> already possible to implement those different objects (Cython does 
+>> it). It's just that this solution comes at a performance cost and 
+>> that's what we want to avoid.
+> 
+> It does seem like there is some misunderstanding.
+> 
+> PEP 580 defines a CCall structure, which includes the function pointer, 
+> flags, "self" and "parent". Like the current implementation, it has 
+> various METH_ flags for various C signatures. When called, the info from 
+> CCall is matched up (in relatively complex ways) to what the C function 
+> expects.
+> 
+> PEP 590 only adds the "vectorcall". It does away with flags and only has 
+> one C signatures, which is designed to fit all the existing ones, and is 
+> well optimized. Storing the "self"/"parent", and making sure they're 
+> passed to the C function is the responsibility of the callable object.
+> There's an optimization for "self" (offsetting using 
+> PY_VECTORCALL_ARGUMENTS_OFFSET), and any supporting info can be provided 
+> as part of "self". >
+>>> I'll reiterate that PEP 590 is more general than PEP 580 and that once
+>>> the callable's code has access to the callable object (as both PEPs
+>>> allow) then anything is possible. You can't can get more extensible than
+>>> that.
+> 
+> Anything is possible, but if one of the possibilities becomes common and 
+> useful, PEP 590 would make it hard to optimize for it.
+> Python has grown many "METH_*" signatures over the years as we found 
+> more things that need to be passed to callables. Why would 
+> "METH_VECTORCALL" be the last? If it won't (if you think about it as one 
+> more way to call functions), then dedicating a tp_* slot to it sounds 
+> quite expensive.
+
+I doubt METH_VECTORCALL will be the last.
+Let me give you an example: It is quite common for a function to take 
+two arguments, so we might want add a METH_OO flag for builtin-functions 
+with 2 parameters.
+
+To support this in PEP 590, you would make exactly the same change as 
+you would now; which is to add another case to the switch statement in 
+_PyCFunction_FastCallKeywords.
+For PEP 580, you would add another case to the switch in PyCCall_FastCall.
+
+No difference really.
+
+PEP 580 uses a slot as well. It's only 8 bytes per class.
+
+> 
+> 
+> In one of the ways to call C functions in PEP 580, the function gets 
+> access to:
+> - the arguments,
+> - "self", the object
+> - the class that the method was found in (which is not necessarily 
+> type(self))
+> I still have to read the details, but when combined with 
+> LOAD_METHOD/CALL_METHOD optimization (avoiding creation of a "bound 
+> method" object), it seems impossible to do this efficiently with just 
+> the callable's code and callable's object.
+
+It is possible, and relatively straightforward.
+Why do you think it is impossible?
+
+> 
+> 
+>> I would argue the opposite: PEP 590 defines a fixed protocol that is 
+>> not easy to extend. PEP 580 on the other hand uses a new data 
+>> structure PyCCallDef which could easily be extended in the future 
+>> (this will intentionally never be part of the stable ABI, so we can do 
+>> that).
+>>
+>> I have also argued before that the generality of PEP 590 is a bad 
+>> thing rather than a good thing: by defining a more rigid protocol as 
+>> in PEP 580, more optimizations are possible.
+>>
+>>> PEP 580 has the same limitation for the same reasons. The limitation is
+>>> necessary for correctness if an object supports calls via `__call__` and
+>>> through another calling convention.
+>>
+>> I don't think that this limitation is needed in either PEP. As I 
+>> explained at the top of this email, it can easily be solved by not 
+>> using the protocol for Python classes. What is wrong with my proposal 
+>> in PEP 580: https://www.python.org/dev/peps/pep-0580/#inheritance
+> 
+> 
+> I'll add Jeroen's notes from the review of the proposed PEP 590
+> (https://github.com/python/peps/pull/960):
+> 
+> The statement "PEP 580 is specifically targetted at function-like 
+> objects, and doesn't support other callables like classes, partial 
+> functions, or proxies" is factually false. The motivation for PEP 580 is 
+> certainly function/method-like objects but it's a general protocol that 
+> every class can implement. For certain classes, it may not be easy or 
+> desirable to do that but it's always possible. >
+> Given that `PY_METHOD_DESCRIPTOR` is a flag for tp_flags, shouldn't it 
+> be called `Py_TPFLAGS_METHOD_DESCRIPTOR` or something?
+> 
+> Py_TPFLAGS_HAVE_VECTOR_CALL should be Py_TPFLAGS_HAVE_VECTORCALL, to be 
+> consistent with tp_vectorcall_offset and other uses of "vectorcall" (not 
+> "vector call")
+> 
+
+Thanks for the comments, I'll update the PEP when I get the chance.
+
+> 
+> And mine, so far:
+> 
+> I'm not clear on the constness of the "args" array.
+> If it is mutable (PyObject **), you can't, for example, directly pass a 
+> tuple's storage (or any other array that could be used in the call).
+> If it is not (PyObject * const *), you can't insert the "self" argument in.
+> The reference implementations seems to be inconsistent here. What's the 
+> intention?
+> 
+
+I'll make it clearer in the PEP.
+My thinking was that if `PY_VECTORCALL_ARGUMENTS_OFFSET` is set then the 
+caller is allowing the callee to mutate element -1.
+It would make sense to generalise that to any element of the vector 
+(including -1).
+When passing the contents of a tuple, `PY_VECTORCALL_ARGUMENTS_OFFSET` 
+should not be set, and thus the vector could not be mutated.
+
+
+Cheers,
+Mark.
+
+From J.Demeyer at UGent.be  Wed Apr  3 01:33:49 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 3 Apr 2019 07:33:49 +0200
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+Message-ID: <5CA445BD.4040705@UGent.be>
+
+>> In one of the ways to call C functions in PEP 580, the function gets
+>> access to:
+>> - the arguments,
+>> - "self", the object
+>> - the class that the method was found in (which is not necessarily
+>> type(self))
+>> I still have to read the details, but when combined with
+>> LOAD_METHOD/CALL_METHOD optimization (avoiding creation of a "bound
+>> method" object), it seems impossible to do this efficiently with just
+>> the callable's code and callable's object.
+>
+> It is possible, and relatively straightforward.
+
+Access to the class isn't possible currently and also not with PEP 590. 
+But it's easy enough to fix that: PEP 573 adds a new METH_METHOD flag to 
+change the signature of the C function (not the vectorcall wrapper). PEP 
+580 supports this "out of the box" because I'm reusing the class also to 
+do type checks. But this shouldn't be an argument for or against either PEP.
+
+From J.Demeyer at UGent.be  Wed Apr  3 01:43:28 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 3 Apr 2019 07:43:28 +0200
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <ce2d2166-b928-2ee5-18a1-71215daafa83@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <5CA1A217.1030007@UGent.be> <ce2d2166-b928-2ee5-18a1-71215daafa83@hotpy.org>
+Message-ID: <5CA44800.9050901@UGent.be>
+
+On 2019-04-02 21:38, Mark Shannon wrote:
+> Hi,
+>
+> On 01/04/2019 6:31 am, Jeroen Demeyer wrote:
+>> I added benchmarks for PEP 590:
+>>
+>> https://gist.github.com/jdemeyer/f0d63be8f30dc34cc989cd11d43df248
+>
+> Thanks. As expected for calls to C function for both PEPs and master
+> perform about the same, as they are using almost the same calling
+> convention under the hood.
+
+While they are "about the same", in general PEP 580 is slightly faster 
+than master and PEP 590. And PEP 590 actually has a minor slow-down for 
+METH_VARARGS calls.
+
+I think that this happens because PEP 580 has less levels of indirection 
+than PEP 590. The vectorcall protocol (PEP 590) changes a slower level 
+(tp_call) by a faster level (vectorcall), while PEP 580 just removes 
+that level entirely: it calls the C function directly.
+
+This shows that PEP 580 is really meant to have maximal performance in 
+all cases, accidentally even making existing code faster.
+
+
+Jeroen.
+
