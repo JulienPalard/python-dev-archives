@@ -1002,3 +1002,45 @@ all cases, accidentally even making existing code faster.
 
 Jeroen.
 
+From J.Demeyer at UGent.be  Wed Apr  3 11:41:06 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 3 Apr 2019 17:41:06 +0200
+Subject: [Python-Dev] PEP 590 vs. bpo-29259
+In-Reply-To: <5CA445BD.4040705@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org> <5CA445BD.4040705@UGent.be>
+Message-ID: <5CA4D412.7050906@UGent.be>
+
+As I'm reading the PEP 590 reference implementation, it strikes me how 
+similar it is to https://bugs.python.org/issue29259
+
+The main difference is that bpo-29259 has a per-class pointer 
+tp_fastcall instead of a per-object pointer. But actually, the PEP 590 
+reference implementation does not make much use of the per-object 
+pointer: for all classes except "type", the vectorcall wrapper is the 
+same for all objects of a given type.
+
+One thing that bpo-29259 did not realize is that existing optimizations 
+could be dropped in favor of using tp_fastcall. For example, bpo-29259 
+has code like
+
+     if (PyFunction_Check(callable)) {
+         return _PyFunction_FastCallKeywords(...);
+     }
+     if (PyCFunction_Check(callable)) {
+         return _PyCFunction_FastCallKeywords(...);
+     }
+     else if (PyType_HasFeature(..., Py_TPFLAGS_HAVE_FASTCALL) ...)
+
+but the first 2 branches are superfluous given the third.
+
+Anyway, this is just putting PEP 590 a bit in perspective. It doesn't 
+say anything about the merits of PEP 590.
+
+
+Jeroen.
+
