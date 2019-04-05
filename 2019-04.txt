@@ -1044,3 +1044,261 @@ say anything about the merits of PEP 590.
 
 Jeroen.
 
+From J.Demeyer at UGent.be  Thu Apr  4 07:51:40 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 4 Apr 2019 13:51:40 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+Message-ID: <5CA5EFCC.2030400@UGent.be>
+
+During my investigations related to low-level function/method classes, I 
+came across the "instance method" class. There is a C API for it: 
+https://docs.python.org/3.7/c-api/method.html
+However, it's not used/exposed anywhere in CPython, except as 
+_testcapi.instancemethod (for testing its functionality)
+
+This class was discussed at 
+https://mail.python.org/pipermail/python-3000/2007-December/011456.html 
+and implemented in https://bugs.python.org/issue1587
+Reading that old thread, there are use cases presented related to 
+classic classes, wrapping Kogut 
+(http://kokogut.sourceforge.net/kogut.html) objects and Pyrex. But 
+classic classes no longer exist and the latter two use cases aren't 
+actually needed if you read the thread to the end. So there are no 
+surviving use cases from that thread.
+
+Does anybody know actual use cases or any code in the wild using it? To 
+me, the fact that it's only exposed in the C API is a good sign that 
+it's not really useful.
+
+So, should we deprecate the instance method class?
+
+
+Jeroen.
+
+From christian at python.org  Thu Apr  4 08:09:44 2019
+From: christian at python.org (Christian Heimes)
+Date: Thu, 4 Apr 2019 14:09:44 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CA5EFCC.2030400@UGent.be>
+References: <5CA5EFCC.2030400@UGent.be>
+Message-ID: <q84s68$3k09$1@blaine.gmane.org>
+
+On 04/04/2019 13.51, Jeroen Demeyer wrote:
+> During my investigations related to low-level function/method classes, I
+> came across the "instance method" class. There is a C API for it:
+> https://docs.python.org/3.7/c-api/method.html
+> However, it's not used/exposed anywhere in CPython, except as
+> _testcapi.instancemethod (for testing its functionality)
+> 
+> This class was discussed at
+> https://mail.python.org/pipermail/python-3000/2007-December/011456.html
+> and implemented in https://bugs.python.org/issue1587
+> Reading that old thread, there are use cases presented related to
+> classic classes, wrapping Kogut
+> (http://kokogut.sourceforge.net/kogut.html) objects and Pyrex. But
+> classic classes no longer exist and the latter two use cases aren't
+> actually needed if you read the thread to the end. So there are no
+> surviving use cases from that thread.
+> 
+> Does anybody know actual use cases or any code in the wild using it? To
+> me, the fact that it's only exposed in the C API is a good sign that
+> it's not really useful.
+
+You are drawing the wrong conclusion here. The feature was explicitly
+designed for C code and C API wrappers like swig and Cython to make
+adaption to Python 3 simpler. I implemented it when I removed unbound
+methods.
+
+> So, should we deprecate the instance method class?
+
+I couldn't find any current code that uses PyInstanceMethod_New. Let's
+deprecate the feature and schedule it for removal in 3.10.
+
+Christian
+
+
+From J.Demeyer at UGent.be  Thu Apr  4 09:45:03 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 4 Apr 2019 15:45:03 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <q84s68$3k09$1@blaine.gmane.org>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+Message-ID: <5CA60A5F.7060406@UGent.be>
+
+On 2019-04-04 14:09, Christian Heimes wrote:
+> I couldn't find any current code that uses PyInstanceMethod_New. Let's
+> deprecate the feature and schedule it for removal in 3.10.
+
+Done at https://github.com/python/cpython/pull/12685
+
+From chris.barker at noaa.gov  Thu Apr  4 12:02:00 2019
+From: chris.barker at noaa.gov (Chris Barker - NOAA Federal)
+Date: Thu, 4 Apr 2019 09:02:00 -0700
+Subject: [Python-Dev] PEP-582 and multiple Python installations
+In-Reply-To: <CACo5Rz4X+d7mQ1EH=w4geg2q=PMVvrnm3L2sD5+wyd42B_LvsQ@mail.gmail.com>
+References: <CACo5Rz4X+d7mQ1EH=w4geg2q=PMVvrnm3L2sD5+wyd42B_LvsQ@mail.gmail.com>
+Message-ID: <CALGmxE+OwQqu066xa2xc_LBj8ZYgtdTvf3gXNWTJ54-n2tP5Nw@mail.gmail.com>
+
+> I'd like to raise a potential edge case that might be a problem, and likely an increasingly common one: users with multiple installations of the *same* version of Python.
+
+I would suggest that that use case is best addressed by a system that
+isolates the entire python environment, such as conda.
+
+> This is actually a common setup for Windows users who use WSL, Microsoft's Linux-on-Windows solution, as you could have both the Windows and Linux builds of a given Python version installed on the same machine.
+
+Sure, but Isn?t the WSL subsystem pretty isolated already? Would
+native Windows and WSL users be running in the same dir?
+
+That being said, I?m pretty skeptical of the PEP ? I understand the
+motivation ? I make a point of avoiding virtual environments in my
+intro classes, but at some point folks will need to learn them.
+
+I?ve had students think that virtualenv was a part of (or required by)
+e.g. flask, because the tutorials include it in the setup.
+
+But I think environments really need to be more distinct, not less,
+I?m quite concerned about mingling them in one place.
+
+Maybe I?m reading it wrong, but it seems that this could create
+serious clashes with other ?environment? systems, such as conda.
+
+I suppose one could say: ?don?t do that? ? I.e. don?t create a
+__pypackages__ dir if you are going to use conda ? but many folks want
+the same source to be runnable in multiple ?styles? of Python.
+
+Also, I see a major benefit for teaching,  but it does go a bit
+against my philosophy of not hiding important details from newbies ?
+that is, don?t teach using an approach that is not suitable for
+production.
+
+And newbies could be really confused by the fact that pip installs
+stuff differently depending on what dir they are in and what is in
+that dir.
+
+The PEP is listed as a draft ? anyone know what?s going on with it?
+
+-CHB
+
+From chris.barker at noaa.gov  Thu Apr  4 18:54:46 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Thu, 4 Apr 2019 15:54:46 -0700
+Subject: [Python-Dev] PEP-582 and multiple Python installations
+In-Reply-To: <CALGmxE+OwQqu066xa2xc_LBj8ZYgtdTvf3gXNWTJ54-n2tP5Nw@mail.gmail.com>
+References: <CACo5Rz4X+d7mQ1EH=w4geg2q=PMVvrnm3L2sD5+wyd42B_LvsQ@mail.gmail.com>
+ <CALGmxE+OwQqu066xa2xc_LBj8ZYgtdTvf3gXNWTJ54-n2tP5Nw@mail.gmail.com>
+Message-ID: <CALGmxEL0Z3+aOZW5boZb2sjDJhHWrtpt6ugnQvyO343FEjo0LA@mail.gmail.com>
+
+Sorry somehow missed Steve Dower's post:
+
+ that
+discussion is mostly happening at
+https://discuss.python.org/t/pep-582-python-local-packages-directory/963/
+
+I"ll go there to comment.
+
+-CHB
+
+
+On Thu, Apr 4, 2019 at 9:02 AM Chris Barker - NOAA Federal <
+chris.barker at noaa.gov> wrote:
+
+>
+> > I'd like to raise a potential edge case that might be a problem, and
+> likely an increasingly common one: users with multiple installations of the
+> *same* version of Python.
+>
+> I would suggest that that use case is best addressed by a system that
+> isolates the entire python environment, such as conda.
+>
+> > This is actually a common setup for Windows users who use WSL,
+> Microsoft's Linux-on-Windows solution, as you could have both the Windows
+> and Linux builds of a given Python version installed on the same machine.
+>
+> Sure, but Isn?t the WSL subsystem pretty isolated already? Would native
+> Windows and WSL users be running in the same dir?
+>
+> That being said, I?m pretty skeptical of the PEP ? I understand the
+> motivation ? I make a point of avoiding virtual environments in my intro
+> classes, but at some point folks will need to learn them.
+>
+> I?ve had students think that virtualenv was a part of (or required by)
+> e.g. flask, because the tutorials include it in the setup.
+>
+> But I think environments really need to be more distinct, not less, I?m
+> quite concerned about mingling them in one place.
+>
+> Maybe I?m reading it wrong, but it seems that this could create serious
+> clashes with other ?environment? systems, such as conda.
+>
+> I suppose one could say: ?don?t do that? ? I.e. don?t create a
+> __pypackages__ dir if you are going to use conda ? but many folks want the
+> same source to be runnable in multiple ?styles? of Python.
+>
+> Also, I see a major benefit for teaching,  but it does go a bit against my
+> philosophy of not hiding important details from newbies ? that is, don?t
+> teach using an approach that is not suitable for production.
+>
+> And newbies could be really confused by the fact that pip installs stuff
+> differently depending on what dir they are in and what is in that dir.
+>
+> The PEP is listed as a draft ? anyone know what?s going on with it?
+>
+> -CHB
+>
+>
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190404/f12f4b09/attachment.html>
+
+From greg.ewing at canterbury.ac.nz  Thu Apr  4 18:57:00 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Fri, 05 Apr 2019 11:57:00 +1300
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <q84s68$3k09$1@blaine.gmane.org>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+Message-ID: <5CA68BBC.8060205@canterbury.ac.nz>
+
+Christian Heimes wrote:
+> I couldn't find any current code that uses PyInstanceMethod_New. Let's
+> deprecate the feature and schedule it for removal in 3.10.
+
+If it's designed for use by things outside of CPython, how
+can you be sure nothing is using it?
+
+-- 
+Greg
+
+From J.Demeyer at UGent.be  Fri Apr  5 02:07:25 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 5 Apr 2019 08:07:25 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CA68BBC.8060205@canterbury.ac.nz>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz>
+Message-ID: <5CA6F09D.3000900@UGent.be>
+
+On 2019-04-05 00:57, Greg Ewing wrote:
+> If it's designed for use by things outside of CPython, how
+> can you be sure nothing is using it?
+
+Of course I'm not sure. However:
+
+1. So far, nobody in this thread knows of any code using it.
+
+2. So far, nobody in this thread knows any use case for it.
+
+And if we end up deprecating and it was a mistake, we can easily revert 
+the deprecation.
+
