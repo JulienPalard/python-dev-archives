@@ -1302,3 +1302,1498 @@ Of course I'm not sure. However:
 And if we end up deprecating and it was a mistake, we can easily revert 
 the deprecation.
 
+From storchaka at gmail.com  Fri Apr  5 08:10:54 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 5 Apr 2019 15:10:54 +0300
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CA6F09D.3000900@UGent.be>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+Message-ID: <q87d3q$6eob$1@blaine.gmane.org>
+
+05.04.19 09:07, Jeroen Demeyer ????:
+> On 2019-04-05 00:57, Greg Ewing wrote:
+>> If it's designed for use by things outside of CPython, how
+>> can you be sure nothing is using it?
+> 
+> Of course I'm not sure. However:
+> 
+> 1. So far, nobody in this thread knows of any code using it.
+> 
+> 2. So far, nobody in this thread knows any use case for it.
+> 
+> And if we end up deprecating and it was a mistake, we can easily revert 
+> the deprecation.
+
+I have a use case. I did not know this before, but it can be used to 
+implement accelerated versions of separate methods instead of the whole 
+class. I'm going to use it to further optimize total_ordering.
+
+Thanks Josh Rosenberg for the tip.
+
+
+From J.Demeyer at UGent.be  Fri Apr  5 07:27:17 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 5 Apr 2019 13:27:17 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <q87d3q$6eob$1@blaine.gmane.org>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org>
+Message-ID: <5CA73B95.6040509@UGent.be>
+
+On 2019-04-05 14:10, Serhiy Storchaka wrote:
+> it can be used to
+> implement accelerated versions of separate methods instead of the whole
+> class.
+
+Could you elaborate? I'm curious what you mean.
+
+> I'm going to use it to further optimize total_ordering.
+
+There are so many ways in which total_ordering is inefficient. If you 
+really want it to be efficient, you should just implement it in C.
+
+From storchaka at gmail.com  Fri Apr  5 09:13:26 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 5 Apr 2019 16:13:26 +0300
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CA73B95.6040509@UGent.be>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+Message-ID: <q87gp1$7elo$1@blaine.gmane.org>
+
+05.04.19 14:27, Jeroen Demeyer ????:
+> On 2019-04-05 14:10, Serhiy Storchaka wrote:
+>> it can be used to
+>> implement accelerated versions of separate methods instead of the whole
+>> class.
+> 
+> Could you elaborate? I'm curious what you mean.
+
+It is easy to implement a function in C. But there is a difference 
+between functions implemented in Python and C -- the latter are not 
+descriptors. They behave like static methods when assigned to a class 
+attribute, i.e. there is no implicit passing of the "self" argument.
+
+>> I'm going to use it to further optimize total_ordering.
+> 
+> There are so many ways in which total_ordering is inefficient. If you 
+> really want it to be efficient, you should just implement it in C.
+
+Yes, this is what I want to do. I did not do this only because 
+implementing method-like functions which which do not belong to concrete 
+class implemented in C is not convention. But PyInstanceMethod_New() 
+should help.
+
+
+From J.Demeyer at UGent.be  Fri Apr  5 08:33:29 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 5 Apr 2019 14:33:29 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <q87gp1$7elo$1@blaine.gmane.org>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org>
+Message-ID: <5CA74B19.70806@UGent.be>
+
+On 2019-04-05 15:13, Serhiy Storchaka wrote:
+> It is easy to implement a function in C.
+
+Why does it need to be a PyCFunction? You could put an actual method 
+descriptor in the class. In other words, use PyDescr_NewMethod() instead 
+of PyCFunction_New() + PyInstanceMethod_New(). It's probably going to be 
+faster too since the instancemethod adds an unoptimized extra level of 
+indirection.
+
+> Yes, this is what I want to do. I did not do this only because
+> implementing method-like functions which which do not belong to concrete
+> class implemented in C is not convention.
+
+Sure, you could implement separate methods like __gt__ in C, but that's 
+still less efficient than just implementing a specific tp_richcompare 
+for total_ordering and then having the usual wrapper descriptors for __gt__.
+
+From guido at python.org  Fri Apr  5 11:46:00 2019
+From: guido at python.org (Guido van Rossum)
+Date: Fri, 5 Apr 2019 08:46:00 -0700
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CA74B19.70806@UGent.be>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+Message-ID: <CAP7+vJ++UWWSyaBwdpH2Kuu5tZ=s+2GvB=LnF8a4POy1BMv5nQ@mail.gmail.com>
+
+Let's stop here. This API is doing no harm, it's not a maintenance burden,
+clearly *some* folks have a use for it. Let's just keep it, okay? There are
+bigger fish to fry.
+
+On Fri, Apr 5, 2019 at 5:36 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> On 2019-04-05 15:13, Serhiy Storchaka wrote:
+> > It is easy to implement a function in C.
+>
+> Why does it need to be a PyCFunction? You could put an actual method
+> descriptor in the class. In other words, use PyDescr_NewMethod() instead
+> of PyCFunction_New() + PyInstanceMethod_New(). It's probably going to be
+> faster too since the instancemethod adds an unoptimized extra level of
+> indirection.
+>
+> > Yes, this is what I want to do. I did not do this only because
+> > implementing method-like functions which which do not belong to concrete
+> > class implemented in C is not convention.
+>
+> Sure, you could implement separate methods like __gt__ in C, but that's
+> still less efficient than just implementing a specific tp_richcompare
+> for total_ordering and then having the usual wrapper descriptors for
+> __gt__.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190405/614afc50/attachment.html>
+
+From vstinner at redhat.com  Fri Apr  5 12:00:31 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 5 Apr 2019 18:00:31 +0200
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+Message-ID: <CA+3bQGG+rpjpfnrdRCG-mfY7yszzVHMnuF1dniFP0FXpri3M0g@mail.gmail.com>
+
+Le dim. 31 mars 2019 ? 01:49, Steve Dower <steve.dower at python.org> a ?crit :
+> Here is my first review of https://www.python.org/dev/peps/pep-0587/ and
+> in general I think it's very good.
+
+Ah nice, that's a good start :-) Thanks for reviewing it.
+
+Your email is long, and answer makes it even longer, so I will reply
+in multiple emails.
+
+
+> > ``PyWideCharList`` is a list of ``wchar_t*`` strings.
+>
+> I always forget whether "const" is valid in C99, but if it is, can we
+> make this a list of const strings?
+
+Short answer: no :-(
+
+This structure mostly exists to simplify the implementation. Sadly,
+"const PyWideCharList" doesn't automatically make PyWideCharList.items
+an array of "const wchar_t*". I tried some hacks to have an array of
+const strings... but it would be very complicated and not natural at
+all in C.
+
+Sadly, it's way more simple to have "wchar_t*" in practice.
+
+
+> I also prefer a name like ``PyWideStringList``, since that's what it is
+> (the other places we use WideChar in the C API refer only to a single
+> string, as far as I'm aware).
+
+I'm fine with this name.
+
+
+> > ``PyInitError`` is a structure to store an error message or an exit code
+> > for the Python Initialization.
+>
+> I love this struct! Currently it's private, but I wonder whether it's
+> worth making it public as PyError (or PyErrorInfo)?
+
+The PEP 587 makes the structure public, but I'm not sure about calling
+it PyError because PyInitError also allows to exit Python with an exit
+status which is something specific to the initialization.
+
+If you want to use a structure to reporting errors, I would prefer to
+add a new simpler PyError structure to only report an error message,
+but never exit Python. PyInitError use case is really specific to
+Python initialization.
+
+Moreover, the API is inefficient since it is returned by copy, not by
+reference. That's fine for Python initialization which only happens once
+and is not part of "hot code".
+
+I'm not sure if PyError would need to store the C function name where the
+error is triggered. Usually, we try hard to hide Python internals to the
+user.
+
+
+> > * ``exitcode`` (``int``): if greater or equal to zero, argument passed to
+> >  ``exit()``
+>
+> Windows is likely to need/want negative exit codes, as many system
+> errors are represented as 0x80000000|(source of error)|(specific code).
+
+Hum, int was used in Python 3.6 code base. We change change
+PyInitError.exitcode type to DWORD on Windows, but use int on Unix.
+We can add a private field to check if the error is an error message or an
+exit code. Or maybe check if the error message is NULL or not.
+
+Py_INIT_ERR(MSG) must never be called with Py_INIT_ERR(NULL) and it should
+be called with a static string, not with a dynamically allocated string
+(since the API doesn't allow to release memory).
+
+
+> > * ``user_err`` (int): if non-zero, the error is caused by the user
+> >   configuration, otherwise it's an internal Python error.
+>
+> Maybe we could just encode this as "positive exitcode is user error,
+> negative is internal error"? I'm pretty sure struct return values are
+> passed by reference in most C calling conventions, so the size of the
+> struct isn't a big deal, but without a proper bool type it may look like
+> this is a second error code (like errno/winerror in a few places).
+
+Honestly, I'm not sure that we really have to distinguish "user error" and
+"internal error". It's an old debate about calling abort()/DebugBreak() or
+not. It seems like most users are annoyed by getting a coredump on Unix
+when abort() is called.
+
+Maybe we should just remove Py_INIT_USER_ERR(), always use Py_INIT_ERR(),
+and never call abort()/DebugBreak() in Py_ExitInitError().
+
+Or does anyone see a good reason to trigger a debugger on an
+initialization error?
+
+See https://bugs.python.org/issue19983 discussion:
+"When interrupted during startup, Python should not call abort() but exit()"
+
+Note: I'm not talking about Py_FatalError() here, this one will not
+change.
+
+Victor
+
+From vstinner at redhat.com  Fri Apr  5 12:12:50 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 5 Apr 2019 18:12:50 +0200
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+Message-ID: <CA+3bQGGJKOwCbnpRz2VxU5vA3xeOxfB-C8xx+3fpSKEzqg7qeQ@mail.gmail.com>
+
+About PyPreConfig and encodings.
+
+> The appendix is excellent, by the way. Very useful detail to have
+> written down.
+
+Thanks. The appendix is based on Include/cpython/coreconfig.h comments
+which is now my reference documentation. By the way, this header file
+contains more information about PyConfig fields than the PEP 587. For
+example, the comment on filesystem_encoding and filesystem_errors lists
+every single cases and exceptions (it describes the implementation).
+
+
+> > ``PyPreConfig`` structure is used to pre-initialize Python:
+> >
+> > * Set the memory allocator
+> > * Configure the LC_CTYPE locale
+> > * Set the UTF-8 mode
+>
+> I think we should have the isolated flag in here - oh wait, we do - I
+> think we should have the isolated/use_environment options listed in this
+> list :)
+
+My introduction paragraph only explains the changes made by
+Py_PreInitialize(): calling Py_PreInitialize() doesn't "isolate"
+Python.
+
+PyPreConfig.isolated is used to decide if Python reads environment
+variables or not. Examples: PYTHONMALLOC, PYTHONUTF8, PYTHONDEVMODE (which
+has an impact on PyPreConfig.allocator), PYTHONCOERCECLOCALE, etc.
+
+That's why isolated and use_environment are present in PyPreConfig and
+PyConfig. In practice, values should be equal in both structures.
+Moreover, if PyConfig.isolated is equal to 1, Py_InitializeFromConfig()
+updates _PyRuntime.preconfig.isolated to 1 ;-)
+
+
+> > * ``PyInitError Py_PreInitialize(const PyPreConfig *config)``
+> > * ``PyInitError Py_PreInitializeFromArgs( const PyPreConfig *config,
+> int argc, char **argv)``
+> > * ``PyInitError Py_PreInitializeFromWideArgs( const PyPreConfig
+> *config, int argc, wchar_t **argv)``
+>
+> I hope to one day be able to support multiple runtimes per process - can
+> we have an opaque PyRuntime object exposed publicly now and passed into
+> these functions?
+
+I hesitated to include a "_PyRuntimeState*" parameter somewhere, but I
+chose to not do so.
+
+Currently, there is a single global variable _PyRuntime which has the type
+_PyRuntimeState. The _PyRuntime_Initialize() API is designed around this
+global variable. For example, _PyRuntimeState contains the registry of
+interpreters: you don't want to have multiple registries :-)
+
+I understood that we should only have a single instance of
+_PyRuntimeState. So IMHO it's fine to keep it private at this point.
+There is no need to expose it in the API.
+
+
+> (FWIW, I think we're a long way from being able to support multiple
+> runtimes *simultaneously*, so the initial implementation here would be
+> to have a PyRuntime_Create() that returns our global one once and then
+> errors until it's finalised. The migration path is probably to enable
+> switching of the current runtime via a dedicated function (i.e. one
+> active at a time, probably with thread local storage), since we have no
+> "context" parameter for C API functions, and obviously there are still
+> complexities such as poorly written extension modules that nonetheless
+> can be dealt with in embedding scenarios by simply not using them. This
+> doesn't seem like an unrealistic future, *unless* we add a whole lot of
+> new APIs now that can't allow it :) )
+
+FYI I tried to design an internal API with a "context" to pass
+_PyRuntimeState, PyPreConfig, _PyConfig, the current interpreter, etc.
+
+=> https://bugs.python.org/issue35265
+
+My first need was to pass a memory allocator to Py_DecodeLocale().
+
+There are 2 possible implementations:
+
+* Modify *all* functions to add a new "context" parameter and modify *all*
+  functions to pass this parameter to sub-functions.
+* Store the current "context" as a thread local variable or something like
+  that.
+
+I wrote a proof-of-concept of the first option: the implementation was
+very painful to write: a lot of changes which looks useless and a lot
+of new private functions which to pass the argument. I had to modify
+way too much code. I gave up.
+
+For the second option: well, there is no API change needed!
+It can be done later.
+Moreover, we already have such API! PyThreadState_Get() gets the Python
+thread state of the current thread: the current interpreter can be
+accessed from there.
+
+
+> > ``PyPreConfig`` fields:
+> >
+> > * ``coerce_c_locale_warn``: if non-zero, emit a warning if the C locale
+> >   is coerced.
+> > * ``coerce_c_locale``: if equals to 2, coerce the C locale; if equals to
+> >   1, read the LC_CTYPE to decide if it should be coerced.
+>
+> Can we use another value for coerce_c_locale to determine whether to
+> warn or not? Save a field.
+
+coerce_c_locale is already complex, it can have 4 values: -1, 0, 1 and 2.
+I prefer keep a separated field.
+
+Moreover, I understood that you might want to coerce the C locale *and*
+get the warning, or get the warning but *not* coerce the locale.
+
+
+> > * ``legacy_windows_fs_encoding`` (Windows only): if non-zero, set the
+> >   Python filesystem encoding to ``"mbcs"``.
+> > * ``utf8_mode``: if non-zero, enable the UTF-8 mode
+>
+> Why not just set the encodings here?
+
+For different technical reasons, you simply cannot specify an encoding
+name. You can also pass options to tell Python that you have some
+preferences (PyPreConfig and PyConfig fields).
+
+Python doesn't support any encoding and encoding errors combinations. In
+practice, it only supports a narrow set of choices. The main implementation are
+Py_EncodeLocale() and Py_DecodeLocale() functions which uses the C codec
+of the current locale encoding to implement the filesystem encoding,
+before the codec implemented in Python can be used.
+
+Basically, only the current locale encoding or UTF-8 are supported.
+If you want UTF-8, enable the UTF-8 Mode.
+
+To load the Python codec, you need importlib. importlib needs to access
+the filesystem which requires a codec to encode/decode file names
+(PyConfig.module_search_paths uses Unicode wchar_t* strings, but the C API
+only supports bytes char* strings).
+
+Py_PreInitialize() doesn't set the filesystem encoding. It initializes the
+LC_CTYPE locale and Python global configuration variables (Py_UTF8Mode and
+Py_LegacyWindowsFSEncodingFlag).
+
+
+> Obviously we are not ready to import most encodings after pre
+> initialization, but I think that's okay. Embedders who set something
+> outside the range of what can be used without importing encodings will
+> get an error to that effect if we try.
+
+You need a C implementation of the Python filesystem encoding very early
+in Python initialization. You cannot start with one encoding and "later"
+switch the encoding. I tried multiple times the last 10 years and I always
+failed to do that. All attempts failed with mojibake at different
+levels.
+
+Unix pays the price of its history. Windows is a very different story:
+there are API to access the filesystem with Unicode strings,
+there is no such "bootstrap problem" for importlib.
+
+
+> In fact, I'd be totally okay with letting embedders specify their own
+> function pointer here to do encoding/decoding between Unicode and the OS
+> preferred encoding.
+
+In my experience, when someone wants to get a specific encoding: they
+only want UTF-8. There is now the UTF-8 Mode which ignores the locale
+and forces the usage of UTF-8.
+
+I'm not sure that there is a need to have a custom codec. Moreover, if
+there an API to pass a codec in C, you will need to expose it somehow
+at the Python level for os.fsencode() and os.fsdecode().
+
+Currently, Python ensures during early stage of startup that
+codecs.lookup(sys.getfilesystemencoding()) works: there is a existing
+Python codec for the requested filesystem encoding.
+
+Victor
+
+From vstinner at redhat.com  Fri Apr  5 12:22:17 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 5 Apr 2019 18:22:17 +0200
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+Message-ID: <CA+3bQGH6j2-hx_MyZSKdUF6YY3qBuWUhrLksRyensXb6=T1qCw@mail.gmail.com>
+
+> > Example of Python initialization enabling the isolated mode::
+> >
+> >     PyConfig config = PyConfig_INIT;
+> >     config.isolated = 1;
+>
+> Haven't we already used extenal values by this point that should have
+> been isolated?
+
+On this specific example, "config.isolated = 1;" ensures that
+Py_PreInitialize() is also called internally with
+"PyPreConfig.isolated = 1".
+
+
+> I'd rather have the isolation up front. Or better yet,
+> make isolation the default unless you call one of the "FromArgs"
+> functions, and then we don't actually need the config setting at all.
+
+While there are supporters of an "isolated Python" (sometimes called
+"system python"), the fact that it doesn't exist in any Linux distribution
+nor on any other operating system (Windows, macOS, FreeBSD), whereas it's
+already doable in Python 3.6 with Py_IsolatedFlag=1 makes me think that
+users like the ability to control Python with environment variables and
+configuration files.
+
+I would prefer to leave Python as not isolated by default. It's just a
+matter of comment line arguments.
+
+
+> > * The PEP 432 stores ``PYTHONCASEOK`` into the config. Do we need
+> >   to add something for that into ``PyConfig``? How would it be exposed
+> >   at the Python level for ``importlib``? Passed as an argument to
+> >   ``importlib._bootstrap._setup()`` maybe? It can be added later if
+> >   needed.
+>
+> Could we convert it into an xoption? It's very rarely used, to my knowledge.
+
+The first question is if there is any need for an embedder to change
+this option. Currently, importlib._bootstrap_external._install() reads
+the environment variable and it's the only way to control the option.
+
+... By the way, importlib reads PYTHONCASEOK environment varaible even
+if isolated mode is enabled (sys.flags.isolated is equal to 1). Is it
+a bug? :-)
+
+Victor
+
+From vstinner at redhat.com  Fri Apr  5 12:24:27 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 5 Apr 2019 18:24:27 +0200
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+Message-ID: <CA+3bQGFu43P7ZoJ6-TDsNEU8d_ZsAJZG=9b83WXsq25hbkiP4Q@mail.gmail.com>
+
+> I think my biggest point (about halfway down) is that I'd rather use
+> argv/environ/etc. to *initialize* PyConfig and then only use the config
+> for initializing the runtime. That way it's more transparent for users
+> and more difficult for us to add options that embedders can't access.
+
+I chose to exclude PyConfig_Read() function from the PEP to try to start
+with the bare minimum public API and see how far we can go with that.
+
+The core of the PEP 587 implementation are PyPreConfig_Read() and
+PyConfig_Read() functions (currently called _PyPreConfig_Read() and
+_PyCoreConfig_Read()): they populate all fields so the read config becomes
+the reference config which will be applied.
+
+For example, PyConfig_Read() fills module_search_paths, from other
+PyConfig fields: it will become sys.path.
+
+I spent a lot of time to rework deeply the implementation of
+PyConfig_Read() to make sure that it has no side effect. Reading and
+writing the configuration are now strictly separated. So it is safe
+to call PyConfig_Read(), modify PyConfig afterwards, and pass the modified
+config to Py_InitializeFromConfig().
+
+Do you think that exposing PyConfig_Read() would solve some of your
+problems?
+
+
+> Currently you have three functions, that take a PyConfig and optionally
+> also use the environment/argv to figure out the settings:
+>
+> > * ``PyInitError Py_InitializeFromConfig(const PyConfig *config)``
+> > * ``PyInitError Py_InitializeFromArgs(const PyConfig *config, int
+> argc, char **argv)``
+> > * ``PyInitError Py_InitializeFromWideArgs(const PyConfig *config, int
+> argc, wchar_t **argv)``
+>
+> I would much prefer to see this flipped around, so that there is one
+> initialize function taking PyConfig, and two functions that will fill
+> out the PyConfig based on the environment:
+>
+> (note two of the "const"s are gone)
+>
+> * ``PyInitError Py_SetConfigFromArgs(PyConfig *config, int argc, char
+> **argv)``
+> * ``PyInitError Py_SetConfigFromWideArgs(PyConfig *config, int argc,
+> wchar_t **argv)``
+> * ``PyInitError Py_InitializeFromConfig(const PyConfig *config)``
+
+This implementation evolved *A LOT* last months. I was *very confused*
+until the pre-initialization phase was introduced which solved a lot
+of bootstrap issues.
+
+After I wrote down the PEP and read it again, I also came to the same
+conclusion: Py_InitializeFromConfig(config) should be enough, and we can
+add helper functions to set arguments on PyConfig (as you showed).
+
+Victor
+
+From vstinner at redhat.com  Fri Apr  5 12:36:37 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 5 Apr 2019 18:36:37 +0200
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+Message-ID: <CA+3bQGHvsUDfRm1MwHejznunO71fu2bpk-4Mxf52gjsJ2+k0jw@mail.gmail.com>
+
+For the PyMainConfig structure idea, I cannot comment at this point. I
+need more time to think about it.
+
+
+About the "path configuration" fields, maybe a first step to enhance
+the API would be to add the the following function:
+
+PyInitError PyConfig_ComputePath(PyConfig *config, const wchar *home);
+
+where home can be NULL (and PyConfig.module_search_paths_env field
+goes away: the function reads PYTHONPATH env var internally).
+
+This function would "compute the path configuration", what's currently
+listed in _PyCoreConfig under:
+
+    /* Path configuration outputs */
+    int use_module_search_paths;  /* If non-zero, use module_search_paths */
+    _PyWstrList module_search_paths;  /* sys.path paths. Computed if
+                                       use_module_search_paths is equal
+                                       to zero. */
+
+    wchar_t *executable;    /* sys.executable */
+    wchar_t *prefix;        /* sys.prefix */
+    wchar_t *base_prefix;   /* sys.base_prefix */
+    wchar_t *exec_prefix;   /* sys.exec_prefix */
+    wchar_t *base_exec_prefix;  /* sys.base_exec_prefix */
+#ifdef MS_WINDOWS
+    wchar_t *dll_path;      /* Windows DLL path */
+#endif
+
+Victor
+
+From storchaka at gmail.com  Fri Apr  5 13:53:10 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 5 Apr 2019 20:53:10 +0300
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CA74B19.70806@UGent.be>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+Message-ID: <q8815h$751n$1@blaine.gmane.org>
+
+05.04.19 15:33, Jeroen Demeyer ????:
+> On 2019-04-05 15:13, Serhiy Storchaka wrote:
+>> It is easy to implement a function in C.
+> 
+> Why does it need to be a PyCFunction? You could put an actual method 
+> descriptor in the class. In other words, use PyDescr_NewMethod() instead 
+> of PyCFunction_New() + PyInstanceMethod_New(). It's probably going to be 
+> faster too since the instancemethod adds an unoptimized extra level of 
+> indirection.
+
+PyDescr_NewMethod() takes PyTypeObject* which is not known at that 
+moment. But maybe passing &PyBaseObject_Type will make a trick. I need 
+to try.
+
+>> Yes, this is what I want to do. I did not do this only because
+>> implementing method-like functions which which do not belong to concrete
+>> class implemented in C is not convention.
+> 
+> Sure, you could implement separate methods like __gt__ in C, but that's 
+> still less efficient than just implementing a specific tp_richcompare 
+> for total_ordering and then having the usual wrapper descriptors for 
+> __gt__.
+
+At Python level we can monkeypatch __gt__, but not tp_richcompare.
+
+In any case, removing a C API is a large breakage, and it is better to 
+avoid it unless that API is inherently broken.
+
+
+From christian at python.org  Fri Apr  5 13:00:00 2019
+From: christian at python.org (Christian Heimes)
+Date: Fri, 5 Apr 2019 19:00:00 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <CAP7+vJ++UWWSyaBwdpH2Kuu5tZ=s+2GvB=LnF8a4POy1BMv5nQ@mail.gmail.com>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <CAP7+vJ++UWWSyaBwdpH2Kuu5tZ=s+2GvB=LnF8a4POy1BMv5nQ@mail.gmail.com>
+Message-ID: <52930d72-803b-0f8b-b338-a96e914ff2eb@python.org>
+
+On 05/04/2019 17.46, Guido van Rossum wrote:
+> Let's stop here. This API is doing no harm, it's not a maintenance
+> burden, clearly *some* folks have a use for it. Let's just keep it,
+> okay? There are bigger fish to fry.
+
+Sounds good to me. My code is 12 years ago and I can't remember any
+complain. I have closed the BPO issue and PR.
+
+From J.Demeyer at UGent.be  Fri Apr  5 13:56:08 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 5 Apr 2019 19:56:08 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <q8815h$751n$1@blaine.gmane.org>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <q8815h$751n$1@blaine.gmane.org>
+Message-ID: <5CA796B8.1000202@UGent.be>
+
+On 2019-04-05 19:53, Serhiy Storchaka wrote:
+> At Python level we can monkeypatch __gt__, but not tp_richcompare.
+
+Sure, but you're planning to use C anyway so that's not really an argument.
+
+From status at bugs.python.org  Fri Apr  5 14:07:47 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri,  5 Apr 2019 18:07:47 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190405180747.30B2D52B1D6@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-03-29 - 2019-04-05)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7056 ( +8)
+  closed 41231 (+55)
+  total  48287 (+63)
+
+Open issues with patches: 2816 
+
+
+Issues opened (44)
+==================
+
+#36260: Cpython/Lib vulnerability found and request a patch submission
+https://bugs.python.org/issue36260  reopened by krnick
+
+#36474: RecursionError resets trace function set via sys.settrace
+https://bugs.python.org/issue36474  opened by blueyed
+
+#36475: PyEval_AcquireLock() and PyEval_AcquireThread() do not handle 
+https://bugs.python.org/issue36475  opened by eric.snow
+
+#36476: Runtime finalization assumes all other threads have exited.
+https://bugs.python.org/issue36476  opened by eric.snow
+
+#36478: backport of pickle fixes to Python 3.5.7 uses C99 for loops
+https://bugs.python.org/issue36478  opened by Anthony Sottile
+
+#36479: Exit threads when interpreter is finalizing rather than runtim
+https://bugs.python.org/issue36479  opened by eric.snow
+
+#36481: telnetlib process_rawq() callback
+https://bugs.python.org/issue36481  opened by Quanthir
+
+#36484: Can't reorder TLS 1.3 ciphersuites
+https://bugs.python.org/issue36484  opened by Eman Alashwali
+
+#36485: Establish a uniform way to clear all caches in a given module
+https://bugs.python.org/issue36485  opened by serhiy.storchaka
+
+#36486: Bugs and inconsistencies in unicodedata
+https://bugs.python.org/issue36486  opened by dscorbett
+
+#36487: Make C-API docs  clear about what the "main" interpreter is
+https://bugs.python.org/issue36487  opened by nanjekyejoannah
+
+#36488: os.sendfile() on BSD and macOS does not return bytes sent on E
+https://bugs.python.org/issue36488  opened by giampaolo.rodola
+
+#36489: add filename_extension_map and/or content-types_map dict(s) to
+https://bugs.python.org/issue36489  opened by Daniel Black
+
+#36490: Modernize function signature format in Archiving section of sh
+https://bugs.python.org/issue36490  opened by CAM-Gerlach
+
+#36494: bdb.Bdb.set_trace: should set f_trace_lines = True
+https://bugs.python.org/issue36494  opened by blueyed
+
+#36495: Out-of-bounds array reads in Python/ast.c
+https://bugs.python.org/issue36495  opened by blarsen
+
+#36497: Undocumented behavior in csv.Sniffer (preferred delimiters)
+https://bugs.python.org/issue36497  opened by thomas
+
+#36500: Add "regen-*" equivalent projects for Windows builds
+https://bugs.python.org/issue36500  opened by anthony shaw
+
+#36501: Remove POSIX.1e ACLs in tests that rely on default permissions
+https://bugs.python.org/issue36501  opened by Ivan.Pozdeev
+
+#36502: The behavior of str.isspace() for U+00A0 and U+202F is differe
+https://bugs.python.org/issue36502  opened by Jun
+
+#36503: remove references to aix3 and aix4 in \*.py
+https://bugs.python.org/issue36503  opened by Michael.Felt
+
+#36504: Signed integer overflow in _ctypes.c's PyCArrayType_new()
+https://bugs.python.org/issue36504  opened by ZackerySpytz
+
+#36506: [security] CVE-2019-10268: An arbitrary execution vulnerabilit
+https://bugs.python.org/issue36506  opened by bigbigliang
+
+#36508: python-config --ldflags must not contain LINKFORSHARED ("-Xlin
+https://bugs.python.org/issue36508  opened by vstinner
+
+#36509: Add iot layout for windows iot containers
+https://bugs.python.org/issue36509  opened by Paul Monson
+
+#36511: Add Windows ARM32 buildbot
+https://bugs.python.org/issue36511  opened by Paul Monson
+
+#36512: future_factory argument for Thread/ProcessPoolExecutor
+https://bugs.python.org/issue36512  opened by stefanhoelzl
+
+#36513: Add support for building arm32 nuget package
+https://bugs.python.org/issue36513  opened by Paul Monson
+
+#36515: unaligned memory access in the _sha3 extension
+https://bugs.python.org/issue36515  opened by doko
+
+#36516: Python Launcher can not recognize pyw file as Python GUI Scrip
+https://bugs.python.org/issue36516  opened by gjj2828
+
+#36517: typing.NamedTuple does not support mixins
+https://bugs.python.org/issue36517  opened by rectalogic
+
+#36518: Avoid conflicts when pass arbitrary keyword arguments to Pytho
+https://bugs.python.org/issue36518  opened by serhiy.storchaka
+
+#36519: Blake2b/s implementations have minor GIL issues
+https://bugs.python.org/issue36519  opened by gwk
+
+#36520: Email header folded incorrectly
+https://bugs.python.org/issue36520  opened by Jonathan Horn
+
+#36521: Consider removing docstrings from co_consts in code objects
+https://bugs.python.org/issue36521  opened by rhettinger
+
+#36523: missing docs for IOBase writelines
+https://bugs.python.org/issue36523  opened by Marcin Niemira
+
+#36527: unused parameter warnings in Include/object.h (affecting build
+https://bugs.python.org/issue36527  opened by AMDmi3
+
+#36528: Remove duplicate tests in Lib/tests/re_tests.py
+https://bugs.python.org/issue36528  opened by xtreak
+
+#36529: Python from WindowsStore: can't install package using "-m pip"
+https://bugs.python.org/issue36529  opened by Ilya Kazakevich
+
+#36531: PyType_FromSpec wrong behavior with multiple Py_tp_members
+https://bugs.python.org/issue36531  opened by eelizondo
+
+#36532: Example of logging.formatter with new str.format style
+https://bugs.python.org/issue36532  opened by spaceman_spiff
+
+#36533: logging regression with threading + fork are mixed in 3.7.1rc2
+https://bugs.python.org/issue36533  opened by gregory.p.smith
+
+#36534: tarfile: handling Windows (path) illegal characters in archive
+https://bugs.python.org/issue36534  opened by CristiFati
+
+#36535: Windows build failure when use the code from the GitHub master
+https://bugs.python.org/issue36535  opened by Manjusaka
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36535: Windows build failure when use the code from the GitHub master
+https://bugs.python.org/issue36535
+
+#36531: PyType_FromSpec wrong behavior with multiple Py_tp_members
+https://bugs.python.org/issue36531
+
+#36529: Python from WindowsStore: can't install package using "-m pip"
+https://bugs.python.org/issue36529
+
+#36528: Remove duplicate tests in Lib/tests/re_tests.py
+https://bugs.python.org/issue36528
+
+#36527: unused parameter warnings in Include/object.h (affecting build
+https://bugs.python.org/issue36527
+
+#36523: missing docs for IOBase writelines
+https://bugs.python.org/issue36523
+
+#36520: Email header folded incorrectly
+https://bugs.python.org/issue36520
+
+#36517: typing.NamedTuple does not support mixins
+https://bugs.python.org/issue36517
+
+#36516: Python Launcher can not recognize pyw file as Python GUI Scrip
+https://bugs.python.org/issue36516
+
+#36515: unaligned memory access in the _sha3 extension
+https://bugs.python.org/issue36515
+
+#36513: Add support for building arm32 nuget package
+https://bugs.python.org/issue36513
+
+#36512: future_factory argument for Thread/ProcessPoolExecutor
+https://bugs.python.org/issue36512
+
+#36511: Add Windows ARM32 buildbot
+https://bugs.python.org/issue36511
+
+#36509: Add iot layout for windows iot containers
+https://bugs.python.org/issue36509
+
+#36503: remove references to aix3 and aix4 in \*.py
+https://bugs.python.org/issue36503
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36532: Example of logging.formatter with new str.format style
+https://bugs.python.org/issue36532
+
+#36531: PyType_FromSpec wrong behavior with multiple Py_tp_members
+https://bugs.python.org/issue36531
+
+#36528: Remove duplicate tests in Lib/tests/re_tests.py
+https://bugs.python.org/issue36528
+
+#36527: unused parameter warnings in Include/object.h (affecting build
+https://bugs.python.org/issue36527
+
+#36523: missing docs for IOBase writelines
+https://bugs.python.org/issue36523
+
+#36518: Avoid conflicts when pass arbitrary keyword arguments to Pytho
+https://bugs.python.org/issue36518
+
+#36516: Python Launcher can not recognize pyw file as Python GUI Scrip
+https://bugs.python.org/issue36516
+
+#36515: unaligned memory access in the _sha3 extension
+https://bugs.python.org/issue36515
+
+#36513: Add support for building arm32 nuget package
+https://bugs.python.org/issue36513
+
+#36512: future_factory argument for Thread/ProcessPoolExecutor
+https://bugs.python.org/issue36512
+
+#36509: Add iot layout for windows iot containers
+https://bugs.python.org/issue36509
+
+#36508: python-config --ldflags must not contain LINKFORSHARED ("-Xlin
+https://bugs.python.org/issue36508
+
+#36504: Signed integer overflow in _ctypes.c's PyCArrayType_new()
+https://bugs.python.org/issue36504
+
+#36503: remove references to aix3 and aix4 in \*.py
+https://bugs.python.org/issue36503
+
+#36501: Remove POSIX.1e ACLs in tests that rely on default permissions
+https://bugs.python.org/issue36501
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#36485: Establish a uniform way to clear all caches in a given module
+https://bugs.python.org/issue36485  13 msgs
+
+#36466: Adding a way to strip annotations from compiled bytecode
+https://bugs.python.org/issue36466  12 msgs
+
+#36469: Stuck during interpreter exit, attempting to take the GIL
+https://bugs.python.org/issue36469  10 msgs
+
+#36506: [security] CVE-2019-10268: An arbitrary execution vulnerabilit
+https://bugs.python.org/issue36506   8 msgs
+
+#6721: Locks in the standard library should be sanitized on fork
+https://bugs.python.org/issue6721   7 msgs
+
+#36533: logging regression with threading + fork are mixed in 3.7.1rc2
+https://bugs.python.org/issue36533   6 msgs
+
+#35866: concurrent.futures deadlock
+https://bugs.python.org/issue35866   5 msgs
+
+#36384: ipaddress Should not reject IPv4 addresses with leading zeroes
+https://bugs.python.org/issue36384   5 msgs
+
+#30661: Support tarfile.PAX_FORMAT in shutil.make_archive
+https://bugs.python.org/issue30661   4 msgs
+
+#35224: PEP 572: Assignment Expressions
+https://bugs.python.org/issue35224   4 msgs
+
+
+
+Issues closed (53)
+==================
+
+#17110: sys.argv docs should explaining how to handle encoding issues
+https://bugs.python.org/issue17110  closed by inada.naoki
+
+#20844: SyntaxError: encoding problem: iso-8859-1 on Windows
+https://bugs.python.org/issue20844  closed by inada.naoki
+
+#21269: Provide args and kwargs attributes on mock call objects
+https://bugs.python.org/issue21269  closed by xtreak
+
+#22831: Use "with" to avoid possible fd leaks
+https://bugs.python.org/issue22831  closed by serhiy.storchaka
+
+#24214: UTF-8 incremental decoder doesn't support surrogatepass correc
+https://bugs.python.org/issue24214  closed by serhiy.storchaka
+
+#25451: tkinter: PhotoImage transparency methods
+https://bugs.python.org/issue25451  closed by serhiy.storchaka
+
+#29202: Improve dict iteration
+https://bugs.python.org/issue29202  closed by inada.naoki
+
+#31182: Suggested Enhancements to zipfile & tarfile command line inter
+https://bugs.python.org/issue31182  closed by brett.cannon
+
+#32413: Document that locals() may return globals()
+https://bugs.python.org/issue32413  closed by brett.cannon
+
+#32531: gdb.execute can not put string value.
+https://bugs.python.org/issue32531  closed by berker.peksag
+
+#32538: Multiprocessing Manager on 3D list - no change of the list pos
+https://bugs.python.org/issue32538  closed by berker.peksag
+
+#33261: inspect.isgeneratorfunction fails on hand-created methods
+https://bugs.python.org/issue33261  closed by petr.viktorin
+
+#34430: Symmetrical chaining futures in asyncio.future.wrap_future
+https://bugs.python.org/issue34430  closed by huji
+
+#35272: sqlite3 get the connected database url
+https://bugs.python.org/issue35272  closed by berker.peksag
+
+#35403: support application/wasm in mimetypes and http.server
+https://bugs.python.org/issue35403  closed by martin.panter
+
+#35838: ConfigParser: document optionxform must be idempotent
+https://bugs.python.org/issue35838  closed by inada.naoki
+
+#36010: Please provide a .zip Windows release of Python that is not cr
+https://bugs.python.org/issue36010  closed by steve.dower
+
+#36026: Different error message when sys.settrace is used
+https://bugs.python.org/issue36026  closed by inada.naoki
+
+#36085: Enable better DLL resolution
+https://bugs.python.org/issue36085  closed by steve.dower
+
+#36157: Document PyInterpreterState_Main().
+https://bugs.python.org/issue36157  closed by eric.snow
+
+#36293: Nonblocking read sys.stdin raises error
+https://bugs.python.org/issue36293  closed by martin.panter
+
+#36322: Argument typo in dbm.ndbm.open
+https://bugs.python.org/issue36322  closed by brett.cannon
+
+#36377: Python 'datastructures.html' docs page needs improvement becau
+https://bugs.python.org/issue36377  closed by rhettinger
+
+#36404: Document PendingDeprecationWarning is not so useful.
+https://bugs.python.org/issue36404  closed by inada.naoki
+
+#36426: exec() issue when used inside function
+https://bugs.python.org/issue36426  closed by ncoghlan
+
+#36434: Zipfile breaks if signalled during write()
+https://bugs.python.org/issue36434  closed by serhiy.storchaka
+
+#36440: more helpful diagnostics for parser module
+https://bugs.python.org/issue36440  closed by pablogsal
+
+#36442: Different ValueError for the same operation in List and Tuple
+https://bugs.python.org/issue36442  closed by serhiy.storchaka
+
+#36445: bus error in test_gil test on armhf running with 64bit kernel
+https://bugs.python.org/issue36445  closed by doko
+
+#36448: Message "You will need to rebuild pythoncore to see the change
+https://bugs.python.org/issue36448  closed by steve.dower
+
+#36468: Treeview: wrong color change
+https://bugs.python.org/issue36468  closed by ned.deily
+
+#36472: Some old PR with CLA not signed
+https://bugs.python.org/issue36472  closed by brett.cannon
+
+#36473: dictkeysobject: Add maximum iteration check for .values() and 
+https://bugs.python.org/issue36473  closed by inada.naoki
+
+#36477: Subinterpreters are not finalized during runtime finalization.
+https://bugs.python.org/issue36477  closed by eric.snow
+
+#36480: .strip() unexpected output on Windows
+https://bugs.python.org/issue36480  closed by eric.smith
+
+#36482: let struct's internal cache use FIFO policy
+https://bugs.python.org/issue36482  closed by rhettinger
+
+#36483: Missing line in documentation example
+https://bugs.python.org/issue36483  closed by martin.panter
+
+#36491: sum function's start optional parameter documented in help but
+https://bugs.python.org/issue36491  closed by rhettinger
+
+#36492: Deprecate passing some conflicting arguments by keyword
+https://bugs.python.org/issue36492  closed by serhiy.storchaka
+
+#36493: Add math.midpoint(a,b) function
+https://bugs.python.org/issue36493  closed by scoder
+
+#36496: Local variables can be used uninitialized in _PyPreConfig_Read
+https://bugs.python.org/issue36496  closed by vstinner
+
+#36498: combining dict comprehensing and lists lead to IndexError
+https://bugs.python.org/issue36498  closed by SilentGhost
+
+#36499: unpickling of a datetime object in 3.5 fails when pickled with
+https://bugs.python.org/issue36499  closed by josh.r
+
+#36505: PYTHON-CAN with vector
+https://bugs.python.org/issue36505  closed by SilentGhost
+
+#36507: frozenset type breaks ZFC
+https://bugs.python.org/issue36507  closed by rhettinger
+
+#36510: Regular Expression Dot-Star patter matching  - re- text skippi
+https://bugs.python.org/issue36510  closed by SilentGhost
+
+#36514: -m switch revisited
+https://bugs.python.org/issue36514  closed by ronaldoussoren
+
+#36522: http/client.py does not print duplicate header values in debug
+https://bugs.python.org/issue36522  closed by serhiy.storchaka
+
+#36524: identity operator
+https://bugs.python.org/issue36524  closed by SilentGhost
+
+#36525: Deprecate instancemethod
+https://bugs.python.org/issue36525  closed by christian.heimes
+
+#36526: python crash when loading some .pyc file
+https://bugs.python.org/issue36526  closed by serhiy.storchaka
+
+#36530: Document codecs decode_encode() and encode_decode() APIs
+https://bugs.python.org/issue36530  closed by gregory.p.smith
+
+#36536: is there a python implementation of the cpython commandline in
+https://bugs.python.org/issue36536  closed by larry
+
+From J.Demeyer at UGent.be  Fri Apr  5 14:29:00 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 5 Apr 2019 20:29:00 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <CAP7+vJ++UWWSyaBwdpH2Kuu5tZ=s+2GvB=LnF8a4POy1BMv5nQ@mail.gmail.com>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <CAP7+vJ++UWWSyaBwdpH2Kuu5tZ=s+2GvB=LnF8a4POy1BMv5nQ@mail.gmail.com>
+Message-ID: <5CA79E6C.904@UGent.be>
+
+On 2019-04-05 17:46, Guido van Rossum wrote:
+> This API is doing no harm, it's not a maintenance
+> burden
+
+What if the following happens?
+
+1. For some reason (possibly because of this thread), people discover 
+instancemethod and start using it.
+
+2. People realize that it's slow.
+
+3. It needs to be made more efficient, causing new code bloat and 
+maintenance burden.
+
+> clearly *some* folks have a use for it.
+
+I'm not convinced. I don't think that instancemethod is the right 
+solution for functools.total_ordering for example.
+
+
+Jeroen.
+
+From brett at python.org  Fri Apr  5 15:58:47 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 5 Apr 2019 12:58:47 -0700
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CA79E6C.904@UGent.be>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <CAP7+vJ++UWWSyaBwdpH2Kuu5tZ=s+2GvB=LnF8a4POy1BMv5nQ@mail.gmail.com>
+ <5CA79E6C.904@UGent.be>
+Message-ID: <CAP1=2W5sTRvOgMLtWn7-UKa=wHZ4-JTOSypcZrTnN1ejNdJ+iw@mail.gmail.com>
+
+On Fri, Apr 5, 2019 at 11:30 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> On 2019-04-05 17:46, Guido van Rossum wrote:
+> > This API is doing no harm, it's not a maintenance
+> > burden
+>
+> What if the following happens?
+>
+> 1. For some reason (possibly because of this thread), people discover
+> instancemethod and start using it.
+>
+> 2. People realize that it's slow.
+>
+> 3. It needs to be made more efficient, causing new code bloat and
+> maintenance burden.
+>
+
+Then we can consider improving the documentation if there are performance
+implications. But the point is if there's code out there already using it
+without issue then ripping it out of the C API is painful since we don't
+have nearly as good of a deprecation setup as we do in Python code. Not
+everything about the C APi is about performance.
+
+-Brett
+
+
+>
+> > clearly *some* folks have a use for it.
+>
+> I'm not convinced.
+
+
+OK, but as of right now others like me are convinced and we typically err
+on the side of backwards-compatibility in these kinds of situations.
+
+-Brett
+
+
+> I don't think that instancemethod is the right
+> solution for functools.total_ordering for example.
+>
+>
+> Jeroen.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190405/0a9627bc/attachment.html>
+
+From J.Demeyer at UGent.be  Fri Apr  5 16:09:48 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 5 Apr 2019 22:09:48 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <CAP1=2W5sTRvOgMLtWn7-UKa=wHZ4-JTOSypcZrTnN1ejNdJ+iw@mail.gmail.com>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <CAP7+vJ++UWWSyaBwdpH2Kuu5tZ=s+2GvB=LnF8a4POy1BMv5nQ@mail.gmail.com>
+ <5CA79E6C.904@UGent.be>
+ <CAP1=2W5sTRvOgMLtWn7-UKa=wHZ4-JTOSypcZrTnN1ejNdJ+iw@mail.gmail.com>
+Message-ID: <5CA7B60C.1060605@UGent.be>
+
+On 2019-04-05 21:58, Brett Cannon wrote:
+> Then we can consider improving the documentation if there are
+> performance implications.
+
+Sure, we could write in the docs something like "Don't use this, this is 
+not what you want. It's slow and there are better alternatives like 
+method descriptors". Should I do that (with better wording of course)?
+
+> since we don't have nearly as good of a deprecation setup as we
+> do in Python code.
+
+I don't get this. One can easily raise a DeprecationWarning from C code, 
+there is plenty of code already doing that.
+
+
+Jeroen.
+
+From brett at python.org  Fri Apr  5 20:30:31 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 5 Apr 2019 17:30:31 -0700
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CA7B60C.1060605@UGent.be>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <CAP7+vJ++UWWSyaBwdpH2Kuu5tZ=s+2GvB=LnF8a4POy1BMv5nQ@mail.gmail.com>
+ <5CA79E6C.904@UGent.be>
+ <CAP1=2W5sTRvOgMLtWn7-UKa=wHZ4-JTOSypcZrTnN1ejNdJ+iw@mail.gmail.com>
+ <5CA7B60C.1060605@UGent.be>
+Message-ID: <CAP1=2W5w6qsdc3u0Kn4tp5=V3zt7LTumPL17pLzN3Q6i6G9nZQ@mail.gmail.com>
+
+On Fri, Apr 5, 2019 at 1:11 PM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> On 2019-04-05 21:58, Brett Cannon wrote:
+> > Then we can consider improving the documentation if there are
+> > performance implications.
+>
+> Sure, we could write in the docs something like "Don't use this, this is
+> not what you want. It's slow and there are better alternatives like
+> method descriptors". Should I do that (with better wording of course)?
+>
+
+Up to you. Obviously help is always  appreciated, just a question of who
+feels qualified to review the PR.
+
+
+>
+> > since we don't have nearly as good of a deprecation setup as we
+> > do in Python code.
+>
+> I don't get this. One can easily raise a DeprecationWarning from C code,
+> there is plenty of code already doing that.
+>
+
+True. I personally prefer compile-time warnings for that sort of thing, but
+you're right we can do it at the Python "level" with a raise of a
+DeprecationWarning on those instances.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190405/bf387f19/attachment.html>
+
+From doko at ubuntu.com  Fri Apr  5 22:39:49 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Sat, 6 Apr 2019 04:39:49 +0200
+Subject: [Python-Dev] PEP-582 and multiple Python installations
+In-Reply-To: <2b889555-db6f-6c69-0347-ebb89d6fec21@python.org>
+References: <CACo5Rz4X+d7mQ1EH=w4geg2q=PMVvrnm3L2sD5+wyd42B_LvsQ@mail.gmail.com>
+ <2b889555-db6f-6c69-0347-ebb89d6fec21@python.org>
+Message-ID: <46858269-5ce0-5f70-9a08-f22135b5c1e9@ubuntu.com>
+
+On 02.04.19 18:10, Steve Dower wrote:
+> On 02Apr2019 0817, Calvin Spealman wrote:
+>> (I originally posted this to python-ideas, where I was told none of this PEP's
+>> authors subscribe so probably no one will see it there, so I'm posting it here
+>> to raise the issue where it can get seen and hopefully discussed)
+> 
+> Correct, thanks for posting. (I thought we had a "discussions-to" tag with
+> distutils-sig on it, but apparently not.)
+> 
+>> While the PEP does show the version number as part of the path to the actual
+>> packages, implying support for multiple versions, this doesn't seem to be
+>> spelled out in the actual text. Presumably __pypackages__/3.8/ might sit
+>> beside __pypackages__/3.9/, etc. to keep future versions capable of installing
+>> packages for each version, the way virtualenv today is bound to one version of
+>> Python.
+>>
+>> I'd like to raise a potential edge case that might be a problem, and likely an
+>> increasingly common one: users with multiple installations of the *same*
+>> version of Python. This is actually a common setup for Windows users who use
+>> WSL, Microsoft's Linux-on-Windows solution, as you could have both the Windows
+>> and Linux builds of a given Python version installed on the same machine. The
+>> currently implied support for multiple versions would not be able to separate
+>> these and could create problems if users pip install a Windows binary package
+>> through Powershell and then try to run a script in Bash from the same
+>> directory, causing the Linux version of Python to try to use Windows python
+>> packages.
+>>
+>> I'm not actually sure what the solution here is. Mostly I wanted to raise the
+>> concern, because I'm very keen on WSL being a great entry path for new
+>> developers and I want to make that a better experience, not a more confusing
+>> one. Maybe that version number could include some other unique identify, maybe
+>> based on Python's own executable. A hash maybe? I don't know if anything like
+>> that already exists to uniquely identify a Python build or installation.
+> 
+> Yes, this is a situation we're aware of, and it's caught in the conflict of "who
+> is this feature meant to support".
+
+This smells the same like mixing system installed python packages (deb/rpm) with
+one managed by pip, and pip touching system installed packages.
+
+> Since all platforms have a unique extension module suffix (e.g.
+> "module.cp38-win32.pyd"), it would be possible to support this with "fat"
+> packages that include all binaries (or some clever way of merging wheels for
+> multiple platforms).
+
+unfortunately not. The Android developers opted out of that, reverting that
+change.  Also how would you differentiate win32 builds for different
+architectures? But maybe this is already done.
+
+> And since this is already in CPython itself, it leads to about the only
+> reasonable solution - instead of "3.8", use the extension module suffix
+> "cp38-win32". (Wheel tags are not in core CPython, so we can't use those.)
+> 
+> But while this seems obvious, it also reintroduces problems that this has the
+> potential to fix - suddenly, just like installing into your global environment,
+> your packages are not project-specific anymore but are Python-specific. Which is
+> one of the major confusions people run into ("I pip installed X but now can't
+> import it in python").
+> 
+> So the main points of discussion right now are "whose problem does this solve"
+> and "when do we tell people they need a full venv". And that discussion is
+> mostly happening at
+> https://discuss.python.org/t/pep-582-python-local-packages-directory/963/
+> 
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/doko%40ubuntu.com
+
+
+From songofacandy at gmail.com  Sat Apr  6 01:09:37 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Sat, 6 Apr 2019 14:09:37 +0900
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGGJKOwCbnpRz2VxU5vA3xeOxfB-C8xx+3fpSKEzqg7qeQ@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+ <CA+3bQGGJKOwCbnpRz2VxU5vA3xeOxfB-C8xx+3fpSKEzqg7qeQ@mail.gmail.com>
+Message-ID: <CAEfz+TwZrMDcQSHeyS2wJQMsqD2xO9ieiUfoJ02gC5tZaMv2=w@mail.gmail.com>
+
+On Sat, Apr 6, 2019 at 1:13 AM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> > > ``PyPreConfig`` fields:
+> > >
+> > > * ``coerce_c_locale_warn``: if non-zero, emit a warning if the C locale
+> > >   is coerced.
+> > > * ``coerce_c_locale``: if equals to 2, coerce the C locale; if equals to
+> > >   1, read the LC_CTYPE to decide if it should be coerced.
+> >
+> > Can we use another value for coerce_c_locale to determine whether to
+> > warn or not? Save a field.
+>
+> coerce_c_locale is already complex, it can have 4 values: -1, 0, 1 and 2.
+> I prefer keep a separated field.
+>
+> Moreover, I understood that you might want to coerce the C locale *and*
+> get the warning, or get the warning but *not* coerce the locale.
+>
+
+Are these configurations are really needed?
+
+Applications embedding Python may not initialize Python interpreter at first.
+For example, vim initializes Python when Python is used first time.
+
+On the other hand, C locale coercion should be done ASAP application starts.
+
+I think dedicated API for coercing C locale is better than preconfig.
+
+// When application starts:
+Py_CoerceCLocale(warn=0);
+
+// later...
+Py_Initialize();
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
