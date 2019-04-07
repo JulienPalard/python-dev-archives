@@ -2797,3 +2797,215 @@ Py_Initialize();
 -- 
 Inada Naoki  <songofacandy at gmail.com>
 
+From vstinner at redhat.com  Sat Apr  6 09:37:28 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 6 Apr 2019 15:37:28 +0200
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CAEfz+TwZrMDcQSHeyS2wJQMsqD2xO9ieiUfoJ02gC5tZaMv2=w@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+ <CA+3bQGGJKOwCbnpRz2VxU5vA3xeOxfB-C8xx+3fpSKEzqg7qeQ@mail.gmail.com>
+ <CAEfz+TwZrMDcQSHeyS2wJQMsqD2xO9ieiUfoJ02gC5tZaMv2=w@mail.gmail.com>
+Message-ID: <CA+3bQGFEtz-PT_yoCtdqzXo2iEMyZSppAoRdKoMqbhO0vQF6hg@mail.gmail.com>
+
+Maybe I should clarify in the PEP 587 Rationale what are the use cases for
+the API. Embeding Python is one kind of use case, but writing your own
+Python with a specific config like "isolated Python" or "system Python" is
+also a valid use case. For a custom Python, you might want to get C locale
+coercion and UTF-8 Mode.
+
+The most common case is to embed Python in an application like Blender or
+vim: the application already executes a lot of code and manipulated strings
+and encoding before Python is initialized, so Python must not coerce the C
+locale in that case. That's why Nick and me decided to disable C loclae
+coercion and UTF-8 Mode by default when the C API is used.
+
+Victor
+
+Le samedi 6 avril 2019, Inada Naoki <songofacandy at gmail.com> a ?crit :
+> On Sat, Apr 6, 2019 at 1:13 AM Victor Stinner <vstinner at redhat.com> wrote:
+>>
+>> > > ``PyPreConfig`` fields:
+>> > >
+>> > > * ``coerce_c_locale_warn``: if non-zero, emit a warning if the C
+locale
+>> > >   is coerced.
+>> > > * ``coerce_c_locale``: if equals to 2, coerce the C locale; if
+equals to
+>> > >   1, read the LC_CTYPE to decide if it should be coerced.
+>> >
+>> > Can we use another value for coerce_c_locale to determine whether to
+>> > warn or not? Save a field.
+>>
+>> coerce_c_locale is already complex, it can have 4 values: -1, 0, 1 and 2.
+>> I prefer keep a separated field.
+>>
+>> Moreover, I understood that you might want to coerce the C locale *and*
+>> get the warning, or get the warning but *not* coerce the locale.
+>>
+>
+> Are these configurations are really needed?
+>
+> Applications embedding Python may not initialize Python interpreter at
+first.
+> For example, vim initializes Python when Python is used first time.
+>
+> On the other hand, C locale coercion should be done ASAP application
+starts.
+>
+> I think dedicated API for coercing C locale is better than preconfig.
+>
+> // When application starts:
+> Py_CoerceCLocale(warn=0);
+>
+> // later...
+> Py_Initialize();
+>
+> --
+> Inada Naoki  <songofacandy at gmail.com>
+>
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190406/39bde335/attachment.html>
+
+From ncoghlan at gmail.com  Sat Apr  6 22:45:36 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 7 Apr 2019 12:45:36 +1000
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGGJKOwCbnpRz2VxU5vA3xeOxfB-C8xx+3fpSKEzqg7qeQ@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+ <CA+3bQGGJKOwCbnpRz2VxU5vA3xeOxfB-C8xx+3fpSKEzqg7qeQ@mail.gmail.com>
+Message-ID: <CADiSq7ddOeocCAQWT6eLu74oDhyDmj=jxQ8PQSJ9YWFNra7ZCA@mail.gmail.com>
+
+On Sat, 6 Apr 2019 at 02:16, Victor Stinner <vstinner at redhat.com> wrote:
+> > > ``PyPreConfig`` fields:
+> > >
+> > > * ``coerce_c_locale_warn``: if non-zero, emit a warning if the C locale
+> > >   is coerced.
+> > > * ``coerce_c_locale``: if equals to 2, coerce the C locale; if equals to
+> > >   1, read the LC_CTYPE to decide if it should be coerced.
+> >
+> > Can we use another value for coerce_c_locale to determine whether to
+> > warn or not? Save a field.
+>
+> coerce_c_locale is already complex, it can have 4 values: -1, 0, 1 and 2.
+> I prefer keep a separated field.
+>
+> Moreover, I understood that you might want to coerce the C locale *and*
+> get the warning, or get the warning but *not* coerce the locale.
+
+Yeah, that's how they ended up being two different fields in the first
+place. However, I wonder if the two fields might be better named:
+
+* warn_on_legacy_c_locale
+* coerce_legacy_c_locale
+
+Neither set: legacy C locale is left alone
+Only warning flag set: complain about the legacy C locale on stderr
+Only coercion flag set: silently attempt to coerce the legacy C locale
+to a UTF-8 based one
+Both flags set: attempt the coercion, and then complain about it on
+stderr (regardless of whether the coercion succeeded or not)
+
+The original PEP 580 implementation tried to keep the config API
+simpler by always complaining, but that turned out to break the world
+(plenty of contexts where things get upset by unexpected output on
+stderr).
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From ncoghlan at gmail.com  Sat Apr  6 22:49:10 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Sun, 7 Apr 2019 12:49:10 +1000
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CADiSq7ddOeocCAQWT6eLu74oDhyDmj=jxQ8PQSJ9YWFNra7ZCA@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+ <CA+3bQGGJKOwCbnpRz2VxU5vA3xeOxfB-C8xx+3fpSKEzqg7qeQ@mail.gmail.com>
+ <CADiSq7ddOeocCAQWT6eLu74oDhyDmj=jxQ8PQSJ9YWFNra7ZCA@mail.gmail.com>
+Message-ID: <CADiSq7c3beA7A-8asxKnXV_cVj-ai6nafbaPLZ5qfX2GfPoDVQ@mail.gmail.com>
+
+On Sun, 7 Apr 2019 at 12:45, Nick Coghlan <ncoghlan at gmail.com> wrote:
+> The original PEP 580 implementation tried to keep the config API
+> simpler by always complaining, but that turned out to break the world
+> (plenty of contexts where things get upset by unexpected output on
+> stderr).
+
+Err, PEP 538. No idea why my brain swapped in the wrong PEP number :)
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From storchaka at gmail.com  Sun Apr  7 03:48:45 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Sun, 7 Apr 2019 10:48:45 +0300
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CA796B8.1000202@UGent.be>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <q8815h$751n$1@blaine.gmane.org> <5CA796B8.1000202@UGent.be>
+Message-ID: <q8c6g7$33m5$1@blaine.gmane.org>
+
+05.04.19 20:56, Jeroen Demeyer ????:
+> On 2019-04-05 19:53, Serhiy Storchaka wrote:
+>> At Python level we can monkeypatch __gt__, but not tp_richcompare.
+> 
+> Sure, but you're planning to use C anyway so that's not really an argument.
+
+total_ordering monkeypatches the decorated class. I'm planning to 
+implement in C methods that implement __gt__ in terms of __lt__ etc.
+
+
+From J.Demeyer at UGent.be  Sun Apr  7 03:15:57 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Sun, 7 Apr 2019 09:15:57 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <q8c6g7$33m5$1@blaine.gmane.org>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <q8815h$751n$1@blaine.gmane.org> <5CA796B8.1000202@UGent.be>
+ <q8c6g7$33m5$1@blaine.gmane.org>
+Message-ID: <5CA9A3AD.1010300@UGent.be>
+
+On 2019-04-07 09:48, Serhiy Storchaka wrote:
+> total_ordering monkeypatches the decorated class. I'm planning to
+> implement in C methods that implement __gt__ in terms of __lt__ etc.
+
+Yes, I understood that. I'm just saying: if you want to make it fast, 
+that's not the best solution. The fastest would be to implement 
+tp_richcompare from scratch (instead of relying on slot_tp_richcompare 
+dispatching to methods).
+
