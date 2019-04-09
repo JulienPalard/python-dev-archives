@@ -3070,3 +3070,131 @@ Karthikeyan S
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190408/b75c1036/attachment.html>
 
+From xdegaye at gmail.com  Mon Apr  8 06:09:08 2019
+From: xdegaye at gmail.com (Xavier de Gaye)
+Date: Mon, 8 Apr 2019 12:09:08 +0200
+Subject: [Python-Dev] bedevere pipelines hang on github
+In-Reply-To: <CAAjsFLT1hcu9K_p+ZLTjX1_+mYPYUTjW1esKghae5br=JY4sog@mail.gmail.com>
+References: <CAN4cRFyRxOHZFY+9dvd3hMvs+cRxKTbbtWM9LYb4yACX97nwKQ@mail.gmail.com>
+ <CANiJEH_eZpUNAYeP69SBMPYMg1dTo1k4Cue8pUDp_Pgp=i615A@mail.gmail.com>
+ <CAAjsFLT1hcu9K_p+ZLTjX1_+mYPYUTjW1esKghae5br=JY4sog@mail.gmail.com>
+Message-ID: <CAN4cRFw+o4U2qaP-Ot9weCL0C=X9rP22rwS=Q2DLN0n4S8YnBg@mail.gmail.com>
+
+Thanks.
+
+Xavier
+
+From robert.wd.white at gmail.com  Mon Apr  8 11:08:40 2019
+From: robert.wd.white at gmail.com (Robert White)
+Date: Mon, 8 Apr 2019 10:08:40 -0500
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CA9A3AD.1010300@UGent.be>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <q8815h$751n$1@blaine.gmane.org> <5CA796B8.1000202@UGent.be>
+ <q8c6g7$33m5$1@blaine.gmane.org> <5CA9A3AD.1010300@UGent.be>
+Message-ID: <CALh2GU67VRhspkE9aa82rhkDXXcgK7=mSHH3Wu8zMXOenuK0pA@mail.gmail.com>
+
+So we're making pretty heavy use of PyInstanceMethod_New in our python
+binding library that we've written for a bunch of in house tools.
+If this isn't the best / correct way to go about adding methods to objects,
+what should we be using instead?
+
+
+On Sun, Apr 7, 2019 at 2:17 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> On 2019-04-07 09:48, Serhiy Storchaka wrote:
+> > total_ordering monkeypatches the decorated class. I'm planning to
+> > implement in C methods that implement __gt__ in terms of __lt__ etc.
+>
+> Yes, I understood that. I'm just saying: if you want to make it fast,
+> that's not the best solution. The fastest would be to implement
+> tp_richcompare from scratch (instead of relying on slot_tp_richcompare
+> dispatching to methods).
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/robert.wd.white%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190408/98806081/attachment.html>
+
+From J.Demeyer at UGent.be  Mon Apr  8 11:24:34 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Mon, 8 Apr 2019 17:24:34 +0200
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <CALh2GU67VRhspkE9aa82rhkDXXcgK7=mSHH3Wu8zMXOenuK0pA@mail.gmail.com>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <q8815h$751n$1@blaine.gmane.org> <5CA796B8.1000202@UGent.be>
+ <q8c6g7$33m5$1@blaine.gmane.org> <5CA9A3AD.1010300@UGent.be>
+ <CALh2GU67VRhspkE9aa82rhkDXXcgK7=mSHH3Wu8zMXOenuK0pA@mail.gmail.com>
+Message-ID: <5CAB67B2.6010106@UGent.be>
+
+On 2019-04-08 17:08, Robert White wrote:
+> So we're making pretty heavy use of PyInstanceMethod_New in our python
+> binding library that we've written for a bunch of in house tools.
+> If this isn't the best / correct way to go about adding methods to
+> objects, what should we be using instead?
+
+First of all, the consensus in this thread is not to deprecate 
+instancemethod.
+
+Well, it depends what you mean with "adding methods to objects", that's 
+vaguely formulated. Do you mean adding methods at run-time (a.k.a. 
+monkey-patching) to a pre-existing class? And is the process of adding 
+methods done in C or in Python?
+
+Do you only need PyInstanceMethod_New() or also other 
+PyInstanceMethod_XXX functions/macros?
+
+From robert.wd.white at gmail.com  Mon Apr  8 11:45:24 2019
+From: robert.wd.white at gmail.com (Robert White)
+Date: Mon, 8 Apr 2019 10:45:24 -0500
+Subject: [Python-Dev] Deprecating "instance method" class
+In-Reply-To: <5CAB67B2.6010106@UGent.be>
+References: <5CA5EFCC.2030400@UGent.be> <q84s68$3k09$1@blaine.gmane.org>
+ <5CA68BBC.8060205@canterbury.ac.nz> <5CA6F09D.3000900@UGent.be>
+ <q87d3q$6eob$1@blaine.gmane.org> <5CA73B95.6040509@UGent.be>
+ <q87gp1$7elo$1@blaine.gmane.org> <5CA74B19.70806@UGent.be>
+ <q8815h$751n$1@blaine.gmane.org> <5CA796B8.1000202@UGent.be>
+ <q8c6g7$33m5$1@blaine.gmane.org> <5CA9A3AD.1010300@UGent.be>
+ <CALh2GU67VRhspkE9aa82rhkDXXcgK7=mSHH3Wu8zMXOenuK0pA@mail.gmail.com>
+ <5CAB67B2.6010106@UGent.be>
+Message-ID: <CALh2GU7tSnn2xNBu+EnV0GOvfNzviyZze_k0wcTv04knjPX3aA@mail.gmail.com>
+
+Just PyInstanceMethod_New, and by "adding methods to objects" this is
+adding C functions to types defined in C.
+
+Only appears to be called at module import / creation time.
+
+On Mon, Apr 8, 2019 at 10:24 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> On 2019-04-08 17:08, Robert White wrote:
+> > So we're making pretty heavy use of PyInstanceMethod_New in our python
+> > binding library that we've written for a bunch of in house tools.
+> > If this isn't the best / correct way to go about adding methods to
+> > objects, what should we be using instead?
+>
+> First of all, the consensus in this thread is not to deprecate
+> instancemethod.
+>
+> Well, it depends what you mean with "adding methods to objects", that's
+> vaguely formulated. Do you mean adding methods at run-time (a.k.a.
+> monkey-patching) to a pre-existing class? And is the process of adding
+> methods done in C or in Python?
+>
+> Do you only need PyInstanceMethod_New() or also other
+> PyInstanceMethod_XXX functions/macros?
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190408/3598a625/attachment.html>
+
