@@ -3198,3 +3198,607 @@ On Mon, Apr 8, 2019 at 10:24 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190408/3598a625/attachment.html>
 
+From vstinner at redhat.com  Tue Apr  9 10:22:56 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 9 Apr 2019 16:22:56 +0200
+Subject: [Python-Dev] Need help to fix HTTP Header Injection vulnerability
+Message-ID: <CA+3bQGGibCpRe_qomcTVRQ=u1X7KMFYDPOCV+dtazs9ktUr9hA@mail.gmail.com>
+
+Hi,
+
+
+In May 2017, user "Orange" found a vulnerability in the urllib fix for
+CVE-2016-5699 (HTTP Header Injection vulnerability):
+https://bugs.python.org/issue30458
+
+It allows to inject arbitrary HTTP headers.
+
+Copy of their message:
+
+"""
+Hi, the patch in CVE-2016-5699 can be broke by an addition space.
+http://www.cvedetails.com/cve/CVE-2016-5699/
+https://hg.python.org/cpython/rev/bf3e1c9b80e9
+https://hg.python.org/cpython/rev/1c45047c5102
+
+import urllib, urllib2
+
+urllib.urlopen('http://127.0.0.1\r\n\x20hihi\r\n :11211')
+urllib2.urlopen('http://127.0.0.1\r\n\x20hihi\r\n :11211')
+"""
+
+Last month, the same bug has been rediscovered by user "ragdoll.guo":
+https://bugs.python.org/issue36276
+
+Almost one year after the bug has been reported, no one came with a solution.
+
+I'm not comfortable with having known security issues impacting HTTP.
+Can someone please have a look at the issue and try to write a change
+to fix the issue?
+
+According to Karthikeyan Singaravelan, the Go language fixed a similar
+issue in Go 1.12: throw an error if the URL contains any control
+character.
+
+If we decide that the issue is not a security issue, we should
+document the behavior properly and close the issue.
+
+See also this related issue:
+
+   "urlopen URL with unescaped space"
+   https://bugs.python.org/issue14826
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Tue Apr  9 12:25:25 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 9 Apr 2019 18:25:25 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+Message-ID: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+
+Hi,
+
+When Python is built in debug mode, PyObject gets 2 new fields:
+_ob_prev and _ob_next. These fields change the offset of following
+fields in the PyObject structure and so breaks the ABI.
+
+I propose to modify the debug build (Py_DEBUG) to no longer imply
+Py_TRACE_REFS. Antoine Pitrou proposed this idea when the C API was
+discussed to get a stable ABI.
+
+https://bugs.python.org/issue36465
+https://github.com/python/cpython/pull/12615
+
+This change makes the debug build ABI closer to the release build ABI,
+but I am not sure how to compare these two ABI. Technically, C
+extensions still need to be recompiled.
+
+What do you think?
+
+--
+
+I also wrote a PR to remove all code related to Py_TRACE_REFS:
+https://github.com/python/cpython/pull/12614
+
+I don't think that it's right approach. I prefer to keep this special
+build around to see if anyone needs it, and wait one or two Python
+releases to decide what to do with it.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From steve.dower at python.org  Tue Apr  9 16:16:29 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 9 Apr 2019 13:16:29 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+Message-ID: <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+
+On 09Apr2019 0925, Victor Stinner wrote:
+> This change makes the debug build ABI closer to the release build ABI,
+> but I am not sure how to compare these two ABI. Technically, C
+> extensions still need to be recompiled.
+> 
+> What do you think?
+
+What are the other changes that would be required? And is there another 
+way to get the same functionality without ABI modifications?
+
+I think it's worthwhile if we can really get to debug and non-debug 
+builds being ABI compatible. Getting partway there in this case doesn't 
+seem to offer any benefits.
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Tue Apr  9 16:20:46 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 9 Apr 2019 13:20:46 -0700
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGG+rpjpfnrdRCG-mfY7yszzVHMnuF1dniFP0FXpri3M0g@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+ <CA+3bQGG+rpjpfnrdRCG-mfY7yszzVHMnuF1dniFP0FXpri3M0g@mail.gmail.com>
+Message-ID: <bd5dad5f-59c3-8261-7036-514a6c1411e2@python.org>
+
+Thanks for the replies. Anything I don't comment on means that I agree 
+with you :)
+
+On 05Apr2019 0900, Victor Stinner wrote:
+> Honestly, I'm not sure that we really have to distinguish "user error" and
+> "internal error". It's an old debate about calling abort()/DebugBreak() or
+> not. It seems like most users are annoyed by getting a coredump on Unix
+> when abort() is called.
+
+I'm also annoyed by the crash reports on Windows when "encodings" cannot 
+be found (because occasionally there are enough of them that the Windows 
+team starts reviewing the issue, and I get pulled in to review and 
+resolve their bugs).
+
+> Maybe we should just remove Py_INIT_USER_ERR(), always use Py_INIT_ERR(),
+> and never call abort()/DebugBreak() in Py_ExitInitError().
+
+Not calling abort() sounds fine to me. Embedders would likely prefer an 
+error code rather than a crash, but IIRC they'd have to call 
+Py_ExitInitError() to get the crash anyway, right?
+
+> Or does anyone see a good reason to trigger a debugger on an
+> initialization error?
+
+Only before returning from the point where the error occurs. By the time 
+you've returned the error value all the useful context is gone.
+
+> Note: I'm not talking about Py_FatalError() here, this one will not
+> change.
+
+Does this get called as part of initialization? If not, I'm fine with it 
+not changing.
+
+Cheers,
+Steve
+
+
+From steve.dower at python.org  Tue Apr  9 16:39:59 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 9 Apr 2019 13:39:59 -0700
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGGJKOwCbnpRz2VxU5vA3xeOxfB-C8xx+3fpSKEzqg7qeQ@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+ <CA+3bQGGJKOwCbnpRz2VxU5vA3xeOxfB-C8xx+3fpSKEzqg7qeQ@mail.gmail.com>
+Message-ID: <fba67d3e-fe21-b60d-36c3-03530d96f658@python.org>
+
+On 05Apr2019 0912, Victor Stinner wrote:
+> About PyPreConfig and encodings.
+> [...]
+>>> * ``PyInitError Py_PreInitialize(const PyPreConfig *config)``
+>>> * ``PyInitError Py_PreInitializeFromArgs( const PyPreConfig *config,
+>> int argc, char **argv)``
+>>> * ``PyInitError Py_PreInitializeFromWideArgs( const PyPreConfig
+>> *config, int argc, wchar_t **argv)``
+>>
+>> I hope to one day be able to support multiple runtimes per process - can
+>> we have an opaque PyRuntime object exposed publicly now and passed into
+>> these functions?
+> 
+> I hesitated to include a "_PyRuntimeState*" parameter somewhere, but I
+> chose to not do so.
+> 
+> Currently, there is a single global variable _PyRuntime which has the type
+> _PyRuntimeState. The _PyRuntime_Initialize() API is designed around this
+> global variable. For example, _PyRuntimeState contains the registry of
+> interpreters: you don't want to have multiple registries :-)
+> 
+> I understood that we should only have a single instance of
+> _PyRuntimeState. So IMHO it's fine to keep it private at this point.
+> There is no need to expose it in the API.
+
+So I didn't want to expose that particular object right now, but just 
+some sort of "void*" parameter in the new APIs (and require either NULL 
+or a known value be passed). That gives us the freedom to enable 
+multiple runtimes in the future without having to change the API shape.
+
+> FYI I tried to design an internal API with a "context" to pass
+> _PyRuntimeState, PyPreConfig, _PyConfig, the current interpreter, etc.
+> [...]
+> There are 2 possible implementations:
+> 
+> * Modify *all* functions to add a new "context" parameter and modify *all*
+>    functions to pass this parameter to sub-functions.
+> * Store the current "context" as a thread local variable or something like
+>    that.
+> [...]
+> For the second option: well, there is no API change needed!
+> It can be done later.
+> Moreover, we already have such API! PyThreadState_Get() gets the Python
+> thread state of the current thread: the current interpreter can be
+> accessed from there.
+
+Yes, this is what I had in mind as a transition. I think eventually it 
+would be best to have the context parameter, as thread-local variables 
+have overhead and add significant complexity (particularly when 
+debugging crashes), but making that change is huge.
+
+>>> ``PyPreConfig`` fields:
+>>>
+>>> * ``coerce_c_locale_warn``: if non-zero, emit a warning if the C locale
+>>>    is coerced.
+>>> * ``coerce_c_locale``: if equals to 2, coerce the C locale; if equals to
+>>>    1, read the LC_CTYPE to decide if it should be coerced.
+>>
+>> Can we use another value for coerce_c_locale to determine whether to
+>> warn or not? Save a field.
+> 
+> coerce_c_locale is already complex, it can have 4 values: -1, 0, 1 and 2.
+> I prefer keep a separated field.
+> 
+> Moreover, I understood that you might want to coerce the C locale *and*
+> get the warning, or get the warning but *not* coerce the locale.
+
+If we define meaningful constants, then it doesn't matter how many 
+values it has. We could have PY_COERCE_LOCALE_AND_WARN, 
+PY_COERCE_LOCALE_SILENTLY, PY_WARN_WITHOUT_COERCE etc. to represent the 
+states. These actually make things simpler than trying to reason about 
+how two similar parameters interact.
+
+>>> * ``legacy_windows_fs_encoding`` (Windows only): if non-zero, set the
+>>>    Python filesystem encoding to ``"mbcs"``.
+>>> * ``utf8_mode``: if non-zero, enable the UTF-8 mode
+>>
+>> Why not just set the encodings here?
+> 
+> For different technical reasons, you simply cannot specify an encoding
+> name. You can also pass options to tell Python that you have some
+> preferences (PyPreConfig and PyConfig fields).
+> 
+> Python doesn't support any encoding and encoding errors combinations. In
+> practice, it only supports a narrow set of choices. The main implementation are
+> Py_EncodeLocale() and Py_DecodeLocale() functions which uses the C codec
+> of the current locale encoding to implement the filesystem encoding,
+> before the codec implemented in Python can be used.
+> 
+> Basically, only the current locale encoding or UTF-8 are supported.
+> If you want UTF-8, enable the UTF-8 Mode.
+
+If we already had a trivial way to specify the default encodings as a 
+string before any initialization has occurred, I think we would have 
+made UTF-8 mode enabled by setting them to "utf-8" rather than a brand 
+new flag.
+
+Again, we either have a huge set of flags to infer certain values at 
+certain times, or we can just make them directly settable. If we make 
+them settable, it's much easier for users to reason about what is going 
+to happen.
+
+> To load the Python codec, you need importlib. importlib needs to access
+> the filesystem which requires a codec to encode/decode file names
+> (PyConfig.module_search_paths uses Unicode wchar_t* strings, but the C API
+> only supports bytes char* strings).
+
+Right, and the few places where we need an encoding *before* we can load 
+any arbitrary ones we can easily compare the strings and fail if 
+someone's trying to do something unusual (or if the platform can do the 
+lookup itself, it could succeed). If we say "passing NULL means use the 
+default" then we have that handled, and the actual encoding just gets 
+set to the real default once we figure out what that is.
+
+> Py_PreInitialize() doesn't set the filesystem encoding. It initializes the
+> LC_CTYPE locale and Python global configuration variables (Py_UTF8Mode and
+> Py_LegacyWindowsFSEncodingFlag).
+
+Right, I'm proposing a simplification here where it *does* set the 
+filesystem encoding (even though it doesn't get used until 
+Py_Initialize() is called). That way we can use the filesystem encoding 
+to access the filesystem during initialization, provided it's one of the 
+built-in supported ones (e.g. NULL, which means the C locale, or "utf-8" 
+which means UTF-8) rather than relying on the tables in the standard 
+library.
+
+Oh look, I said all this in my original email:
+
+>> Obviously we are not ready to import most encodings after pre
+>> initialization, but I think that's okay. Embedders who set something
+>> outside the range of what can be used without importing encodings will
+>> get an error to that effect if we try.
+> 
+> You need a C implementation of the Python filesystem encoding very early
+> in Python initialization. You cannot start with one encoding and "later"
+> switch the encoding. I tried multiple times the last 10 years and I always
+> failed to do that. All attempts failed with mojibake at different
+> levels.
+
+Again, this is for embedders. Regular Python users will only ever 
+request "NULL" or "utf-8", depending on the UTF-8 mode flag. And 
+embedders have to make sure they get what they ask for and also can't 
+change it later.
+
+The problems you've hit in the past have always been to do with trying 
+to infer or guess the actual encoding, rather than simply letting 
+someone tell you what it is (via config) and letting them deal with the 
+failure.
+
+>> In fact, I'd be totally okay with letting embedders specify their own
+>> function pointer here to do encoding/decoding between Unicode and the OS
+>> preferred encoding.
+> 
+> In my experience, when someone wants to get a specific encoding: they
+> only want UTF-8. There is now the UTF-8 Mode which ignores the locale
+> and forces the usage of UTF-8.
+
+Your experience here sounds like it's limited to POSIX systems. I've 
+wanted UTF-16 before, and been able to provide it (if Python had allowed 
+me to provide a callback to encode/decode).
+
+And again, all this is about "why do we need to define a boolean that 
+determines what the encoding is when we can just let people tell us what 
+encoding they want". There's a good chance that an embedded Python isn't 
+going to touch the real filesystem anyway.
+
+> I'm not sure that there is a need to have a custom codec. Moreover, if
+> there an API to pass a codec in C, you will need to expose it somehow
+> at the Python level for os.fsencode() and os.fsdecode().
+
+We need to expose those operations anyway, and os.fsencode/fsdecode have 
+their own issues (particularly since there *are* ways to change 
+filesystem encoding while running). Turning them into actual native 
+functions that might call out to a host-provided callback would not be 
+difficult.
+
+> Currently, Python ensures during early stage of startup that
+> codecs.lookup(sys.getfilesystemencoding()) works: there is a existing
+> Python codec for the requested filesystem encoding.
+
+Right, it's a validation step. But we can also make 
+codecs.lookup("whatever the file system encoding is") return something 
+based on os.fsencode() and os.fsdecode(). We're not actually beholden to 
+the current implementations here - we are allowed to change them! ;)
+
+
+
+From steve.dower at python.org  Tue Apr  9 16:44:15 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 9 Apr 2019 13:44:15 -0700
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGH6j2-hx_MyZSKdUF6YY3qBuWUhrLksRyensXb6=T1qCw@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+ <CA+3bQGH6j2-hx_MyZSKdUF6YY3qBuWUhrLksRyensXb6=T1qCw@mail.gmail.com>
+Message-ID: <a42dfe61-eace-6066-6457-c86e1bb02251@python.org>
+
+On 05Apr2019 0922, Victor Stinner wrote:
+> While there are supporters of an "isolated Python" (sometimes called
+> "system python"), the fact that it doesn't exist in any Linux distribution
+> nor on any other operating system (Windows, macOS, FreeBSD), whereas it's
+> already doable in Python 3.6 with Py_IsolatedFlag=1 makes me think that
+> users like the ability to control Python with environment variables and
+> configuration files.
+> 
+> I would prefer to leave Python as not isolated by default. It's just a
+> matter of command line arguments.
+
+Not for embedders it isn't. When embedding you need to do a whole lot of 
+special things to make sure that your private version of Python doesn't 
+pick up settings relating to a regular Python install.
+
+
+We should make the Python runtime isolated by default, and only 
+(automatically) pick up settings from the environment in the Python binary.
+
+
+>>> * The PEP 432 stores ``PYTHONCASEOK`` into the config. Do we need
+>>>    to add something for that into ``PyConfig``? How would it be exposed
+>>>    at the Python level for ``importlib``? Passed as an argument to
+>>>    ``importlib._bootstrap._setup()`` maybe? It can be added later if
+>>>    needed.
+>>
+>> Could we convert it into an xoption? It's very rarely used, to my knowledge.
+> 
+> The first question is if there is any need for an embedder to change
+> this option. Currently, importlib._bootstrap_external._install() reads
+> the environment variable and it's the only way to control the option.
+
+I think the first question should be "is there any reason to prevent an 
+embedder from changing this option". In general, the answer is going to 
+be no. We should expose all the options we rely on to embedders, or else 
+they're going to have to find workarounds.
+
+> ... By the way, importlib reads PYTHONCASEOK environment varaible even
+> if isolated mode is enabled (sys.flags.isolated is equal to 1). Is it
+> a bug? :-)
+
+Yes, I think it's a bug. Perhaps this should become a proper 
+configuration option, rather than a directly-read environment variable?
+
+From steve.dower at python.org  Tue Apr  9 16:51:03 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 9 Apr 2019 13:51:03 -0700
+Subject: [Python-Dev] New Python Initialization API
+In-Reply-To: <CA+3bQGHvsUDfRm1MwHejznunO71fu2bpk-4Mxf52gjsJ2+k0jw@mail.gmail.com>
+References: <CA+3bQGHabA_eeDbTQ_KGSTgq9UKEdMuTDTbDXSMgs61SPGPmkQ@mail.gmail.com>
+ <70c245c7-8f40-a51b-934b-af958f7cd849@python.org>
+ <CAP1=2W6+udqgYbXCvGQAg4tbuKdU8LfrDeCrrvwMoxtZZ7UN1g@mail.gmail.com>
+ <CA+3bQGG3BAp_4pEqkY9JiJOEStkX4KA=cdaYbTv30FospKC-7w@mail.gmail.com>
+ <119e26f0-d826-7e13-aa4a-e0a67bea3265@python.org>
+ <CA+3bQGE+vLcsWpkQvSu_ThNvq3DYAR0pL=Z92FFLAUb+fVm2JQ@mail.gmail.com>
+ <91eec784-28ab-024f-42a6-8a1e5d37d9bf@python.org>
+ <6a17e990-7e2a-0544-1e8e-9b16d05e4df6@python.org>
+ <CA+3bQGHvsUDfRm1MwHejznunO71fu2bpk-4Mxf52gjsJ2+k0jw@mail.gmail.com>
+Message-ID: <a5159286-1f6a-e1f8-f1f8-9c758334b189@python.org>
+
+On 05Apr2019 0936, Victor Stinner wrote:
+> For the PyMainConfig structure idea, I cannot comment at this point. I
+> need more time to think about it.
+> 
+> 
+> About the "path configuration" fields, maybe a first step to enhance
+> the API would be to add the the following function:
+> 
+> PyInitError PyConfig_ComputePath(PyConfig *config, const wchar *home);
+> 
+> where home can be NULL (and PyConfig.module_search_paths_env field
+> goes away: the function reads PYTHONPATH env var internally).
+
+Yes, I like this. Maybe pass PYTHONPATH value in as an "additional 
+paths" parameter?
+
+Basically, this function would be the replacement for "Py_GetPath()" 
+(which initializes paths to the defaults the first time it is called), 
+and setting the path fields in PyConfig manually is the replacement for 
+Py_SetPath() (or calling the various Py_Set*() functions to make the 
+default logic infer the paths you want).
+
+Similarly, PyConfig_ComputeFromArgv() and/or 
+PyConfig_ComputeFromEnviron() functions would also directly replace the 
+magic we have scattered all over the place right now. It would also make 
+it more obvious to the callers which values take precedence, and easier 
+to see that there should be no side effects. I think it's easier to 
+document as well.
+
+Cheers,
+Steve
+
+From tir.karthi at gmail.com  Tue Apr  9 19:45:06 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Wed, 10 Apr 2019 05:15:06 +0530
+Subject: [Python-Dev] Need help to fix HTTP Header Injection
+ vulnerability
+In-Reply-To: <CA+3bQGGibCpRe_qomcTVRQ=u1X7KMFYDPOCV+dtazs9ktUr9hA@mail.gmail.com>
+References: <CA+3bQGGibCpRe_qomcTVRQ=u1X7KMFYDPOCV+dtazs9ktUr9hA@mail.gmail.com>
+Message-ID: <CAAjsFLT_A6TM_812wQkW5dyGdpu+jH1PrMYS2Fj9ESda_w7_EA@mail.gmail.com>
+
+I would recommend fixing it since it's potentially remote code execution on
+systems like Redis (latest versions of Redis have this mitigated) though I
+must admit I don't fully understand the complexity since there are multiple
+issues linked. Go was also assigned a CVE for linked issue and it seemed to
+be the same reporter by username : CVE-2019-9741 . I tried using go's
+approach in the commit but urlopen accepts more URLs like data URLs [0]
+that seemed to accept \n as a valid case and the patch broke some tests.
+Looking at the issue discussion complexity also involves backwards
+compatibility. golang also pushed an initial fix that seemed to broke their
+internal tests [0] to arrive at a more simpler fix.
+
+[0]
+https://github.com/python/cpython/blob/a40681dd5db8deaf05a635eecb91498dac882aa4/Lib/test/test_urllib.py#L482
+[1]
+https://go-review.googlesource.com/c/go/+/159157/2#message-39c6be13a192bf760f6318ac641b432a6ab8fdc8
+
+-- 
+Regards,
+Karthikeyan S
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/fb03a919/attachment.html>
+
+From greg at krypto.org  Tue Apr  9 20:41:27 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Tue, 9 Apr 2019 17:41:27 -0700
+Subject: [Python-Dev] Need help to fix HTTP Header Injection
+ vulnerability
+In-Reply-To: <CAAjsFLT_A6TM_812wQkW5dyGdpu+jH1PrMYS2Fj9ESda_w7_EA@mail.gmail.com>
+References: <CA+3bQGGibCpRe_qomcTVRQ=u1X7KMFYDPOCV+dtazs9ktUr9hA@mail.gmail.com>
+ <CAAjsFLT_A6TM_812wQkW5dyGdpu+jH1PrMYS2Fj9ESda_w7_EA@mail.gmail.com>
+Message-ID: <CAGE7PN+U+ePZq0Mf1=XZ22nqiKCQKH5N3KjbDFgE5ey+qikLgg@mail.gmail.com>
+
+On Tue, Apr 9, 2019 at 4:45 PM Karthikeyan <tir.karthi at gmail.com> wrote:
+
+> I would recommend fixing it since it's potentially remote code execution
+> on systems like Redis (latest versions of Redis have this mitigated) though
+> I must admit I don't fully understand the complexity since there are
+> multiple issues linked. Go was also assigned a CVE for linked issue and it
+> seemed to be the same reporter by username : CVE-2019-9741 . I tried using
+> go's approach in the commit but urlopen accepts more URLs like data URLs
+> [0] that seemed to accept \n as a valid case and the patch broke some
+> tests. Looking at the issue discussion complexity also involves backwards
+> compatibility. golang also pushed an initial fix that seemed to broke their
+> internal tests [0] to arrive at a more simpler fix.
+>
+> [0]
+> https://github.com/python/cpython/blob/a40681dd5db8deaf05a635eecb91498dac882aa4/Lib/test/test_urllib.py#L482
+> [1]
+> https://go-review.googlesource.com/c/go/+/159157/2#message-39c6be13a192bf760f6318ac641b432a6ab8fdc8
+>
+> --
+> Regards,
+> Karthikeyan S
+>
+
+useful references, thanks!  limiting the checks to only http and https as
+those are the text based protocols with urls transmitted in text form makes
+sense and avoids the data: test failures.
+
+proposed simple fix in https://github.com/python/cpython/pull/12755
+
+but tests are needed as is an audit of the code to see where else we may
+potentially need to do such things.
+
+-gps
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190409/22802cd3/attachment.html>
+
+From tir.karthi at gmail.com  Wed Apr 10 00:30:59 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Wed, 10 Apr 2019 10:00:59 +0530
+Subject: [Python-Dev] Need help to fix HTTP Header Injection
+ vulnerability
+In-Reply-To: <CAGE7PN+U+ePZq0Mf1=XZ22nqiKCQKH5N3KjbDFgE5ey+qikLgg@mail.gmail.com>
+References: <CA+3bQGGibCpRe_qomcTVRQ=u1X7KMFYDPOCV+dtazs9ktUr9hA@mail.gmail.com>
+ <CAAjsFLT_A6TM_812wQkW5dyGdpu+jH1PrMYS2Fj9ESda_w7_EA@mail.gmail.com>
+ <CAGE7PN+U+ePZq0Mf1=XZ22nqiKCQKH5N3KjbDFgE5ey+qikLgg@mail.gmail.com>
+Message-ID: <CAAjsFLR9OjFtutWsCQW5oOF-EUBfJHbm-M2ar-geFE_no_Lyeg@mail.gmail.com>
+
+Thanks Gregory. I think it's a good tradeoff to ensure this validation only
+for URLs of http scheme.
+
+I also agree handling newline is little problematic over the years and the
+discussion over the level at which validation should occur also prolongs
+some of the patches. https://bugs.python.org/issue35906 is another similar
+case where splitlines is used but it's better to raise an error and the
+proposed fix could be used there too. Victor seemed to wrote a similar PR
+like linked one for other urllib functions only to fix similar attack in
+ftplib to reject newlines that was eventually fixed only in ftplib
+
+* https://bugs.python.org/issue30713
+* https://bugs.python.org/issue29606
+
+Search also brings multiple issues with one duplicate over another that
+makes these attacks scattered over the tracker and some edge case missing.
+Slightly off topic, the last time I reported a cookie related issue where
+the policy can be overriden by third party library I was asked to fix it in
+stdlib itself since adding fixes to libraries causes maintenance burden to
+downstream libraries to keep up upstream. With urllib being a heavily used
+module across ecosystem it's good to have a fix landing in stdlib that
+secures downstream libraries encouraging users to upgrade Python too.
+
+Regards,
+Karthikeyan S
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/6f917f6c/attachment.html>
+
