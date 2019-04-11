@@ -3802,3 +3802,1661 @@ Karthikeyan S
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/6f917f6c/attachment.html>
 
+From wes.turner at gmail.com  Wed Apr 10 06:16:10 2019
+From: wes.turner at gmail.com (Wes Turner)
+Date: Wed, 10 Apr 2019 06:16:10 -0400
+Subject: [Python-Dev] Need help to fix HTTP Header Injection
+ vulnerability
+In-Reply-To: <CAAjsFLR9OjFtutWsCQW5oOF-EUBfJHbm-M2ar-geFE_no_Lyeg@mail.gmail.com>
+References: <CA+3bQGGibCpRe_qomcTVRQ=u1X7KMFYDPOCV+dtazs9ktUr9hA@mail.gmail.com>
+ <CAAjsFLT_A6TM_812wQkW5dyGdpu+jH1PrMYS2Fj9ESda_w7_EA@mail.gmail.com>
+ <CAGE7PN+U+ePZq0Mf1=XZ22nqiKCQKH5N3KjbDFgE5ey+qikLgg@mail.gmail.com>
+ <CAAjsFLR9OjFtutWsCQW5oOF-EUBfJHbm-M2ar-geFE_no_Lyeg@mail.gmail.com>
+Message-ID: <CACfEFw_DAOD-2-AeSka3ep0To2ocYvkDLJTfXUMBAwh46U+xBQ@mail.gmail.com>
+
+1. Is there a library of URL / Header injection tests e.g. for fuzzing that
+we could generate additional test cases with or from?
+
+2. Are requests.get() and requests.post() also vulnerable?
+
+3. Despite the much-heralded UNIX pipe protocols' utility, filenames
+containing newlines (the de-facto line record delimiter) are possible:
+"file"$'\n'"name"
+
+Should filenames containing newlines and control characters require a kwarg
+to be non-None in order to be passed through unescaped to the HTTP request?
+
+On Wednesday, April 10, 2019, Karthikeyan <tir.karthi at gmail.com> wrote:
+
+> Thanks Gregory. I think it's a good tradeoff to ensure this validation
+> only for URLs of http scheme.
+>
+> I also agree handling newline is little problematic over the years and the
+> discussion over the level at which validation should occur also prolongs
+> some of the patches. https://bugs.python.org/issue35906 is another
+> similar case where splitlines is used but it's better to raise an error and
+> the proposed fix could be used there too. Victor seemed to wrote a similar
+> PR like linked one for other urllib functions only to fix similar attack in
+> ftplib to reject newlines that was eventually fixed only in ftplib
+>
+> * https://bugs.python.org/issue30713
+> * https://bugs.python.org/issue29606
+>
+> Search also brings multiple issues with one duplicate over another that
+> makes these attacks scattered over the tracker and some edge case missing.
+> Slightly off topic, the last time I reported a cookie related issue where
+> the policy can be overriden by third party library I was asked to fix it in
+> stdlib itself since adding fixes to libraries causes maintenance burden to
+> downstream libraries to keep up upstream. With urllib being a heavily used
+> module across ecosystem it's good to have a fix landing in stdlib that
+> secures downstream libraries encouraging users to upgrade Python too.
+>
+> Regards,
+> Karthikeyan S
+>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/bd15a035/attachment-0001.html>
+
+From vstinner at redhat.com  Wed Apr 10 06:51:50 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 10 Apr 2019 12:51:50 +0200
+Subject: [Python-Dev] Need help to fix HTTP Header Injection
+ vulnerability
+In-Reply-To: <CACfEFw_DAOD-2-AeSka3ep0To2ocYvkDLJTfXUMBAwh46U+xBQ@mail.gmail.com>
+References: <CA+3bQGGibCpRe_qomcTVRQ=u1X7KMFYDPOCV+dtazs9ktUr9hA@mail.gmail.com>
+ <CAAjsFLT_A6TM_812wQkW5dyGdpu+jH1PrMYS2Fj9ESda_w7_EA@mail.gmail.com>
+ <CAGE7PN+U+ePZq0Mf1=XZ22nqiKCQKH5N3KjbDFgE5ey+qikLgg@mail.gmail.com>
+ <CAAjsFLR9OjFtutWsCQW5oOF-EUBfJHbm-M2ar-geFE_no_Lyeg@mail.gmail.com>
+ <CACfEFw_DAOD-2-AeSka3ep0To2ocYvkDLJTfXUMBAwh46U+xBQ@mail.gmail.com>
+Message-ID: <CA+3bQGGU-G4BMA0nSvaQ0Afjb0cC0dc6AVyj-KqGYCN=OzCNvw@mail.gmail.com>
+
+Hi,
+
+I dig into Python code history and the bug tracker. I would like to
+say that this issue is a work-in-progress since 2004. Different fixes
+have been pushed, but there are *A LOT* of open issues:
+https://bugs.python.org/issue30458#msg339846
+
+I would suggest to discuss on https://bugs.python.org/issue30458
+rather than here, just to avoid to duplicate discussions ;-)
+
+Note: the whole class of issue (HTTP Header Injection) got at least 3
+CVE: CVE-2016-5699, CVE-2019-9740, CVE-2019-9947. I changed bpo-30458
+title to "[security][CVE-2019-9740][CVE-2019-9947] HTTP Header
+Injection (follow-up of CVE-2016-5699)".
+
+Victor
+
+Le mer. 10 avr. 2019 ? 12:20, Wes Turner <wes.turner at gmail.com> a ?crit :
+>
+> 1. Is there a library of URL / Header injection tests e.g. for fuzzing that we could generate additional test cases with or from?
+>
+> 2. Are requests.get() and requests.post() also vulnerable?
+>
+> 3. Despite the much-heralded UNIX pipe protocols' utility, filenames containing newlines (the de-facto line record delimiter) are possible: "file"$'\n'"name"
+>
+> Should filenames containing newlines and control characters require a kwarg to be non-None in order to be passed through unescaped to the HTTP request?
+>
+> On Wednesday, April 10, 2019, Karthikeyan <tir.karthi at gmail.com> wrote:
+>>
+>> Thanks Gregory. I think it's a good tradeoff to ensure this validation only for URLs of http scheme.
+>>
+>> I also agree handling newline is little problematic over the years and the discussion over the level at which validation should occur also prolongs some of the patches. https://bugs.python.org/issue35906 is another similar case where splitlines is used but it's better to raise an error and the proposed fix could be used there too. Victor seemed to wrote a similar PR like linked one for other urllib functions only to fix similar attack in ftplib to reject newlines that was eventually fixed only in ftplib
+>>
+>> * https://bugs.python.org/issue30713
+>> * https://bugs.python.org/issue29606
+>>
+>> Search also brings multiple issues with one duplicate over another that makes these attacks scattered over the tracker and some edge case missing. Slightly off topic, the last time I reported a cookie related issue where the policy can be overriden by third party library I was asked to fix it in stdlib itself since adding fixes to libraries causes maintenance burden to downstream libraries to keep up upstream. With urllib being a heavily used module across ecosystem it's good to have a fix landing in stdlib that secures downstream libraries encouraging users to upgrade Python too.
+>>
+>> Regards,
+>> Karthikeyan S
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Wed Apr 10 07:01:42 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 10 Apr 2019 13:01:42 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+Message-ID: <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+
+Le mar. 9 avr. 2019 ? 22:16, Steve Dower <steve.dower at python.org> a ?crit :
+> What are the other changes that would be required?
+
+I don't know.
+
+> And is there another
+> way to get the same functionality without ABI modifications?
+
+Py_TRACE_REFS is a double linked list of *all* Python objects. To get
+this functionality, you need to store the list somewhere. I don't know
+how to maintain such list outside the PyObject structure.
+
+One solution would be to enable Py_TRACE_REFS in release mode. Does
+anyone want to add 16 bytes to every PyObject? I don't want that :-)
+
+
+> I think it's worthwhile if we can really get to debug and non-debug
+> builds being ABI compatible. Getting partway there in this case doesn't
+> seem to offer any benefits.
+
+Disabling Py_TRACE_REFS by default in debug mode reduces the Python
+memory footprint. Py_TRACE_REFS costs 2 pointers per PyObject: 16
+bytes on 64-bit platforms.
+
+I don't think that I ever used sys.getobjects(), whereas many projects
+use gc.get_objects() which is also available in release builds (not
+only in debug builds).
+
+I'm quite sure that almost nobody uses debug builds because the ABI is
+incompatible.
+
+The main question is if anyone ever used Py_TRACE_REFS? Does someone
+use sys.getobjects() or PYTHONDUMPREFS environment variable?
+
+Using PYTHONDUMPREFS=1 on a debug build (with Py_TRACE_REFS) does
+simply crash Python 3.7 at exit. So I don't think that anyone use it
+:-)
+
+
+I wrote PR 12614 to remove all code related to Py_TRACE_REFS. I wrote
+it to see which code depends on it:
+
+commit 63509498761a0e7f72585a8cd7df325ea2abd1b2 (HEAD ->
+remove_trace_refs, origin/remove_trace_refs)
+Author: Victor Stinner <vstinner at redhat.com>
+Date:   Thu Mar 28 23:26:58 2019 +0100
+
+    WIP: bpo-36465: Remove Py_TRACE_REFS special build
+
+    Remove _ob_prev and _ob_next fields of PyObject when Python is
+    compiled in debug mode to make debug ABI closer to the release ABI.
+
+    Remove:
+
+    * sys.getobjects()
+    * PYTHONDUMPREFS environment variable
+    * _PyCoreConfig.dump_refs
+    * PyObject._ob_prev and PyObject._ob_next fields
+    * _PyObject_HEAD_EXTRA and _PyObject_EXTRA_INIT macros
+    * _Py_AddToAllObjects()
+    * _Py_PrintReferenceAddresses()
+    * _Py_PrintReferences()
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From tir.karthi at gmail.com  Wed Apr 10 07:07:03 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Wed, 10 Apr 2019 16:37:03 +0530
+Subject: [Python-Dev] Need help to fix HTTP Header Injection
+ vulnerability
+In-Reply-To: <CACfEFw_DAOD-2-AeSka3ep0To2ocYvkDLJTfXUMBAwh46U+xBQ@mail.gmail.com>
+References: <CA+3bQGGibCpRe_qomcTVRQ=u1X7KMFYDPOCV+dtazs9ktUr9hA@mail.gmail.com>
+ <CAAjsFLT_A6TM_812wQkW5dyGdpu+jH1PrMYS2Fj9ESda_w7_EA@mail.gmail.com>
+ <CAGE7PN+U+ePZq0Mf1=XZ22nqiKCQKH5N3KjbDFgE5ey+qikLgg@mail.gmail.com>
+ <CAAjsFLR9OjFtutWsCQW5oOF-EUBfJHbm-M2ar-geFE_no_Lyeg@mail.gmail.com>
+ <CACfEFw_DAOD-2-AeSka3ep0To2ocYvkDLJTfXUMBAwh46U+xBQ@mail.gmail.com>
+Message-ID: <CAAjsFLQRXrurm2gXvYoWN1CN=qHPxN_1MufpRUTPz1E8_XE88A@mail.gmail.com>
+
+> 1. Is there a library of URL / Header injection tests e.g. for fuzzing
+> that we could generate additional test cases with or from?
+
+
+https://github.com/swisskyrepo/PayloadsAllTheThings seems to contain
+payload related stuff but not sure how useful it is for URL parsing.
+
+>
+> 2. Are requests.get() and requests.post() also vulnerable?
+>
+
+urllib3 seems to be vulnerable as noted in
+https://bugs.python.org/issue36276#msg337837 . requests uses urllib3 under
+the hood. The last time I checked requests passed encoded URL to urllib3
+where this doesn't seem to be exploitable but I could be wrong.
+
+-- 
+Regards,
+Karthikeyan S
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/11f90fc8/attachment.html>
+
+From aranea.network at gmail.com  Wed Apr 10 07:24:40 2019
+From: aranea.network at gmail.com (Robert Okadar)
+Date: Wed, 10 Apr 2019 13:24:40 +0200
+Subject: [Python-Dev] (no subject)
+Message-ID: <CAJtvGNpa0KkvTV3VVba1TJXWM6ne5FQkOtmrt=wOH9RZyW0CZw@mail.gmail.com>
+
+Hi community,
+
+I have developed a tkinter GUI component, Python v3.7. It runs very well in
+Linux but seeing a huge performance impact in Windows 10. While in Linux an
+almost real-time performance is achieved, in Windows it is slow to an
+unusable level.
+
+The code is somewhat stripped down from the original, but the performance
+difference is the same anyway. The columns can be resized by clicking on
+the column border and dragging it. Resizing works only for the top row (but
+it resizes the entire column).
+In this demo, all bindings are avoided to exclude influence on the
+component performance and thus not included. If you resize the window
+(i.e., if you maximize it), you must call the function table.fit() from
+IDLE shell.
+
+Does anyone know where is this huge difference in performance coming from?
+Can anything be done about it?
+
+All the best,
+--
+Robert Okadar
+IT Consultant
+
+Schedule an *online meeting <https://calendly.com/aranea-network/60min>* with
+me!
+
+Visit *aranea-mreze.hr* <http://aranea-mreze.hr> or call
+* +385 91 300 8887*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/b9fb075e/attachment.html>
+-------------- next part --------------
+
+import tkinter
+
+class Resizer(tkinter.Frame):
+    def __init__(self, info_grid, master, **cnf):
+        self.table_grid = info_grid
+        tkinter.Frame.__init__(self, master, **cnf)
+        self.bind('<Button1-Motion>', self.resize_column)
+        self.bind('<ButtonPress-1>', self.resize_start)
+        self.bind('<ButtonRelease-1>', self.resize_end)
+        self._resizing = False
+
+        self.bind('<Destroy>', self.onDestroyEvent)
+
+    def onDestroyEvent(self, event):
+        self.table_grid = []
+
+    def resize_column(self, event, width = None):
+        #if self._resizing:
+        top = self.table_grid.Top
+        grid = self.table_grid._grid
+        col = self.master.grid_info()["column"]
+        if not width:
+            width = self._width + event.x_root - self._x_root
+        top.columnconfigure(col, minsize = width)
+        grid.columnconfigure(col, minsize = width)
+        
+
+    def resize_start(self, event):
+        top = self.table_grid.Top
+        self._resizing = True
+        self._x_root = event.x_root
+        col = self.master.grid_info()["column"]
+        self._width = top.grid_bbox(row = 0, column = col)[2]
+        #print event.__dict__
+        
+        col = self.master.grid_info()["column"]
+        #print top.grid_bbox(row = 0, column = col)
+
+    def resize_end(self, event):
+        pass
+        #self.table_grid.xscrollcommand()
+        #self.table_grid.column_resize_callback(col, self)
+
+
+class Table(tkinter.Frame):
+    def __init__(self, master, columns = 10, rows = 20, width = 100,**kw):
+        tkinter.Frame.__init__(self, master, **kw)
+        self.columns = []
+        self._width = width
+        self._grid = grid = tkinter.Frame(self, bg = "#CCCCCC")
+        self.Top = top = tkinter.Frame(self, bg = "#DDDDDD")
+        self.create_top(columns)
+        self.create_grid(rows)
+        
+
+        #self.bind('<Configure>', self.on_table_configure)
+        #self.bind('<Map>', self.on_table_map)
+
+        top.pack(anchor = 'nw')#, expand = 1, fill = "both")
+        grid.pack(anchor = 'nw')#fill = "both",expand = 1
+
+    def on_table_map(self, event):
+        theight = self.winfo_height()
+
+    def fit(self):#on_table_configure(self, event):
+        i = 0
+        for frame in self.Top.grid_slaves(row = 0):
+            frame.resizer.resize_column(None, width = frame.winfo_width())
+            i += 1
+        theight = self.winfo_height()
+        fheight = self._grid.winfo_height() + self.Top.winfo_height()
+        #print('<Map>', theight, fheight)
+        if theight > fheight:
+            rheight = self.grid_array[0][0].winfo_height()
+            ammount = int((-fheight + theight) / rheight)
+            #print(rheight, ammount)
+            for i in range(ammount):
+                self.add_row()
+                self.update()
+        
+
+    def add_row(self, ammount = 1):
+        columnsw = self.columns
+        row = []
+        i = len(self.grid_array)
+        for j in range(len(columnsw)):
+            bg = self.bgcolor0
+            if i % 2 == 1:
+                bg = self.bgcolor1
+            entry = tkinter.Label(self._grid, bg = bg, text = '%i %i' % (i, j))
+            entry.grid(row = i, column = j, sticky = "we", padx = 2)
+            row.append(entry)
+        self.grid_array.append(row)
+        
+        
+    bgcolor0 = "#FFFFFF"
+    bgcolor1 = "#EEEEEE"
+    def create_grid(self, height):
+        
+        #grid.grid(row = 0, column = 0, sticky = "nsew")
+        
+        columnsw = self.columns# = self.Top.grid_slaves(row = 1)
+        self.grid_array = []
+        for i in range(height):
+            row = []
+            for j in range(len(columnsw)):
+                bg = self.bgcolor0
+                if i % 2 == 1:
+                    bg = self.bgcolor1
+                #entry = self.EntryClass(False, self, self._grid, bg = bg, width = 1, )
+                entry = tkinter.Label(self._grid, bg = bg, text = '%i %i' % (i,j))
+                entry.grid(row = i, column = j, sticky = "we", padx = 2)
+                row.append(entry)
+            self.grid_array.append(row)
+
+    def create_top(self, columns = 10):
+        top = self.Top
+        #columns = self._columns #maybe to rename
+        for i in range(columns):
+            name = 'column %i' % i
+            self.add_column(name, top)
+        
+
+    def add_column(self, name, top, width = None):
+        if not width:
+            width = self._width
+        col = tkinter.Frame(top)
+        i = len(self.columns)
+        #filter = Filter(self, name, i, top)
+        entry = tkinter.Entry(col, width = 1) #readonlybackground
+        #col.ColumnIndex = i
+        #col.array_index = i
+        entry.insert(0, name)
+        resizer = Resizer(self, col, bg = "#000000", width = 3, height = 21, cursor = 'sb_h_double_arrow')
+        #entry.grid(row = 0, column = 0, sticky = "we")
+        #resizer.grid(row = 0, column = 1, sticky = "e")
+        entry.pack(side = "left", fill = "both", expand = 1)
+        resizer.pack(side = "right")
+        top.columnconfigure(i, minsize = width, weight = 1)
+        #filter.grid(row = 0, column = i, sticky = "we")
+        col.grid(row = 0, column = i, sticky = "we")
+        col.entry = entry
+        #col.filter = filter
+        #col.index = filter.index = i
+        col.resizer = resizer
+        #filter.Column = col
+        entry.Column = col
+        self.columns.append(col)
+
+if __name__ == '__main__':
+    columns = 30
+    rows = 20
+    width = 60
+    root = tkinter.Tk()
+    root.wm_title('TableGridTest')
+    table = self = Table(root, columns = columns, rows = rows, width = width)
+    table.pack(expand = 1, fill = 'both')
+    #table.create_grid(
+
+From steve at pearwood.info  Wed Apr 10 11:35:56 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 11 Apr 2019 01:35:56 +1000
+Subject: [Python-Dev] (no subject)
+In-Reply-To: <CAJtvGNpa0KkvTV3VVba1TJXWM6ne5FQkOtmrt=wOH9RZyW0CZw@mail.gmail.com>
+References: <CAJtvGNpa0KkvTV3VVba1TJXWM6ne5FQkOtmrt=wOH9RZyW0CZw@mail.gmail.com>
+Message-ID: <20190410153555.GB3010@ando.pearwood.info>
+
+Hi Robert,
+
+This mailing list is for the development of the Python interpreter, not 
+a general help desk. There are many other forums where you can ask for 
+help, such as the comp.lang.python newsgroup, Stackoverflow, /r/python 
+on Reddit, the IRC channel, and more.
+
+Perhaps you can help us though, I presume you signed up to this mailing 
+list via the web interface at
+
+https://mail.python.org/mailman/listinfo/python-dev
+
+Is there something we could do to make it more clear that this is not 
+the right place to ask for help?
+
+
+-- 
+Steven
+
+From pviktori at redhat.com  Wed Apr 10 12:25:57 2019
+From: pviktori at redhat.com (Petr Viktorin)
+Date: Wed, 10 Apr 2019 18:25:57 +0200
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+Message-ID: <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+
+Hello!
+I've had time for a more thorough reading of PEP 590 and the reference 
+implementation. Thank you for the work!
+Overall, I like PEP 590's direction. I'd now describe the fundamental 
+difference between PEP 580 and PEP 590 as:
+- PEP 580 tries to optimize all existing calling conventions
+- PEP 590 tries to optimize (and expose) the most general calling 
+convention (i.e. fastcall)
+
+PEP 580 also does a number of other things, as listed in PEP 579. But I 
+think PEP 590 does not block future PEPs for the other items.
+On the other hand, PEP 580 has a much more mature implementation -- and 
+that's where it picked up real-world complexity.
+
+PEP 590's METH_VECTORCALL is designed to handle all existing use cases, 
+rather than mirroring the existing METH_* varieties.
+But both PEPs require the callable's code to be modified, so requiring 
+it to switch calling conventions shouldn't be a problem.
+
+Jeroen's analysis from 
+https://mail.python.org/pipermail/python-dev/2018-July/154238.html seems 
+to miss a step at the top:
+
+a. CALL_FUNCTION* / CALL_METHOD opcode
+       calls
+b. _PyObject_FastCallKeywords()
+       which calls
+c. _PyCFunction_FastCallKeywords()
+       which calls
+d. _PyMethodDef_RawFastCallKeywords()
+       which calls
+e. the actual C function (*ml_meth)()
+
+I think it's more useful to say that both PEPs bridge a->e (via 
+_Py_VectorCall or PyCCall_Call).
+
+
+PEP 590 is built on a simple idea, formalizing fastcall. But it is 
+complicated by PY_VECTORCALL_ARGUMENTS_OFFSET and 
+Py_TPFLAGS_METHOD_DESCRIPTOR.
+As far as I understand, both are there to avoid intermediate 
+bound-method object for LOAD_METHOD/CALL_METHOD. (They do try to be 
+general, but I don't see any other use case.)
+Is that right?
+(I'm running out of time today, but I'll write more on why I'm asking, 
+and on the case I called "impossible" (while avoiding creation of a 
+"bound method" object), later.)
+
+
+The way `const` is handled in the function signatures strikes me as too 
+fragile for public API.
+I'd like if, as much as possible, PY_VECTORCALL_ARGUMENTS_OFFSET was 
+treated as a special optimization that extension authors can either opt 
+in to, or blissfully ignore.
+That might mean:
+- vectorcall, PyObject_VectorCallWithCallable, PyObject_VectorCall, 
+PyCall_MakeTpCall all formally take "PyObject *const *args"
+- a na?ve callee must do "nargs &= ~PY_VECTORCALL_ARGUMENTS_OFFSET" 
+(maybe spelled as "nargs &= PY_VECTORCALL_NARGS_MASK"), but otherwise 
+writes compiler-enforced const-correct code.
+- if PY_VECTORCALL_ARGUMENTS_OFFSET is set, the callee may modify 
+"args[-1]" (and only that, and after the author has read the docs).
+
+
+Another point I'd like some discussion on is that vectorcall function 
+pointer is per-instance. It looks this is only useful for type objects, 
+but it will add a pointer to every new-style callable object (including 
+functions). That seems wasteful.
+Why not have a per-type pointer, and for types that need it (like 
+PyTypeObject), make it dispatch to an instance-specific function?
+
+
+Minor things:
+- "Continued prohibition of callable classes as base classes" -- this 
+section reads as a final. Would you be OK wording this as something 
+other PEPs can tackle?
+- "PyObject_VectorCall" -- this looks extraneous, and the reference 
+imlementation doesn't need it so far. Can it be removed, or justified?
+- METH_VECTORCALL is *not* strictly "equivalent to the currently 
+undocumented METH_FASTCALL | METH_KEYWORD flags" (it has the 
+ARGUMENTS_OFFSET complication).
+- I'd like to officially call this PEP "Vectorcall", see 
+https://github.com/python/peps/pull/984
+
+
+
+Mark, what are your plans for next steps with PEP 590? If a volunteer 
+wanted to help you push this forward, what would be the best thing to 
+work on?
+
+Jeroen, is there something in PEPs 579/580 that PEP 590 blocks, or 
+should address?
+
+From vano at mail.mipt.ru  Wed Apr 10 13:57:13 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Wed, 10 Apr 2019 20:57:13 +0300
+Subject: [Python-Dev] Need help to fix HTTP Header Injection
+ vulnerability
+In-Reply-To: <CAAjsFLR9OjFtutWsCQW5oOF-EUBfJHbm-M2ar-geFE_no_Lyeg@mail.gmail.com>
+References: <CA+3bQGGibCpRe_qomcTVRQ=u1X7KMFYDPOCV+dtazs9ktUr9hA@mail.gmail.com>
+ <CAAjsFLT_A6TM_812wQkW5dyGdpu+jH1PrMYS2Fj9ESda_w7_EA@mail.gmail.com>
+ <CAGE7PN+U+ePZq0Mf1=XZ22nqiKCQKH5N3KjbDFgE5ey+qikLgg@mail.gmail.com>
+ <CAAjsFLR9OjFtutWsCQW5oOF-EUBfJHbm-M2ar-geFE_no_Lyeg@mail.gmail.com>
+Message-ID: <8bd61b63-4fc7-91be-b717-226c205e3623@mail.mipt.ru>
+
+
+On 10.04.2019 7:30, Karthikeyan wrote:
+> Thanks Gregory. I think it's a good tradeoff to ensure this validation only for URLs of http scheme.
+>
+> I also agree handling newline is little problematic over the years and the discussion over the level at which validation should occur also 
+> prolongs some of the patches. https://bugs.python.org/issue35906 is another similar case where splitlines is used but it's better to raise 
+> an error and the proposed fix could be used there too. Victor seemed to wrote a similar PR like linked one for other urllib functions only 
+> to fix similar attack in ftplib to reject newlines that was eventually fixed only in ftplib
+>
+> * https://bugs.python.org/issue30713
+> * https://bugs.python.org/issue29606
+>
+> Search also brings multiple issues with one duplicate over another that makes these attacks scattered over the tracker and some edge case 
+> missing. Slightly off topic, the last time I reported a cookie related issue where the policy can be overriden by third party library I 
+> was asked to fix it in stdlib itself since adding fixes to libraries causes maintenance burden to downstream libraries to keep up 
+> upstream. With urllib being a heavily used module across ecosystem it's good to have a fix landing in stdlib that secures downstream 
+> libraries encouraging users to upgrade Python too.
+>
+Validation should occur whenever user data crosses a trust boundary -- i.e. when the library starts to assume that an extracted chunk now 
+contains something valid.
+
+https://tools.ietf.org/html/rfc3986 defines valid syntax (incl. valid characters) for every part of a URL -- _of any scheme_ (FYI, \r\n are 
+invalid everywhere and the test code for ??? `data:' that Karthikeyan referred to is raw data to compare to rather than a part of a URL). It 
+also obsoletes all the RFCs that the current code is written against.
+
+AFAICS, urllib.split* fns (obsoleted as public in 3.8) are used by both urllib and urllib2 to parse URLs. They can be made to each validate 
+the chunk that they split off. urlparse can validate the entire URL altogether.
+
+Also, all modules ought to use the same code (urlparse looks like the best candidate) to parse URLs -- this will minimize the attack surface.
+
+I think I can look into this later this week.
+
+Fixing this is going to break code that relies on the current code accepting invalid URLs. But the docs have never said that e.g. in 
+urlopen, anything apart from a (valid) URL is accepted (in particular, this implies that the user is responsible for escaping stuff properly 
+before passing it). So I would say that we are within our right here and whoever is relying on those quirks is and has always been on 
+unsupported territory.
+Determining which of those quirks are exploitable and which are not to fix just the former is an incomparably larger, more error-prone and 
+avoidable work. If anything, the history of the issue referenced to by previous posters clearly shows that this is too much to ask from the 
+Python team.
+
+I also see other undocumented behavior like accepting '<URL:<url>>' (also obsoleted as public in 3.8) which I would like to but it's of no harm.
+
+-- 
+
+Regards,
+Ivan
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/69b896de/attachment.html>
+
+From steve.dower at python.org  Wed Apr 10 14:09:49 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 10 Apr 2019 11:09:49 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+Message-ID: <d7ea9da9-09c2-6637-4a05-b92573848f5a@python.org>
+
+On 10Apr2019 0401, Victor Stinner wrote:
+> Le mar. 9 avr. 2019 ? 22:16, Steve Dower <steve.dower at python.org> a ?crit :
+>> What are the other changes that would be required?
+> 
+> I don't know.
+> 
+>> And is there another
+>> way to get the same functionality without ABI modifications?
+> 
+> Py_TRACE_REFS is a double linked list of *all* Python objects. To get
+> this functionality, you need to store the list somewhere. I don't know
+> how to maintain such list outside the PyObject structure.
+
+There's certainly no more convenient way to do it. Maybe if we had 
+detached reference counts it would be easier, but it would likely still 
+result in ABI compatibility issues between debug builds of extensions 
+and release builds of Python (the most common scenario, in my experience).
+
+> One solution would be to enable Py_TRACE_REFS in release mode. Does
+> anyone want to add 16 bytes to every PyObject? I don't want that :-)
+
+Yeah, nobody suggested that anyway :)
+
+>> I think it's worthwhile if we can really get to debug and non-debug
+>> builds being ABI compatible. Getting partway there in this case doesn't
+>> seem to offer any benefits.
+> 
+> Disabling Py_TRACE_REFS by default in debug mode reduces the Python
+> memory footprint. Py_TRACE_REFS costs 2 pointers per PyObject: 16
+> bytes on 64-bit platforms.
+
+Right, except it's debug mode.
+
+> I don't think that I ever used sys.getobjects(), whereas many projects
+> use gc.get_objects() which is also available in release builds (not
+> only in debug builds).
+> 
+> I'm quite sure that almost nobody uses debug builds because the ABI is
+> incompatible.
+
+There were just over 250,000 downloads of the prebuilt debug binaries 
+for Windows (which are optional in the installer and turned off by 
+default) in March. Whether they are being used is another question, but 
+I know for sure at least a few people who use them.
+
+When you want to use a debug build of your extension module, using a 
+debug build of CPython is the only way to do it. So unless we can get 
+rid of *all* the ABI incompatibilities, a debug build of CPython is 
+still going to be necessary and disabling/removing reference tracking 
+doesn't provide any benefit.
+
+> The main question is if anyone ever used Py_TRACE_REFS? Does someone
+> use sys.getobjects() or PYTHONDUMPREFS environment variable?
+> 
+> Using PYTHONDUMPREFS=1 on a debug build (with Py_TRACE_REFS) does
+> simply crash Python 3.7 at exit. So I don't think that anyone use it
+> :-)
+
+How do we track reference leaks in the buildbots? Can/should we be using 
+this?
+
+It doesn't crash on Python 3.8, so I suspect fixing the bug is a better 
+option than using it as an excuse to remove the feature. From a quick 
+test, it seems that a tuple element is being freed but not removed from 
+the tuple, so it's probably a double-decref bug somewhere in 3.7.
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Wed Apr 10 14:45:51 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 10 Apr 2019 11:45:51 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <d7ea9da9-09c2-6637-4a05-b92573848f5a@python.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <d7ea9da9-09c2-6637-4a05-b92573848f5a@python.org>
+Message-ID: <2778f0f5-3a29-54da-8292-dfc23a0c6621@python.org>
+
+On 10Apr2019 1109, Steve Dower wrote:
+> On 10Apr2019 0401, Victor Stinner wrote:
+>>> I think it's worthwhile if we can really get to debug and non-debug
+>>> builds being ABI compatible. Getting partway there in this case doesn't
+>>> seem to offer any benefits.
+>>
+>> Disabling Py_TRACE_REFS by default in debug mode reduces the Python
+>> memory footprint. Py_TRACE_REFS costs 2 pointers per PyObject: 16
+>> bytes on 64-bit platforms.
+> 
+> Right, except it's debug mode.
+
+I left this comment unfinished :)
+
+It's debug mode, and so you should expect less efficient memory and CPU 
+usage. That's why we have two modes - so that it's easier to debug issues.
+
+Now, if debug mode was unusably slow or had way too much overhead, we'd 
+want to fix that. But it isn't unusable, so reducing memory usage at the 
+cost of making debugging harder is not compelling.
+
+Cheers,
+Steve
+
+From guido at python.org  Wed Apr 10 15:07:50 2019
+From: guido at python.org (Guido van Rossum)
+Date: Wed, 10 Apr 2019 12:07:50 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <2778f0f5-3a29-54da-8292-dfc23a0c6621@python.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <d7ea9da9-09c2-6637-4a05-b92573848f5a@python.org>
+ <2778f0f5-3a29-54da-8292-dfc23a0c6621@python.org>
+Message-ID: <CAP7+vJLfL3PCS+G4zDKdCiHq9en53JwY35dWDuTF6K8Zf_tvYw@mail.gmail.com>
+
+I recall finding memory leaks using this. (E.g. I remember a leak in Zope
+due to a cache that was never pruned.)
+
+But presumably gc.get_objects() would have been sufficient. (IIRC it didn't
+exist at the time.)
+
+On Wed, Apr 10, 2019 at 11:48 AM Steve Dower <steve.dower at python.org> wrote:
+
+> On 10Apr2019 1109, Steve Dower wrote:
+> > On 10Apr2019 0401, Victor Stinner wrote:
+> >>> I think it's worthwhile if we can really get to debug and non-debug
+> >>> builds being ABI compatible. Getting partway there in this case doesn't
+> >>> seem to offer any benefits.
+> >>
+> >> Disabling Py_TRACE_REFS by default in debug mode reduces the Python
+> >> memory footprint. Py_TRACE_REFS costs 2 pointers per PyObject: 16
+> >> bytes on 64-bit platforms.
+> >
+> > Right, except it's debug mode.
+>
+> I left this comment unfinished :)
+>
+> It's debug mode, and so you should expect less efficient memory and CPU
+> usage. That's why we have two modes - so that it's easier to debug issues.
+>
+> Now, if debug mode was unusably slow or had way too much overhead, we'd
+> want to fix that. But it isn't unusable, so reducing memory usage at the
+> cost of making debugging harder is not compelling.
+>
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/2bd9dde0/attachment.html>
+
+From greg at krypto.org  Wed Apr 10 15:20:25 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Wed, 10 Apr 2019 12:20:25 -0700
+Subject: [Python-Dev] Need help to fix HTTP Header Injection
+ vulnerability
+In-Reply-To: <8bd61b63-4fc7-91be-b717-226c205e3623@mail.mipt.ru>
+References: <CA+3bQGGibCpRe_qomcTVRQ=u1X7KMFYDPOCV+dtazs9ktUr9hA@mail.gmail.com>
+ <CAAjsFLT_A6TM_812wQkW5dyGdpu+jH1PrMYS2Fj9ESda_w7_EA@mail.gmail.com>
+ <CAGE7PN+U+ePZq0Mf1=XZ22nqiKCQKH5N3KjbDFgE5ey+qikLgg@mail.gmail.com>
+ <CAAjsFLR9OjFtutWsCQW5oOF-EUBfJHbm-M2ar-geFE_no_Lyeg@mail.gmail.com>
+ <8bd61b63-4fc7-91be-b717-226c205e3623@mail.mipt.ru>
+Message-ID: <CAGE7PNL7W2ktnzCxq83Lfqr-ZV4UChky=yaYTeS91O6u5NzT8g@mail.gmail.com>
+
+On Wed, Apr 10, 2019 at 11:00 AM Ivan Pozdeev via Python-Dev <
+python-dev at python.org> wrote:
+
+>
+> On 10.04.2019 7:30, Karthikeyan wrote:
+>
+> Thanks Gregory. I think it's a good tradeoff to ensure this validation
+> only for URLs of http scheme.
+>
+> I also agree handling newline is little problematic over the years and the
+> discussion over the level at which validation should occur also prolongs
+> some of the patches. https://bugs.python.org/issue35906 is another
+> similar case where splitlines is used but it's better to raise an error and
+> the proposed fix could be used there too. Victor seemed to wrote a similar
+> PR like linked one for other urllib functions only to fix similar attack in
+> ftplib to reject newlines that was eventually fixed only in ftplib
+>
+> * https://bugs.python.org/issue30713
+> * https://bugs.python.org/issue29606
+>
+> Search also brings multiple issues with one duplicate over another that
+> makes these attacks scattered over the tracker and some edge case missing.
+> Slightly off topic, the last time I reported a cookie related issue where
+> the policy can be overriden by third party library I was asked to fix it in
+> stdlib itself since adding fixes to libraries causes maintenance burden to
+> downstream libraries to keep up upstream. With urllib being a heavily used
+> module across ecosystem it's good to have a fix landing in stdlib that
+> secures downstream libraries encouraging users to upgrade Python too.
+>
+> Validation should occur whenever user data crosses a trust boundary --
+> i.e. when the library starts to assume that an extracted chunk now contains
+> something valid.
+>
+> https://tools.ietf.org/html/rfc3986 defines valid syntax (incl. valid
+> characters) for every part of a URL -- _of any scheme_ (FYI, \r\n are
+> invalid everywhere and the test code for     `data:' that Karthikeyan
+> referred to is raw data to compare to rather than a part of a URL). It also
+> obsoletes all the RFCs that the current code is written against.
+>
+> AFAICS, urllib.split* fns (obsoleted as public in 3.8) are used by both
+> urllib and urllib2 to parse URLs. They can be made to each validate the
+> chunk that they split off. urlparse can validate the entire URL altogether.
+>
+> Also, all modules ought to use the same code (urlparse looks like the best
+> candidate) to parse URLs -- this will minimize the attack surface.
+>
+> I think I can look into this later this week.
+>
+My PR as of last night cites that RFC and does validation in http.client
+while constructing the protocol request payload.  Doing it within split
+functions was an initial hack that looked like it might work but didn't
+feel right as that isn't what people expect of those functions and that
+turned out to be the case as I tested things due to our mess of codepaths
+for opening URLs, but they all end with http.client so yay!
+
+I did *not* look at any of the async http client code paths.  (legacy
+asyncore or new asyncio).  If there is an issue there, those deserve to
+have their own bugs filed.
+
+As for third party PyPI libraries such as urllib3, they are on their own to
+fix bugs.  If they happen to use a code path that a stdlib fix helps, good
+for them, but honestly they are much better off making and shipping their
+own update to avoid the bug.  Users can get it much sooner as it's a mere
+pip install -U away rather than a python runtime upgrade.
+
+> Fixing this is going to break code that relies on the current code
+> accepting invalid URLs. But the docs have never said that e.g. in urlopen,
+> anything apart from a (valid) URL is accepted (in particular, this implies
+> that the user is responsible for escaping stuff properly before passing
+> it). So I would say that we are within our right here and whoever is
+> relying on those quirks is and has always been on unsupported territory.
+>
+yep.  even http.client.HTTPConnection.request names the function parameter
+"url" so anyone embedding whitespace newlines and http protocol strings
+within that is well outside of supported territory (as one example in our
+own test_xmlrpc was taking advantage of to test a malformed request).
+
+I suggest following up on https://bugs.python.org/issue30458 rather than in
+this thread.  the thread did its job, it directed our eyeballs at the
+problems. :)
+
+-gps
+
+> Determining which of those quirks are exploitable and which are not to fix
+> just the former is an incomparably larger, more error-prone and avoidable
+> work. If anything, the history of the issue referenced to by previous
+> posters clearly shows that this is too much to ask from the Python team.
+>
+> I also see other undocumented behavior like accepting '<URL:<url>>' (also
+> obsoleted as public in 3.8) which I would like to but it's of no harm.
+>
+> --
+>
+> Regards,
+> Ivan
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/89f696f5/attachment-0001.html>
+
+From njs at pobox.com  Wed Apr 10 15:27:03 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Wed, 10 Apr 2019 12:27:03 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+Message-ID: <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+
+On Wed, Apr 10, 2019, 04:04 Victor Stinner <vstinner at redhat.com> wrote:
+
+> Le mar. 9 avr. 2019 ? 22:16, Steve Dower <steve.dower at python.org> a ?crit
+> :
+> > What are the other changes that would be required?
+>
+> I don't know.
+>
+> > And is there another
+> > way to get the same functionality without ABI modifications?
+>
+> Py_TRACE_REFS is a double linked list of *all* Python objects. To get
+> this functionality, you need to store the list somewhere. I don't know
+> how to maintain such list outside the PyObject structure.
+>
+
+I assume these pointers get updated from some generic allocation/free code.
+Could that code instead overallocate by 16 bytes, use the first 16 bytes to
+hold the pointers, and then return the PyObject* as (actual allocated
+pointer + 16)? Basically the "container_of" trick.
+
+I don't think that I ever used sys.getobjects(), whereas many projects
+> use gc.get_objects() which is also available in release builds (not
+> only in debug builds).
+
+
+Can anyone explain what pydebug builds are... for? Confession: I've never
+used them myself, and don't know why I would want to.
+
+(I have to assume that most of Steve's Windows downloads are from folks who
+thought they were downloading a python debugger.)
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/b19228f0/attachment.html>
+
+From aranea.network at gmail.com  Wed Apr 10 15:39:27 2019
+From: aranea.network at gmail.com (Robert Okadar)
+Date: Wed, 10 Apr 2019 21:39:27 +0200
+Subject: [Python-Dev] (no subject)
+In-Reply-To: <20190410153555.GB3010@ando.pearwood.info>
+References: <CAJtvGNpa0KkvTV3VVba1TJXWM6ne5FQkOtmrt=wOH9RZyW0CZw@mail.gmail.com>
+ <20190410153555.GB3010@ando.pearwood.info>
+Message-ID: <CAJtvGNoUmvva2FD2bXJGrBKR3jj0_mxmNnPP3-2Y2dDzR4aZOA@mail.gmail.com>
+
+Hi Steven,
+
+Thank you for pointing me in the right direction. Will search for help on
+places you mentioned.
+
+Not sure how can we help you with developing the Python interpreter, as I
+doubt we have any knowledge that this project might use it. When I say
+'we', I mean on my colleague and me.
+
+All the best,
+--
+Robert Okadar
+IT Consultant
+
+Schedule an *online meeting <https://calendly.com/aranea-network/60min>* with
+me!
+
+Visit *aranea-mreze.hr* <http://aranea-mreze.hr> or call
+* +385 91 300 8887*
+
+
+On Wed, 10 Apr 2019 at 17:36, Steven D'Aprano <steve at pearwood.info> wrote:
+
+> Hi Robert,
+>
+> This mailing list is for the development of the Python interpreter, not
+> a general help desk. There are many other forums where you can ask for
+> help, such as the comp.lang.python newsgroup, Stackoverflow, /r/python
+> on Reddit, the IRC channel, and more.
+>
+> Perhaps you can help us though, I presume you signed up to this mailing
+> list via the web interface at
+>
+> https://mail.python.org/mailman/listinfo/python-dev
+>
+> Is there something we could do to make it more clear that this is not
+> the right place to ask for help?
+>
+>
+> --
+> Steven
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/64d459c2/attachment.html>
+
+From brett at python.org  Wed Apr 10 15:44:54 2019
+From: brett at python.org (Brett Cannon)
+Date: Wed, 10 Apr 2019 12:44:54 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+Message-ID: <CAP1=2W7vJ07J6nfWD4MX7B248ipica66wFk4HZWq9OOBMAfyJw@mail.gmail.com>
+
+On Wed, Apr 10, 2019 at 12:30 PM Nathaniel Smith <njs at pobox.com> wrote:
+
+> On Wed, Apr 10, 2019, 04:04 Victor Stinner <vstinner at redhat.com> wrote:
+>
+>> Le mar. 9 avr. 2019 ? 22:16, Steve Dower <steve.dower at python.org> a
+>> ?crit :
+>> > What are the other changes that would be required?
+>>
+>> I don't know.
+>>
+>> > And is there another
+>> > way to get the same functionality without ABI modifications?
+>>
+>> Py_TRACE_REFS is a double linked list of *all* Python objects. To get
+>> this functionality, you need to store the list somewhere. I don't know
+>> how to maintain such list outside the PyObject structure.
+>>
+>
+> I assume these pointers get updated from some generic allocation/free
+> code. Could that code instead overallocate by 16 bytes, use the first 16
+> bytes to hold the pointers, and then return the PyObject* as (actual
+> allocated pointer + 16)? Basically the "container_of" trick.
+>
+> I don't think that I ever used sys.getobjects(), whereas many projects
+>> use gc.get_objects() which is also available in release builds (not
+>> only in debug builds).
+>
+>
+> Can anyone explain what pydebug builds are... for? Confession: I've never
+> used them myself, and don't know why I would want to.
+>
+
+There is a bunch of extra things done in a debug build, e.g. all freed
+memory is blanked out with a known pattern so it's easy to tell when you're
+reading from freed memory (and thus probably messed up your refcounts). And
+then various extras are tossed on to the sys module to help with things.
+Basically anything people have found useful and require being compiled in
+typically get clumped in under the debug build.
+
+-Brett
+
+
+>
+> (I have to assume that most of Steve's Windows downloads are from folks
+> who thought they were downloading a python debugger.)
+>
+> -n
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190410/b63780d7/attachment.html>
+
+From steve.dower at python.org  Wed Apr 10 16:50:01 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 10 Apr 2019 13:50:01 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+Message-ID: <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+
+On 10Apr2019 1227, Nathaniel Smith wrote:
+> On Wed, Apr 10, 2019, 04:04 Victor Stinner <vstinner at redhat.com 
+> <mailto:vstinner at redhat.com>> wrote:
+>     I don't think that I ever used sys.getobjects(), whereas many projects
+>     use gc.get_objects() which is also available in release builds (not
+>     only in debug builds).
+> 
+> 
+> Can anyone explain what pydebug builds are... for? Confession: I've 
+> never used them myself, and don't know why I would want to.
+> 
+> (I have to assume that most of Steve's Windows downloads are from folks 
+> who thought they were downloading a python debugger.)
+
+They're for debugging :)
+
+In general, debug builds are meant for faster inner-loop development. 
+They generally do incremental builds properly and much faster by 
+omitting most optimisations, which also enables source mapping to be 
+more accurate when debugging. Assertions are typically enabled so that 
+you are notified when a precondition is first identified rather than 
+when it causes the crash (compiling these out later means you don't pay 
+a runtime cost once you've got the inputs correct - generally these are 
+used for developer-controlled values, rather than user-provided ones).
+
+So the idea is that you can quickly edit, build, debug, fix your code in 
+a debug configuration, and then use a release configuration for the 
+actual released build. Full release builds may take 2-3x longer than 
+full debug builds, given the extra effort they make at optimisation, and 
+very often can't do minimal incremental builds at all (so they may be 
+10-100x slower if you only modified one source file). But because the 
+builds behave functionally equivalently, you can iterate with the faster 
+configuration and get more done.
+
+(Disclaimer: I do most of my work on Windows where this has been 
+properly developed. What I hear from non-Windows developers is that 
+other tools can't actually handle this kind of workflow properly. Sorry.)
+
+The reason we ship debug Python binaries is because debug builds use a 
+different C Runtime, so if you do a debug build of an extension module 
+you're working on it won't actually work with a non-debug build of CPython.
+
+While it's possible that people misread "Download debug binaries" (the 
+text in the installer) and think that it's an actual debugger, I'd 
+suggest that your total lack of context here means you should avoid 
+making assumptions about users you know nothing about.
+
+Cheers,
+Steve
+
+From tjreedy at udel.edu  Wed Apr 10 17:00:42 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 10 Apr 2019 17:00:42 -0400
+Subject: [Python-Dev] (no subject)
+In-Reply-To: <CAJtvGNpa0KkvTV3VVba1TJXWM6ne5FQkOtmrt=wOH9RZyW0CZw@mail.gmail.com>
+References: <CAJtvGNpa0KkvTV3VVba1TJXWM6ne5FQkOtmrt=wOH9RZyW0CZw@mail.gmail.com>
+Message-ID: <q8llhs$5885$1@blaine.gmane.org>
+
+On 4/10/2019 7:24 AM, Robert Okadar wrote:
+> Hi community,
+> 
+> I have developed a tkinter GUI component, Python v3.7. It runs very well in
+> Linux but seeing a huge performance impact in Windows 10. While in Linux an
+> almost real-time performance is achieved, in Windows it is slow to an
+> unusable level.
+> 
+> The code is somewhat stripped down from the original, but the performance
+> difference is the same anyway. The columns can be resized by clicking on
+> the column border and dragging it. Resizing works only for the top row (but
+> it resizes the entire column).
+> In this demo, all bindings are avoided to exclude influence on the
+> component performance and thus not included. If you resize the window
+> (i.e., if you maximize it), you must call the function table.fit() from
+> IDLE shell.
+> 
+> Does anyone know where is this huge difference in performance coming from?
+> Can anything be done about it?
+
+For reasons explained by Steve, please send this instead to python-list
+https://mail.python.org/mailman/listinfo/python-list
+To access python-list as a newsgroup, skip comp.lang.python and use 
+newsgroup gmane.comp.python.general at news.gmane.org.
+
+I will respond there after testing/verifying and perhaps searching 
+bugs.python.org for a similar issue.
+
+-- 
+Terry Jan Reedy
+
+
+From tjreedy at udel.edu  Wed Apr 10 17:06:28 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 10 Apr 2019 17:06:28 -0400
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <2778f0f5-3a29-54da-8292-dfc23a0c6621@python.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <d7ea9da9-09c2-6637-4a05-b92573848f5a@python.org>
+ <2778f0f5-3a29-54da-8292-dfc23a0c6621@python.org>
+Message-ID: <q8llsm$62ba$1@blaine.gmane.org>
+
+On 4/10/2019 2:45 PM, Steve Dower wrote:
+
+> It's debug mode, and so you should expect less efficient memory and CPU 
+> usage.
+
+On my Windows machine, 'python -m test  -ugui'  takes about twice as long.
+
+> That's why we have two modes - so that it's easier to debug issues.
+
+-- 
+Terry Jan Reedy
+
+
+From python at mrabarnett.plus.com  Wed Apr 10 17:15:06 2019
+From: python at mrabarnett.plus.com (MRAB)
+Date: Wed, 10 Apr 2019 22:15:06 +0100
+Subject: [Python-Dev] (no subject)
+In-Reply-To: <q8llhs$5885$1@blaine.gmane.org>
+References: <CAJtvGNpa0KkvTV3VVba1TJXWM6ne5FQkOtmrt=wOH9RZyW0CZw@mail.gmail.com>
+ <q8llhs$5885$1@blaine.gmane.org>
+Message-ID: <8eb6376a-5ce4-c0ad-ba35-438e140b304b@mrabarnett.plus.com>
+
+On 2019-04-10 22:00, Terry Reedy wrote:
+> On 4/10/2019 7:24 AM, Robert Okadar wrote:
+>> Hi community,
+>> 
+>> I have developed a tkinter GUI component, Python v3.7. It runs very well in
+>> Linux but seeing a huge performance impact in Windows 10. While in Linux an
+>> almost real-time performance is achieved, in Windows it is slow to an
+>> unusable level.
+>> 
+>> The code is somewhat stripped down from the original, but the performance
+>> difference is the same anyway. The columns can be resized by clicking on
+>> the column border and dragging it. Resizing works only for the top row (but
+>> it resizes the entire column).
+>> In this demo, all bindings are avoided to exclude influence on the
+>> component performance and thus not included. If you resize the window
+>> (i.e., if you maximize it), you must call the function table.fit() from
+>> IDLE shell.
+>> 
+>> Does anyone know where is this huge difference in performance coming from?
+>> Can anything be done about it?
+> 
+> For reasons explained by Steve, please send this instead to python-list
+> https://mail.python.org/mailman/listinfo/python-list
+> To access python-list as a newsgroup, skip comp.lang.python and use
+> newsgroup gmane.comp.python.general at news.gmane.org.
+> 
+> I will respond there after testing/verifying and perhaps searching
+> bugs.python.org for a similar issue.
+> 
+ttk has Treeview, which can be configured as a table.
+
+From vstinner at redhat.com  Wed Apr 10 18:29:34 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 11 Apr 2019 00:29:34 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <d7ea9da9-09c2-6637-4a05-b92573848f5a@python.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <d7ea9da9-09c2-6637-4a05-b92573848f5a@python.org>
+Message-ID: <CA+3bQGEjCnkAFdOeMkGH3H5py-B2LPwqtRZb88ZzB82Kg4xbZw@mail.gmail.com>
+
+Le mer. 10 avr. 2019 ? 20:09, Steve Dower <steve.dower at python.org> a ?crit :
+> > The main question is if anyone ever used Py_TRACE_REFS? Does someone
+> > use sys.getobjects() or PYTHONDUMPREFS environment variable?
+> >
+> > Using PYTHONDUMPREFS=1 on a debug build (with Py_TRACE_REFS) does
+> > simply crash Python 3.7 at exit. So I don't think that anyone use it
+> > :-)
+>
+> How do we track reference leaks in the buildbots? Can/should we be using
+> this?
+
+Ah, maybe there is a misunderstanding. You don't need Py_TRACE_REFS to
+track memory leaks: "python3 -m test -R 3:3" works without that.
+test_regrtest contains an unit test for reference leaks (I know it
+that I wrote the test :-)), and you can see that the test pass on my
+PR. I also checked manually by adding a memory leak into a test: it is
+still detected :-)
+
+regrtest uses sys.gettotalrefcount(), sys.getallocatedblocks() and
+support.fd_count() to track reference, memory and file descriptor
+leaks. None of these functions are related to Py_TRACE_REFS.
+
+Again, the question is who rely on Py_TRACE_REFS. If nobody rely on
+it, I don't see the point of keeping this expensive feature (at least,
+not by default).
+
+> It doesn't crash on Python 3.8, so I suspect fixing the bug is a better
+> option than using it as an excuse to remove the feature.
+
+It's not what I said. I only said that it seems that nobody uses
+PYTHONDUMPREFS, since it's broken for a long time. It's just a hint
+about the usage of Py_TRACE_REFS.
+
+I don't propose to remove the feature, but to disable it by default.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Wed Apr 10 18:41:29 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 11 Apr 2019 00:41:29 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CAP1=2W7vJ07J6nfWD4MX7B248ipica66wFk4HZWq9OOBMAfyJw@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+ <CAP1=2W7vJ07J6nfWD4MX7B248ipica66wFk4HZWq9OOBMAfyJw@mail.gmail.com>
+Message-ID: <CA+3bQGGi4apP1mqcwFap0e03OkFoZwkTyMW_nQco++Z8H9mbzg@mail.gmail.com>
+
+Le mer. 10 avr. 2019 ? 21:45, Brett Cannon <brett at python.org> a ?crit :
+>> Can anyone explain what pydebug builds are... for? Confession: I've never used them myself, and don't know why I would want to.
+>
+> There is a bunch of extra things done in a debug build, e.g. all freed memory is blanked out with a known pattern so it's easy to tell when you're reading from freed memory (and thus probably messed up your refcounts).
+
+Since the debug build ABI is incompatible, it's not easy to use a
+debug build. For that reasons, I'm working for a few years to add such
+debugging features into regular release build. For example, you can
+now get this debugger on memory allocations using PYTHONMALLOC=debug
+environment variable since Python 3.6.
+
+Since such debug feature is not easy to discover (especially if you
+don't read closely What's New In Python 3.x), I added a generic "-X
+dev" command line option to enable a "development mode". It enables
+various similar features to debug code:
+https://docs.python.org/dev/using/cmdline.html#id5
+
+Effect of the developer mode:
+
+* Add default warning filter, as -W default.
+* Install debug hooks on memory allocators: see the
+PyMem_SetupDebugHooks() C function.
+* Enable the faulthandler module to dump the Python traceback on a crash.
+* Enable asyncio debug mode.
+* Set the dev_mode attribute of sys.flags to True
+
+See also https://pythondev.readthedocs.io/debug_tools.html where I
+started to document these debug tools and how to use them.
+
+
+> And then various extras are tossed on to the sys module to help with things. Basically anything people have found useful and require being compiled in typically get clumped in under the debug build.
+
+The debug build still contains many features which are useful to debug
+C extensions. For example, it adds sys.gettotalrefcnt() which is a
+convenient way to detect reference leaks. This funtion require
+Py_REF_DEBUG which modifies Py_INCREF() to add "_Py_RefTotal++;". Iit
+is has an impact on overall Python performance and should not be
+enabled in release build.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From J.Demeyer at UGent.be  Wed Apr 10 19:05:26 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 11 Apr 2019 01:05:26 +0200
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+Message-ID: <5CAE76B6.6090501@UGent.be>
+
+On 2019-04-10 18:25, Petr Viktorin wrote:
+> Hello!
+> I've had time for a more thorough reading of PEP 590 and the reference
+> implementation. Thank you for the work!
+
+And thank you for the review!
+
+> I'd now describe the fundamental
+> difference between PEP 580 and PEP 590 as:
+> - PEP 580 tries to optimize all existing calling conventions
+> - PEP 590 tries to optimize (and expose) the most general calling
+> convention (i.e. fastcall)
+
+And PEP 580 has better performance overall, even for METH_FASTCALL. See 
+this thread:
+https://mail.python.org/pipermail/python-dev/2019-April/156954.html
+
+Since these PEPs are all about performance, I consider this a very 
+relevant argument in favor of PEP 580.
+
+> PEP 580 also does a number of other things, as listed in PEP 579. But I
+> think PEP 590 does not block future PEPs for the other items.
+> On the other hand, PEP 580 has a much more mature implementation -- and
+> that's where it picked up real-world complexity.
+About complexity, please read what I wrote in
+https://mail.python.org/pipermail/python-dev/2019-March/156853.html
+
+I claim that the complexity in the protocol of PEP 580 is a good thing, 
+as it removes complexity from other places, in particular from the users 
+of the protocol (better have a complex protocol that's simple to use, 
+rather than a simple protocol that's complex to use).
+
+As a more concrete example of the simplicity that PEP 580 could bring, 
+CPython currently has 2 classes for bound methods implemented in C:
+- "builtin_function_or_method" for normal C methods
+- "method-descriptor" for slot wrappers like __eq__ or __add__
+
+With PEP 590, these classes would need to stay separate to get maximal 
+performance. With PEP 580, just one class for bound methods would be 
+sufficient and there wouldn't be any performance loss. And this extends 
+to custom third-party function/method classes, for example as 
+implemented by Cython.
+
+> PEP 590's METH_VECTORCALL is designed to handle all existing use cases,
+> rather than mirroring the existing METH_* varieties.
+> But both PEPs require the callable's code to be modified, so requiring
+> it to switch calling conventions shouldn't be a problem.
+
+Agreed.
+
+> Jeroen's analysis from
+> https://mail.python.org/pipermail/python-dev/2018-July/154238.html seems
+> to miss a step at the top:
+>
+> a. CALL_FUNCTION* / CALL_METHOD opcode
+>        calls
+> b. _PyObject_FastCallKeywords()
+>        which calls
+> c. _PyCFunction_FastCallKeywords()
+>        which calls
+> d. _PyMethodDef_RawFastCallKeywords()
+>        which calls
+> e. the actual C function (*ml_meth)()
+>
+> I think it's more useful to say that both PEPs bridge a->e (via
+> _Py_VectorCall or PyCCall_Call).
+
+Not quite. For a builtin_function_or_method, we have with PEP 580:
+
+a. call_function()
+     calls
+d. PyCCall_FastCall
+     which calls
+e. the actual C function
+
+and with PEP 590 it's more like:
+
+a. call_function()
+     calls
+c. _PyCFunction_FastCallKeywords
+     which calls
+d. _PyMethodDef_RawFastCallKeywords
+     which calls
+e. the actual C function
+
+Level c. above is the vectorcall wrapper, which is a level that PEP 580 
+doesn't have.
+
+> The way `const` is handled in the function signatures strikes me as too
+> fragile for public API.
+
+That's a detail which shouldn't influence the acceptance of either PEP.
+
+> Why not have a per-type pointer, and for types that need it (like
+> PyTypeObject), make it dispatch to an instance-specific function?
+
+That would be exactly https://bugs.python.org/issue29259
+
+I'll let Mark comment on this.
+
+> Minor things:
+> - "Continued prohibition of callable classes as base classes" -- this
+> section reads as a final. Would you be OK wording this as something
+> other PEPs can tackle?
+> - "PyObject_VectorCall" -- this looks extraneous, and the reference
+> imlementation doesn't need it so far. Can it be removed, or justified?
+> - METH_VECTORCALL is *not* strictly "equivalent to the currently
+> undocumented METH_FASTCALL | METH_KEYWORD flags" (it has the
+> ARGUMENTS_OFFSET complication).
+> - I'd like to officially call this PEP "Vectorcall", see
+> https://github.com/python/peps/pull/984
+
+Those are indeed details which shouldn't influence the acceptance of 
+either PEP. If you go with PEP 590, then we should discuss this further.
+
+> Mark, what are your plans for next steps with PEP 590? If a volunteer
+> wanted to help you push this forward, what would be the best thing to
+> work on?
+
+Personally, I think what we need now is a decision between PEP 580 and 
+PEP 590 (there is still the possibility of rejecting both but I really 
+hope that this won't happen). There is a lot of work that still needs to 
+be done after either PEP is accepted, such as:
+- finish and merge the reference implementation
+- document everything
+- use the protocol in more classes where it makes sense (for example, 
+staticmethod, wrapper_descriptor)
+- use this in Cython
+- handle more issues from PEP 579
+
+I volunteer to put my time into this, regardless of which PEP is 
+accepted. Of course, I still think that PEP 580 is better, but I also 
+want this functionality even if PEP 590 is accepted.
+
+> Jeroen, is there something in PEPs 579/580 that PEP 590 blocks, or
+> should address?
+
+Well, PEP 580 is an extensible protocol while PEP 590 is not. But, 
+PyTypeObject is extensible, so even with PEP 590 one can always extend 
+that (for example, PEP 590 uses a type flag Py_TPFLAGS_METHOD_DESCRIPTOR 
+where PEP 580 instead uses the structs for the C call protocol). But I 
+guess that extending PyTypeObject will be harder to justify (say, in a 
+future PEP) than extending the C call protocol.
+
+Also, it's explicitly allowed for users of the PEP 580 protocol to 
+extend the PyCCallDef structure with custom fields. But I don't have a 
+concrete idea of whether that will be useful.
+
+
+Kind regards,
+Jeroen.
+
+From njs at pobox.com  Wed Apr 10 22:17:28 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Wed, 10 Apr 2019 19:17:28 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+ <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+Message-ID: <CAPJVwB=J+W8bgDTwYt69xHsM1fB6aS8tU_4Ou9MP5nJCGYWVZw@mail.gmail.com>
+
+On Wed, Apr 10, 2019 at 1:50 PM Steve Dower <steve.dower at python.org> wrote:
+>
+> On 10Apr2019 1227, Nathaniel Smith wrote:
+> > On Wed, Apr 10, 2019, 04:04 Victor Stinner <vstinner at redhat.com
+> > <mailto:vstinner at redhat.com>> wrote:
+> >     I don't think that I ever used sys.getobjects(), whereas many projects
+> >     use gc.get_objects() which is also available in release builds (not
+> >     only in debug builds).
+> >
+> >
+> > Can anyone explain what pydebug builds are... for? Confession: I've
+> > never used them myself, and don't know why I would want to.
+> >
+> > (I have to assume that most of Steve's Windows downloads are from folks
+> > who thought they were downloading a python debugger.)
+>
+> They're for debugging :)
+>
+> In general, debug builds are meant for faster inner-loop development.
+> They generally do incremental builds properly and much faster by
+> omitting most optimisations, which also enables source mapping to be
+> more accurate when debugging. Assertions are typically enabled so that
+> you are notified when a precondition is first identified rather than
+> when it causes the crash (compiling these out later means you don't pay
+> a runtime cost once you've got the inputs correct - generally these are
+> used for developer-controlled values, rather than user-provided ones).
+>
+> So the idea is that you can quickly edit, build, debug, fix your code in
+> a debug configuration, and then use a release configuration for the
+> actual released build. Full release builds may take 2-3x longer than
+> full debug builds, given the extra effort they make at optimisation, and
+> very often can't do minimal incremental builds at all (so they may be
+> 10-100x slower if you only modified one source file). But because the
+> builds behave functionally equivalently, you can iterate with the faster
+> configuration and get more done.
+
+Sure, I'm familiar with the idea of debug and optimization settings in
+compilers. I build python with custom -g and -O flags all the time. (I
+do it by setting OPT when running configure.) It's also handy that
+many Linux distros these days let you install debug metadata for all
+the binaries they ship ? I've used that when debugging third-party
+extension modules, to get a better idea of what was happening when a
+backtrace passes through libpython. But --with-pydebug is a whole
+other thing beyond that, that changes the ABI, has its own wheel tags,
+requires special cases in packages that use ctypes to access PyObject*
+internals, and appears to be almost entirely undocumented.
+
+It sounds like --with-pydebug has accumulated a big grab bag of
+unrelated features, mostly stuff that was useful at some point for
+some CPython dev trying to debug CPython itself? It's clearly not
+designed with end users as the primary audience, given that no-one
+knows what it actually does and that it makes third-party extensions
+really awkward to run. If that's right then I think Victor's plan of
+to sort through what it's actually doing makes a lot of sense,
+especially if we can remove the ABI breaking stuff, since that causes
+a disproportionate amount of trouble.
+
+> The reason we ship debug Python binaries is because debug builds use a
+> different C Runtime, so if you do a debug build of an extension module
+> you're working on it won't actually work with a non-debug build of CPython.
+
+...But this is an important point. I'd forgotten that MSVC has a habit
+of changing the entire C runtime when you turn on the compiler's
+debugging mode. (On Linux, we generally don't bother rebuilding the C
+runtime unless you're actually debugging the C runtime, and anyway if
+you do want to switch to a debug version of the C runtime, it's ABI
+compatible so your program binaries don't have to be rebuilt.)
+
+Is it true that if the interpreter is built against ucrtd.lib, and an
+extension module is built against ucrt.lib, then they'll have
+incompatible ABIs and not work together? And that this detail is part
+of what's been glommed together into the "d" flag in the soabi tag on
+Windows?
+
+Is it possible for the Windows installer to include PDB files (/Zi
+/DEBUG) to allow debuggers to understand the regular release
+executable? (That's what I would have expected to get if I checked a
+box labeled "Download debug binaries".)
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From storchaka at gmail.com  Thu Apr 11 01:45:28 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Thu, 11 Apr 2019 08:45:28 +0300
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+Message-ID: <q8mk9m$30cc$1@blaine.gmane.org>
+
+10.04.19 14:01, Victor Stinner ????:
+> Disabling Py_TRACE_REFS by default in debug mode reduces the Python
+> memory footprint. Py_TRACE_REFS costs 2 pointers per PyObject: 16
+> bytes on 64-bit platforms.
+
+Does not the memory allocator in debug mode have even larger cost per 
+allocated block?
+
+
