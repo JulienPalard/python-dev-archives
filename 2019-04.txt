@@ -5460,3 +5460,664 @@ Does not the memory allocator in debug mode have even larger cost per
 allocated block?
 
 
+From vstinner at redhat.com  Thu Apr 11 05:28:51 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 11 Apr 2019 11:28:51 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <q8mk9m$30cc$1@blaine.gmane.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+Message-ID: <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+
+Le jeu. 11 avr. 2019 ? 07:49, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+> 10.04.19 14:01, Victor Stinner ????:
+> > Disabling Py_TRACE_REFS by default in debug mode reduces the Python
+> > memory footprint. Py_TRACE_REFS costs 2 pointers per PyObject: 16
+> > bytes on 64-bit platforms.
+>
+> Does not the memory allocator in debug mode have even larger cost per
+> allocated block?
+
+What do you mean? That a debug build already waste too much memory and
+so doesn't deserve to have a smaller memory footprint? I'm not sure
+that I understand your point.
+
+A smaller footprint can mean that more people may be able to use debug
+build. Disabling Py_TRACE_REFS should make Python a little bit faster.
+
+My question stands: is it worth to keep a feature which "waste"
+resources (memory footprint and CPU) and nobody uses it?
+
+Debug hooks add 4 x sizeof(size_t) bytes to every memory allocation to
+detect buffer underflow and buffer overflow. That's 32 bytes per
+memory allocation. By the way, IMHO the "serial number" is not really
+useful and could be removed to only add 3 x sizeof(size_t) (24 bytes).
+But the debug hook is very useful, it's common that it helps me to
+find real bugs in the code. Whereas I don't recall that Py_TRACE_REFS
+helped me even once.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From Peixing.Xin at windriver.com  Thu Apr 11 05:45:00 2019
+From: Peixing.Xin at windriver.com (Xin, Peixing)
+Date: Thu, 11 Apr 2019 09:45:00 +0000
+Subject: [Python-Dev] checking "errno" for math operaton is safe to
+ determine the error status?
+Message-ID: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB0437@ALA-MBD.corp.ad.wrs.com>
+
+Hi, Math experts:
+
+Looking at the codes below, for many math operations, CPython is checking errno to determine the error status even though the math function returns normal value back. Is it a safe solution? From the description here http://man7.org/linux/man-pages/man3/errno.3.html and https://wiki.sei.cmu.edu/confluence/pages/viewpage.action?pageId=87152351, it looks apis probably set the errno when normal result is returned. Or being a side effect by calling other APIs in the implementation. In this situation, CPython's math operation might raise exceptions however in fact the result is correct.
+
+https://github.com/python/cpython/blob/master/Modules/mathmodule.c#L956
+https://github.com/python/cpython/blob/master/Modules/mathmodule.c#L864
+
+Thanks,
+Peixing
+
+From encukou at gmail.com  Thu Apr 11 07:21:49 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 11 Apr 2019 13:21:49 +0200
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <5CAE76B6.6090501@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com> <5CAE76B6.6090501@UGent.be>
+Message-ID: <308f7b69-01d4-55c6-0bd6-d767ecc3fd99@gmail.com>
+
+On 4/11/19 1:05 AM, Jeroen Demeyer wrote:
+> On 2019-04-10 18:25, Petr Viktorin wrote:
+>> Hello!
+>> I've had time for a more thorough reading of PEP 590 and the reference
+>> implementation. Thank you for the work!
+> 
+> And thank you for the review!
+
+One general note: I am not (yet) choosing between PEP 580 and PEP 590.
+I am not looking for arguments for/against whole PEPs, but individual 
+ideas which, I believe, can still be mixed & matched.
+
+I see the situation this way:
+- I get about one day per week when I can properly concentrate on 
+CPython. It's frustrating to be the bottleneck.
+- Jeroen has time, but it would frustrating to work on something that 
+will later be discarded, and it's frustrating to not be able to move the 
+project forward.
+- Mark has good ideas, but seems to lack the time to polish them, or 
+even test out if they are good. It is probably frustrating to see 
+unpolished ideas rejected.
+
+I'm looking for ways to reduce the frustration, given where we are.
+
+
+Jeroen, thank you for the comments. Apologies for not having the time to 
+reply to all of them properly right now.
+
+Mark, if you could find the time to answer (even just a few of the 
+points), it would be great. I ask you to share/clarify your thoughts, 
+not defend your PEP.
+
+
+>> I'd now describe the fundamental
+>> difference between PEP 580 and PEP 590 as:
+>> - PEP 580 tries to optimize all existing calling conventions
+>> - PEP 590 tries to optimize (and expose) the most general calling
+>> convention (i.e. fastcall)
+> 
+> And PEP 580 has better performance overall, even for METH_FASTCALL. See 
+> this thread:
+> https://mail.python.org/pipermail/python-dev/2019-April/156954.html
+> 
+> Since these PEPs are all about performance, I consider this a very 
+> relevant argument in favor of PEP 580.
+>
+>> PEP 580 also does a number of other things, as listed in PEP 579. But I
+>> think PEP 590 does not block future PEPs for the other items.
+>> On the other hand, PEP 580 has a much more mature implementation -- and
+>> that's where it picked up real-world complexity.
+> About complexity, please read what I wrote in
+> https://mail.python.org/pipermail/python-dev/2019-March/156853.html
+> 
+> I claim that the complexity in the protocol of PEP 580 is a good thing, 
+> as it removes complexity from other places, in particular from the users 
+> of the protocol (better have a complex protocol that's simple to use, 
+> rather than a simple protocol that's complex to use).
+
+Sadly, I need more time on this than I have today; I'll get back to it 
+next week.
+
+> As a more concrete example of the simplicity that PEP 580 could bring, 
+> CPython currently has 2 classes for bound methods implemented in C:
+> - "builtin_function_or_method" for normal C methods
+> - "method-descriptor" for slot wrappers like __eq__ or __add__
+> 
+> With PEP 590, these classes would need to stay separate to get maximal 
+> performance. With PEP 580, just one class for bound methods would be 
+> sufficient and there wouldn't be any performance loss. And this extends 
+> to custom third-party function/method classes, for example as 
+> implemented by Cython.
+> 
+>> PEP 590's METH_VECTORCALL is designed to handle all existing use cases,
+>> rather than mirroring the existing METH_* varieties.
+>> But both PEPs require the callable's code to be modified, so requiring
+>> it to switch calling conventions shouldn't be a problem.
+> 
+> Agreed.
+> 
+>> Jeroen's analysis from
+>> https://mail.python.org/pipermail/python-dev/2018-July/154238.html seems
+>> to miss a step at the top:
+>>
+>> a. CALL_FUNCTION* / CALL_METHOD opcode
+>> ?????? calls
+>> b. _PyObject_FastCallKeywords()
+>> ?????? which calls
+>> c. _PyCFunction_FastCallKeywords()
+>> ?????? which calls
+>> d. _PyMethodDef_RawFastCallKeywords()
+>> ?????? which calls
+>> e. the actual C function (*ml_meth)()
+>>
+>> I think it's more useful to say that both PEPs bridge a->e (via
+>> _Py_VectorCall or PyCCall_Call).
+> 
+> Not quite. For a builtin_function_or_method, we have with PEP 580:
+> 
+> a. call_function()
+>  ??? calls
+> d. PyCCall_FastCall
+>  ??? which calls
+> e. the actual C function
+> 
+> and with PEP 590 it's more like:
+> 
+> a. call_function()
+>  ??? calls
+> c. _PyCFunction_FastCallKeywords
+>  ??? which calls
+> d. _PyMethodDef_RawFastCallKeywords
+>  ??? which calls
+> e. the actual C function
+> 
+> Level c. above is the vectorcall wrapper, which is a level that PEP 580 
+> doesn't have.
+
+Again, I'll get back to this next week.
+
+>> The way `const` is handled in the function signatures strikes me as too
+>> fragile for public API.
+> 
+> That's a detail which shouldn't influence the acceptance of either PEP.
+
+True.
+I guess what I want from the answer is to know how much thought went 
+into const handling: is what's in the PEP an initial draft, or does it 
+solve some hidden issue?
+
+>> Why not have a per-type pointer, and for types that need it (like
+>> PyTypeObject), make it dispatch to an instance-specific function?
+> 
+> That would be exactly https://bugs.python.org/issue29259
+> 
+> I'll let Mark comment on this.
+> 
+>> Minor things:
+>> - "Continued prohibition of callable classes as base classes" -- this
+>> section reads as a final. Would you be OK wording this as something
+>> other PEPs can tackle?
+>> - "PyObject_VectorCall" -- this looks extraneous, and the reference
+>> imlementation doesn't need it so far. Can it be removed, or justified?
+>> - METH_VECTORCALL is *not* strictly "equivalent to the currently
+>> undocumented METH_FASTCALL | METH_KEYWORD flags" (it has the
+>> ARGUMENTS_OFFSET complication).
+>> - I'd like to officially call this PEP "Vectorcall", see
+>> https://github.com/python/peps/pull/984
+> 
+> Those are indeed details which shouldn't influence the acceptance of 
+> either PEP. If you go with PEP 590, then we should discuss this further.
+
+Here again, I mostly want to know if the details are there for deeper 
+reasons, or just points to polish.
+
+>> Mark, what are your plans for next steps with PEP 590? If a volunteer
+>> wanted to help you push this forward, what would be the best thing to
+>> work on?
+> 
+> Personally, I think what we need now is a decision between PEP 580 and 
+> PEP 590 (there is still the possibility of rejecting both but I really 
+> hope that this won't happen). There is a lot of work that still needs to 
+> be done after either PEP is accepted, such as:
+> - finish and merge the reference implementation
+> - document everything
+> - use the protocol in more classes where it makes sense (for example, 
+> staticmethod, wrapper_descriptor)
+> - use this in Cython
+> - handle more issues from PEP 579
+> 
+> I volunteer to put my time into this, regardless of which PEP is 
+> accepted. Of course, I still think that PEP 580 is better, but I also 
+> want this functionality even if PEP 590 is accepted.
+
+Thank you. Sorry for the way this is dragged out.
+Would it help to set some timeline/deadlines here?
+
+>> Jeroen, is there something in PEPs 579/580 that PEP 590 blocks, or
+>> should address?
+> 
+> Well, PEP 580 is an extensible protocol while PEP 590 is not. But, 
+> PyTypeObject is extensible, so even with PEP 590 one can always extend 
+> that (for example, PEP 590 uses a type flag Py_TPFLAGS_METHOD_DESCRIPTOR 
+> where PEP 580 instead uses the structs for the C call protocol). But I 
+> guess that extending PyTypeObject will be harder to justify (say, in a 
+> future PEP) than extending the C call protocol.
+
+Thanks. I also like PEP 580's extensibility.
+
+> Also, it's explicitly allowed for users of the PEP 580 protocol to 
+> extend the PyCCallDef structure with custom fields. But I don't have a 
+> concrete idea of whether that will be useful.
+
+I don't have good general experience with premature extensibility, so 
+I'd not count this as a plus.
+
+From J.Demeyer at UGent.be  Thu Apr 11 08:04:27 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 11 Apr 2019 14:04:27 +0200
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <308f7b69-01d4-55c6-0bd6-d767ecc3fd99@gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com> <5CAE76B6.6090501@UGent.be>
+ <308f7b69-01d4-55c6-0bd6-d767ecc3fd99@gmail.com>
+Message-ID: <5CAF2D4B.8070205@UGent.be>
+
+Petr,
+
+I realize that you are in a difficult position. You'll end up 
+disappointing either me or Mark...
+
+I don't know if the steering council or somebody else has a good idea to 
+deal with this situation.
+
+> Jeroen has time
+
+Speaking of time, maybe I should clarify that I have time until the end 
+of August: I am working for the OpenDreamKit grant, which allows me to 
+work basically full-time on open source software development but that 
+ends at the end of August.
+
+> Here again, I mostly want to know if the details are there for deeper
+> reasons, or just points to polish.
+
+I would say: mostly shallow details.
+
+The subclassing thing would be good to resolve, but I don't see any 
+difference between PEP 580 and PEP 590 there. In PEP 580, I wrote a 
+strategy for dealing with subclassing. I believe that it works and that 
+exactly the same idea would work for PEP 590 too. Of course, I may be 
+overlooking something...
+
+> I don't have good general experience with premature extensibility, so
+> I'd not count this as a plus.
+
+Fair enough. I also see it more as a "nice to have", not as a big plus.
+
+From christian at python.org  Thu Apr 11 08:23:48 2019
+From: christian at python.org (Christian Heimes)
+Date: Thu, 11 Apr 2019 14:23:48 +0200
+Subject: [Python-Dev] checking "errno" for math operaton is safe to
+ determine the error status?
+In-Reply-To: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB0437@ALA-MBD.corp.ad.wrs.com>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB0437@ALA-MBD.corp.ad.wrs.com>
+Message-ID: <5fb2462a-ee2c-00e3-1928-d56510e29570@python.org>
+
+On 11/04/2019 11.45, Xin, Peixing wrote:
+> Hi, Math experts:
+> 
+> Looking at the codes below, for many math operations, CPython is checking errno to determine the error status even though the math function returns normal value back. Is it a safe solution? From the description here http://man7.org/linux/man-pages/man3/errno.3.html and https://wiki.sei.cmu.edu/confluence/pages/viewpage.action?pageId=87152351, it looks apis probably set the errno when normal result is returned. Or being a side effect by calling other APIs in the implementation. In this situation, CPython's math operation might raise exceptions however in fact the result is correct.
+> 
+> https://github.com/python/cpython/blob/master/Modules/mathmodule.c#L956
+> https://github.com/python/cpython/blob/master/Modules/mathmodule.c#L864
+
+This is safe because all places first set errno to 0. Errno is a thread
+local variable, so other threads cannot influence the variable during
+the calls.
+
+This is one of the many quirks that Mark has implemented for platforms
+bugs in various libm.
+
+Christian
+
+From steve.dower at python.org  Thu Apr 11 11:19:51 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 11 Apr 2019 08:19:51 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+Message-ID: <3de8eb9f-e2ad-f5b2-5de6-ba02fd4e3895@python.org>
+
+On 11Apr2019 0228, Victor Stinner wrote:
+> Le jeu. 11 avr. 2019 ? 07:49, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+>> 10.04.19 14:01, Victor Stinner ????:
+>>> Disabling Py_TRACE_REFS by default in debug mode reduces the Python
+>>> memory footprint. Py_TRACE_REFS costs 2 pointers per PyObject: 16
+>>> bytes on 64-bit platforms.
+>>
+>> Does not the memory allocator in debug mode have even larger cost per
+>> allocated block?
+> 
+> What do you mean? That a debug build already waste too much memory and
+> so doesn't deserve to have a smaller memory footprint? I'm not sure
+> that I understand your point.
+
+He means you're micro-optimising something that doesn't matter. If you 
+really wanted to reduce memory usage in debug builds, you'd go after one 
+of the bigger "problems".
+
+> A smaller footprint can mean that more people may be able to use debug
+> build. Disabling Py_TRACE_REFS should make Python a little bit faster.
+
+This isn't one of the goals of a debug build though, and you haven't 
+pointed at any examples of people not being able to use the debug build 
+because of memory pressure. (Which is because most people who are not 
+working on CPython itself should not be using the debug build.)
+
+> My question stands: is it worth to keep a feature which "waste"
+> resources (memory footprint and CPU) and nobody uses it?
+
+You haven't even tried to show that nobody uses it, other than pointing 
+out that it exposes a crash due to a refcounting bug (which is kind of 
+the point ;) ).
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Thu Apr 11 11:26:47 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 11 Apr 2019 08:26:47 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CAPJVwB=J+W8bgDTwYt69xHsM1fB6aS8tU_4Ou9MP5nJCGYWVZw@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+ <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+ <CAPJVwB=J+W8bgDTwYt69xHsM1fB6aS8tU_4Ou9MP5nJCGYWVZw@mail.gmail.com>
+Message-ID: <f554e709-efcf-4b13-5867-59bac105c49d@python.org>
+
+On 10Apr2019 1917, Nathaniel Smith wrote:
+> It sounds like --with-pydebug has accumulated a big grab bag of
+> unrelated features, mostly stuff that was useful at some point for
+> some CPython dev trying to debug CPython itself? It's clearly not
+> designed with end users as the primary audience, given that no-one
+> knows what it actually does and that it makes third-party extensions
+> really awkward to run. If that's right then I think Victor's plan of
+> to sort through what it's actually doing makes a lot of sense,
+> especially if we can remove the ABI breaking stuff, since that causes
+> a disproportionate amount of trouble.
+
+Does it really cause a "disproportionate" amount of trouble? It's 
+definitely not meant for anyone who isn't working on C code, whether in 
+CPython, an extension or a host application. If you want to use 
+third-party extensions and are not able to rebuild them, that's a very 
+good sign that you probably shouldn't be on the debug build at all.
+
+Perhaps the "--with-pydebug" option is too attractive? (Is it the 
+default?) That's easily fixed.
+
+>> The reason we ship debug Python binaries is because debug builds use a
+>> different C Runtime, so if you do a debug build of an extension module
+>> you're working on it won't actually work with a non-debug build of CPython.
+> 
+> ...But this is an important point. I'd forgotten that MSVC has a habit
+> of changing the entire C runtime when you turn on the compiler's
+> debugging mode.
+
+Technically they are separate options, but most project files are 
+configured such that *their* Debug/Release switch affects both the 
+compiler options (optimization) and the linker options (C runtime linkage).
+
+> Is it true that if the interpreter is built against ucrtd.lib, and an
+> extension module is built against ucrt.lib, then they'll have
+> incompatible ABIs and not work together? And that this detail is part
+> of what's been glommed together into the "d" flag in the soabi tag on
+> Windows?
+
+Yep, except it's not actually in the soabi tag, but it's the "_d" suffix 
+on module/executable names.
+
+> Is it possible for the Windows installer to include PDB files (/Zi
+> /DEBUG) to allow debuggers to understand the regular release
+> executable? (That's what I would have expected to get if I checked a
+> box labeled "Download debug binaries".)
+
+That box is immediately below one labelled "Download debug symbols", so 
+hopefully seeing it in context would have set the right expectation. 
+(And since I have them, there were 1.3 million downloads of the symbol 
+packages via this option in March, but we also enable it by default via 
+Visual Studio and that's responsible for about 1 million of those.)
+
+Cheers,
+Steve
+
+From storchaka at gmail.com  Thu Apr 11 11:30:18 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Thu, 11 Apr 2019 18:30:18 +0300
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+Message-ID: <q8nmi8$6mo7$1@blaine.gmane.org>
+
+11.04.19 12:28, Victor Stinner ????:
+> Le jeu. 11 avr. 2019 ? 07:49, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+>> 10.04.19 14:01, Victor Stinner ????:
+>>> Disabling Py_TRACE_REFS by default in debug mode reduces the Python
+>>> memory footprint. Py_TRACE_REFS costs 2 pointers per PyObject: 16
+>>> bytes on 64-bit platforms.
+>>
+>> Does not the memory allocator in debug mode have even larger cost per
+>> allocated block?
+> 
+> What do you mean? That a debug build already waste too much memory and
+> so doesn't deserve to have a smaller memory footprint? I'm not sure
+> that I understand your point.
+
+If reducing the Python memory footprint is an argument for disabling 
+Py_TRACE_REFS, it is a weak argument because there is larger overhead in 
+the debug build.
+
+On other hand, since using the debug allocator doesn't cause problems 
+with compatibility, it may be possible to use similar technique for the 
+objects double list. Although this is not easy because of objects placed 
+at static memory.
+
+
+From brett at python.org  Thu Apr 11 16:32:15 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 11 Apr 2019 13:32:15 -0700
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <5CAF2D4B.8070205@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com> <5CAE76B6.6090501@UGent.be>
+ <308f7b69-01d4-55c6-0bd6-d767ecc3fd99@gmail.com> <5CAF2D4B.8070205@UGent.be>
+Message-ID: <CAP1=2W4kvTKjqsXmemXeza+QJLCTme-fzMGHPcmQcE0K=RZUXA@mail.gmail.com>
+
+On Thu, Apr 11, 2019 at 5:06 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> Petr,
+>
+> I realize that you are in a difficult position. You'll end up
+> disappointing either me or Mark...
+>
+> I don't know if the steering council or somebody else has a good idea to
+> deal with this situation.
+>
+
+Our answer was "ask Petr to be BDFL Delegate". ;)
+
+In all seriousness, none of us on the council or as well equipped as Petr
+to handle this tough decision, else it would take even longer for us to
+learn enough to make an informed decision and we would be even worse off.
+
+-Brett
+
+
+>
+> > Jeroen has time
+>
+> Speaking of time, maybe I should clarify that I have time until the end
+> of August: I am working for the OpenDreamKit grant, which allows me to
+> work basically full-time on open source software development but that
+> ends at the end of August.
+>
+> > Here again, I mostly want to know if the details are there for deeper
+> > reasons, or just points to polish.
+>
+> I would say: mostly shallow details.
+>
+> The subclassing thing would be good to resolve, but I don't see any
+> difference between PEP 580 and PEP 590 there. In PEP 580, I wrote a
+> strategy for dealing with subclassing. I believe that it works and that
+> exactly the same idea would work for PEP 590 too. Of course, I may be
+> overlooking something...
+>
+> > I don't have good general experience with premature extensibility, so
+> > I'd not count this as a plus.
+>
+> Fair enough. I also see it more as a "nice to have", not as a big plus.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190411/10de4bb3/attachment.html>
+
+From njs at pobox.com  Thu Apr 11 21:06:14 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 11 Apr 2019 18:06:14 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <q8nmi8$6mo7$1@blaine.gmane.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+ <q8nmi8$6mo7$1@blaine.gmane.org>
+Message-ID: <CAPJVwBko=-wDssGLYWH5znXjb5cD-eFnXS0o_APLXW0mmfTWfA@mail.gmail.com>
+
+On Thu, Apr 11, 2019 at 8:32 AM Serhiy Storchaka <storchaka at gmail.com> wrote:
+> On other hand, since using the debug allocator doesn't cause problems
+> with compatibility, it may be possible to use similar technique for the
+> objects double list. Although this is not easy because of objects placed
+> at static memory.
+
+I guess one could track static objects separately, e.g. keep a simple
+global PyList containing all statically allocated objects. (This is
+easy since we know they're all immortal.) And then sys.getobjects()
+could walk the heap objects and statically allocated objects
+separately.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From Peixing.Xin at windriver.com  Thu Apr 11 22:19:32 2019
+From: Peixing.Xin at windriver.com (Xin, Peixing)
+Date: Fri, 12 Apr 2019 02:19:32 +0000
+Subject: [Python-Dev] checking "errno" for math operaton is safe to
+ determine the error status?
+In-Reply-To: <5fb2462a-ee2c-00e3-1928-d56510e29570@python.org>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB0437@ALA-MBD.corp.ad.wrs.com>
+ <5fb2462a-ee2c-00e3-1928-d56510e29570@python.org>
+Message-ID: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB0B64@ALA-MBD.corp.ad.wrs.com>
+
+Thanks for your explanation, Christian. Actually my question is not about thread safe or the original value 0 on errno. Probably I didn't express the point clearly. To be more clear, let me take expm1 as an example below.
+
+On certain platform, expm1() is implemented as exp() minus 1. To calculate expm1(-1420.0), that will call exp(-1420.0) then substract 1. You know, exp(-1420.0) will underflow to zero and errno is set to ERANGE. As a consequence the errno keeps set there when expm1() returns the correct result -1. So for this situation, CPthon's api is_error() will raise overflow unexpectedly. Whose bug should it be scoped to? A bug of the platform? Isn't errno allowed to be set when calculation gets normal result? 
+
+Thanks,
+Peixing
+
+
+-----Original Message-----
+From: Christian Heimes [mailto:christian at python.org] 
+Sent: Thursday, April 11, 2019 8:24 PM
+To: Xin, Peixing; python-dev at python.org; Mark Dickinson
+Subject: Re: checking "errno" for math operaton is safe to determine the error status?
+
+On 11/04/2019 11.45, Xin, Peixing wrote:
+> Hi, Math experts:
+> 
+> Looking at the codes below, for many math operations, CPython is checking errno to determine the error status even though the math function returns normal value back. Is it a safe solution? From the description here http://man7.org/linux/man-pages/man3/errno.3.html and https://wiki.sei.cmu.edu/confluence/pages/viewpage.action?pageId=87152351, it looks apis probably set the errno when normal result is returned. Or being a side effect by calling other APIs in the implementation. In this situation, CPython's math operation might raise exceptions however in fact the result is correct.
+> 
+> https://github.com/python/cpython/blob/master/Modules/mathmodule.c#L956
+> https://github.com/python/cpython/blob/master/Modules/mathmodule.c#L864
+
+This is safe because all places first set errno to 0. Errno is a thread
+local variable, so other threads cannot influence the variable during
+the calls.
+
+This is one of the many quirks that Mark has implemented for platforms
+bugs in various libm.
+
+Christian
+
+From greg.ewing at canterbury.ac.nz  Fri Apr 12 01:44:33 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Fri, 12 Apr 2019 17:44:33 +1200
+Subject: [Python-Dev] checking "errno" for math operaton is safe to
+ determine the error status?
+In-Reply-To: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB0B64@ALA-MBD.corp.ad.wrs.com>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB0437@ALA-MBD.corp.ad.wrs.com>
+ <5fb2462a-ee2c-00e3-1928-d56510e29570@python.org>
+ <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB0B64@ALA-MBD.corp.ad.wrs.com>
+Message-ID: <5CB025C1.2060708@canterbury.ac.nz>
+
+Xin, Peixing wrote:
+> On certain platform, expm1() is implemented as exp() minus 1. To calculate
+> expm1(-1420.0), that will call exp(-1420.0) then substract 1. You know,
+> exp(-1420.0) will underflow to zero and errno is set to ERANGE. As a
+> consequence the errno keeps set there when expm1() returns the correct result
+> -1.
+
+This sounds like a bug in that platform's implementation of
+expm1() to me. Which platform is it?
+
+-- 
+Greg
+
