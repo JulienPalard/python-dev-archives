@@ -6121,3 +6121,2057 @@ expm1() to me. Which platform is it?
 -- 
 Greg
 
+From vstinner at redhat.com  Fri Apr 12 06:57:04 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 12 Apr 2019 12:57:04 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <q8nmi8$6mo7$1@blaine.gmane.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+ <q8nmi8$6mo7$1@blaine.gmane.org>
+Message-ID: <CA+3bQGGTs0y5GsSU6XmSOqbHC6ytFH6+OWAgX-NXXd8fTzAGTw@mail.gmail.com>
+
+Le jeu. 11 avr. 2019 ? 17:33, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+> If reducing the Python memory footprint is an argument for disabling
+> Py_TRACE_REFS, it is a weak argument because there is larger overhead in
+> the debug build.
+
+The "serialno" field of debug memory allocators is documented as: "an
+excellent way to set a breakpoint on the next run, to capture the
+instant at which this block was passed out." I'm debugging crashes and
+memory leaks in CPython for 10 years, and I simply never had to use
+"serialno". I wrote https://bugs.python.org/issue36611 to remove the
+serialno field of debug hooks on Python memory allocators: it reduces
+the memory footprint by 5% (ex: 1.2 MiB on 33.0 MiB when running
+test_asyncio).
+
+Python is used on devices with low memory (ex: 256 MiB for the whole
+system). Allowing developers to use a debug build on such devices seem
+to be a legit rationale for such change. The debug build is very
+useful to identify bugs in C extensions.
+
+
+> On other hand, since using the debug allocator doesn't cause problems
+> with compatibility, it may be possible to use similar technique for the
+> objects double list. Although this is not easy because of objects placed
+> at static memory.
+
+I'm not sure of what you means by "objects placed at static memory":
+the double linked list of all Python objects is created at runtime.
+_ob_next and _ob_prev are initialized statically to NULL.
+
+I would be interested if Py_TRACE_REFS could be reimplemented in a
+more dynamic fashion. Even if it would still require a debug build, it
+would be nice to be able to "opt-in" for this feature (have it
+disabled by default, again, to reduce the overhead and reduce the
+memory footprint), as tracemalloc which plugs itself into memory
+allocators to attach traces to memory blocks.
+
+Except Guido who wrote "I recall finding memory leaks using this.
+(E.g. I remember a leak in Zope due to a cache that was never pruned.)
+But presumably gc.get_objects() would have been sufficient. (IIRC it
+didn't exist at the time.)", at this point, nobody said that they use
+Py_TRACE_REFS. So I'm not sure that it's worth it to invest time on a
+feature if nobody uses it?
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Fri Apr 12 08:06:04 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 12 Apr 2019 14:06:04 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CA+3bQGGTs0y5GsSU6XmSOqbHC6ytFH6+OWAgX-NXXd8fTzAGTw@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+ <q8nmi8$6mo7$1@blaine.gmane.org>
+ <CA+3bQGGTs0y5GsSU6XmSOqbHC6ytFH6+OWAgX-NXXd8fTzAGTw@mail.gmail.com>
+Message-ID: <CA+3bQGEsuUU2AvdV4qcg5puygAWwV_JO48RQ9MDeGMNpdsR0hg@mail.gmail.com>
+
+Le ven. 12 avr. 2019 ? 12:57, Victor Stinner <vstinner at redhat.com> a ?crit :
+> I wrote https://bugs.python.org/issue36611 to remove the serialno field
+> of debug hooks on Python memory allocators: it reduces
+> the memory footprint by 5% (ex: 1.2 MiB on 33.0 MiB when running
+> test_asyncio).
+
+I measured the memory footprint when I combine my two changes:
+
+* disable Py_TRACE_REFS: https://bugs.python.org/issue36465
+* disable/remove serialno field: https://bugs.python.org/issue36611
+
+python3 -m test test_asyncio, without => with the change: 34,038.0 kB
+=> 30,612.2 kB (-3,425.8 kiB, -10%)
+
+A reduction of 3.4 MiB on 34.0 MiB is quite significant, no?
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Fri Apr 12 08:34:56 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 12 Apr 2019 14:34:56 +0200
+Subject: [Python-Dev] PEP-582 and multiple Python installations
+In-Reply-To: <CACo5Rz4X+d7mQ1EH=w4geg2q=PMVvrnm3L2sD5+wyd42B_LvsQ@mail.gmail.com>
+References: <CACo5Rz4X+d7mQ1EH=w4geg2q=PMVvrnm3L2sD5+wyd42B_LvsQ@mail.gmail.com>
+Message-ID: <CA+3bQGEz9s1z1ckzgDoEHU53yhuEASoxeav6aD+tOHk4ghHztg@mail.gmail.com>
+
+Hi,
+
+Le mar. 2 avr. 2019 ? 17:20, Calvin Spealman <cspealma at redhat.com> a ?crit :
+> While the PEP does show the version number as part of the path to the actual packages, implying support for multiple versions, this doesn't seem to be spelled out in the actual text. Presumably __pypackages__/3.8/ might sit beside __pypackages__/3.9/, etc. to keep future versions capable of installing packages for each version, the way virtualenv today is bound to one version of Python.
+>
+>
+> I'd like to raise a potential edge case that might be a problem, and likely an increasingly common one: users with multiple installations of the *same* version of Python.
+
+Hum, I don't know if it's relevant to support multiple Python binaries
+of the same Python version, but just in case, let me share my
+experience with that in the pyperformance project.
+
+The pyperformance project uses virtual environment for two binaries of
+the exact Python version (and usually the same path!): one unpatched
+"reference" and one "patched" binary, to experiment an optimization. I
+needed a way to build a short text identifier to still be able to get
+a "cached" virtual environment per Python binary. I wrote a short code
+to generate the identifier using:
+
+* pyperformance version
+* requirements.txt
+* sys.executable
+* sys.version
+* sys.version_info
+* sys.implementation.name of platform.python_implementation()
+
+The script builds a long string using these info, hash it with SHA1
+and take first 12 characters of the hexadecimal format of the hash.
+
+Script:
+---
+import hashlib
+import platform
+import sys
+
+performance_version = sys.argv[1]
+requirements = sys.argv[2]
+
+data = performance_version + sys.executable + sys.version
+
+pyver= sys.version_info
+
+if hasattr(sys, 'implementation'):
+    # PEP 421, Python 3.3
+    implementation = sys.implementation.name
+else:
+    implementation = platform.python_implementation()
+implementation = implementation.lower()
+
+if not isinstance(data, bytes):
+    data = data.encode('utf-8')
+with open(requirements, 'rb') as fp:
+    data += fp.read()
+sha1 = hashlib.sha1(data).hexdigest()
+
+name = ('%s%s.%s-%s'
+        % (implementation, pyver.major, pyver.minor, sha1[:12]))
+print(name)
+---
+
+Examples:
+
+$ touch requirements.txt # empty file
+$ python3.7 x.py version requirements.txt
+cpython3.7-502d35b8e005
+$ python3.6 x.py version requirements.txt
+cpython3.6-7f4febbec0be
+
+$ python3 x.py version requirements.txt
+cpython3.7-59ab636dfacb
+$ file /usr/bin/python3
+/usr/bin/python3: symbolic link to python3.7
+
+Hum, python3 and python3.7 produce the different hash whereas it's the
+same binary. Maybe os.path.realpath() should be called on
+sys.executable :-)
+
+Victor
+
+--
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From stefan_ml at behnel.de  Fri Apr 12 08:48:30 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Fri, 12 Apr 2019 14:48:30 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <q8nmi8$6mo7$1@blaine.gmane.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+ <q8nmi8$6mo7$1@blaine.gmane.org>
+Message-ID: <q8q1ev$4fls$1@blaine.gmane.org>
+
+Serhiy Storchaka schrieb am 11.04.19 um 17:30:
+> If reducing the Python memory footprint is an argument for disabling
+> Py_TRACE_REFS, it is a weak argument because there is larger overhead in
+> the debug build.
+
+I think what Victor is argueing is rather that we have better ways to debug
+memory problems these days, so we might be able to get rid of a relict that
+no-one is using (or should be using) anymore and that has its drawbacks
+(such as a very different ABI and higher memory load).
+
+I don't really have an opinion here, but I can at least say that I never
+found a use case for Py_TRACE_REFS myself and therefore certainly wouldn't
+miss it.
+
+Stefan
+
+
+From songofacandy at gmail.com  Fri Apr 12 09:44:05 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 12 Apr 2019 22:44:05 +0900
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+Message-ID: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+
+Hi, all.
+
+I propose adding new method: dict.with_values(iterable)
+
+# Motivation
+
+Python is used to handle data.
+While dict is not efficient way to handle may records, it is still
+convenient way.
+
+When creating many dicts with same keys, dict need to
+lookup internal hash table while inserting each keys.
+
+It is costful operation.  If we can reuse existing keys of dict,
+we can skip this inserting cost.
+
+Additionally, we have "Key-Sharing Dictionary (PEP 412)".
+When all keys are string, many dict can share one key.
+It reduces memory consumption.
+
+This might be usable for:
+
+* csv.DictReader
+* namedtuple._asdict()
+* DB-API 2.0 implementations:  (e.g. DictCursor of mysqlclient-python)
+
+
+# Draft implementation
+
+pull request: https://github.com/python/cpython/pull/12802
+
+with_values(self, iterable, /)
+    Create a new dictionary with keys from this dict and values from iterable.
+
+    When length of iterable is different from len(self), ValueError is raised.
+    This method does not support dict subclass.
+
+
+## Memory usage (Key-Sharing dict)
+
+>>> import sys
+>>> keys = tuple("abcdefg")
+>>> keys
+('a', 'b', 'c', 'd', 'e', 'f', 'g')
+>>> d = dict(zip(keys, range(7)))
+>>> d
+{'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4, 'f': 5, 'g': 6}
+>>> sys.getsizeof(d)
+360
+
+>>> keys = dict.fromkeys("abcdefg")
+>>> d = keys.with_values(range(7))
+>>> d
+{'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4, 'f': 5, 'g': 6}
+>>> sys.getsizeof(d)
+144
+
+## Speed
+
+$ ./python -m perf timeit -o zip_dict.json -s 'keys =
+tuple("abcdefg"); values=[*range(7)]' 'dict(zip(keys, values))'
+
+$ ./python -m perf timeit -o with_values.json -s 'keys =
+dict.fromkeys("abcdefg"); values=[*range(7)]'
+'keys.with_values(values)'
+
+$ ./python -m perf compare_to zip_dict.json with_values.json
+Mean +- std dev: [zip_dict] 935 ns +- 9 ns -> [with_values] 109 ns +-
+2 ns: 8.59x faster (-88%)
+
+
+How do you think?
+Any comments are appreciated.
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From vstinner at redhat.com  Fri Apr 12 10:31:47 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 12 Apr 2019 16:31:47 +0200
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+Message-ID: <CA+3bQGH-hJpAKhMfng_kSmfAcdEyGHPUVWzvcZs2CKGmXGmpow@mail.gmail.com>
+
+Nice optimization! I have questions on the proposed API.
+
+> with_values(self, iterable, /)
+>     Create a new dictionary with keys from this dict and values from iterable.
+>
+>     When length of iterable is different from len(self), ValueError is raised.
+>     This method does not support dict subclass.
+
+In short, mydict.with_values(values) behaves as
+dict(zip(mydict.keys(), values)), but is more efficient?
+
+The method rely on the fact that dict is preserving key insertion order, right?
+
+
+Le ven. 12 avr. 2019 ? 15:47, Inada Naoki <songofacandy at gmail.com> a ?crit :
+> This might be usable for:
+>
+> * csv.DictReader
+> * namedtuple._asdict()
+> * DB-API 2.0 implementations:  (e.g. DictCursor of mysqlclient-python)
+
+I guess that a new dict constructor taken keys and values like
+dict.from_keys_and_values(keys, values) would work, but would not
+benefit from the dict key-sharing optimization?
+
+Would it be possible to implement the key-sharing optimization using a
+dict.from_keys_and_values(mydict.keys(), values) method: detect that
+keys are owned by a dict, and so create a new dict linked to the keys
+dict? A dict view contains a reference to the iterated dict
+(dictiterobject.di_dict).
+
+I'm fine with dict.with_values() API, but I'm asking if it could be
+written differently.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From guido at python.org  Fri Apr 12 10:40:13 2019
+From: guido at python.org (Guido van Rossum)
+Date: Fri, 12 Apr 2019 07:40:13 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <q8q1ev$4fls$1@blaine.gmane.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+ <q8nmi8$6mo7$1@blaine.gmane.org> <q8q1ev$4fls$1@blaine.gmane.org>
+Message-ID: <CAP7+vJ+zWFkDJF1r7PhjyGbXjGHHqy1oEyLwsjbzzujG0PyPbQ@mail.gmail.com>
+
+On Fri, Apr 12, 2019 at 5:51 AM Stefan Behnel <stefan_ml at behnel.de> wrote:
+
+> Serhiy Storchaka schrieb am 11.04.19 um 17:30:
+> > If reducing the Python memory footprint is an argument for disabling
+> > Py_TRACE_REFS, it is a weak argument because there is larger overhead in
+> > the debug build.
+>
+> I think what Victor is argueing is rather that we have better ways to debug
+> memory problems these days, so we might be able to get rid of a relict that
+> no-one is using (or should be using) anymore and that has its drawbacks
+> (such as a very different ABI and higher memory load).
+>
+> I don't really have an opinion here, but I can at least say that I never
+> found a use case for Py_TRACE_REFS myself and therefore certainly wouldn't
+> miss it.
+>
+
+I have a feeling that at some point someone might want to use this to debug
+some leak (presumably caused by C code) beyond what gc.get_objects() can
+report. But I agree that it isn't useful to the vast majority of users of a
+regular debug build. So let's leave it off by default even in debug builds.
+But let's not delete the macros.
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190412/e7c7373e/attachment.html>
+
+From mhroncok at redhat.com  Fri Apr 12 10:53:16 2019
+From: mhroncok at redhat.com (=?UTF-8?Q?Miro_Hron=c4=8dok?=)
+Date: Fri, 12 Apr 2019 16:53:16 +0200
+Subject: [Python-Dev] Update PEP 394: Distributions can choose what does
+ python command mean
+Message-ID: <82dd4715-9709-1fcf-769f-4902fd381578@redhat.com>
+
+Hello.
+
+Based on discussions in [1], Petr Viktorin and me have drafted a new update [2] 
+to the PEP 394 (The "python" Command on Unix-Like Systems).
+
+The update gives distributors the opportunity to decide where does the "python" 
+command lead to, whether it is present etc.
+
+Please, see the PR [2] for the suggested changes.
+
+[1]: https://mail.python.org/pipermail/python-dev/2019-February/156272.html
+[2]: https://github.com/python/peps/pull/989
+
+Thanks,
+-- 
+Miro Hron?ok
+--
+Phone: +420777974800
+IRC: mhroncok
+
+From encukou at gmail.com  Fri Apr 12 10:59:18 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Fri, 12 Apr 2019 16:59:18 +0200
+Subject: [Python-Dev] Update PEP 394: Distributions can choose what does
+ python command mean
+In-Reply-To: <82dd4715-9709-1fcf-769f-4902fd381578@redhat.com>
+References: <82dd4715-9709-1fcf-769f-4902fd381578@redhat.com>
+Message-ID: <4c143e85-be0c-7995-0129-30d19b9bb690@gmail.com>
+
+On 4/12/19 4:53 PM, Miro Hron?ok wrote:
+> Hello.
+> 
+> Based on discussions in [1], Petr Viktorin and me have drafted a new 
+> update [2] to the PEP 394 (The "python" Command on Unix-Like Systems).
+> 
+> The update gives distributors the opportunity to decide where does the 
+> "python" command lead to, whether it is present etc.
+> 
+> Please, see the PR [2] for the suggested changes.
+> 
+> [1]: https://mail.python.org/pipermail/python-dev/2019-February/156272.html
+> [2]: https://github.com/python/peps/pull/989
+
+The text is available at 
+https://github.com/hroncok/peps/blob/pep394-2019/pep-0394.txt
+
+As a summary, I'll paste the rationale sections here:
+
+History of this PEP
+===================
+
+In 2011, the majority of distributions
+aliased the ``python`` command to Python 2, but some started switching it to
+Python 3 ([5]_). As some of the former distributions did not provide a
+``python2`` command by default, there was previously no way for Python 2 
+code
+(or any code that invokes the Python 2 interpreter directly rather than via
+``sys.executable``) to reliably run on all Unix-like systems without
+modification, as the ``python`` command would invoke the wrong interpreter
+version on some systems, and the ``python2`` command would fail completely
+on others. This PEP originally provided a very simple mechanism
+to restore cross-platform support, with minimal additional work required
+on the part of distribution maintainers. Simplified, the recommendation was:
+
+1. The ``python`` command was preferred for code compatible with both
+    Python 2 and 3 (since it was available on all systems, even those that
+    already aliased it to Python 3).
+2. The ``python`` command should always invoke Python 2 (to prevent
+    hard-to-diagnose errors when Python 2 code is run on Python 3).
+3. The ``python2`` and ``python3`` commands should be available to specify
+    the version explicitly.
+
+However, these recommendations implicitly assumed that Python 2 would 
+always be
+available. As Python 2 is nearing its end of life in 2020 (PEP 373, PEP 
+404),
+distributions are making Python 2 optional or removing entirely.
+This means either removing the ``python`` command or switching it to invoke
+Python 3, invalidating respectively the first or second recommendation.
+Also, some distributors decided that their users are better served by
+ignoring the PEP's recommendations, making the PEP's supposedly
+cross-platform recommendations on ``python`` and ``python2`` in shebangs
+increasingly unreliable.
+
+
+Current Rationale
+=================
+
+As of 2019, nearly all new systems include Python 3 and the ``python3``
+command. This makes the ``python3`` command the best general choice for
+code that can run on either Python 3.x or 2.x, even though it is not
+available everywhere.
+
+The recommendation is skewed toward current and future systems, leaving
+behind ?*old systems*? (like RHEL 6 or default Python installed on macOS).
+On these systems, Python software is rarely updated and any recommendations
+this PEP makes would likely be ignored.
+
+Also, since distributors often ignored recommendations the PEP gave
+regarding the ``python`` command (for what they saw as legitimate special
+needs), this PEP now gives them broad control over the command.
+Correspondingly, users are advised to not use the ``python`` command
+in cross-platform code.
+Instead, this PEP specifies the expected behavior of the ``python3`` and
+``python2`` commands, which is not controversial.
+
+From guido at python.org  Fri Apr 12 11:13:42 2019
+From: guido at python.org (Guido van Rossum)
+Date: Fri, 12 Apr 2019 08:13:42 -0700
+Subject: [Python-Dev] Update PEP 394: Distributions can choose what does
+ python command mean
+In-Reply-To: <4c143e85-be0c-7995-0129-30d19b9bb690@gmail.com>
+References: <82dd4715-9709-1fcf-769f-4902fd381578@redhat.com>
+ <4c143e85-be0c-7995-0129-30d19b9bb690@gmail.com>
+Message-ID: <CAP7+vJK3iq72i38-4LYQPyNtsFqZ-zpkmzKjMvW=JUUQE4maSg@mail.gmail.com>
+
+I think this is reasonable. Thanks for making the rationale clear!
+
+On Fri, Apr 12, 2019 at 8:02 AM Petr Viktorin <encukou at gmail.com> wrote:
+
+> On 4/12/19 4:53 PM, Miro Hron?ok wrote:
+> > Hello.
+> >
+> > Based on discussions in [1], Petr Viktorin and me have drafted a new
+> > update [2] to the PEP 394 (The "python" Command on Unix-Like Systems).
+> >
+> > The update gives distributors the opportunity to decide where does the
+> > "python" command lead to, whether it is present etc.
+> >
+> > Please, see the PR [2] for the suggested changes.
+> >
+> > [1]:
+> https://mail.python.org/pipermail/python-dev/2019-February/156272.html
+> > [2]: https://github.com/python/peps/pull/989
+>
+> The text is available at
+> https://github.com/hroncok/peps/blob/pep394-2019/pep-0394.txt
+>
+> As a summary, I'll paste the rationale sections here:
+>
+> History of this PEP
+> ===================
+>
+> In 2011, the majority of distributions
+> aliased the ``python`` command to Python 2, but some started switching it
+> to
+> Python 3 ([5]_). As some of the former distributions did not provide a
+> ``python2`` command by default, there was previously no way for Python 2
+> code
+> (or any code that invokes the Python 2 interpreter directly rather than via
+> ``sys.executable``) to reliably run on all Unix-like systems without
+> modification, as the ``python`` command would invoke the wrong interpreter
+> version on some systems, and the ``python2`` command would fail completely
+> on others. This PEP originally provided a very simple mechanism
+> to restore cross-platform support, with minimal additional work required
+> on the part of distribution maintainers. Simplified, the recommendation
+> was:
+>
+> 1. The ``python`` command was preferred for code compatible with both
+>     Python 2 and 3 (since it was available on all systems, even those that
+>     already aliased it to Python 3).
+> 2. The ``python`` command should always invoke Python 2 (to prevent
+>     hard-to-diagnose errors when Python 2 code is run on Python 3).
+> 3. The ``python2`` and ``python3`` commands should be available to specify
+>     the version explicitly.
+>
+> However, these recommendations implicitly assumed that Python 2 would
+> always be
+> available. As Python 2 is nearing its end of life in 2020 (PEP 373, PEP
+> 404),
+> distributions are making Python 2 optional or removing entirely.
+> This means either removing the ``python`` command or switching it to invoke
+> Python 3, invalidating respectively the first or second recommendation.
+> Also, some distributors decided that their users are better served by
+> ignoring the PEP's recommendations, making the PEP's supposedly
+> cross-platform recommendations on ``python`` and ``python2`` in shebangs
+> increasingly unreliable.
+>
+>
+> Current Rationale
+> =================
+>
+> As of 2019, nearly all new systems include Python 3 and the ``python3``
+> command. This makes the ``python3`` command the best general choice for
+> code that can run on either Python 3.x or 2.x, even though it is not
+> available everywhere.
+>
+> The recommendation is skewed toward current and future systems, leaving
+> behind ?*old systems*? (like RHEL 6 or default Python installed on macOS).
+> On these systems, Python software is rarely updated and any recommendations
+> this PEP makes would likely be ignored.
+>
+> Also, since distributors often ignored recommendations the PEP gave
+> regarding the ``python`` command (for what they saw as legitimate special
+> needs), this PEP now gives them broad control over the command.
+> Correspondingly, users are advised to not use the ``python`` command
+> in cross-platform code.
+> Instead, this PEP specifies the expected behavior of the ``python3`` and
+> ``python2`` commands, which is not controversial.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190412/eba9f542/attachment.html>
+
+From storchaka at gmail.com  Fri Apr 12 11:17:37 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 12 Apr 2019 18:17:37 +0300
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CAP7+vJ+zWFkDJF1r7PhjyGbXjGHHqy1oEyLwsjbzzujG0PyPbQ@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+ <q8nmi8$6mo7$1@blaine.gmane.org> <q8q1ev$4fls$1@blaine.gmane.org>
+ <CAP7+vJ+zWFkDJF1r7PhjyGbXjGHHqy1oEyLwsjbzzujG0PyPbQ@mail.gmail.com>
+Message-ID: <q8qa6f$82ml$1@blaine.gmane.org>
+
+12.04.19 17:40, Guido van Rossum ????:
+> So let's leave it off 
+> by default even in debug builds. But let's not delete the macros.
+
+Maybe switch it on (together with other disabled by default options) on 
+some fast buildbot?
+
+
+From storchaka at gmail.com  Fri Apr 12 11:35:00 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Fri, 12 Apr 2019 18:35:00 +0300
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+Message-ID: <q8qb72$2rr4$1@blaine.gmane.org>
+
+12.04.19 16:44, Inada Naoki ????:
+> When creating many dicts with same keys, dict need to
+> lookup internal hash table while inserting each keys.
+> 
+> It is costful operation.  If we can reuse existing keys of dict,
+> we can skip this inserting cost.
+> 
+> Additionally, we have "Key-Sharing Dictionary (PEP 412)".
+> When all keys are string, many dict can share one key.
+> It reduces memory consumption.
+
+It looks contrary to simplification made in Python 3 when we get rid of 
+some more efficient lists in favor of more general iterators.
+
+If this is a common case we can add an invisible optimization for 
+dict(zip(keys, values)), especially if keys is a key-sharing dictionary. 
+This will benefit all users without the need to rewrite the code to use 
+the new special method.
+
+The interface of dict is already overloaded. It contains many methods 
+which most users use rarely (and therefore which are not kept in the 
+working set of memory).
+
+
+From songofacandy at gmail.com  Fri Apr 12 12:07:23 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Sat, 13 Apr 2019 01:07:23 +0900
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <CA+3bQGH-hJpAKhMfng_kSmfAcdEyGHPUVWzvcZs2CKGmXGmpow@mail.gmail.com>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <CA+3bQGH-hJpAKhMfng_kSmfAcdEyGHPUVWzvcZs2CKGmXGmpow@mail.gmail.com>
+Message-ID: <CAEfz+Tz2RvDerz2n0msvWdkSatB82gLRba0WOZoRySnZz-qZXw@mail.gmail.com>
+
+On Fri, Apr 12, 2019 at 11:31 PM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Nice optimization! I have questions on the proposed API.
+>
+> > with_values(self, iterable, /)
+> >     Create a new dictionary with keys from this dict and values from iterable.
+> >
+> >     When length of iterable is different from len(self), ValueError is raised.
+> >     This method does not support dict subclass.
+>
+> In short, mydict.with_values(values) behaves as
+> dict(zip(mydict.keys(), values)), but is more efficient?
+
+Yes. But unlike zip, keys() and values must have exactly same length.
+
+>
+> The method rely on the fact that dict is preserving key insertion order, right?
+>
+
+Yes.
+
+> > This might be usable for:
+> >
+> > * csv.DictReader
+> > * namedtuple._asdict()
+> > * DB-API 2.0 implementations:  (e.g. DictCursor of mysqlclient-python)
+>
+> I guess that a new dict constructor taken keys and values like
+> dict.from_keys_and_values(keys, values) would work, but would not
+> benefit from the dict key-sharing optimization?
+>
+
+I don't like more overloading.
+And this API is specialized to build multiple dicts, not one dict.
+So I want to have dedicated API for it.
+
+> Would it be possible to implement the key-sharing optimization using a
+> dict.from_keys_and_values(mydict.keys(), values) method: detect that
+> keys are owned by a dict, and so create a new dict linked to the keys
+> dict? A dict view contains a reference to the iterated dict
+> (dictiterobject.di_dict).
+
+I think it is possible.
+>
+> I'm fine with dict.with_values() API, but I'm asking if it could be
+> written differently.
+>
+> Victor
+
+I implemented it as instance method of dict
+because it may modify the dict internally (at first invocation).
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From songofacandy at gmail.com  Fri Apr 12 12:17:10 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Sat, 13 Apr 2019 01:17:10 +0900
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <q8qb72$2rr4$1@blaine.gmane.org>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+Message-ID: <CAEfz+TwCbJ9LMt98_U2jXf=-QSBwSDGHUxrHJo2ep+PVW9uB5Q@mail.gmail.com>
+
+On Sat, Apr 13, 2019 at 12:38 AM Serhiy Storchaka <storchaka at gmail.com> wrote:
+>
+> It looks contrary to simplification made in Python 3 when we get rid of
+> some more efficient lists in favor of more general iterators.
+>
+
+Yes.  This is API for special use case creates many dict having
+same keys, like csv.DictReader.
+It is not good design for general purpose.
+
+strings module has strings.Template class.  But I don't want to add
+dicts module.
+Maybe, collections.DictBuilder may be another option.  e.g.
+
+>>> from collections import DictBuilder
+>>> builder = DictBuilder(tuple("abc"))
+>>> builder.build(range(3))
+{"a": 0, "b": 1, "c": 2}
+
+
+> If this is a common case we can add an invisible optimization for
+> dict(zip(keys, values)), especially if keys is a key-sharing dictionary.
+> This will benefit all users without the need to rewrite the code to use
+> the new special method.
+
+But this optimization may slow down when creating one dict...
+
+>
+> The interface of dict is already overloaded. It contains many methods
+> which most users use rarely (and therefore which are not kept in the
+> working set of memory).
+
+Yes.
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From J.Demeyer at UGent.be  Fri Apr 12 12:19:36 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 12 Apr 2019 18:19:36 +0200
+Subject: [Python-Dev] Removing PID check from signal handler
+Message-ID: <5CB0BA98.4070102@UGent.be>
+
+The signal handler (that receives signals from the OS) in Python starts 
+with a check
+
+     if (getpid() == main_pid)
+
+Looking at the comments, the intent was to do a check for the main 
+*thread* but this is checking the *process* id. So this condition is 
+basically always true. Therefore, I suggest to remove it in 
+https://bugs.python.org/issue36601
+
+If you have any objections or comments, I suggest to post them to that bpo.
+
+
+Jeroen.
+
+From brett at python.org  Fri Apr 12 13:16:11 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 12 Apr 2019 10:16:11 -0700
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <q8qb72$2rr4$1@blaine.gmane.org>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+Message-ID: <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+
+On Fri, Apr 12, 2019 at 8:35 AM Serhiy Storchaka <storchaka at gmail.com>
+wrote:
+
+> 12.04.19 16:44, Inada Naoki ????:
+> > When creating many dicts with same keys, dict need to
+> > lookup internal hash table while inserting each keys.
+> >
+> > It is costful operation.  If we can reuse existing keys of dict,
+> > we can skip this inserting cost.
+> >
+> > Additionally, we have "Key-Sharing Dictionary (PEP 412)".
+> > When all keys are string, many dict can share one key.
+> > It reduces memory consumption.
+>
+> It looks contrary to simplification made in Python 3 when we get rid of
+> some more efficient lists in favor of more general iterators.
+>
+> If this is a common case
+
+
+I think that "if" is my big sticking point. I don't think I've ever had a
+need for this and the zip() solution was what I originally thought of when
+I realized what the method was meant to do (which wasn't obvious to me
+initially).
+
+This doesn't strike me as needing an optimization through a dedicated
+method.
+
+-Brett
+
+
+> we can add an invisible optimization for
+> dict(zip(keys, values)), especially if keys is a key-sharing dictionary.
+> This will benefit all users without the need to rewrite the code to use
+> the new special method.
+>
+> The interface of dict is already overloaded. It contains many methods
+> which most users use rarely (and therefore which are not kept in the
+> working set of memory).
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190412/1308adc9/attachment.html>
+
+From steve.dower at python.org  Fri Apr 12 14:05:03 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 12 Apr 2019 11:05:03 -0700
+Subject: [Python-Dev] Removing PID check from signal handler
+In-Reply-To: <5CB0BA98.4070102@UGent.be>
+References: <5CB0BA98.4070102@UGent.be>
+Message-ID: <8f8399d0-5a6b-5b72-3b24-183c800c31a6@python.org>
+
+On 12Apr.2019 0919, Jeroen Demeyer wrote:
+> The signal handler (that receives signals from the OS) in Python starts
+> with a check
+> 
+> ??? if (getpid() == main_pid)
+> 
+> Looking at the comments, the intent was to do a check for the main
+> *thread* but this is checking the *process* id. So this condition is
+> basically always true. Therefore, I suggest to remove it in
+> https://bugs.python.org/issue36601
+> 
+> If you have any objections or comments, I suggest to post them to that bpo.
+
+To add a little more context, the check was added about 25 years ago as
+a "hack" for some reason that we can't figure out anymore.
+
+So if you are a historian of ancient operating systems and know of one
+that might have raised signal handlers in a different process from the
+one where it was registered, we'd love to hear from you.
+
+Cheers,
+Steve
+
+From status at bugs.python.org  Fri Apr 12 14:07:56 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 12 Apr 2019 18:07:56 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190412180756.A925F52B212@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-04-05 - 2019-04-12)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7063 ( +7)
+  closed 41307 (+76)
+  total  48370 (+83)
+
+Open issues with patches: 2815 
+
+
+Issues opened (60)
+==================
+
+#25160: Stop using deprecated imp module; imp should now emit a real D
+https://bugs.python.org/issue25160  reopened by ncoghlan
+
+#35934: Add socket.create_server() utility function
+https://bugs.python.org/issue35934  reopened by vstinner
+
+#36235: distutils.sysconfig.customize_compiler() overrides CFLAGS var 
+https://bugs.python.org/issue36235  reopened by vstinner
+
+#36537: except statement block incorrectly assumes end of scope(?).
+https://bugs.python.org/issue36537  opened by Saim Raza
+
+#36538: _thread.interrupt_main() no longer interrupts Lock.wait
+https://bugs.python.org/issue36538  opened by gregory.p.smith
+
+#36540: PEP 570: Python Positional-Only Parameters
+https://bugs.python.org/issue36540  opened by pablogsal
+
+#36541: Make lib2to3 grammar more closely match Python
+https://bugs.python.org/issue36541  opened by thatch
+
+#36542: Allow to overwrite the signature for Python functions
+https://bugs.python.org/issue36542  opened by serhiy.storchaka
+
+#36543: Remove old-deprecated ElementTree features (part 2)
+https://bugs.python.org/issue36543  opened by serhiy.storchaka
+
+#36545: Python 3.5 OOM during test_socket on make
+https://bugs.python.org/issue36545  opened by dekken
+
+#36546: Add quantiles() to the statistics module
+https://bugs.python.org/issue36546  opened by rhettinger
+
+#36548: Make the repr of re flags more readable
+https://bugs.python.org/issue36548  opened by serhiy.storchaka
+
+#36550: Avoid creating AttributeError exceptions in the debugger
+https://bugs.python.org/issue36550  opened by blueyed
+
+#36551: Optimize list comprehensions with preallocate size and protect
+https://bugs.python.org/issue36551  opened by anthony shaw
+
+#36552: Replace OverflowError with ValueError when calculating length 
+https://bugs.python.org/issue36552  opened by anthony shaw
+
+#36553: inspect.is_decorator_call(frame)
+https://bugs.python.org/issue36553  opened by smarie
+
+#36556: Trashcan causing duplicated __del__ calls
+https://bugs.python.org/issue36556  opened by jdemeyer
+
+#36557: Python (Launcher)3.7.3 CMDLine install/uninstall
+https://bugs.python.org/issue36557  opened by mattcher_h
+
+#36558: Change time.mktime() return type from float to int?
+https://bugs.python.org/issue36558  opened by vstinner
+
+#36560: test_functools leaks randomly 1 memory block
+https://bugs.python.org/issue36560  opened by vstinner
+
+#36563: pdbrc is read twice if current directory is the home directory
+https://bugs.python.org/issue36563  opened by blueyed
+
+#36564: Infinite loop with short maximum line lengths in EmailPolicy
+https://bugs.python.org/issue36564  opened by p-ganssle
+
+#36567: DOC: manpage directive doesn't create hyperlink
+https://bugs.python.org/issue36567  opened by cheryl.sabella
+
+#36568: Typo in socket.CAN_RAW_FD_FRAMES library documentation
+https://bugs.python.org/issue36568  opened by Carl Cerecke
+
+#36569: @staticmethod seems to work with setUpClass, but docs say it s
+https://bugs.python.org/issue36569  opened by Peter de Blanc
+
+#36572: python-snappy install issue during Crossbar install with Pytho
+https://bugs.python.org/issue36572  opened by telatoa
+
+#36573: zipfile zipfile.BadZipFile: Bad CRC-32 for file '11_02_2019.pd
+https://bugs.python.org/issue36573  opened by Jozef Cernak
+
+#36576: Some test_ssl and test_asyncio tests fail with OpenSSL 1.1.1 o
+https://bugs.python.org/issue36576  opened by vstinner
+
+#36580: unittest.mock does not understand dataclasses
+https://bugs.python.org/issue36580  opened by John Parejko2
+
+#36581: __dir__ on unittest.mock not safe for all spec types
+https://bugs.python.org/issue36581  opened by Dylan Semler
+
+#36582: collections.UserString encode method returns a string
+https://bugs.python.org/issue36582  opened by trey
+
+#36583: Do not swallow exceptions in the _ssl module
+https://bugs.python.org/issue36583  opened by serhiy.storchaka
+
+#36585: test_posix.py fails due to unsupported RWF_HIPRI
+https://bugs.python.org/issue36585  opened by jdemeyer
+
+#36586: multiprocessing.Queue.close doesn't behave as documented
+https://bugs.python.org/issue36586  opened by graingert
+
+#36587: race in logging code when fork()
+https://bugs.python.org/issue36587  opened by cagney
+
+#36589: Incorrect error handling in curses.update_lines_cols()
+https://bugs.python.org/issue36589  opened by ZackerySpytz
+
+#36590: Add Bluetooth RFCOMM Support for Windows
+https://bugs.python.org/issue36590  opened by topnotcher
+
+#36593: Trace function interferes with MagicMock isinstance?
+https://bugs.python.org/issue36593  opened by nedbat
+
+#36594: Undefined behavior due to incorrect usage of %p in format stri
+https://bugs.python.org/issue36594  opened by ZackerySpytz
+
+#36595: IDLE: Add search to Squeezed Output text viewer.
+https://bugs.python.org/issue36595  opened by Shane Smith
+
+#36596: tarfile module considers anything starting with 512 bytes of z
+https://bugs.python.org/issue36596  opened by cks
+
+#36600: re-enable test in nntplib
+https://bugs.python.org/issue36600  opened by Marcin Niemira
+
+#36601: signals can be caught by any thread
+https://bugs.python.org/issue36601  opened by jdemeyer
+
+#36602: Recursive directory list with pathlib.Path.iterdir
+https://bugs.python.org/issue36602  opened by Epic_Wink
+
+#36603: should pty.openpty() set pty/tty inheritable?
+https://bugs.python.org/issue36603  opened by cagney
+
+#36605: make tags should also parse Modules/_io/*.c and Modules/_io/*.
+https://bugs.python.org/issue36605  opened by vstinner
+
+#36606: calling super() causes __class__ to be not defined when sys.se
+https://bugs.python.org/issue36606  opened by xtreak
+
+#36607: asyncio.all_tasks() crashes if asyncio is used in multiple thr
+https://bugs.python.org/issue36607  opened by Nick Davies
+
+#36608: Replace bundled pip and setuptools with a downloader in the en
+https://bugs.python.org/issue36608  opened by webknjaz
+
+#36609: activate.ps1 in venv for Windows should encoded with BOM
+https://bugs.python.org/issue36609  opened by ?????????
+
+#36610: os.sendfile can return EINVAL on Solaris
+https://bugs.python.org/issue36610  opened by kulikjak
+
+#36611: Debug memory allocators: remove useless "serialno" field to re
+https://bugs.python.org/issue36611  opened by vstinner
+
+#36612: Unittest document is not clear on SetUpClass calls
+https://bugs.python.org/issue36612  opened by vrpolakatcisco
+
+#36613: asyncio._wait() don't remove callback in case of exception
+https://bugs.python.org/issue36613  opened by gescheit
+
+#36614: Popen output on windows server 2019
+https://bugs.python.org/issue36614  opened by weispinc
+
+#36615: why call _Py_set_inheritable(0) from os.open() when O_CLOEXEC?
+https://bugs.python.org/issue36615  opened by cagney
+
+#36616: Optimize thread state handling in function call code
+https://bugs.python.org/issue36616  opened by jdemeyer
+
+#36617: The rich comparison operators are second class citizens
+https://bugs.python.org/issue36617  opened by bup
+
+#36618: clang expects memory aligned on 16 bytes, but pymalloc aligns 
+https://bugs.python.org/issue36618  opened by vstinner
+
+#36619: when is os.posix_spawn(setsid=True) safe?
+https://bugs.python.org/issue36619  opened by cagney
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36619: when is os.posix_spawn(setsid=True) safe?
+https://bugs.python.org/issue36619
+
+#36618: clang expects memory aligned on 16 bytes, but pymalloc aligns 
+https://bugs.python.org/issue36618
+
+#36616: Optimize thread state handling in function call code
+https://bugs.python.org/issue36616
+
+#36613: asyncio._wait() don't remove callback in case of exception
+https://bugs.python.org/issue36613
+
+#36607: asyncio.all_tasks() crashes if asyncio is used in multiple thr
+https://bugs.python.org/issue36607
+
+#36606: calling super() causes __class__ to be not defined when sys.se
+https://bugs.python.org/issue36606
+
+#36603: should pty.openpty() set pty/tty inheritable?
+https://bugs.python.org/issue36603
+
+#36596: tarfile module considers anything starting with 512 bytes of z
+https://bugs.python.org/issue36596
+
+#36594: Undefined behavior due to incorrect usage of %p in format stri
+https://bugs.python.org/issue36594
+
+#36590: Add Bluetooth RFCOMM Support for Windows
+https://bugs.python.org/issue36590
+
+#36589: Incorrect error handling in curses.update_lines_cols()
+https://bugs.python.org/issue36589
+
+#36585: test_posix.py fails due to unsupported RWF_HIPRI
+https://bugs.python.org/issue36585
+
+#36583: Do not swallow exceptions in the _ssl module
+https://bugs.python.org/issue36583
+
+#36572: python-snappy install issue during Crossbar install with Pytho
+https://bugs.python.org/issue36572
+
+#36567: DOC: manpage directive doesn't create hyperlink
+https://bugs.python.org/issue36567
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36618: clang expects memory aligned on 16 bytes, but pymalloc aligns 
+https://bugs.python.org/issue36618
+
+#36613: asyncio._wait() don't remove callback in case of exception
+https://bugs.python.org/issue36613
+
+#36612: Unittest document is not clear on SetUpClass calls
+https://bugs.python.org/issue36612
+
+#36611: Debug memory allocators: remove useless "serialno" field to re
+https://bugs.python.org/issue36611
+
+#36610: os.sendfile can return EINVAL on Solaris
+https://bugs.python.org/issue36610
+
+#36608: Replace bundled pip and setuptools with a downloader in the en
+https://bugs.python.org/issue36608
+
+#36605: make tags should also parse Modules/_io/*.c and Modules/_io/*.
+https://bugs.python.org/issue36605
+
+#36602: Recursive directory list with pathlib.Path.iterdir
+https://bugs.python.org/issue36602
+
+#36601: signals can be caught by any thread
+https://bugs.python.org/issue36601
+
+#36600: re-enable test in nntplib
+https://bugs.python.org/issue36600
+
+#36594: Undefined behavior due to incorrect usage of %p in format stri
+https://bugs.python.org/issue36594
+
+#36593: Trace function interferes with MagicMock isinstance?
+https://bugs.python.org/issue36593
+
+#36590: Add Bluetooth RFCOMM Support for Windows
+https://bugs.python.org/issue36590
+
+#36589: Incorrect error handling in curses.update_lines_cols()
+https://bugs.python.org/issue36589
+
+#36585: test_posix.py fails due to unsupported RWF_HIPRI
+https://bugs.python.org/issue36585
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#36551: Optimize list comprehensions with preallocate size and protect
+https://bugs.python.org/issue36551  24 msgs
+
+#30458: [security][CVE-2019-9740][CVE-2019-9947] HTTP Header Injection
+https://bugs.python.org/issue30458  13 msgs
+
+#36560: test_functools leaks randomly 1 memory block
+https://bugs.python.org/issue36560  13 msgs
+
+#36537: except statement block incorrectly assumes end of scope(?).
+https://bugs.python.org/issue36537   9 msgs
+
+#33608: Add a cross-interpreter-safe mechanism to indicate that an obj
+https://bugs.python.org/issue33608   8 msgs
+
+#36533: logging regression with threading + fork are mixed in 3.7.1rc2
+https://bugs.python.org/issue36533   8 msgs
+
+#36389: Add gc.enable_object_debugger(): detect corrupted Python objec
+https://bugs.python.org/issue36389   7 msgs
+
+#36611: Debug memory allocators: remove useless "serialno" field to re
+https://bugs.python.org/issue36611   7 msgs
+
+#18748: io.IOBase destructor silence I/O error on close() by default
+https://bugs.python.org/issue18748   6 msgs
+
+#36573: zipfile zipfile.BadZipFile: Bad CRC-32 for file '11_02_2019.pd
+https://bugs.python.org/issue36573   6 msgs
+
+
+
+Issues closed (73)
+==================
+
+#2281: Enhanced cPython profiler with high-resolution timer
+https://bugs.python.org/issue2281  closed by inada.naoki
+
+#12910: urllib.quote quotes too many chars, e.g., '()'
+https://bugs.python.org/issue12910  closed by orsenthil
+
+#14017: Make it easy to create a new TextIOWrapper based on an existin
+https://bugs.python.org/issue14017  closed by ncoghlan
+
+#16712: collections.abc.Sequence should not provide __reversed__
+https://bugs.python.org/issue16712  closed by inada.naoki
+
+#17396: modulefinder fails if module contains syntax error
+https://bugs.python.org/issue17396  closed by ncoghlan
+
+#17561: Add socket.bind_socket() convenience function
+https://bugs.python.org/issue17561  closed by giampaolo.rodola
+
+#19417: Bdb: add a unittest file (test.test_bdb)
+https://bugs.python.org/issue19417  closed by xdegaye
+
+#19476: Add a dedicated specification for module "reloading" to the la
+https://bugs.python.org/issue19476  closed by eric.snow
+
+#21318: sdist fails with symbolic links do non-existing files
+https://bugs.python.org/issue21318  closed by cheryl.sabella
+
+#25922: canceling a repair install breaks the ability to uninstall, re
+https://bugs.python.org/issue25922  closed by cheryl.sabella
+
+#27181: Add geometric mean to `statistics` module
+https://bugs.python.org/issue27181  closed by rhettinger
+
+#28351: statistics.geometric_mean can enter infinite loop for Decimal 
+https://bugs.python.org/issue28351  closed by cheryl.sabella
+
+#28626: Tutorial: rearrange discussion of output formatting to encoura
+https://bugs.python.org/issue28626  closed by cheryl.sabella
+
+#29209: Remove old-deprecated ElementTree features
+https://bugs.python.org/issue29209  closed by serhiy.storchaka
+
+#29707: os.path.ismount() always returns false for mount --bind on sam
+https://bugs.python.org/issue29707  closed by christian.heimes
+
+#30134: BytesWarning is missing from the documents
+https://bugs.python.org/issue30134  closed by inada.naoki
+
+#30661: Support tarfile.PAX_FORMAT in shutil.make_archive
+https://bugs.python.org/issue30661  closed by ncoghlan
+
+#31155: Encode set, frozenset, bytearray, and iterators as json arrays
+https://bugs.python.org/issue31155  closed by inada.naoki
+
+#31512: Add non-elevated symlink support for dev mode Windows 10
+https://bugs.python.org/issue31512  closed by steve.dower
+
+#32534: Speed-up list.insert: use memmove()
+https://bugs.python.org/issue32534  closed by inada.naoki
+
+#33228: Use Random.choices in tempfile
+https://bugs.python.org/issue33228  closed by inada.naoki
+
+#33456: site.py: by default, a virtual environment is *not* isolated f
+https://bugs.python.org/issue33456  closed by vinay.sajip
+
+#33461: json.loads(encoding=<not None>) does not emit deprecation warn
+https://bugs.python.org/issue33461  closed by inada.naoki
+
+#33722: Document builtins in mock_open
+https://bugs.python.org/issue33722  closed by jcrotts
+
+#34060: regrtest: log "CPU usage" on Windows
+https://bugs.python.org/issue34060  closed by vstinner
+
+#34139: Remove stale unix datagram socket before binding
+https://bugs.python.org/issue34139  closed by asvetlov
+
+#34144: venv activate.bat reset codepage fails on windows 10
+https://bugs.python.org/issue34144  closed by cheryl.sabella
+
+#34160: ElementTree not preserving attribute order
+https://bugs.python.org/issue34160  closed by scoder
+
+#34805: Explicitly specify `MyClass.__subclasses__()` returns classes 
+https://bugs.python.org/issue34805  closed by cheryl.sabella
+
+#35376: modulefinder skips nested modules with same name as top-level 
+https://bugs.python.org/issue35376  closed by ncoghlan
+
+#35416: Fix potential resource warnings in distutils
+https://bugs.python.org/issue35416  closed by inada.naoki
+
+#35488: pathlib Path.match does not behave as described
+https://bugs.python.org/issue35488  closed by anthony shaw
+
+#35848: readinto is not a method on io.TextIOBase
+https://bugs.python.org/issue35848  closed by benjamin.peterson
+
+#35906: [CVE-2019-9947] Header Injection in urllib
+https://bugs.python.org/issue35906  closed by gregory.p.smith
+
+#35936: Give modulefinder some much-needed updates.
+https://bugs.python.org/issue35936  closed by ncoghlan
+
+#36050: Why does http.client.HTTPResponse._safe_read use MAXAMOUNT
+https://bugs.python.org/issue36050  closed by inada.naoki
+
+#36378: Add support to load from paths to json.load
+https://bugs.python.org/issue36378  closed by inada.naoki
+
+#36416: bytes.rpartition bug in online documentation
+https://bugs.python.org/issue36416  closed by inada.naoki
+
+#36495: Out-of-bounds array reads in Python/ast.c
+https://bugs.python.org/issue36495  closed by levkivskyi
+
+#36501: Remove POSIX.1e ACLs in tests that rely on default permissions
+https://bugs.python.org/issue36501  closed by Ivan.Pozdeev
+
+#36503: remove references to aix3 and aix4 in \*.py
+https://bugs.python.org/issue36503  closed by inada.naoki
+
+#36504: Signed integer overflow in _ctypes.c's PyCArrayType_new()
+https://bugs.python.org/issue36504  closed by serhiy.storchaka
+
+#36506: [security] CVE-2019-10268: An arbitrary execution vulnerabilit
+https://bugs.python.org/issue36506  closed by serhiy.storchaka
+
+#36513: Add support for building arm32 nuget package
+https://bugs.python.org/issue36513  closed by steve.dower
+
+#36527: unused parameter warnings in Include/object.h (affecting build
+https://bugs.python.org/issue36527  closed by inada.naoki
+
+#36532: Example of logging.formatter with new str.format style
+https://bugs.python.org/issue36532  closed by spaceman_spiff
+
+#36535: Windows build failure when use the code from the GitHub master
+https://bugs.python.org/issue36535  closed by Manjusaka
+
+#36539: Distutils VC 6.0 Errors When Using mingw-w64 GCC
+https://bugs.python.org/issue36539  closed by danyeaw
+
+#36544: cannot import hashlib when openssl is missing
+https://bugs.python.org/issue36544  closed by xdegaye
+
+#36547: bedevere is not working
+https://bugs.python.org/issue36547  closed by xtreak
+
+#36549: str.capitalize should titlecase the first character not upperc
+https://bugs.python.org/issue36549  closed by steve.dower
+
+#36554: unittest.TestCase: "subTest" cannot be used together with "deb
+https://bugs.python.org/issue36554  closed by dmaurer
+
+#36555: PEP484 @overload vs. str/bytes
+https://bugs.python.org/issue36555  closed by levkivskyi
+
+#36559: "import random" should import hashlib on demand (nor load Open
+https://bugs.python.org/issue36559  closed by rhettinger
+
+#36561: Python argparse doesn't work in the presence of my custom modu
+https://bugs.python.org/issue36561  closed by xtreak
+
+#36562: Can't call a method from a module built in Python C API
+https://bugs.python.org/issue36562  closed by jjppof
+
+#36565: Reference hunting (python3 -m test -R 3:3) doesn't work if the
+https://bugs.python.org/issue36565  closed by vstinner
+
+#36566: Support password masking in getpass.getpass()
+https://bugs.python.org/issue36566  closed by cheryl.sabella
+
+#36570: ftplib timeouts for misconfigured server
+https://bugs.python.org/issue36570  closed by giampaolo.rodola
+
+#36571: Lib/smtplib.py have some pep8 issues
+https://bugs.python.org/issue36571  closed by Marcin Niemira
+
+#36574: Error with self in python
+https://bugs.python.org/issue36574  closed by steven.daprano
+
+#36575: Use _PyTime_GetPerfCounter() in lsprof
+https://bugs.python.org/issue36575  closed by inada.naoki
+
+#36577: setup doesn't report missing _ssl and _hashlib
+https://bugs.python.org/issue36577  closed by christian.heimes
+
+#36578: multiprocessing pool + subprocess ValueError: empty range for 
+https://bugs.python.org/issue36578  closed by SilentGhost
+
+#36579: test_venv: test_with_pip() hangs on PPC64 AIX 3.x
+https://bugs.python.org/issue36579  closed by vstinner
+
+#36584: cython nametuple TypeError
+https://bugs.python.org/issue36584  closed by serhiy.storchaka
+
+#36588: change sys.platform() to just "aix" for AIX
+https://bugs.python.org/issue36588  closed by vstinner
+
+#36591: Should be a typing.UserNamedTuple
+https://bugs.python.org/issue36591  closed by levkivskyi
+
+#36592: is behave different for integers in 3.6 and 3.7
+https://bugs.python.org/issue36592  closed by eric.smith
+
+#36597: Travis CI: doctest failure
+https://bugs.python.org/issue36597  closed by inada.naoki
+
+#36598: mock side_effect should be checked for iterable not callable
+https://bugs.python.org/issue36598  closed by xtreak
+
+#36599: doctest document says dict order is unstable
+https://bugs.python.org/issue36599  closed by inada.naoki
+
+#36604: Add recipe to itertools
+https://bugs.python.org/issue36604  closed by rhettinger
+
+From barry at python.org  Fri Apr 12 14:08:45 2019
+From: barry at python.org (Barry Warsaw)
+Date: Fri, 12 Apr 2019 11:08:45 -0700
+Subject: [Python-Dev] Update PEP 394: Distributions can choose what does
+ python command mean
+In-Reply-To: <82dd4715-9709-1fcf-769f-4902fd381578@redhat.com>
+References: <82dd4715-9709-1fcf-769f-4902fd381578@redhat.com>
+Message-ID: <50534007-27B6-482D-B4D2-30D624441146@python.org>
+
+Thanks for the update.  I have made one small suggestion on the PR for clarification, but otherwise the changes LGTM.
+
+-Barry
+
+> On Apr 12, 2019, at 07:53, Miro Hron?ok <mhroncok at redhat.com> wrote:
+> 
+> Hello.
+> 
+> Based on discussions in [1], Petr Viktorin and me have drafted a new update [2] to the PEP 394 (The "python" Command on Unix-Like Systems).
+> 
+> The update gives distributors the opportunity to decide where does the "python" command lead to, whether it is present etc.
+> 
+> Please, see the PR [2] for the suggested changes.
+> 
+> [1]: https://mail.python.org/pipermail/python-dev/2019-February/156272.html
+> [2]: https://github.com/python/peps/pull/989
+> 
+> Thanks,
+> --
+> Miro Hron?ok
+> --
+> Phone: +420777974800
+> IRC: mhroncok
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/barry%40python.org
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190412/a11bee75/attachment-0001.sig>
+
+From vano at mail.mipt.ru  Fri Apr 12 14:15:59 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Fri, 12 Apr 2019 21:15:59 +0300
+Subject: [Python-Dev] Removing PID check from signal handler
+In-Reply-To: <8f8399d0-5a6b-5b72-3b24-183c800c31a6@python.org>
+References: <5CB0BA98.4070102@UGent.be>
+ <8f8399d0-5a6b-5b72-3b24-183c800c31a6@python.org>
+Message-ID: <c2f7d2c2-564b-dae9-11f5-433c1118f80f@mail.mipt.ru>
+
+On 12.04.2019 21:05, Steve Dower wrote:
+> On 12Apr.2019 0919, Jeroen Demeyer wrote:
+>> The signal handler (that receives signals from the OS) in Python starts
+>> with a check
+>>
+>>  ??? if (getpid() == main_pid)
+>>
+>> Looking at the comments, the intent was to do a check for the main
+>> *thread* but this is checking the *process* id. So this condition is
+>> basically always true. Therefore, I suggest to remove it in
+>> https://bugs.python.org/issue36601
+>>
+>> If you have any objections or comments, I suggest to post them to that bpo.
+> To add a little more context, the check was added about 25 years ago as
+> a "hack" for some reason that we can't figure out anymore.
+>
+> So if you are a historian of ancient operating systems and know of one
+> that might have raised signal handlers in a different process from the
+> one where it was registered, we'd love to hear from you.
+
+According to 
+https://www.linuxquestions.org/questions/programming-9/the-return-value-of-getpid-called-from-main-thread-and-new-thread-r-identical-624399/ ,
+threads used to have different PIDs in the 2.4 Linux kernel.
+
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vano%40mail.mipt.ru
+
+-- 
+Regards,
+Ivan
+
+
+From greg.ewing at canterbury.ac.nz  Fri Apr 12 18:34:08 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Sat, 13 Apr 2019 10:34:08 +1200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CA+3bQGGTs0y5GsSU6XmSOqbHC6ytFH6+OWAgX-NXXd8fTzAGTw@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+ <q8nmi8$6mo7$1@blaine.gmane.org>
+ <CA+3bQGGTs0y5GsSU6XmSOqbHC6ytFH6+OWAgX-NXXd8fTzAGTw@mail.gmail.com>
+Message-ID: <5CB11260.1060708@canterbury.ac.nz>
+
+Victor Stinner wrote:
+> Python is used on devices with low memory (ex: 256 MiB for the whole
+> system). Allowing developers to use a debug build on such devices seem
+> to be a legit rationale for such change.
+
+Rather than removing features altogether, maybe the debug
+build could be split into a number of separate features
+that can be enabled individually?
+
+-- 
+Greg
+
+From greg.ewing at canterbury.ac.nz  Fri Apr 12 18:38:43 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Sat, 13 Apr 2019 10:38:43 +1200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CA+3bQGGTs0y5GsSU6XmSOqbHC6ytFH6+OWAgX-NXXd8fTzAGTw@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+ <q8nmi8$6mo7$1@blaine.gmane.org>
+ <CA+3bQGGTs0y5GsSU6XmSOqbHC6ytFH6+OWAgX-NXXd8fTzAGTw@mail.gmail.com>
+Message-ID: <5CB11373.90607@canterbury.ac.nz>
+
+Victor Stinner wrote:
+> I'm not sure of what you means by "objects placed at static memory":
+> the double linked list of all Python objects is created at runtime.
+> _ob_next and _ob_prev are initialized statically to NULL.
+
+The trick of allocating extra memory in front of the object
+would be harder to pull off for statically allocated objects,
+although probably not impossible.
+
+-- 
+Greg
+
+From vstinner at redhat.com  Fri Apr 12 19:13:57 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 13 Apr 2019 01:13:57 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <5CB11260.1060708@canterbury.ac.nz>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <q8mk9m$30cc$1@blaine.gmane.org>
+ <CA+3bQGEaSePXyx-J8w=7QQVB2P6zE0EKcJdfBOv0WwiUC0jxag@mail.gmail.com>
+ <q8nmi8$6mo7$1@blaine.gmane.org>
+ <CA+3bQGGTs0y5GsSU6XmSOqbHC6ytFH6+OWAgX-NXXd8fTzAGTw@mail.gmail.com>
+ <5CB11260.1060708@canterbury.ac.nz>
+Message-ID: <CA+3bQGEi8Y67iNO+meAXsZwDGXV12OqFLW61QKsmcrBRR+y5OA@mail.gmail.com>
+
+Le sam. 13 avr. 2019 ? 00:38, Greg Ewing <greg.ewing at canterbury.ac.nz> a ?crit :
+> Rather than removing features altogether, maybe the debug
+> build could be split into a number of separate features
+> that can be enabled individually?
+
+I don't propose to *remove* a feature, but just to *disable* it *by
+default* (when Python is compiled in debug mode):
+
+"[WIP] bpo-36465: Py_DEBUG no longer implies Py_TRACE_REFS #12615"
+https://github.com/python/cpython/pull/12615/files
+
+In short, my change just removes:
+
+/* Py_DEBUG implies Py_TRACE_REFS. */
+#if defined(Py_DEBUG) && !defined(Py_TRACE_REFS)
+#define Py_TRACE_REFS
+#endif
+
+The feature will still be accessible if you compile Python with
+Py_TRACE_REFS defined.
+
+In practice, I understood that the debug build of Python is not known
+by all core developers, and it seems like it's mostly used by core
+developers. Maybe it's even only used by core developers? It's hard to
+say. If it's only used by core developers, I hope that all core devs
+know to compile Python :-)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From njs at pobox.com  Fri Apr 12 19:43:51 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 12 Apr 2019 16:43:51 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <f554e709-efcf-4b13-5867-59bac105c49d@python.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+ <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+ <CAPJVwB=J+W8bgDTwYt69xHsM1fB6aS8tU_4Ou9MP5nJCGYWVZw@mail.gmail.com>
+ <f554e709-efcf-4b13-5867-59bac105c49d@python.org>
+Message-ID: <CAPJVwBk+K0jYWHTbLpRYXT=5Jsez1OSazfThpuvFem=2c3mg8A@mail.gmail.com>
+
+On Thu, Apr 11, 2019 at 8:26 AM Steve Dower <steve.dower at python.org> wrote:
+>
+> On 10Apr2019 1917, Nathaniel Smith wrote:
+> > It sounds like --with-pydebug has accumulated a big grab bag of
+> > unrelated features, mostly stuff that was useful at some point for
+> > some CPython dev trying to debug CPython itself? It's clearly not
+> > designed with end users as the primary audience, given that no-one
+> > knows what it actually does and that it makes third-party extensions
+> > really awkward to run. If that's right then I think Victor's plan of
+> > to sort through what it's actually doing makes a lot of sense,
+> > especially if we can remove the ABI breaking stuff, since that causes
+> > a disproportionate amount of trouble.
+>
+> Does it really cause a "disproportionate" amount of trouble? It's
+> definitely not meant for anyone who isn't working on C code, whether in
+> CPython, an extension or a host application. If you want to use
+> third-party extensions and are not able to rebuild them, that's a very
+> good sign that you probably shouldn't be on the debug build at all.
+
+Well, here's what I mean by "disproportionate". Some of the costs of
+the ABI divergence are:
+
+- The first time I had to debug a C extension, I wasted a bunch of
+time trying to figure out how I was supposed to use Debian's
+'python-dbg' package (the --with-pydebug build), before eventually
+figuring out that it was a red herring and what I actually wanted was
+the -dbgsym package (their equivalent of MSVC's /Zi /DEBUG files).
+
+- The extension loading machinery has extra code and complexity to
+track the two different ABIs. The package ecosystem does too, e.g.
+distutils needs to name extensions appropriately, and we need special
+wheel tags, and pip needs code to handle these tags:
+    https://github.com/pypa/pip/blob/54b6a91405adc79cdb8a2954e9614d6860799ccb/src/pip/_internal/pep425tags.py#L106-L109
+
+- If you want some of the features of --with-pydebug that don't change
+the ABI, then you still have to rebuild third-party extensions to get
+at them, and that's a significant hassle. (I could do it if I had to,
+but my time has value.)
+
+- Everyone who uses ctypes to access a PyObject* has to include some
+extra hacks to handle the difference between the regular and debug
+ABIs. There are a few different versions that get copy/pasted around
+as folklore, and they're all pretty obscure. For example:
+    https://github.com/pallets/jinja/blob/fd89fed7456e755e33ba70674c41be5ab222e193/jinja2/debug.py#L317-L334
+    https://github.com/johndpope/sims4-ai-engine/blob/865212e841c716dc4364e0dba286f02af8d716e8/core/framewrapper.py#L12-L41
+    https://github.com/python-trio/trio/blob/862ced04e1f19287e098380ed8a0635004c36dd1/trio/_core/_multierror.py#L282
+  And then if you want to test this code, it means you have to add a
+--with-pydebug build to your CI infrastructure...
+
+I don't know how many people use Py_TRACE_REFS, but if we can't find
+anyone on python-dev who uses it then it must be pretty rare. If
+dropping Py_TRACE_REFS would let us converge the ABIs and get rid of
+all the stuff above, then that seems like a pretty good trade! But
+maybe the Windows C runtime issue will foil this...
+
+> >> The reason we ship debug Python binaries is because debug builds use a
+> >> different C Runtime, so if you do a debug build of an extension module
+> >> you're working on it won't actually work with a non-debug build of CPython.
+> >
+> > ...But this is an important point. I'd forgotten that MSVC has a habit
+> > of changing the entire C runtime when you turn on the compiler's
+> > debugging mode.
+>
+> Technically they are separate options, but most project files are
+> configured such that *their* Debug/Release switch affects both the
+> compiler options (optimization) and the linker options (C runtime linkage).
+
+So how do other projects handle this? I guess historically the main
+target audience for Visual Studio was folks building monolithic apps,
+where you can just rebuild everything with whatever options you want,
+and compared to that Python extensions are messier. But Python isn't
+the only project in this boat. Do ruby, nodejs, R, etc., all provide
+separate debug builds with incompatible ABIs on Windows, and propagate
+that information throughout their module/package ecosystem?
+
+-n
+
+--
+Nathaniel J. Smith -- https://vorpus.org
+
+From steve.dower at python.org  Fri Apr 12 20:05:24 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 12 Apr 2019 17:05:24 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CAPJVwBk+K0jYWHTbLpRYXT=5Jsez1OSazfThpuvFem=2c3mg8A@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+ <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+ <CAPJVwB=J+W8bgDTwYt69xHsM1fB6aS8tU_4Ou9MP5nJCGYWVZw@mail.gmail.com>
+ <f554e709-efcf-4b13-5867-59bac105c49d@python.org>
+ <CAPJVwBk+K0jYWHTbLpRYXT=5Jsez1OSazfThpuvFem=2c3mg8A@mail.gmail.com>
+Message-ID: <a6c52b5c-0df7-87a2-dd6d-539bdfacd01b@python.org>
+
+On 12Apr.2019 1643, Nathaniel Smith wrote:
+> On Thu, Apr 11, 2019 at 8:26 AM Steve Dower <steve.dower at python.org> wrote:
+>>
+>> On 10Apr2019 1917, Nathaniel Smith wrote:
+> I don't know how many people use Py_TRACE_REFS, but if we can't find
+> anyone on python-dev who uses it then it must be pretty rare. If
+> dropping Py_TRACE_REFS would let us converge the ABIs and get rid of
+> all the stuff above, then that seems like a pretty good trade! But
+> maybe the Windows C runtime issue will foil this...
+
+The very first question I asked was whether this would let us converge
+the ABIs, and the answer was "no".
+
+Otherwise I'd have said go for it, despite the C runtime issues.
+
+>>>> The reason we ship debug Python binaries is because debug builds use a
+>>>> different C Runtime, so if you do a debug build of an extension module
+>>>> you're working on it won't actually work with a non-debug build of CPython.
+>>>
+>>> ...But this is an important point. I'd forgotten that MSVC has a habit
+>>> of changing the entire C runtime when you turn on the compiler's
+>>> debugging mode.
+>>
+>> Technically they are separate options, but most project files are
+>> configured such that *their* Debug/Release switch affects both the
+>> compiler options (optimization) and the linker options (C runtime linkage).
+> 
+> So how do other projects handle this? I guess historically the main
+> target audience for Visual Studio was folks building monolithic apps,
+> where you can just rebuild everything with whatever options you want,
+> and compared to that Python extensions are messier. But Python isn't
+> the only project in this boat. Do ruby, nodejs, R, etc., all provide
+> separate debug builds with incompatible ABIs on Windows, and propagate
+> that information throughout their module/package ecosystem?
+
+Mostly I hear complaints about those languages *not* providing any help
+here. Python is renowned for having significantly better Windows support
+than any of them, so they're the wrong comparison to make in my opinion.
+Arguing that we should regress because other languages haven't caught up
+to us yet makes no sense.
+
+The tools that are better than Python typically don't ship debug builds
+either, unless you specifically request them. But they also don't leak
+their implementation details all over the place. If we had a better C
+API, we wouldn't have users who needed to match ABIs.
+
+For the most part, disabling optimizations in your own extension but
+using the non-debug ABI is sufficient, and if you're having to deal with
+other people's packages then maybe you don't have any choice (though I
+do know of people who have built debug versions of numpy before - turns
+out Windows developers are often just as capable as non-Windows
+developers when it comes to building things ;) ). And yes, they could
+also build CPython from source as well to get the debug ABI, or get the
+debug symbols, but I saw enough need that I decided it was worth the
+effort to just solve that problem. 250k downloads a month is enough to
+justify it for me.
+
+Not to bring the packaging discussions to another venue, but maybe this
+is yet another area we need to stop pretending that we're able to solve
+every single problem with just the tools we already have available?
+People who want debug builds of packages can build them themselves, even
+numpy and scipy, they don't need us to preemptively do all their work
+for them. But we can (and should) help short-cut unnecessary effort or
+research by providing helpful tools and instruction.
+
+Cheers,
+Steve
+
+From njs at pobox.com  Fri Apr 12 21:19:03 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 12 Apr 2019 18:19:03 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <a6c52b5c-0df7-87a2-dd6d-539bdfacd01b@python.org>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+ <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+ <CAPJVwB=J+W8bgDTwYt69xHsM1fB6aS8tU_4Ou9MP5nJCGYWVZw@mail.gmail.com>
+ <f554e709-efcf-4b13-5867-59bac105c49d@python.org>
+ <CAPJVwBk+K0jYWHTbLpRYXT=5Jsez1OSazfThpuvFem=2c3mg8A@mail.gmail.com>
+ <a6c52b5c-0df7-87a2-dd6d-539bdfacd01b@python.org>
+Message-ID: <CAPJVwBn0ZYemZFz7hPHWuNJkXFj9yL5pLN5OkaF=hcEP9UJ2=w@mail.gmail.com>
+
+On Fri, Apr 12, 2019 at 5:05 PM Steve Dower <steve.dower at python.org> wrote:
+>
+> On 12Apr.2019 1643, Nathaniel Smith wrote:
+> > On Thu, Apr 11, 2019 at 8:26 AM Steve Dower <steve.dower at python.org> wrote:
+> >>
+> >> On 10Apr2019 1917, Nathaniel Smith wrote:
+> > I don't know how many people use Py_TRACE_REFS, but if we can't find
+> > anyone on python-dev who uses it then it must be pretty rare. If
+> > dropping Py_TRACE_REFS would let us converge the ABIs and get rid of
+> > all the stuff above, then that seems like a pretty good trade! But
+> > maybe the Windows C runtime issue will foil this...
+>
+> The very first question I asked was whether this would let us converge
+> the ABIs, and the answer was "no".
+>
+> Otherwise I'd have said go for it, despite the C runtime issues.
+
+I don't see that in the thread... just Victor saying he isn't sure
+whether there might be other ABI incompatibilities lurking that he
+hasn't found yet. Did I miss something?
+
+I'm mostly interested in this because of the possibility of converging
+the ABIs. If you think that the C runtime thing isn't a blocker for
+that, then that's useful information. Though obviously we still need
+to figure out whether there are any other blockers :-).
+
+> >>>> The reason we ship debug Python binaries is because debug builds use a
+> >>>> different C Runtime, so if you do a debug build of an extension module
+> >>>> you're working on it won't actually work with a non-debug build of CPython.
+> >>>
+> >>> ...But this is an important point. I'd forgotten that MSVC has a habit
+> >>> of changing the entire C runtime when you turn on the compiler's
+> >>> debugging mode.
+> >>
+> >> Technically they are separate options, but most project files are
+> >> configured such that *their* Debug/Release switch affects both the
+> >> compiler options (optimization) and the linker options (C runtime linkage).
+> >
+> > So how do other projects handle this? I guess historically the main
+> > target audience for Visual Studio was folks building monolithic apps,
+> > where you can just rebuild everything with whatever options you want,
+> > and compared to that Python extensions are messier. But Python isn't
+> > the only project in this boat. Do ruby, nodejs, R, etc., all provide
+> > separate debug builds with incompatible ABIs on Windows, and propagate
+> > that information throughout their module/package ecosystem?
+>
+> Mostly I hear complaints about those languages *not* providing any help
+> here. Python is renowned for having significantly better Windows support
+> than any of them, so they're the wrong comparison to make in my opinion.
+> Arguing that we should regress because other languages haven't caught up
+> to us yet makes no sense.
+>
+> The tools that are better than Python typically don't ship debug builds
+> either, unless you specifically request them. But they also don't leak
+> their implementation details all over the place. If we had a better C
+> API, we wouldn't have users who needed to match ABIs.
+
+Do you happen to have a list of places where the C API leaks details
+of the underlying CRT?
+
+(I'm mostly curious because whenever I've looked my conclusion was
+essentially: "Well....... I don't see any places that are *definitely*
+broken, so maybe mixing CRTs is fine? but I have zero confidence that
+I caught everything, so probably better to play it safe?". At least on
+py3 ? I know the py2 C API was definitely broken if you mixed CRTs,
+because of the exposed FILE*.)
+
+> For the most part, disabling optimizations in your own extension but
+> using the non-debug ABI is sufficient, and if you're having to deal with
+> other people's packages then maybe you don't have any choice (though I
+> do know of people who have built debug versions of numpy before - turns
+> out Windows developers are often just as capable as non-Windows
+> developers when it comes to building things ;)
+
+I'm not sure why you think I was implying otherwise? I'm sorry if you
+thought I was attacking your users or something. I did say that I
+thought most users downloading the debug builds were probably confused
+about what they were actually getting, but I didn't mean because they
+were stupid Windows users, I meant because the debug builds are so
+confusing that even folks on the Python core team are confused about
+what they're actually getting.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From vstinner at redhat.com  Fri Apr 12 21:35:42 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 13 Apr 2019 03:35:42 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CAPJVwBn0ZYemZFz7hPHWuNJkXFj9yL5pLN5OkaF=hcEP9UJ2=w@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+ <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+ <CAPJVwB=J+W8bgDTwYt69xHsM1fB6aS8tU_4Ou9MP5nJCGYWVZw@mail.gmail.com>
+ <f554e709-efcf-4b13-5867-59bac105c49d@python.org>
+ <CAPJVwBk+K0jYWHTbLpRYXT=5Jsez1OSazfThpuvFem=2c3mg8A@mail.gmail.com>
+ <a6c52b5c-0df7-87a2-dd6d-539bdfacd01b@python.org>
+ <CAPJVwBn0ZYemZFz7hPHWuNJkXFj9yL5pLN5OkaF=hcEP9UJ2=w@mail.gmail.com>
+Message-ID: <CA+3bQGGK2sa-8rjvx0QZJr5OVVwNVX105b__J1JKD6T-tjBvvA@mail.gmail.com>
+
+>> The very first question I asked was whether this would let us converge
+>> the ABIs, and the answer was "no".
+
+The answer is yes and it's my primary goal.
+
+See my first email: "This change makes the debug build ABI closer to the
+release build ABI".
+
+To be honest, I am now lost in this long thread :-) I don't recall why I
+started to argue so much about the memory footprint, it's not really the
+main point here.
+
+Victor
+
+
+>> Otherwise I'd have said go for it, despite the C runtime issues.
+>
+> I don't see that in the thread... just Victor saying he isn't sure
+> whether there might be other ABI incompatibilities lurking that he
+> hasn't found yet. Did I miss something?
+>
+> I'm mostly interested in this because of the possibility of converging
+> the ABIs. If you think that the C runtime thing isn't a blocker for
+> that, then that's useful information. Though obviously we still need
+> to figure out whether there are any other blockers :-).
+>
+>> >>>> The reason we ship debug Python binaries is because debug builds
+use a
+>> >>>> different C Runtime, so if you do a debug build of an extension
+module
+>> >>>> you're working on it won't actually work with a non-debug build of
+CPython.
+>> >>>
+>> >>> ...But this is an important point. I'd forgotten that MSVC has a
+habit
+>> >>> of changing the entire C runtime when you turn on the compiler's
+>> >>> debugging mode.
+>> >>
+>> >> Technically they are separate options, but most project files are
+>> >> configured such that *their* Debug/Release switch affects both the
+>> >> compiler options (optimization) and the linker options (C runtime
+linkage).
+>> >
+>> > So how do other projects handle this? I guess historically the main
+>> > target audience for Visual Studio was folks building monolithic apps,
+>> > where you can just rebuild everything with whatever options you want,
+>> > and compared to that Python extensions are messier. But Python isn't
+>> > the only project in this boat. Do ruby, nodejs, R, etc., all provide
+>> > separate debug builds with incompatible ABIs on Windows, and propagate
+>> > that information throughout their module/package ecosystem?
+>>
+>> Mostly I hear complaints about those languages *not* providing any help
+>> here. Python is renowned for having significantly better Windows support
+>> than any of them, so they're the wrong comparison to make in my opinion.
+>> Arguing that we should regress because other languages haven't caught up
+>> to us yet makes no sense.
+>>
+>> The tools that are better than Python typically don't ship debug builds
+>> either, unless you specifically request them. But they also don't leak
+>> their implementation details all over the place. If we had a better C
+>> API, we wouldn't have users who needed to match ABIs.
+>
+> Do you happen to have a list of places where the C API leaks details
+> of the underlying CRT?
+>
+> (I'm mostly curious because whenever I've looked my conclusion was
+> essentially: "Well....... I don't see any places that are *definitely*
+> broken, so maybe mixing CRTs is fine? but I have zero confidence that
+> I caught everything, so probably better to play it safe?". At least on
+> py3 ? I know the py2 C API was definitely broken if you mixed CRTs,
+> because of the exposed FILE*.)
+>
+>> For the most part, disabling optimizations in your own extension but
+>> using the non-debug ABI is sufficient, and if you're having to deal with
+>> other people's packages then maybe you don't have any choice (though I
+>> do know of people who have built debug versions of numpy before - turns
+>> out Windows developers are often just as capable as non-Windows
+>> developers when it comes to building things ;)
+>
+> I'm not sure why you think I was implying otherwise? I'm sorry if you
+> thought I was attacking your users or something. I did say that I
+> thought most users downloading the debug builds were probably confused
+> about what they were actually getting, but I didn't mean because they
+> were stupid Windows users, I meant because the debug builds are so
+> confusing that even folks on the Python core team are confused about
+> what they're actually getting.
+>
+> -n
+>
+> --
+> Nathaniel J. Smith -- https://vorpus.org
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190413/8d193b73/attachment-0001.html>
+
