@@ -8188,3 +8188,341 @@ Xavier
 
 [1] https://bugs.python.org/issue16079#msg340168
 
+From mark at hotpy.org  Sun Apr 14 07:30:48 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Sun, 14 Apr 2019 12:30:48 +0100
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+Message-ID: <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+
+Hi, Petr
+
+On 10/04/2019 5:25 pm, Petr Viktorin wrote:
+> Hello!
+> I've had time for a more thorough reading of PEP 590 and the reference 
+> implementation. Thank you for the work!
+> Overall, I like PEP 590's direction. I'd now describe the fundamental 
+> difference between PEP 580 and PEP 590 as:
+> - PEP 580 tries to optimize all existing calling conventions
+> - PEP 590 tries to optimize (and expose) the most general calling 
+> convention (i.e. fastcall)
+> 
+> PEP 580 also does a number of other things, as listed in PEP 579. But I 
+> think PEP 590 does not block future PEPs for the other items.
+> On the other hand, PEP 580 has a much more mature implementation -- and 
+> that's where it picked up real-world complexity.
+> 
+> PEP 590's METH_VECTORCALL is designed to handle all existing use cases, 
+> rather than mirroring the existing METH_* varieties.
+> But both PEPs require the callable's code to be modified, so requiring 
+> it to switch calling conventions shouldn't be a problem.
+> 
+> Jeroen's analysis from 
+> https://mail.python.org/pipermail/python-dev/2018-July/154238.html seems 
+> to miss a step at the top:
+> 
+> a. CALL_FUNCTION* / CALL_METHOD opcode
+>  ????? calls
+> b. _PyObject_FastCallKeywords()
+>  ????? which calls
+> c. _PyCFunction_FastCallKeywords()
+>  ????? which calls
+> d. _PyMethodDef_RawFastCallKeywords()
+>  ????? which calls
+> e. the actual C function (*ml_meth)()
+> 
+> I think it's more useful to say that both PEPs bridge a->e (via 
+> _Py_VectorCall or PyCCall_Call).
+> 
+> 
+> PEP 590 is built on a simple idea, formalizing fastcall. But it is 
+> complicated by PY_VECTORCALL_ARGUMENTS_OFFSET and 
+> Py_TPFLAGS_METHOD_DESCRIPTOR.
+> As far as I understand, both are there to avoid intermediate 
+> bound-method object for LOAD_METHOD/CALL_METHOD. (They do try to be 
+> general, but I don't see any other use case.)
+> Is that right?
+
+Not quite.
+Py_TPFLAGS_METHOD_DESCRIPTOR is for LOAD_METHOD/CALL_METHOD, it allows 
+any callable descriptor to benefit from the LOAD_METHOD/CALL_METHOD 
+optimisation.
+
+PY_VECTORCALL_ARGUMENTS_OFFSET exists so that callables that make onward 
+calls with an additional argument can do so efficiently. The obvious 
+example is bound-methods, but classes are at least as important.
+cls(*args) -> cls.new(cls, *args) -> cls.__init__(self, *args)
+
+> (I'm running out of time today, but I'll write more on why I'm asking, 
+> and on the case I called "impossible" (while avoiding creation of a 
+> "bound method" object), later.)
+> 
+> 
+> The way `const` is handled in the function signatures strikes me as too 
+> fragile for public API.
+> I'd like if, as much as possible, PY_VECTORCALL_ARGUMENTS_OFFSET was 
+> treated as a special optimization that extension authors can either opt 
+> in to, or blissfully ignore.
+> That might mean:
+> - vectorcall, PyObject_VectorCallWithCallable, PyObject_VectorCall, 
+> PyCall_MakeTpCall all formally take "PyObject *const *args"
+> - a na?ve callee must do "nargs &= ~PY_VECTORCALL_ARGUMENTS_OFFSET" 
+> (maybe spelled as "nargs &= PY_VECTORCALL_NARGS_MASK"), but otherwise 
+> writes compiler-enforced const-correct code.
+> - if PY_VECTORCALL_ARGUMENTS_OFFSET is set, the callee may modify 
+> "args[-1]" (and only that, and after the author has read the docs).
+
+The updated minimal implementation now uses `const` arguments.
+Code that uses args[-1] must explicitly cast away the const.
+https://github.com/markshannon/cpython/blob/vectorcall-minimal/Objects/classobject.c#L55
+
+> 
+> 
+> Another point I'd like some discussion on is that vectorcall function 
+> pointer is per-instance. It looks this is only useful for type objects, 
+> but it will add a pointer to every new-style callable object (including 
+> functions). That seems wasteful.
+> Why not have a per-type pointer, and for types that need it (like 
+> PyTypeObject), make it dispatch to an instance-specific function?
+
+Firstly, each callable has different behaviour, so it makes sense to be 
+able to do the dispatch from caller to callee in one step. Having a 
+per-object function pointer allows that.
+Secondly, callables are either large or transient. If large, then the 
+extra few bytes makes little difference. If transient then, it matters 
+even less.
+The total increase in memory is likely to be only a few tens of 
+kilobytes, even for a large program.
+
+> 
+> 
+> Minor things:
+> - "Continued prohibition of callable classes as base classes" -- this 
+> section reads as a final. Would you be OK wording this as something 
+> other PEPs can tackle?
+> - "PyObject_VectorCall" -- this looks extraneous, and the reference 
+> imlementation doesn't need it so far. Can it be removed, or justified?
+
+Yes, removing it makes sense. I can then rename the clumsily named 
+"PyObject_VectorCallWithCallable" as "PyObject_VectorCall".
+
+> - METH_VECTORCALL is *not* strictly "equivalent to the currently 
+> undocumented METH_FASTCALL | METH_KEYWORD flags" (it has the 
+> ARGUMENTS_OFFSET complication).
+
+METH_VECTORCALL is just making METH_FASTCALL | METH_KEYWORD documented 
+and public.
+Would you prefer that it has a different name to prevent confusion with 
+over PY_VECTORCALL_ARGUMENTS_OFFSET?
+
+I don't like calling things "fast" or "new" as the names can easily 
+become misleading.
+New College, Oxford is over 600 years old. Not so "new" any more :)
+
+> - I'd like to officially call this PEP "Vectorcall", see 
+> https://github.com/python/peps/pull/984
+> 
+> 
+> 
+> Mark, what are your plans for next steps with PEP 590? If a volunteer 
+> wanted to help you push this forward, what would be the best thing to 
+> work on?
+
+The minimal implementation is also a complete implementation. Third 
+party code can use the vectorcall protocol immediately use and be called 
+efficiently from the interpreter.
+I think it is very close to being mergeable.
+
+To gain the promised performance improvements is obviously a lot more 
+work, but can be done incrementally over the next few months.
+
+Cheers,
+Mark.
+
+From mark at hotpy.org  Sun Apr 14 07:34:17 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Sun, 14 Apr 2019 12:34:17 +0100
+Subject: [Python-Dev] PEP 580 and PEP 590 comparison.
+Message-ID: <fbd39af1-7f12-ff4f-e987-7d316943c346@hotpy.org>
+
+Hi Petr,
+
+Thanks for spending time on this.
+
+I think the comparison of the two PEPs falls into two broad categories, 
+performance and capability.
+
+I'll address capability first.
+
+Let's try a thought experiment.
+Consider PEP 580. It uses the old `tp_print` slot as an offset to mark 
+the location of the CCall structure within the callable. Now suppose 
+instead that it uses a `tp_flag` to mark the presence of an offset field 
+and that the offset field is moved to the end of the TypeObject. This 
+would not impact the capabilities of PEP 580.
+Now add a single line
+nargs ~= PY_VECTORCALL_ARGUMENTS_OFFSET
+here
+https://github.com/python/cpython/compare/master...jdemeyer:pep580#diff-1160d7c87cbab324fda44e7827b36cc9R570
+which would make PyCCall_FastCall compatible with the PEP 590 vectorcall 
+protocol.
+Now rebase the PEP 580 reference code on top of PEP 590 minimal 
+implementation and make the vectorcall field of CFunction point to 
+PyCCall_FastCall.
+The resulting hybrid is both a PEP 590 conformant implementation, and is 
+at least as capable as the reference PEP 580 implementation.
+
+Therefore PEP 590, must be at least as capable at PEP 580.
+
+
+Now performance.
+
+Currently the PEP 590 implementation is intentionally minimal. It does 
+nothing for performance. The benchmark Jeroen provides is a 
+micro-benchmark that calls the same functions repeatedly. This is 
+trivial and unrealistic. So, there is no real evidence either way. I 
+will try to provide some.
+
+The point of PEP 590 is that it allows performance improvements by 
+allowing callables more freedom of implementation. To repeat an example 
+from an earlier email, which may have been overlooked, this code reduces 
+the time to create ranges and small lists by about 30%
+
+https://github.com/markshannon/cpython/compare/vectorcall-minimal...markshannon:vectorcall-examples
+https://gist.github.com/markshannon/5cef3a74369391f6ef937d52cca9bfc8
+
+To speed up calls to builtin functions by a measurable amount will need 
+some work on argument clinic. I plan to have that done before PyCon in May.
+
+
+Cheers,
+Mark.
+
+From wieser.eric+numpy at gmail.com  Sun Apr 14 02:54:04 2019
+From: wieser.eric+numpy at gmail.com (Eric Wieser)
+Date: Sat, 13 Apr 2019 23:54:04 -0700
+Subject: [Python-Dev] Fixing the ctypes implementation of the PEP3118 buffer
+ interface
+Message-ID: <CAL1kJvAfEfjmFqRxBXm_9JUKJsbrpKpvxPVPD6NS0cQ2o+9M7w@mail.gmail.com>
+
+I've recently been adding better support to Numpy 1.16 for
+interoperability with ctypes.
+
+In doing so, I came across two bugs in the implementation of the
+PEP3118 buffer interface within ctypes, affecting `Structure`s and
+arrays. Rather than repeating the issue summaries here, I've linked
+their tracker issues below, and the patches I filed to fix them.
+
+ * https://bugs.python.org/issue32782 (patch:
+https://github.com/python/cpython/pull/5576)
+ * https://bugs.python.org/issue32780 (patch:
+https://github.com/python/cpython/pull/5561)
+
+I've seen little to no response on either the bug tracker or the
+github PRs regarding these, so at the recommendation of the "Lifecycle
+of a Pull Request" am emailing this list.
+
+Without these fixes, numpy has no choice but to ignore the broken
+buffer interface that ctypes provides, and instead try to parse the
+ctypes types manually. The sooner this makes a CPython release, the
+sooner numpy can remove those workarounds.
+
+Thanks,
+Eric
+
+From tjreedy at udel.edu  Sun Apr 14 16:42:13 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Sun, 14 Apr 2019 16:42:13 -0400
+Subject: [Python-Dev] Fixing the ctypes implementation of the PEP3118
+ buffer interface
+In-Reply-To: <CAL1kJvAfEfjmFqRxBXm_9JUKJsbrpKpvxPVPD6NS0cQ2o+9M7w@mail.gmail.com>
+References: <CAL1kJvAfEfjmFqRxBXm_9JUKJsbrpKpvxPVPD6NS0cQ2o+9M7w@mail.gmail.com>
+Message-ID: <q905v6$3rna$1@blaine.gmane.org>
+
+On 4/14/2019 2:54 AM, Eric Wieser wrote:
+> I've recently been adding better support to Numpy 1.16 for
+> interoperability with ctypes.
+> 
+> In doing so, I came across two bugs in the implementation of the
+> PEP3118 buffer interface within ctypes, affecting `Structure`s and
+> arrays. Rather than repeating the issue summaries here, I've linked
+> their tracker issues below, and the patches I filed to fix them.
+
+>   * https://bugs.python.org/issue32782 (patch:
+> https://github.com/python/cpython/pull/5576)
+
+memoryview(object).itemsize is 0 when object is ctypes structure and 
+format.  C expert needed to review 30-line patch, most of which is error 
+handling.  Patch includes new tests and blurb.
+
+>   * https://bugs.python.org/issue32780 (patch:
+> https://github.com/python/cpython/pull/5561)
+
+A partial fix for a more complicated memoryview, ctypes structure and 
+format, and itemsize situation.
+
+> I've seen little to no response on either the bug tracker or the
+> github PRs regarding these, so at the recommendation of the "Lifecycle
+> of a Pull Request" am emailing this list.
+
+The problem is that the currently listed ctypes and memoryview experts 
+are not currently active.
+
+> Without these fixes, numpy has no choice but to ignore the broken
+> buffer interface that ctypes provides, and instead try to parse the
+> ctypes types manually. The sooner this makes a CPython release, the
+> sooner numpy can remove those workarounds.
+
+-- 
+Terry Jan Reedy
+
+
+From Peixing.Xin at windriver.com  Sun Apr 14 21:42:11 2019
+From: Peixing.Xin at windriver.com (Xin, Peixing)
+Date: Mon, 15 Apr 2019 01:42:11 +0000
+Subject: [Python-Dev] checking "errno" for math operaton is safe to
+ determine the error status?
+In-Reply-To: <5CB025C1.2060708@canterbury.ac.nz>
+References: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB0437@ALA-MBD.corp.ad.wrs.com>
+ <5fb2462a-ee2c-00e3-1928-d56510e29570@python.org>
+ <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB0B64@ALA-MBD.corp.ad.wrs.com>
+ <5CB025C1.2060708@canterbury.ac.nz>
+Message-ID: <8488FBC4EAAC5941BA4B85DD1ECCF1870133BB22AC@ALA-MBD.corp.ad.wrs.com>
+
+VxWorks RTOS with 3rd party math lib.
+
+Thanks,
+Peixing
+
+
+-----Original Message-----
+From: Python-Dev [mailto:python-dev-bounces+peixing.xin=windriver.com at python.org] On Behalf Of Greg Ewing
+Sent: Friday, April 12, 2019 1:45 PM
+To: python-dev at python.org
+Subject: Re: [Python-Dev] checking "errno" for math operaton is safe to determine the error status?
+
+Xin, Peixing wrote:
+> On certain platform, expm1() is implemented as exp() minus 1. To calculate
+> expm1(-1420.0), that will call exp(-1420.0) then substract 1. You know,
+> exp(-1420.0) will underflow to zero and errno is set to ERANGE. As a
+> consequence the errno keeps set there when expm1() returns the correct result
+> -1.
+
+This sounds like a bug in that platform's implementation of
+expm1() to me. Which platform is it?
+
+-- 
+Greg
+_______________________________________________
+Python-Dev mailing list
+Python-Dev at python.org
+https://mail.python.org/mailman/listinfo/python-dev
+Unsubscribe: https://mail.python.org/mailman/options/python-dev/peixing.xin%40windriver.com
+
