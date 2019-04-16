@@ -8526,3 +8526,892 @@ Python-Dev at python.org
 https://mail.python.org/mailman/listinfo/python-dev
 Unsubscribe: https://mail.python.org/mailman/options/python-dev/peixing.xin%40windriver.com
 
+From J.Demeyer at UGent.be  Mon Apr 15 04:34:53 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Mon, 15 Apr 2019 10:34:53 +0200
+Subject: [Python-Dev] PEP 580 and PEP 590 comparison.
+In-Reply-To: <fbd39af1-7f12-ff4f-e987-7d316943c346@hotpy.org>
+References: <fbd39af1-7f12-ff4f-e987-7d316943c346@hotpy.org>
+Message-ID: <5CB4422D.8030507@UGent.be>
+
+On 2019-04-14 13:34, Mark Shannon wrote:
+> I'll address capability first.
+
+I don't think that comparing "capability" makes a lot of sense since 
+neither PEP 580 nor PEP 590 adds any new capabilities to CPython. They 
+are meant to allow doing things faster, not to allow more things.
+
+And yes, the C call protocol can be implemented on top of the vectorcall 
+protocol and conversely, but that doesn't mean much.
+
+> Now performance.
+>
+> Currently the PEP 590 implementation is intentionally minimal. It does
+> nothing for performance.
+
+So, we're missing some information here. What kind of performance 
+improvements are possible with PEP 590 which are not in the reference 
+implementation?
+
+> The benchmark Jeroen provides is a
+> micro-benchmark that calls the same functions repeatedly. This is
+> trivial and unrealistic.
+
+Well, it depends what you want to measure... I'm trying to measure 
+precisely the thing that makes PEP 580 and PEP 590 different from the 
+status-quo, so in that sense those benchmarks are very relevant.
+
+I think that the following 3 statements are objectively true:
+
+(A) Both PEP 580 and PEP 590 add a new calling convention, which is 
+equally fast as builtin functions (and hence faster than tp_call).
+(B) Both PEP 580 and PEP 590 keep roughly the same performance as the 
+status-quo for existing function/method calls.
+(C) While the performance of PEP 580 and PEP 590 is roughly the same,
+PEP 580 is slightly faster (based on the reference implementations 
+linked from PEP 580 and PEP 590).
+
+Two caveats concerning (C):
+- the difference may be too small to matter. Relatively, it's a few 
+percent of the call time but in absolute numbers, it's less than 10 CPU 
+clock cycles.
+- there might be possible improvements to the reference implementation 
+of either PEP 580/PEP 590. I don't expect big differences though.
+
+> To repeat an example
+> from an earlier email, which may have been overlooked, this code reduces
+> the time to create ranges and small lists by about 30%
+
+That's just a special case of the general fact (A) above and using the 
+new calling convention for "type". It's an argument in favor of both PEP 
+580 and PEP 590, not for PEP 590 specifically.
+
+
+Jeroen.
+
+From J.Demeyer at UGent.be  Mon Apr 15 04:38:11 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Mon, 15 Apr 2019 10:38:11 +0200
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+Message-ID: <5CB442F3.5060705@UGent.be>
+
+On 2019-04-14 13:30, Mark Shannon wrote:
+> PY_VECTORCALL_ARGUMENTS_OFFSET exists so that callables that make onward
+> calls with an additional argument can do so efficiently. The obvious
+> example is bound-methods, but classes are at least as important.
+> cls(*args) -> cls.new(cls, *args) -> cls.__init__(self, *args)
+
+But tp_new and tp_init take the "cls" and "self" as separate arguments, 
+not as part of *args. So I don't see why you need 
+PY_VECTORCALL_ARGUMENTS_OFFSET for this.
+
+> The updated minimal implementation now uses `const` arguments.
+> Code that uses args[-1] must explicitly cast away the const.
+> https://github.com/markshannon/cpython/blob/vectorcall-minimal/Objects/classobject.c#L55
+
+That's better indeed.
+
+
+Jeroen.
+
+From solipsis at pitrou.net  Mon Apr 15 06:50:00 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 15 Apr 2019 12:50:00 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+ <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+ <CAPJVwB=J+W8bgDTwYt69xHsM1fB6aS8tU_4Ou9MP5nJCGYWVZw@mail.gmail.com>
+ <f554e709-efcf-4b13-5867-59bac105c49d@python.org>
+Message-ID: <20190415125000.571364a0@fsol>
+
+On Thu, 11 Apr 2019 08:26:47 -0700
+Steve Dower <steve.dower at python.org> wrote:
+> On 10Apr2019 1917, Nathaniel Smith wrote:
+> > It sounds like --with-pydebug has accumulated a big grab bag of
+> > unrelated features, mostly stuff that was useful at some point for
+> > some CPython dev trying to debug CPython itself? It's clearly not
+> > designed with end users as the primary audience, given that no-one
+> > knows what it actually does and that it makes third-party extensions
+> > really awkward to run. If that's right then I think Victor's plan of
+> > to sort through what it's actually doing makes a lot of sense,
+> > especially if we can remove the ABI breaking stuff, since that causes
+> > a disproportionate amount of trouble.  
+> 
+> Does it really cause a "disproportionate" amount of trouble? It's 
+> definitely not meant for anyone who isn't working on C code, whether in 
+> CPython, an extension or a host application. If you want to use 
+> third-party extensions and are not able to rebuild them, that's a very 
+> good sign that you probably shouldn't be on the debug build at all.
+
+I can't really agree with that.  There are third-party extensions that
+have non-trivial build requirements.  The fact that you have to rebuild
+third-party dependencies is a strong deterrent against using pydebug
+builds even when they may be actually useful (for example when
+debugging an extension module of your own).
+
+If you could just install mainstream binary packages (e.g. from Anaconda
+or PyPI) on a debug build interpreter, the pain would go away.
+
+Regards
+
+Antoine.
+
+
+
+From senthil at uthcode.com  Mon Apr 15 08:13:38 2019
+From: senthil at uthcode.com (Senthil Kumaran)
+Date: Mon, 15 Apr 2019 05:13:38 -0700
+Subject: [Python-Dev] Season of Docs
+Message-ID: <CAPOVWORVLc1A3_jbTj2MqLUuXGLfg8a=F6o-kP3dV8y050SxCw@mail.gmail.com>
+
+Hello Python Developers,
+
+Google is running a program called Season of Docs (
+https://developers.google.com/season-of-docs/) to encourage technical
+writers to improve the documentation of Open Source Projects.
+
+As Python-Dev, and Python Software Foundation, do you think:
+
+a) We should participate?
+b) If yes to a), are you willing to be a mentor and identify project ideas?
+
+If you are willing to mentor and have project ideas, please let us know and
+we can think about the next steps. The deadline for org application is
+April 23, 2019.
+
+This discussion started here
+https://discuss.python.org/t/will-python-apply-for-season-of-docs-and-allow-suborgs/
+
+Thank you,
+Senthil
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190415/a6e49546/attachment.html>
+
+From stephane at wirtel.be  Mon Apr 15 10:18:38 2019
+From: stephane at wirtel.be (Stephane Wirtel)
+Date: Mon, 15 Apr 2019 16:18:38 +0200
+Subject: [Python-Dev] [Core-mentorship] Season of Docs
+In-Reply-To: <CAPOVWORVLc1A3_jbTj2MqLUuXGLfg8a=F6o-kP3dV8y050SxCw@mail.gmail.com>
+References: <CAPOVWORVLc1A3_jbTj2MqLUuXGLfg8a=F6o-kP3dV8y050SxCw@mail.gmail.com>
+Message-ID: <20190415141838.245nppxwpt5fvwk6@xps>
+
+I don't know if Julien Palard is on this mailing list, but maybe he
+could be interested by this initiative.
+
+On 04/15, Senthil Kumaran wrote:
+>Hello Python Developers,
+>
+>Google is running a program called Season of Docs (
+>https://developers.google.com/season-of-docs/) to encourage technical
+>writers to improve the documentation of Open Source Projects.
+>
+>As Python-Dev, and Python Software Foundation, do you think:
+>
+>a) We should participate?
+>b) If yes to a), are you willing to be a mentor and identify project ideas?
+>
+>If you are willing to mentor and have project ideas, please let us know and
+>we can think about the next steps. The deadline for org application is
+>April 23, 2019.
+>
+>This discussion started here
+>https://discuss.python.org/t/will-python-apply-for-season-of-docs-and-allow-suborgs/
+>
+>Thank you,
+>Senthil
+
+>==================================================
+>Core-mentorship mailing list: core-mentorship at python.org
+>To unsubscribe send an email to core-mentorship-leave at python.org
+>https://mail.python.org/mm3/mailman3/lists/core-mentorship.python.org/
+>Code of Conduct: https://www.python.org/psf/codeofconduct/
+
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From alan.pope at canonical.com  Mon Apr 15 07:21:17 2019
+From: alan.pope at canonical.com (Alan Pope)
+Date: Mon, 15 Apr 2019 12:21:17 +0100
+Subject: [Python-Dev] Collaboration on a set of Python snaps
+Message-ID: <CAMxnTAOJ7bzTmW+P2DuHwYmb03NtQNiv8Z0MuuEOk2XpHoThbw@mail.gmail.com>
+
+Hi Python devs,
+
+I work on the Snapcraft [0] team at Canonical. I'm looking for a Python
+contributor to collaborate with us on making snaps of supported releases of
+Python available in the Snap Store [1].
+
+Travis CI and Canonical are looking for someone (preferably North-America
+based) to participate in an in-person Snapcraft Summit in downtown
+Montreal, Canada from 11th to 13th June. We're sponsoring a number of
+software vendors, device manufacturers people from the robotics sector to
+come. We'd love someone from the Python project to join us. We?ve published
+this blog post to explain the event in more detail:
+
+    https://snapcraft.io/blog/snapcraft-summit-montreal
+
+The goal would be to create snaps of the major supported releases of
+Python, and authoritatively publish them in the Snap Store. This would
+enable users of many different Linux distributions to easily obtain up to
+date supported versions of Python directly from the Python project.
+
+It also enables providers of CI systems (such as Travis) to the latest
+builds of Python are easily available to developers who use their services.
+We've done this previously with NodeJS [2] and Ruby [3] - among others. It
+would be great to have Python available via this method too.
+
+All the best,
+Al.
+
+[0] - https://snapcraft.io/
+[1] - https://snapcraft.io/store
+[2] - https://snapcraft.io/node
+[3] - https://snapcraft.io/ruby
+-- 
+Alan Pope
+Community Advocate
+
+Canonical - Ubuntu Engineering and Services
++44 (0) 7973 620 164
+alan.pope at canonical.com
+http://ubuntu.com/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190415/e9f0ac08/attachment.html>
+
+From jlehtosalo at gmail.com  Mon Apr 15 12:42:23 2019
+From: jlehtosalo at gmail.com (Jukka Lehtosalo)
+Date: Mon, 15 Apr 2019 09:42:23 -0700
+Subject: [Python-Dev] PEP 589 discussion (TypedDict) happening at typing-sig@
+Message-ID: <CAA_f+LzjaycXxQX5+6wTV6HQ5B7f=o_EfzJ0rbEhXLoYi7=cqQ@mail.gmail.com>
+
+Hi everyone,
+
+I submitted PEP 589 (TypedDict: Type Hints for Dictionaries with a Fixed
+Set of Keys) for discussion to typing-sig [1].
+
+Here's an excerpt from the abstract of the PEP:
+
+PEP 484 defines the type Dict[K, V] for uniform dictionaries, where each
+value has the same type, and arbitrary key values are supported. It doesn't
+properly support the common pattern where the type of a dictionary value
+depends on the string value of the key. This PEP proposes a type
+constructor typing.TypedDict to support the use case where a dictionary
+object has a specific set of string keys, each with a value of a specific
+type.
+
+Jukka Lehtosalo
+
+[1] https://mail.python.org/mailman3/lists/typing-sig.python.org/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190415/53ad4563/attachment.html>
+
+From steve.dower at python.org  Mon Apr 15 12:59:45 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 15 Apr 2019 09:59:45 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CAPJVwBn0ZYemZFz7hPHWuNJkXFj9yL5pLN5OkaF=hcEP9UJ2=w@mail.gmail.com>
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+ <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+ <CAPJVwB=J+W8bgDTwYt69xHsM1fB6aS8tU_4Ou9MP5nJCGYWVZw@mail.gmail.com>
+ <f554e709-efcf-4b13-5867-59bac105c49d@python.org>
+ <CAPJVwBk+K0jYWHTbLpRYXT=5Jsez1OSazfThpuvFem=2c3mg8A@mail.gmail.com>
+ <a6c52b5c-0df7-87a2-dd6d-539bdfacd01b@python.org>
+ <CAPJVwBn0ZYemZFz7hPHWuNJkXFj9yL5pLN5OkaF=hcEP9UJ2=w@mail.gmail.com>
+Message-ID: <832f3456-3e46-fdca-4c51-8fe8ed111e38@python.org>
+
+On 12Apr2019 1819, Nathaniel Smith wrote:
+> On Fri, Apr 12, 2019 at 5:05 PM Steve Dower <steve.dower at python.org> wrote:
+>>
+>> On 12Apr.2019 1643, Nathaniel Smith wrote:
+>>> On Thu, Apr 11, 2019 at 8:26 AM Steve Dower <steve.dower at python.org> wrote:
+>> The very first question I asked was whether this would let us converge
+>> the ABIs, and the answer was "no".
+>>
+>> Otherwise I'd have said go for it, despite the C runtime issues.
+> 
+> I don't see that in the thread... just Victor saying he isn't sure
+> whether there might be other ABI incompatibilities lurking that he
+> hasn't found yet. Did I miss something?
+
+"I don't know" means we can't say the APIs are converged, which is a no.
+
+I don't think you missed anything, but just read it through a different 
+filter.
+
+> I'm mostly interested in this because of the possibility of converging
+> the ABIs. If you think that the C runtime thing isn't a blocker for
+> that, then that's useful information. Though obviously we still need
+> to figure out whether there are any other blockers :-).
+> [SNIP]
+> Do you happen to have a list of places where the C API leaks details
+> of the underlying CRT?
+> 
+> (I'm mostly curious because whenever I've looked my conclusion was
+> essentially: "Well....... I don't see any places that are *definitely*
+> broken, so maybe mixing CRTs is fine? but I have zero confidence that
+> I caught everything, so probably better to play it safe?". At least on
+> py3 ? I know the py2 C API was definitely broken if you mixed CRTs,
+> because of the exposed FILE*.)
+
+Not since the discussions about migrating to VS 2015, but a few off the 
+top of my head:
+* locale
+* file descriptors
+* stream buffers
+* thread locals
+* exception [handler] state (yes, there are exceptions used within the 
+CRT, and they occasionally intentionally leak out past the C code)
+* atexit handlers
+* internal callbacks (mostly debug handlers, but since we're talking 
+about debugging...)
+
+I'm pretty sure if I did some digging I'd be able to figure out which of 
+these come from vcruntime140.dll vs ucrtbase.dll, and then come up with 
+some far-too-clever linker options to make some of these more 
+consistent, but there's no complete solution other than making sure 
+you've got a complete debug or complete release build.
+
+>> For the most part, disabling optimizations in your own extension but
+>> using the non-debug ABI is sufficient, and if you're having to deal with
+>> other people's packages then maybe you don't have any choice (though I
+>> do know of people who have built debug versions of numpy before - turns
+>> out Windows developers are often just as capable as non-Windows
+>> developers when it comes to building things ;)
+> 
+> I'm not sure why you think I was implying otherwise? I'm sorry if you
+> thought I was attacking your users or something. I did say that I
+> thought most users downloading the debug builds were probably confused
+> about what they were actually getting, but I didn't mean because they
+> were stupid Windows users, I meant because the debug builds are so
+> confusing that even folks on the Python core team are confused about
+> what they're actually getting.
+
+"Our users", please :)
+
+In my experience, Windows developers just treat debug and release builds 
+as part of the normal development process. The only confusion I've seen 
+has been related to CPython's not-quite-Windows-ish approach to debug 
+builds, and in practically every case it's been enough to explain 
+"release CPython uses a different CRT to your debug extension, but once 
+you align those it'll be fine".
+
+I definitely *do not* want to force or encourage package developers to 
+release debug ABI versions of their prebuilt packages. But at the same 
+time I don't want to remove the benefits that debug builds currently 
+include.
+
+Basically, I'm happy with the status quo, and the users I talk to are 
+happy with it. So I'd rather not worry about optimising debug builds for 
+speed or memory usage. (It's a question of direction more than anything 
+else, and until we get some official statement of direction then I'll 
+keep advocating a direction based on my experiences ;) )
+
+Cheers,
+Steve
+
+From solipsis at pitrou.net  Mon Apr 15 14:09:18 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 15 Apr 2019 20:09:18 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+References: <CA+3bQGFWKtOEu4aBNt0PLhm-FmmPhX3F81DyisZ2RLEL9Yun7g@mail.gmail.com>
+ <0a1871f0-14f8-8591-cf35-21cb3741f354@python.org>
+ <CA+3bQGFDWF_ZSN3v+=F1ejdPvpsd15SB=G=ZouJiYUZ_ip+=JQ@mail.gmail.com>
+ <CAPJVwB=BxgivmBAN=nyyUqg=a8_Qp9mjKJqQYCEL+=MD5UD_+w@mail.gmail.com>
+ <15ff965b-30a9-dc4b-cc60-940532f349b9@python.org>
+ <CAPJVwB=J+W8bgDTwYt69xHsM1fB6aS8tU_4Ou9MP5nJCGYWVZw@mail.gmail.com>
+ <f554e709-efcf-4b13-5867-59bac105c49d@python.org>
+ <20190415125000.571364a0@fsol>
+Message-ID: <20190415200918.760863f8@fsol>
+
+On Mon, 15 Apr 2019 12:50:00 +0200
+Antoine Pitrou <solipsis at pitrou.net> wrote:
+> On Thu, 11 Apr 2019 08:26:47 -0700
+> Steve Dower <steve.dower at python.org> wrote:
+> > On 10Apr2019 1917, Nathaniel Smith wrote:  
+> > > It sounds like --with-pydebug has accumulated a big grab bag of
+> > > unrelated features, mostly stuff that was useful at some point for
+> > > some CPython dev trying to debug CPython itself? It's clearly not
+> > > designed with end users as the primary audience, given that no-one
+> > > knows what it actually does and that it makes third-party extensions
+> > > really awkward to run. If that's right then I think Victor's plan of
+> > > to sort through what it's actually doing makes a lot of sense,
+> > > especially if we can remove the ABI breaking stuff, since that causes
+> > > a disproportionate amount of trouble.    
+> > 
+> > Does it really cause a "disproportionate" amount of trouble? It's 
+> > definitely not meant for anyone who isn't working on C code, whether in 
+> > CPython, an extension or a host application. If you want to use 
+> > third-party extensions and are not able to rebuild them, that's a very 
+> > good sign that you probably shouldn't be on the debug build at all.  
+> 
+> I can't really agree with that.  There are third-party extensions that
+> have non-trivial build requirements.  The fact that you have to rebuild
+> third-party dependencies is a strong deterrent against using pydebug
+> builds even when they may be actually useful (for example when
+> debugging an extension module of your own).
+
+Oh, and as a datapoint, there are user requests for pydebug builds in
+Anaconda and conda-forge:
+https://github.com/ContinuumIO/anaconda-issues/issues/80
+https://github.com/conda-forge/staged-recipes/issues/1593
+
+The problem is, while it's technically relatively easy to build and
+distribute a special build of Python, to make it useful implies also
+building a whole separate distribution of Python libraries as well.  I
+suspect the latter is why those issues were never acted upon.
+
+So, there's actual demand from people who would (probably) benefit from
+it, but are blocked by burden of recompiling all dependencies.
+
+Regards
+
+Antoine.
+
+
+
+From christian at python.org  Mon Apr 15 16:44:58 2019
+From: christian at python.org (Christian Heimes)
+Date: Mon, 15 Apr 2019 22:44:58 +0200
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+Message-ID: <47700a82-7654-f36a-26c7-0fd13d7cd8f7@python.org>
+
+On 28/03/2019 23.35, Steve Dower wrote:
+> Hi all
+> 
+> Time is short, but I'm hoping to get PEP 578 (formerly PEP 551) into
+> Python 3.8. Here's the current text for review and comment before I
+> submit to the Steering Council.
+> 
+> The formatted text is at https://www.python.org/dev/peps/pep-0578/
+> (update just pushed, so give it an hour or so, but it's fundamentally
+> the same as what's there)
+> 
+> No Discourse post, because we don't have a python-dev equivalent there
+> yet, so please reply here for this one.
+> 
+> Implementation is at https://github.com/zooba/cpython/tree/pep-578/ and
+> my backport to 3.7 (https://github.com/zooba/cpython/tree/pep-578-3.7/)
+> is already getting some real use (though this will not be added to 3.7,
+> unless people *really* want it, so the backport is just for reference).
+
+Hi Steve,
+
+(memory dump before I go to bed)
+
+Steve Grubb from Red Hat security pointed me to some interesting things
+[1]. For instance there is some work on a new O_MAYEXEC flag for open().
+Steve came to similar conclusions like we, e.g. streaming code from
+stdin is insecure.
+
+I think it would be also beneficial to have auditing events for the
+import system to track when sys.path or import loaders are changed.
+
+Christian
+
+[1] https://marc.info/?l=linux-fsdevel&m=155535414414626&w=2
+
+
+From steve.dower at python.org  Mon Apr 15 17:17:04 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 15 Apr 2019 14:17:04 -0700
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <47700a82-7654-f36a-26c7-0fd13d7cd8f7@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <47700a82-7654-f36a-26c7-0fd13d7cd8f7@python.org>
+Message-ID: <4e6ccd29-15c5-2704-04dd-0804f279638d@python.org>
+
+On 15Apr2019 1344, Christian Heimes wrote:
+> Hi Steve,
+> 
+> (memory dump before I go to bed)
+> 
+> Steve Grubb from Red Hat security pointed me to some interesting things
+> [1]. For instance there is some work on a new O_MAYEXEC flag for open().
+> Steve came to similar conclusions like we, e.g. streaming code from
+> stdin is insecure.
+> 
+> [1] https://marc.info/?l=linux-fsdevel&m=155535414414626&w=2
+
+Thanks for the pointer! Using this for open_code() by default on 
+platforms that support it might be a good opportunity in the future. But 
+I'm glad I'm not the only one who thinks this is the right approach :)
+
+> I think it would be also beneficial to have auditing events for the
+> import system to track when sys.path or import loaders are changed.
+
+Already in there (kind of... the "import" events include the contents of 
+the sys properties that are about to be used to resolve it - since these 
+are plain-old lists, and can be easily reassigned, passing them through 
+here allows you to add a check if you really want it but otherwise not 
+pay the cost of replacing the sys module with a special implementation 
+and its attributes with special lists).
+
+Cheers,
+Steve
+
+From stefano.borini at gmail.com  Mon Apr 15 17:32:24 2019
+From: stefano.borini at gmail.com (Stefano Borini)
+Date: Mon, 15 Apr 2019 22:32:24 +0100
+Subject: [Python-Dev] Cannot find documented API in PEP-376 (Database of
+ Installed Python Distributions)
+Message-ID: <CANuvKG5EOgtTLA5U2aEbtjoghPjzoOX=xG6wTazJnP0JH=C8sQ@mail.gmail.com>
+
+Hello,
+
+I am on a PEP scouting effort to check the current status of python
+packaging and its historical context, mostly for learning purposes. I
+noted that the PEP defines some functions for pkgutil (e.g.
+get_distributions), but I cannot find them.
+I tried to do some searching on the mailing list history, but I came
+up with pretty much nothing of value. It appears that the topic was
+last considered in 2009 (the year of the PEP). dist-info was then
+implemented, but I cannot find any information about the missing API,
+nor any additional PEP, except for a brief reference in PEP-427.
+
+Does anyone have some context for this?
+
+I understand it was 10 years ago, so it's mostly a curiosity. Thanks.
+
+-- 
+Kind regards,
+
+Stefano Borini
+
+From p.f.moore at gmail.com  Mon Apr 15 17:47:16 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Mon, 15 Apr 2019 22:47:16 +0100
+Subject: [Python-Dev] Cannot find documented API in PEP-376 (Database of
+ Installed Python Distributions)
+In-Reply-To: <CANuvKG5EOgtTLA5U2aEbtjoghPjzoOX=xG6wTazJnP0JH=C8sQ@mail.gmail.com>
+References: <CANuvKG5EOgtTLA5U2aEbtjoghPjzoOX=xG6wTazJnP0JH=C8sQ@mail.gmail.com>
+Message-ID: <CACac1F9LtuxepP2BH8-hL4SJGzDDHgmTBn=vnvtwPA3MkRKksQ@mail.gmail.com>
+
+On Mon, 15 Apr 2019 at 22:35, Stefano Borini <stefano.borini at gmail.com> wrote:
+>
+> Hello,
+>
+> I am on a PEP scouting effort to check the current status of python
+> packaging and its historical context, mostly for learning purposes. I
+> noted that the PEP defines some functions for pkgutil (e.g.
+> get_distributions), but I cannot find them.
+> I tried to do some searching on the mailing list history, but I came
+> up with pretty much nothing of value. It appears that the topic was
+> last considered in 2009 (the year of the PEP). dist-info was then
+> implemented, but I cannot find any information about the missing API,
+> nor any additional PEP, except for a brief reference in PEP-427.
+>
+> Does anyone have some context for this?
+>
+> I understand it was 10 years ago, so it's mostly a curiosity. Thanks.
+
+PEP 376 was part of a rather grand plan to re-engineer a lot of
+Python's packaging tools (distutils and setuptools at the time,
+mainly). Although the PEP was accepted, a lot of the coding never got
+done and ultimately the project was abandoned, and we moved over to a
+more incremental approach of improving what was there, rather than
+wholesale replacing things. So the PEP itself is something of a
+mixture now, some parts that are implemented, some parts that are
+relevant in principle but the details never got filled in, and some
+parts that simply never happened.
+
+>From what I recall (I was around at the time) a lot of the discussion
+was on distutils-sig - did you check the archives of that list in your
+searching? But there was a lot of what I would describe as "heated
+debate" going on at that point, so it may be hard to find anything
+particularly informative.
+
+Hopefully, that's of some use - good luck in your investigations!
+
+Paul
+
+From sully at msully.net  Mon Apr 15 18:23:10 2019
+From: sully at msully.net (Michael Sullivan)
+Date: Mon, 15 Apr 2019 15:23:10 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+Message-ID: <CANW5cDmgr4B2edtad6tN=PdG6YYWSnMWNzADTqB65nG7g8n4tg@mail.gmail.com>
+
+> The main question is if anyone ever used Py_TRACE_REFS? Does someone
+> use sys.getobjects() or PYTHONDUMPREFS environment variable?
+
+I used sys.getobjects() today to track down a memory leak in the
+mypyc-compiled version of mypy.
+
+We were leaking memory badly but no sign of the leak was showing up in
+mypy's gc.get_objects() based profiler. Using a debug build and switching
+to sys.getobjects() showed that we were badly leaking int objects. A quick
+inspection of the values in question (large and random looking) suggested
+we were leaking hash values, and that quickly pointed me to
+https://github.com/mypyc/mypyc/pull/562.
+
+I don't have any strong feelings about whether to keep it in the "default"
+debug build, though. I was using a debug build that I built myself with
+every debug feature that seemed potentially useful.
+
+-sully
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190415/291b3792/attachment.html>
+
+From njs at pobox.com  Mon Apr 15 19:05:58 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Mon, 15 Apr 2019 16:05:58 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CANW5cDmgr4B2edtad6tN=PdG6YYWSnMWNzADTqB65nG7g8n4tg@mail.gmail.com>
+References: <CANW5cDmgr4B2edtad6tN=PdG6YYWSnMWNzADTqB65nG7g8n4tg@mail.gmail.com>
+Message-ID: <CAPJVwB=m5y8uEO3=Xg-ojpvYo68mVBXFBEhaukduUkMW702Ckw@mail.gmail.com>
+
+On Mon, Apr 15, 2019, 15:27 Michael Sullivan <sully at msully.net> wrote:
+
+> > The main question is if anyone ever used Py_TRACE_REFS? Does someone
+> > use sys.getobjects() or PYTHONDUMPREFS environment variable?
+>
+> I used sys.getobjects() today to track down a memory leak in the
+> mypyc-compiled version of mypy.
+>
+> We were leaking memory badly but no sign of the leak was showing up in
+> mypy's gc.get_objects() based profiler. Using a debug build and switching
+> to sys.getobjects() showed that we were badly leaking int objects. A quick
+> inspection of the values in question (large and random looking) suggested
+> we were leaking hash values, and that quickly pointed me to
+> https://github.com/mypyc/mypyc/pull/562.
+>
+> I don't have any strong feelings about whether to keep it in the "default"
+> debug build, though. I was using a debug build that I built myself with
+> every debug feature that seemed potentially useful.
+>
+
+This is mostly to satisfy my curiosity, so feel free to ignore: did you try
+using address sanitizer or valgrind?
+
+-n
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190415/e89eae0b/attachment.html>
+
+From sully at msully.net  Mon Apr 15 19:58:07 2019
+From: sully at msully.net (Michael Sullivan)
+Date: Mon, 15 Apr 2019 16:58:07 -0700
+Subject: [Python-Dev] PEP 591 discussion (final qualifier) happening at
+ typing-sig@
+Message-ID: <CANW5cD=mWXVxUxSzunrVTrnKHQVmf1X3vrmzRroQr0WYB=OsaQ@mail.gmail.com>
+
+I've submitted PEP 591 (Adding a final qualifier to typing) for discussion
+to typing-sig [1].
+
+Here's the abstract:
+This PEP proposes a "final" qualifier to be added to the ``typing``
+module---in the form of a ``final`` decorator and a ``Final`` type
+annotation---to serve three related purposes:
+
+* Declaring that a method should not be overridden
+* Declaring that a class should not be subclassed
+* Declaring that a variable or attribute should not be reassigned
+
+Full text at https://www.python.org/dev/peps/pep-0591/
+
+-sully
+
+[1] https://mail.python.org/mailman3/lists/typing-sig.python.org/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190415/ac10c771/attachment-0001.html>
+
+From philgagnon1 at gmail.com  Mon Apr 15 21:06:58 2019
+From: philgagnon1 at gmail.com (Philippe Gagnon)
+Date: Mon, 15 Apr 2019 21:06:58 -0400
+Subject: [Python-Dev] PEP 589 discussion (TypedDict) happening at
+ typing-sig@
+In-Reply-To: <CAA_f+LzjaycXxQX5+6wTV6HQ5B7f=o_EfzJ0rbEhXLoYi7=cqQ@mail.gmail.com>
+References: <CAA_f+LzjaycXxQX5+6wTV6HQ5B7f=o_EfzJ0rbEhXLoYi7=cqQ@mail.gmail.com>
+Message-ID: <CAAQbfJ95DTRwH48G2Ft6qEjK+NSr77b-TE+6Ntx1S22uSFRGeA@mail.gmail.com>
+
+Hi Jukka,
+
+Thanks for submitting this PEP, I think it will be a net plus for the
+python language. I have been using TypedDict as a mypy_extensions module
+and it's been a great help.
+
+I found that the one thing that may be less intuitive and its design is the
+totality property. The fact that you need to use inheritance to compose
+TypedDicts that contain both required and optional keys create situations
+that may be a little verbose for some use cases. Perhaps an "optional"
+property taking a list of keys that type checkers would recognize as (no
+surprise) optional could be an alternative design with some merit.
+
+Best regards,
+
+Philippe
+
+On Mon, Apr 15, 2019 at 12:44 PM Jukka Lehtosalo <jlehtosalo at gmail.com>
+wrote:
+
+> Hi everyone,
+>
+> I submitted PEP 589 (TypedDict: Type Hints for Dictionaries with a Fixed
+> Set of Keys) for discussion to typing-sig [1].
+>
+> Here's an excerpt from the abstract of the PEP:
+>
+> PEP 484 defines the type Dict[K, V] for uniform dictionaries, where each
+> value has the same type, and arbitrary key values are supported. It doesn't
+> properly support the common pattern where the type of a dictionary value
+> depends on the string value of the key. This PEP proposes a type
+> constructor typing.TypedDict to support the use case where a dictionary
+> object has a specific set of string keys, each with a value of a specific
+> type.
+>
+> Jukka Lehtosalo
+>
+> [1] https://mail.python.org/mailman3/lists/typing-sig.python.org/
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/philgagnon1%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190415/6d826931/attachment.html>
+
+From njs at pobox.com  Mon Apr 15 23:12:33 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Mon, 15 Apr 2019 20:12:33 -0700
+Subject: [Python-Dev] PEP 591 discussion (final qualifier) happening at
+ typing-sig@
+In-Reply-To: <CANW5cD=mWXVxUxSzunrVTrnKHQVmf1X3vrmzRroQr0WYB=OsaQ@mail.gmail.com>
+References: <CANW5cD=mWXVxUxSzunrVTrnKHQVmf1X3vrmzRroQr0WYB=OsaQ@mail.gmail.com>
+Message-ID: <CAPJVwBkhq7L59xd4W9fZow38_5HTwHmnHs3VeA6FAWZFU1Ntyw@mail.gmail.com>
+
+On Mon, Apr 15, 2019 at 5:00 PM Michael Sullivan <sully at msully.net> wrote:
+>
+> I've submitted PEP 591 (Adding a final qualifier to typing) for discussion to typing-sig [1].
+
+I'm not on typing-sig [1] so I'm replying here.
+
+> Here's the abstract:
+> This PEP proposes a "final" qualifier to be added to the ``typing``
+> module---in the form of a ``final`` decorator and a ``Final`` type
+> annotation---to serve three related purposes:
+>
+> * Declaring that a method should not be overridden
+> * Declaring that a class should not be subclassed
+> * Declaring that a variable or attribute should not be reassigned
+
+I've been meaning to start blocking subclassing at runtime (e.g. like
+[2]), so being able to express that to the typechecker seems like a
+nice addition. I'm assuming though that the '@final' decorator doesn't
+have any runtime effect, so I'd have to say it twice?
+
+@typing.final
+class MyClass(metaclass=othermod.Final):
+    ...
+
+Or on 3.6+ with __init_subclass__, it's easy to define a @final
+decorator that works at runtime, but I guess this would have to be a
+different decorator?
+
+@typing.final
+@alsoruntime.final
+class MyClass:
+    ...
+
+This seems kinda awkward. Have you considered giving it a runtime
+effect, or providing some way for users to combine these two things
+together on their own?
+
+-n
+
+[1] https://github.com/willingc/pep-communication/issues/1
+[2] https://stackoverflow.com/a/3949004/1925449
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From sully at msully.net  Mon Apr 15 23:57:53 2019
+From: sully at msully.net (Michael Sullivan)
+Date: Mon, 15 Apr 2019 20:57:53 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CAPJVwB=m5y8uEO3=Xg-ojpvYo68mVBXFBEhaukduUkMW702Ckw@mail.gmail.com>
+References: <CANW5cDmgr4B2edtad6tN=PdG6YYWSnMWNzADTqB65nG7g8n4tg@mail.gmail.com>
+ <CAPJVwB=m5y8uEO3=Xg-ojpvYo68mVBXFBEhaukduUkMW702Ckw@mail.gmail.com>
+Message-ID: <CANW5cD=w5WCHZvL6KvSwQXyqRbbgVG3uopSR19_JRqnCsdDngA@mail.gmail.com>
+
+On Mon, Apr 15, 2019 at 4:06 PM Nathaniel Smith <njs at pobox.com> wrote:
+
+> On Mon, Apr 15, 2019, 15:27 Michael Sullivan <sully at msully.net> wrote:
+>
+>> > The main question is if anyone ever used Py_TRACE_REFS? Does someone
+>> > use sys.getobjects() or PYTHONDUMPREFS environment variable?
+>>
+>> I used sys.getobjects() today to track down a memory leak in the
+>> mypyc-compiled version of mypy.
+>>
+>> We were leaking memory badly but no sign of the leak was showing up in
+>> mypy's gc.get_objects() based profiler. Using a debug build and switching
+>> to sys.getobjects() showed that we were badly leaking int objects. A quick
+>> inspection of the values in question (large and random looking) suggested
+>> we were leaking hash values, and that quickly pointed me to
+>> https://github.com/mypyc/mypyc/pull/562.
+>>
+>> I don't have any strong feelings about whether to keep it in the
+>> "default" debug build, though. I was using a debug build that I built
+>> myself with every debug feature that seemed potentially useful.
+>>
+>
+> This is mostly to satisfy my curiosity, so feel free to ignore: did you
+> try using address sanitizer or valgrind?
+>
+> I didn't, mostly because I assume that valgrind wouldn't play well with
+cpython. (I've never used address sanitizer.)
+
+I was curious, so I went back and tried it out.
+It turned out to not seem to need that much fiddling to get to work. It
+slows things down a *lot* and produced 17,000 "loss records", though, so
+maybe I don't have it working right. At a glance the records did not shed
+any light.
+
+I'd definitely believe that valgrind is up to the task of debugging this,
+but my initial take with it shed much less light than my sys.getobjects()
+approach. (Though note that my sys.getobjects() approach was slotting it
+into an existing python memory profiler we had hacked up, so...)
+
+-sully
+
+
+> -n
+>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190415/f10a88af/attachment.html>
+
