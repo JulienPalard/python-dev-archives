@@ -9415,3 +9415,954 @@ into an existing python memory profiler we had hacked up, so...)
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190415/f10a88af/attachment.html>
 
+From sully at msully.net  Tue Apr 16 03:48:20 2019
+From: sully at msully.net (Michael Sullivan)
+Date: Tue, 16 Apr 2019 00:48:20 -0700
+Subject: [Python-Dev] PEP 591 discussion (final qualifier) happening at
+ typing-sig@
+In-Reply-To: <CAPJVwBkhq7L59xd4W9fZow38_5HTwHmnHs3VeA6FAWZFU1Ntyw@mail.gmail.com>
+References: <CANW5cD=mWXVxUxSzunrVTrnKHQVmf1X3vrmzRroQr0WYB=OsaQ@mail.gmail.com>
+ <CAPJVwBkhq7L59xd4W9fZow38_5HTwHmnHs3VeA6FAWZFU1Ntyw@mail.gmail.com>
+Message-ID: <CANW5cDn_uHs3eFrUd=a+Trc5Gii9YhfB12jsLMj-dofc9GnTXg@mail.gmail.com>
+
+On Mon, Apr 15, 2019 at 8:12 PM Nathaniel Smith <njs at pobox.com> wrote:
+
+> On Mon, Apr 15, 2019 at 5:00 PM Michael Sullivan <sully at msully.net> wrote:
+> >
+> > I've submitted PEP 591 (Adding a final qualifier to typing) for
+> discussion to typing-sig [1].
+>
+> I'm not on typing-sig [1] so I'm replying here.
+>
+> > Here's the abstract:
+> > This PEP proposes a "final" qualifier to be added to the ``typing``
+> > module---in the form of a ``final`` decorator and a ``Final`` type
+> > annotation---to serve three related purposes:
+> >
+> > * Declaring that a method should not be overridden
+> > * Declaring that a class should not be subclassed
+> > * Declaring that a variable or attribute should not be reassigned
+>
+> I've been meaning to start blocking subclassing at runtime (e.g. like
+> [2]), so being able to express that to the typechecker seems like a
+> nice addition. I'm assuming though that the '@final' decorator doesn't
+> have any runtime effect, so I'd have to say it twice?
+>
+> @typing.final
+> class MyClass(metaclass=othermod.Final):
+>     ...
+>
+> Or on 3.6+ with __init_subclass__, it's easy to define a @final
+> decorator that works at runtime, but I guess this would have to be a
+> different decorator?
+>
+> @typing.final
+> @alsoruntime.final
+> class MyClass:
+>     ...
+>
+> This seems kinda awkward. Have you considered giving it a runtime
+> effect, or providing some way for users to combine these two things
+> together on their own?
+>
+> Nothing else in typing does any type of runtime enforcement, so I'd be
+reluctant to start here.
+
+One approach would be doing something like this (maybe in a support module):
+if typing.TYPE_CHECKING:
+    from typing import final
+else:
+    from alsoruntime import final
+
+So that at checking time, the typechecker would use the typing final but at
+runtime we'd get something that does enforcement.
+(And for the pre-3.6 case, you could maybe use something like
+six.add_metaclass in order to specify the metaclass as a decorator.)
+
+I can add this as an example to the PEP.
+
+-sully
+
+
+> -n
+>
+> [1] https://github.com/willingc/pep-communication/issues/1
+> [2] https://stackoverflow.com/a/3949004/1925449
+>
+> --
+> Nathaniel J. Smith -- https://vorpus.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190416/eb1a0795/attachment.html>
+
+From vstinner at redhat.com  Tue Apr 16 05:11:05 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 16 Apr 2019 11:11:05 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CANW5cDmgr4B2edtad6tN=PdG6YYWSnMWNzADTqB65nG7g8n4tg@mail.gmail.com>
+References: <CANW5cDmgr4B2edtad6tN=PdG6YYWSnMWNzADTqB65nG7g8n4tg@mail.gmail.com>
+Message-ID: <CA+3bQGGmD5TFkMhW41QaeAO5OQc1P4yduX8+K073N49WY5042w@mail.gmail.com>
+
+Hi Michael,
+
+Do you know the tracemalloc module? Did you try it? It works on a
+regular Python (compiled in debug mode).
+
+I would be curious to know if tracemalloc also allows you to track the
+memory leak.
+
+sys.getobjects() is just a list of objects. Do you have a tool written
+on top of it to track memory leaks? If yes, how?
+
+Victor
+
+Le mar. 16 avr. 2019 ? 00:28, Michael Sullivan <sully at msully.net> a ?crit :
+>
+> > The main question is if anyone ever used Py_TRACE_REFS? Does someone
+> > use sys.getobjects() or PYTHONDUMPREFS environment variable?
+>
+> I used sys.getobjects() today to track down a memory leak in the mypyc-compiled version of mypy.
+>
+> We were leaking memory badly but no sign of the leak was showing up in mypy's gc.get_objects() based profiler. Using a debug build and switching to sys.getobjects() showed that we were badly leaking int objects. A quick inspection of the values in question (large and random looking) suggested we were leaking hash values, and that quickly pointed me to https://github.com/mypyc/mypyc/pull/562.
+>
+> I don't have any strong feelings about whether to keep it in the "default" debug build, though. I was using a debug build that I built myself with every debug feature that seemed potentially useful.
+>
+> -sully
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From njs at pobox.com  Tue Apr 16 06:05:56 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 16 Apr 2019 03:05:56 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CANW5cD=w5WCHZvL6KvSwQXyqRbbgVG3uopSR19_JRqnCsdDngA@mail.gmail.com>
+References: <CANW5cDmgr4B2edtad6tN=PdG6YYWSnMWNzADTqB65nG7g8n4tg@mail.gmail.com>
+ <CAPJVwB=m5y8uEO3=Xg-ojpvYo68mVBXFBEhaukduUkMW702Ckw@mail.gmail.com>
+ <CANW5cD=w5WCHZvL6KvSwQXyqRbbgVG3uopSR19_JRqnCsdDngA@mail.gmail.com>
+Message-ID: <CAPJVwBmqNjNrwrROiUpFz_deku+8emt9-xwZ0cMgz8-dxebPig@mail.gmail.com>
+
+On Mon, Apr 15, 2019 at 8:58 PM Michael Sullivan <sully at msully.net> wrote:
+>
+> On Mon, Apr 15, 2019 at 4:06 PM Nathaniel Smith <njs at pobox.com> wrote:
+>>
+>> On Mon, Apr 15, 2019, 15:27 Michael Sullivan <sully at msully.net> wrote:
+>>>
+>>> > The main question is if anyone ever used Py_TRACE_REFS? Does someone
+>>> > use sys.getobjects() or PYTHONDUMPREFS environment variable?
+>>>
+>>> I used sys.getobjects() today to track down a memory leak in the mypyc-compiled version of mypy.
+>>>
+>>> We were leaking memory badly but no sign of the leak was showing up in mypy's gc.get_objects() based profiler. Using a debug build and switching to sys.getobjects() showed that we were badly leaking int objects. A quick inspection of the values in question (large and random looking) suggested we were leaking hash values, and that quickly pointed me to https://github.com/mypyc/mypyc/pull/562.
+>>>
+>>> I don't have any strong feelings about whether to keep it in the "default" debug build, though. I was using a debug build that I built myself with every debug feature that seemed potentially useful.
+>>
+>>
+>> This is mostly to satisfy my curiosity, so feel free to ignore: did you try using address sanitizer or valgrind?
+>>
+> I didn't, mostly because I assume that valgrind wouldn't play well with cpython. (I've never used address sanitizer.)
+>
+> I was curious, so I went back and tried it out.
+> It turned out to not seem to need that much fiddling to get to work. It slows things down a *lot* and produced 17,000 "loss records", though, so maybe I don't have it working right. At a glance the records did not shed any light.
+>
+> I'd definitely believe that valgrind is up to the task of debugging this, but my initial take with it shed much less light than my sys.getobjects() approach. (Though note that my sys.getobjects() approach was slotting it into an existing python memory profiler we had hacked up, so...)
+
+valgrind on CPython is definitely a bit fiddly ? if you need it again
+you might check out Misc/README.valgrind.
+
+Supposedly memory sanitizer is just './configure
+--with-memory-sanitizer', but I haven't tried it either :-)
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From vstinner at redhat.com  Tue Apr 16 06:17:39 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 16 Apr 2019 12:17:39 +0200
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CAPJVwBmqNjNrwrROiUpFz_deku+8emt9-xwZ0cMgz8-dxebPig@mail.gmail.com>
+References: <CANW5cDmgr4B2edtad6tN=PdG6YYWSnMWNzADTqB65nG7g8n4tg@mail.gmail.com>
+ <CAPJVwB=m5y8uEO3=Xg-ojpvYo68mVBXFBEhaukduUkMW702Ckw@mail.gmail.com>
+ <CANW5cD=w5WCHZvL6KvSwQXyqRbbgVG3uopSR19_JRqnCsdDngA@mail.gmail.com>
+ <CAPJVwBmqNjNrwrROiUpFz_deku+8emt9-xwZ0cMgz8-dxebPig@mail.gmail.com>
+Message-ID: <CA+3bQGFSSCTuUuML+iqzvr-A2Ex3etawyW_hBrCyr-ZDEtQXLQ@mail.gmail.com>
+
+Since Python 3.6, you can use PYTHONMALLOC=malloc for Valgrind: it
+avoids false alarms produced by the pymalloc allocator.
+
+Victor
+
+Le mar. 16 avr. 2019 ? 12:09, Nathaniel Smith <njs at pobox.com> a ?crit :
+>
+> On Mon, Apr 15, 2019 at 8:58 PM Michael Sullivan <sully at msully.net> wrote:
+> >
+> > On Mon, Apr 15, 2019 at 4:06 PM Nathaniel Smith <njs at pobox.com> wrote:
+> >>
+> >> On Mon, Apr 15, 2019, 15:27 Michael Sullivan <sully at msully.net> wrote:
+> >>>
+> >>> > The main question is if anyone ever used Py_TRACE_REFS? Does someone
+> >>> > use sys.getobjects() or PYTHONDUMPREFS environment variable?
+> >>>
+> >>> I used sys.getobjects() today to track down a memory leak in the mypyc-compiled version of mypy.
+> >>>
+> >>> We were leaking memory badly but no sign of the leak was showing up in mypy's gc.get_objects() based profiler. Using a debug build and switching to sys.getobjects() showed that we were badly leaking int objects. A quick inspection of the values in question (large and random looking) suggested we were leaking hash values, and that quickly pointed me to https://github.com/mypyc/mypyc/pull/562.
+> >>>
+> >>> I don't have any strong feelings about whether to keep it in the "default" debug build, though. I was using a debug build that I built myself with every debug feature that seemed potentially useful.
+> >>
+> >>
+> >> This is mostly to satisfy my curiosity, so feel free to ignore: did you try using address sanitizer or valgrind?
+> >>
+> > I didn't, mostly because I assume that valgrind wouldn't play well with cpython. (I've never used address sanitizer.)
+> >
+> > I was curious, so I went back and tried it out.
+> > It turned out to not seem to need that much fiddling to get to work. It slows things down a *lot* and produced 17,000 "loss records", though, so maybe I don't have it working right. At a glance the records did not shed any light.
+> >
+> > I'd definitely believe that valgrind is up to the task of debugging this, but my initial take with it shed much less light than my sys.getobjects() approach. (Though note that my sys.getobjects() approach was slotting it into an existing python memory profiler we had hacked up, so...)
+>
+> valgrind on CPython is definitely a bit fiddly ? if you need it again
+> you might check out Misc/README.valgrind.
+>
+> Supposedly memory sanitizer is just './configure
+> --with-memory-sanitizer', but I haven't tried it either :-)
+>
+> -n
+>
+> --
+> Nathaniel J. Smith -- https://vorpus.org
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From J.Demeyer at UGent.be  Tue Apr 16 07:15:45 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Tue, 16 Apr 2019 13:15:45 +0200
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <5CA445BD.4040705@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org> <5CA445BD.4040705@UGent.be>
+Message-ID: <5CB5B961.6020704@UGent.be>
+
+On 2019-04-03 07:33, Jeroen Demeyer wrote:
+> Access to the class isn't possible currently and also not with PEP 590.
+> But it's easy enough to fix that: PEP 573 adds a new METH_METHOD flag to
+> change the signature of the C function (not the vectorcall wrapper). PEP
+> 580 supports this "out of the box" because I'm reusing the class also to
+> do type checks. But this shouldn't be an argument for or against either
+> PEP.
+
+Actually, in the answer above I only considered "is implementing PEP 573 
+possible?" but I did not consider the complexity of doing that. And in 
+line with what I claimed about complexity before, I think that PEP 580 
+scores better in this regard.
+
+Take PEP 580 and assume for the sake of argument that it didn't already 
+have the cc_parent field. Then adding support for PEP 573 is easy: just 
+add the cc_parent field to the C call protocol structure and set that 
+field when initializing a method_descriptor. C functions can use the 
+METH_DEFARG flag to get access to the PyCCallDef structure, which gives 
+cc_parent. Implementing PEP 573 for a custom function class takes no 
+extra effort: it doesn't require any changes to that class, except for 
+correctly initializing the cc_parent field. Since PEP 580 has built-in 
+support for methods, nothing special needs to be done to support methods 
+too.
+
+With PEP 590 on the other hand, every single class which is involved in 
+PEP 573 must be changed and every single vectorcall wrapper supporting 
+PEP 573 must be changed. This is not limited to the function class 
+itself, also the corresponding method class (for example, 
+builtin_function_or_method for method_descriptor) needs to be changed.
+
+
+Jeroen
+
+From christian at python.org  Tue Apr 16 07:39:59 2019
+From: christian at python.org (Christian Heimes)
+Date: Tue, 16 Apr 2019 13:39:59 +0200
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <4e6ccd29-15c5-2704-04dd-0804f279638d@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <47700a82-7654-f36a-26c7-0fd13d7cd8f7@python.org>
+ <4e6ccd29-15c5-2704-04dd-0804f279638d@python.org>
+Message-ID: <229b7489-5d3f-8638-f8f2-eda0fa7c041d@python.org>
+
+On 15/04/2019 23.17, Steve Dower wrote:
+> On 15Apr2019 1344, Christian Heimes wrote:
+>> Hi Steve,
+>>
+>> (memory dump before I go to bed)
+>>
+>> Steve Grubb from Red Hat security pointed me to some interesting things
+>> [1]. For instance there is some work on a new O_MAYEXEC flag for open().
+>> Steve came to similar conclusions like we, e.g. streaming code from
+>> stdin is insecure.
+>>
+>> [1] https://marc.info/?l=linux-fsdevel&m=155535414414626&w=2
+> 
+> Thanks for the pointer! Using this for open_code() by default on
+> platforms that support it might be a good opportunity in the future. But
+> I'm glad I'm not the only one who thinks this is the right approach :)
+
+Here is the original patch on LWN with some links to presentations:
+
+https://lwn.net/Articles/774676/
+
+The approach has one downside: The current user must have DAC executable
+permission for a file in order to open a file with O_MAYEXEC. That means
+we have to +x all Python files and PYC files, not just the files that
+are designed as entry points.
+
+>> I think it would be also beneficial to have auditing events for the
+>> import system to track when sys.path or import loaders are changed.
+> 
+> Already in there (kind of... the "import" events include the contents of
+> the sys properties that are about to be used to resolve it - since these
+> are plain-old lists, and can be easily reassigned, passing them through
+> here allows you to add a check if you really want it but otherwise not
+> pay the cost of replacing the sys module with a special implementation
+> and its attributes with special lists).
+
+Yeah, it's complicated :/
+
+Steve Grubb mentioned remote importers or hacks like mem_fd + dlopen()
+from /proc/self/fd as attack vectors. Mitigations and audit systems like
+IMA Appraisal only work properly if code has to hit the disk first. If
+an attacker or user can perform the equivalent of PROT_EXEC |
+PROT_WRITE, then IMA won't be able to 'see' the malicious code.
+
+https://www.tutorialspoint.com/How-to-use-remote-python-modules
+https://github.com/operatorequals/httpimport
+https://0x00sec.org/t/pure-python-in-memory-so-loading-without-shm/6453
+https://github.com/nullbites/SnakeEater/blob/master/SnakeEater2.py
+
+Christian
+
+From christian at python.org  Tue Apr 16 08:32:14 2019
+From: christian at python.org (Christian Heimes)
+Date: Tue, 16 Apr 2019 14:32:14 +0200
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <f87504d1-4cc0-e74c-d32e-1e06cde29c39@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <2cb3740e-ebc2-1839-1d2e-73d1b9f0a445@python.org>
+ <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+ <8466c9c4-b5dc-c6c5-6fe4-a49dc2f4f968@python.org>
+ <f87504d1-4cc0-e74c-d32e-1e06cde29c39@python.org>
+Message-ID: <03d9d56d-540c-0eae-2b69-2c0960bc030b@python.org>
+
+Sorry, I forgot to reply.
+
+Do you think it would make sense to split the PEP into two PEPs? The
+auditing hook and import opener hook are related, but distinct
+improvements. The auditing part looks solid and ready now. The import
+opener may need some more refinement. I would also like to get feedback
+from some Linux Kernel security engineers first.
+
+On 01/04/2019 18.31, Steve Dower wrote:
+> On 31Mar2019 0538, Christian Heimes wrote:
+>> I don't like the fact that the PEP requires users to learn and use an
+>> additional layer to handle native code. Although we cannot provide a
+>> fully secure hook for native code, we could at least try to provide a
+>> best effort hook and document the limitations. A bit more information
+>> would make the verified open function more useful, too.
+> 
+> So instead they need to learn a significantly more complicated API? :)
+> (I was very happy to be able to say "it's the same as open(p, 'rb')").
+> 
+>> PyObject *PyImport_OpenForExecution(
+>> ???? const char *path,
+>> ???? const char *intent,
+>> ???? int flags,
+>> ???? PyObject *context
+>> )
+>>
+>> - Path is an absolute (!) file path. The PEP doesn't specify if the file
+>> name is relative or absolute. IMO it should be always absolute.
+> 
+> Yeah, this is fair enough. I'll add it as a requirement.
+> 
+>> - The new intent argument lets the caller pass information how it
+>> intents to use the file, e.g. pythoncode, zipimport, nativecode (for
+>> loading a shared library/DLL), ctypes, ... This allows the verify hook
+>> to react on the intent and provide different verifications for e.g.
+>> Python code and native modules.
+> 
+> I had an intent argument at one point and the feedback I got (from teams
+> who wanted to implement it) is that they wouldn't trust it anyway :)
+> 
+> In each case there should be associated audit events for tracking the
+> intent (and interrupting at that point if it doesn't like the intended
+> action), but for the simple case of "let me open this specific file" it
+> doesn't really add much. And it almost certainly shouldn't impact
+> decision making.
+
+There is no need to trust the intent flag that much. I would like to
+have a way to further narrow down the scope for an open call. This would
+allow the caller to tell the hook "I want to open something that should
+be a shared library suitable for ctypes". It would allow tighter control.
+
+Audit events are useful and powerful. But I don't want to put too much
+burden on the auditing framwork. I prefer to have checks that prevent
+operations rather than allow operations and audit them.
+
+>> - The flags argument is for additional flags, e.g. return an opened file
+>> or None, open the file in text or binary mode, ...
+> 
+> This just makes it harder for the hook implementer - now you have to
+> allow encoding/errors arguments and probably more. And as mentioned
+> above, there should be an audit event showing the intent before this
+> call, and a hook can reject it at that point (rather than verify without
+> actually returning the verified content).
+
+I retract this part of my proposal. With O_MAYEXEC it's better to always
+open the file, but then use the file's FD to retrieve the actual file
+name for dlopen(). That approach allows the Kernel to verify DAC
+permissions, prevents memfd_create() hacks through readlink, and
+simplifies the hook.
+
+* Linux: readlink("/proc/self/fd/%i")
+* macOS: fcntl F_GETPATH
+* Windows: GetFileInformationByHandleEx
+
+>> - Context is an optional Python object from the caller's context. For
+>> the import system, it could be the loader instance.
+> 
+> I think the audit event covers this, unless you have some way of using
+> this context in mind that I can't think of?
+
+To be honest I don't have a good use case yet. I just like the idea to
+have a way to pass some custom thing into an API and now who called an
+API. You seem to like it, too. Your hook has a void *userData, but it's
+not passed into the Python function. :)
+
+int PyImport_SetOpenForImportHook(hook_func handler, void *userData)
+
+Christian
+
+From vstinner at redhat.com  Tue Apr 16 08:57:35 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 16 Apr 2019 14:57:35 +0200
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <03d9d56d-540c-0eae-2b69-2c0960bc030b@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <2cb3740e-ebc2-1839-1d2e-73d1b9f0a445@python.org>
+ <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+ <8466c9c4-b5dc-c6c5-6fe4-a49dc2f4f968@python.org>
+ <f87504d1-4cc0-e74c-d32e-1e06cde29c39@python.org>
+ <03d9d56d-540c-0eae-2b69-2c0960bc030b@python.org>
+Message-ID: <CA+3bQGHS5o7+o1Ss3y9xq=oKkOLgFHPgW0TqQ8at92ELivqC2A@mail.gmail.com>
+
+Le mar. 16 avr. 2019 ? 14:35, Christian Heimes <christian at python.org> a ?crit :
+> * Linux: readlink("/proc/self/fd/%i")
+
+That doens't work if /proc is not mounted, which can occur in a
+container (where /proc is not mounted nor binded to host /proc).
+
+Victor
+
+From christian at python.org  Tue Apr 16 09:09:34 2019
+From: christian at python.org (Christian Heimes)
+Date: Tue, 16 Apr 2019 15:09:34 +0200
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <CA+3bQGHS5o7+o1Ss3y9xq=oKkOLgFHPgW0TqQ8at92ELivqC2A@mail.gmail.com>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <2cb3740e-ebc2-1839-1d2e-73d1b9f0a445@python.org>
+ <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+ <8466c9c4-b5dc-c6c5-6fe4-a49dc2f4f968@python.org>
+ <f87504d1-4cc0-e74c-d32e-1e06cde29c39@python.org>
+ <03d9d56d-540c-0eae-2b69-2c0960bc030b@python.org>
+ <CA+3bQGHS5o7+o1Ss3y9xq=oKkOLgFHPgW0TqQ8at92ELivqC2A@mail.gmail.com>
+Message-ID: <9bcfb93b-d52f-7284-7bc6-d629edebacd5@python.org>
+
+On 16/04/2019 14.57, Victor Stinner wrote:
+> Le mar. 16 avr. 2019 ? 14:35, Christian Heimes <christian at python.org> a ?crit :
+>> * Linux: readlink("/proc/self/fd/%i")
+> 
+> That doens't work if /proc is not mounted, which can occur in a
+> container (where /proc is not mounted nor binded to host /proc).
+
+No, it won't work. But there is much more that breaks when /proc is not
+mounted. Therefore all container runtimes mount /proc and /sys into
+containers. I checked systemd-nspawn, podman, and docker.
+
+Christian
+
+From vstinner at redhat.com  Tue Apr 16 10:24:07 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 16 Apr 2019 16:24:07 +0200
+Subject: [Python-Dev] bpo-36558: Change time.mktime() return type from float
+ to int?
+Message-ID: <CA+3bQGFMC7JVY2sbr65iXG+6t_ZmF3S-3M530-o8cuyS6xqcLg@mail.gmail.com>
+
+Hi,
+
+time.mktime() looks "inconsistent" to me and I would like to change
+it, but I'm not sure how it impacts backward compatibility.
+https://bugs.python.org/issue36558
+
+time.mktime() returns a floating point number:
+
+>>> type(time.mktime(time.localtime()))
+<class 'float'>
+
+The documentation says:
+
+"It returns a floating point number, for compatibility with :func:`.time`."
+
+time.time() returns a float because it has sub-second resolution, but
+the C function mktime() returns an integer number of seconds.
+
+Would it make sense to change mktime() return type from float to int?
+
+I would like to change mktime() return type to make the function more
+consistent: all inputs are integers, it sounds wrong to me to return
+float. The result should be integer as well.
+
+How much code would it break? I guess that the main impact are unit
+tests relying on repr(time.mktime(t)) exact value. But it's easy to
+fix the tests: use int(time.mktime(t)) or "%.0f" % time.mktime(t) to
+never get ".0", or use float(time.mktime(t))) to explicitly cast for a
+float (that which be a bad but quick fix).
+
+Note: I wrote and implemented the PEP 564 to avoid any precision loss.
+mktime() will not start loosing precision before year 285,422,891
+(which is quite far in the future ;-)).
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From paul at ganssle.io  Tue Apr 16 10:41:05 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Tue, 16 Apr 2019 10:41:05 -0400
+Subject: [Python-Dev] bpo-36558: Change time.mktime() return type from
+ float to int?
+In-Reply-To: <CA+3bQGFMC7JVY2sbr65iXG+6t_ZmF3S-3M530-o8cuyS6xqcLg@mail.gmail.com>
+References: <CA+3bQGFMC7JVY2sbr65iXG+6t_ZmF3S-3M530-o8cuyS6xqcLg@mail.gmail.com>
+Message-ID: <b4f5655d-defd-276a-673f-a0e11feace66@ganssle.io>
+
+I already chimed in on the issue, but for the list, I'll boil my
+comments down to two questions:
+
+1. For anyone who knows: when the documentation refers to "compatibility
+with `.time`", is that just saying it was designed that way because
+.time returns a float (i.e. for /consistency/ with `.time()`), or is
+there some practical reason that you would want `.time()` and
+`.mktime()` to return the same type?
+
+2. Mainly for Victor, but anyone can answer: I agree that the natural
+output of `mktime()` would be `int` if I were designing it today, but
+would there be any /practical/ benefits for making this change? Are
+there problems cropping up because it's returning a float? Is it faster
+to return an integer?
+
+Best,
+
+Paul
+
+On 4/16/19 10:24 AM, Victor Stinner wrote:
+> Hi,
+>
+> time.mktime() looks "inconsistent" to me and I would like to change
+> it, but I'm not sure how it impacts backward compatibility.
+> https://bugs.python.org/issue36558
+>
+> time.mktime() returns a floating point number:
+>
+>>>> type(time.mktime(time.localtime()))
+> <class 'float'>
+>
+> The documentation says:
+>
+> "It returns a floating point number, for compatibility with :func:`.time`."
+>
+> time.time() returns a float because it has sub-second resolution, but
+> the C function mktime() returns an integer number of seconds.
+>
+> Would it make sense to change mktime() return type from float to int?
+>
+> I would like to change mktime() return type to make the function more
+> consistent: all inputs are integers, it sounds wrong to me to return
+> float. The result should be integer as well.
+>
+> How much code would it break? I guess that the main impact are unit
+> tests relying on repr(time.mktime(t)) exact value. But it's easy to
+> fix the tests: use int(time.mktime(t)) or "%.0f" % time.mktime(t) to
+> never get ".0", or use float(time.mktime(t))) to explicitly cast for a
+> float (that which be a bad but quick fix).
+>
+> Note: I wrote and implemented the PEP 564 to avoid any precision loss.
+> mktime() will not start loosing precision before year 285,422,891
+> (which is quite far in the future ;-)).
+>
+> Victor
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190416/1a2f7454/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190416/1a2f7454/attachment-0001.sig>
+
+From stephane at wirtel.be  Tue Apr 16 10:44:22 2019
+From: stephane at wirtel.be (=?utf-8?B?U3TDqXBoYW5l?= Wirtel)
+Date: Tue, 16 Apr 2019 16:44:22 +0200
+Subject: [Python-Dev] bpo-36558: Change time.mktime() return type from
+ float to int?
+In-Reply-To: <CA+3bQGFMC7JVY2sbr65iXG+6t_ZmF3S-3M530-o8cuyS6xqcLg@mail.gmail.com>
+References: <CA+3bQGFMC7JVY2sbr65iXG+6t_ZmF3S-3M530-o8cuyS6xqcLg@mail.gmail.com>
+Message-ID: <20190416144422.3bwbgl4cvr5rgn3d@xps>
+
+>I would like to change mktime() return type to make the function more
+>consistent: all inputs are integers, it sounds wrong to me to return
+>float. The result should be integer as well.
+In C, the signature of mktime is time_t mktime(struct tm *time); 
+from Wikipedia, the Unix time_t data type, on many platforms, is a
+signed integer, tradionally (32bits). In the newer operating systems,
+time_t has been widened to 64 bits.
+
+-- 
+St?phane Wirtel - https://wirtel.be - @matrixise
+
+From vstinner at redhat.com  Tue Apr 16 11:16:37 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 16 Apr 2019 17:16:37 +0200
+Subject: [Python-Dev] bpo-36558: Change time.mktime() return type from
+ float to int?
+In-Reply-To: <b4f5655d-defd-276a-673f-a0e11feace66@ganssle.io>
+References: <CA+3bQGFMC7JVY2sbr65iXG+6t_ZmF3S-3M530-o8cuyS6xqcLg@mail.gmail.com>
+ <b4f5655d-defd-276a-673f-a0e11feace66@ganssle.io>
+Message-ID: <CA+3bQGFOKyueKg3j2R02-jh3h0rp9XKABB8=RLo8A0wDj2asXA@mail.gmail.com>
+
+Le mar. 16 avr. 2019 ? 16:44, Paul Ganssle <paul at ganssle.io> a ?crit :
+> 2. Mainly for Victor, but anyone can answer: I agree that the natural output of `mktime()` would be `int` if I were designing it today, but would there be any practical benefits for making this change?
+
+It's just for the consistency of the function regarding to C function
+mktime() return type and its input types :-)
+
+> Are there problems cropping up because it's returning a float?
+
+None.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From guido at python.org  Tue Apr 16 11:46:31 2019
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 16 Apr 2019 08:46:31 -0700
+Subject: [Python-Dev] bpo-36558: Change time.mktime() return type from
+ float to int?
+In-Reply-To: <CA+3bQGFOKyueKg3j2R02-jh3h0rp9XKABB8=RLo8A0wDj2asXA@mail.gmail.com>
+References: <CA+3bQGFMC7JVY2sbr65iXG+6t_ZmF3S-3M530-o8cuyS6xqcLg@mail.gmail.com>
+ <b4f5655d-defd-276a-673f-a0e11feace66@ganssle.io>
+ <CA+3bQGFOKyueKg3j2R02-jh3h0rp9XKABB8=RLo8A0wDj2asXA@mail.gmail.com>
+Message-ID: <CAP7+vJLbAW3rWjY7gNR6WhYKMhkLEcve9XMFKbRVKPZfgXhNzw@mail.gmail.com>
+
+On Tue, Apr 16, 2019 at 8:19 AM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Le mar. 16 avr. 2019 ? 16:44, Paul Ganssle <paul at ganssle.io> a ?crit :
+> > 2. Mainly for Victor, but anyone can answer: I agree that the natural
+> output of `mktime()` would be `int` if I were designing it today, but would
+> there be any practical benefits for making this change?
+>
+> It's just for the consistency of the function regarding to C function
+> mktime() return type and its input types :-)
+>
+
+But all Python times are reported or accept floats -- this allows
+sub-second precision without using complicated data structures. None of the
+C functions use floats. Consistency with C should not be the issue --
+consistency between the time functions is important.
+
+
+> > Are there problems cropping up because it's returning a float?
+>
+> None.
+>
+
+So let's drop the idea.
+
+
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190416/7c4f2cc1/attachment.html>
+
+From vano at mail.mipt.ru  Tue Apr 16 11:47:35 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Tue, 16 Apr 2019 18:47:35 +0300
+Subject: [Python-Dev] bpo-36558: Change time.mktime() return type from
+ float to int?
+In-Reply-To: <CA+3bQGFMC7JVY2sbr65iXG+6t_ZmF3S-3M530-o8cuyS6xqcLg@mail.gmail.com>
+References: <CA+3bQGFMC7JVY2sbr65iXG+6t_ZmF3S-3M530-o8cuyS6xqcLg@mail.gmail.com>
+Message-ID: <17dc3ff7-b9f1-998f-abe8-cd02e388f5f0@mail.mipt.ru>
+
+On 16.04.2019 17:24, Victor Stinner wrote:
+> Hi,
+>
+> time.mktime() looks "inconsistent" to me and I would like to change
+> it, but I'm not sure how it impacts backward compatibility.
+> https://bugs.python.org/issue36558
+>
+> time.mktime() returns a floating point number:
+>
+>>>> type(time.mktime(time.localtime()))
+> <class 'float'>
+>
+> The documentation says:
+>
+> "It returns a floating point number, for compatibility with :func:`.time`."
+>
+> time.time() returns a float because it has sub-second resolution, but
+> the C function mktime() returns an integer number of seconds.
+>
+> Would it make sense to change mktime() return type from float to int?
+>
+> I would like to change mktime() return type to make the function more
+> consistent: all inputs are integers, it sounds wrong to me to return
+> float. The result should be integer as well.
+>
+> How much code would it break? I guess that the main impact are unit
+> tests relying on repr(time.mktime(t)) exact value. But it's easy to
+> fix the tests: use int(time.mktime(t)) or "%.0f" % time.mktime(t) to
+> never get ".0", or use float(time.mktime(t))) to explicitly cast for a
+> float (that which be a bad but quick fix).
+I envision it breaking code that relies on implicitly inferring the type of the result from the types of both operands (e.g. arithmetic 
+operations).
+But for mktime() specifically, I presume the amount of such code very small.
+> Note: I wrote and implemented the PEP 564 to avoid any precision loss.
+> mktime() will not start loosing precision before year 285,422,891
+> (which is quite far in the future ;-)).
+>
+> Victor
+
+-- 
+Regards,
+Ivan
+
+
+From vstinner at redhat.com  Tue Apr 16 12:20:05 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 16 Apr 2019 18:20:05 +0200
+Subject: [Python-Dev] bpo-36558: Change time.mktime() return type from
+ float to int?
+In-Reply-To: <CAP7+vJLbAW3rWjY7gNR6WhYKMhkLEcve9XMFKbRVKPZfgXhNzw@mail.gmail.com>
+References: <CA+3bQGFMC7JVY2sbr65iXG+6t_ZmF3S-3M530-o8cuyS6xqcLg@mail.gmail.com>
+ <b4f5655d-defd-276a-673f-a0e11feace66@ganssle.io>
+ <CA+3bQGFOKyueKg3j2R02-jh3h0rp9XKABB8=RLo8A0wDj2asXA@mail.gmail.com>
+ <CAP7+vJLbAW3rWjY7gNR6WhYKMhkLEcve9XMFKbRVKPZfgXhNzw@mail.gmail.com>
+Message-ID: <CA+3bQGGZ17q9F+zwyruu87=EP5L4UpELDxVDhZ-ujFJ-EswnMQ@mail.gmail.com>
+
+Le mar. 16 avr. 2019 ? 17:46, Guido van Rossum <guido at python.org> a ?crit :
+> Consistency with C should not be the issue -- consistency between the time functions is important.
+>  (...)
+> So let's drop the idea.
+
+Ok, I'm fine with that. It was just an idea ;-) I closed the issue.
+
+Victor
+
+From steve.dower at python.org  Tue Apr 16 16:53:26 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 16 Apr 2019 13:53:26 -0700
+Subject: [Python-Dev] PEP 578: Python Runtime Audit Hooks
+In-Reply-To: <03d9d56d-540c-0eae-2b69-2c0960bc030b@python.org>
+References: <daa13e96-fa07-8703-4d73-234a862baf05@python.org>
+ <2cb3740e-ebc2-1839-1d2e-73d1b9f0a445@python.org>
+ <ad05e257-d046-bba8-b070-c24c80a1521e@python.org>
+ <8466c9c4-b5dc-c6c5-6fe4-a49dc2f4f968@python.org>
+ <f87504d1-4cc0-e74c-d32e-1e06cde29c39@python.org>
+ <03d9d56d-540c-0eae-2b69-2c0960bc030b@python.org>
+Message-ID: <709491c7-702b-a74d-f341-2af6c19f1363@python.org>
+
+On 16Apr2019 0532, Christian Heimes wrote:
+> Sorry, I forgot to reply.
+> 
+> Do you think it would make sense to split the PEP into two PEPs? The
+> auditing hook and import opener hook are related, but distinct
+> improvements. The auditing part looks solid and ready now. The import
+> opener may need some more refinement. I would also like to get feedback
+> from some Linux Kernel security engineers first.
+
+That will make three PEPs...
+
+The only question for the security engineers is "how much context do you 
+need from the calling process", as that's the only thing that will 
+affect the API. It doesn't have to have any implementation right now.
+
+And so far, all the context that's been proposed is "may be executed", 
+which is already implied in the open_code() call. I haven't heard any 
+more requests than "give us the filename and let us return the open (and 
+exclusive) handle/descriptor", so this feels like YAGNI.
+
+> On 01/04/2019 18.31, Steve Dower wrote:
+>> In each case there should be associated audit events for tracking the
+>> intent (and interrupting at that point if it doesn't like the intended
+>> action), but for the simple case of "let me open this specific file" it
+>> doesn't really add much. And it almost certainly shouldn't impact
+>> decision making.
+> 
+> There is no need to trust the intent flag that much. I would like to
+> have a way to further narrow down the scope for an open call. This would
+> allow the caller to tell the hook "I want to open something that should
+> be a shared library suitable for ctypes". It would allow tighter control.
+
+But those don't go through open(), they'll go through dlopen(), right? 
+It's already a totally different code path from "open and read arbitrary 
+bytes".
+
+> Audit events are useful and powerful. But I don't want to put too much
+> burden on the auditing framwork. I prefer to have checks that prevent
+> operations rather than allow operations and audit them.
+
+Right, and this is the default position for security defenders (to try 
+and block things) ;) Auditing has been found to be a working balance
+
+>>> - Context is an optional Python object from the caller's context. For
+>>> the import system, it could be the loader instance.
+>>
+>> I think the audit event covers this, unless you have some way of using
+>> this context in mind that I can't think of?
+> 
+> To be honest I don't have a good use case yet. I just like the idea to
+> have a way to pass some custom thing into an API and now who called an
+> API. You seem to like it, too. Your hook has a void *userData, but it's
+> not passed into the Python function. :)
+> 
+> int PyImport_SetOpenForImportHook(hook_func handler, void *userData)
+
+There is no Python function for the (now named) open_code hook. It can 
+only be set as a C function by an embedder, and that's when the userData 
+is provided. Nothing to do with each individual call - just one value 
+per CPython runtime. (Similarly with the audit hook, but for the Python 
+hooks you can pass a closure or a method - in C you need a separate 
+pointer for this.)
+
+Cheers,
+Steve
+
+From sully at msully.net  Tue Apr 16 22:05:50 2019
+From: sully at msully.net (Michael Sullivan)
+Date: Tue, 16 Apr 2019 19:05:50 -0700
+Subject: [Python-Dev] No longer enable Py_TRACE_REFS by default in debug
+ build
+In-Reply-To: <CA+3bQGGmD5TFkMhW41QaeAO5OQc1P4yduX8+K073N49WY5042w@mail.gmail.com>
+References: <CANW5cDmgr4B2edtad6tN=PdG6YYWSnMWNzADTqB65nG7g8n4tg@mail.gmail.com>
+ <CA+3bQGGmD5TFkMhW41QaeAO5OQc1P4yduX8+K073N49WY5042w@mail.gmail.com>
+Message-ID: <CANW5cD=JLh6Hz6DqvBEUrSeEstW7RBbAw=sXGvs=-1zKo1BZ6Q@mail.gmail.com>
+
+On Tue, Apr 16, 2019 at 2:11 AM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hi Michael,
+>
+> Do you know the tracemalloc module? Did you try it? It works on a
+> regular Python (compiled in debug mode).
+>
+> I would be curious to know if tracemalloc also allows you to track the
+> memory leak.
+>
+> Playing around with it a little it does not seem super helpful here
+(unless I am missing something): it tracks the allocations based on the
+python call stack, which doesn't help here, in a C extension module
+generated from python code.
+
+Though, in the the mypyc case, we could implement a debug option for
+creating dummy frames so that we always have a useful call stack. That
+seems like less of an option for actual hand-written extension modules,
+though. (Though on the flip side, the python call stacks might be more
+useful there.)
+
+sys.getobjects() is just a list of objects. Do you have a tool written
+> on top of it to track memory leaks? If yes, how?
+>
+> Not really.
+
+We have a very simple memory profiler built on top of gc.get_objects() that
+just reports how many of different types of objects there are and how much
+memory they are using:
+https://github.com/python/mypy/blob/master/mypy/memprofile.py.
+I swapped out gc.get_objects() for sys.getobjects(), observed that we were
+leaking int objects, and inspected the live int objects, which gave a
+pretty good clue where the leak was.
+
+
+> Victor
+>
+> Le mar. 16 avr. 2019 ? 00:28, Michael Sullivan <sully at msully.net> a ?crit
+> :
+> >
+> > > The main question is if anyone ever used Py_TRACE_REFS? Does someone
+> > > use sys.getobjects() or PYTHONDUMPREFS environment variable?
+> >
+> > I used sys.getobjects() today to track down a memory leak in the
+> mypyc-compiled version of mypy.
+> >
+> > We were leaking memory badly but no sign of the leak was showing up in
+> mypy's gc.get_objects() based profiler. Using a debug build and switching
+> to sys.getobjects() showed that we were badly leaking int objects. A quick
+> inspection of the values in question (large and random looking) suggested
+> we were leaking hash values, and that quickly pointed me to
+> https://github.com/mypyc/mypyc/pull/562.
+> >
+> > I don't have any strong feelings about whether to keep it in the
+> "default" debug build, though. I was using a debug build that I built
+> myself with every debug feature that seemed potentially useful.
+> >
+> > -sully
+> > _______________________________________________
+> > Python-Dev mailing list
+> > Python-Dev at python.org
+> > https://mail.python.org/mailman/listinfo/python-dev
+> > Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+>
+>
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190416/498140d5/attachment.html>
+
