@@ -10366,3 +10366,343 @@ pretty good clue where the leak was.
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190416/498140d5/attachment.html>
 
+From songofacandy at gmail.com  Wed Apr 17 07:10:44 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Wed, 17 Apr 2019 20:10:44 +0900
+Subject: [Python-Dev] PEP 7: Adding anonymous union / struct
+Message-ID: <CAEfz+TzUjtMuZ4aYuVnsjWG2TdUTuDsedcL20kVxVtPC8fTcdA@mail.gmail.com>
+
+Hi, all.
+
+PEP 7 includes some C99 features.
+I propose to add include anonymous union and struct to the list.
+https://www.geeksforgeeks.org/g-fact-38-anonymous-union-and-structure/
+
+Anonymous union and struct are C11 feature, not C99.
+But gcc and MSVC supported it as language extension from before C11.
+
+Anonymous union is useful when all union members have different names.
+Especially, when we need to add dummy member only for padding / alignment,
+union name looks too verbose:
+
+... # in some struct
+union {
+    struct {
+       int member1;
+       int member2;
+    } s;
+    long double _dummy;  // for largest alignment.
+} u;
+...
+x.u.s.member1 = 42;
+
+vs
+
+...
+union {
+    struct {
+       int member1;
+       int member2;
+    };
+    long double _dummy;  // for largest alignment.
+};
+...
+x.member1 = 42;
+
+
+Does anyone know compiler which can be use to compile Python but
+doesn't support anonymous union / struct?
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From vstinner at redhat.com  Wed Apr 17 07:27:39 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 17 Apr 2019 13:27:39 +0200
+Subject: [Python-Dev] PEP 7: Adding anonymous union / struct
+In-Reply-To: <CAEfz+TzUjtMuZ4aYuVnsjWG2TdUTuDsedcL20kVxVtPC8fTcdA@mail.gmail.com>
+References: <CAEfz+TzUjtMuZ4aYuVnsjWG2TdUTuDsedcL20kVxVtPC8fTcdA@mail.gmail.com>
+Message-ID: <CA+3bQGF-kmxo88tD=cxABEZRDoL9ywaLgYtTarM8D-6Vz6W4Yg@mail.gmail.com>
+
+AIX is somehow supported and uses xlc compiler: does xlc support this
+C11 feature?
+
+Do you want to use it in Python 3.8 and newer only?
+
+Victor
+
+Le mer. 17 avr. 2019 ? 13:14, Inada Naoki <songofacandy at gmail.com> a ?crit :
+>
+> Hi, all.
+>
+> PEP 7 includes some C99 features.
+> I propose to add include anonymous union and struct to the list.
+> https://www.geeksforgeeks.org/g-fact-38-anonymous-union-and-structure/
+>
+> Anonymous union and struct are C11 feature, not C99.
+> But gcc and MSVC supported it as language extension from before C11.
+>
+> Anonymous union is useful when all union members have different names.
+> Especially, when we need to add dummy member only for padding / alignment,
+> union name looks too verbose:
+>
+> ... # in some struct
+> union {
+>     struct {
+>        int member1;
+>        int member2;
+>     } s;
+>     long double _dummy;  // for largest alignment.
+> } u;
+> ...
+> x.u.s.member1 = 42;
+>
+> vs
+>
+> ...
+> union {
+>     struct {
+>        int member1;
+>        int member2;
+>     };
+>     long double _dummy;  // for largest alignment.
+> };
+> ...
+> x.member1 = 42;
+>
+>
+> Does anyone know compiler which can be use to compile Python but
+> doesn't support anonymous union / struct?
+>
+> Regards,
+> --
+> Inada Naoki  <songofacandy at gmail.com>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From songofacandy at gmail.com  Wed Apr 17 07:47:29 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Wed, 17 Apr 2019 20:47:29 +0900
+Subject: [Python-Dev] PEP 7: Adding anonymous union / struct
+In-Reply-To: <CA+3bQGF-kmxo88tD=cxABEZRDoL9ywaLgYtTarM8D-6Vz6W4Yg@mail.gmail.com>
+References: <CAEfz+TzUjtMuZ4aYuVnsjWG2TdUTuDsedcL20kVxVtPC8fTcdA@mail.gmail.com>
+ <CA+3bQGF-kmxo88tD=cxABEZRDoL9ywaLgYtTarM8D-6Vz6W4Yg@mail.gmail.com>
+Message-ID: <CAEfz+Tzh1L-NM6Tqx9KMaM0tridygPEzQ8DsUVY+w580Adxc3A@mail.gmail.com>
+
+On Wed, Apr 17, 2019 at 8:27 PM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> AIX is somehow supported and uses xlc compiler: does xlc support this
+> C11 feature?
+
+I find Language Reference for v11.1 (2010/4/13)
+https://www-01.ibm.com/support/docview.wss?uid=swg27017991
+
+I find "anonymous union" in p73.
+
+I can not find language reference for versions older than v11.1.
+And I can not find "anonymous struct" in v11.1 too.
+
+Maybe, we should consider only anonymous union?
+
+
+>
+> Do you want to use it in Python 3.8 and newer only?
+>
+
+Yes.
+
+In case of bpo-27987, Python 3.6 and 3.7 uses named union
+for PyGC_Head.  So changing dummy from "double" to "long double"
+is enough.
+
+In case of Python 3.8, I removed dummy from PyGC_Head and
+stop using named union because it is (implicitly) aligned by two
+words (16byte on 64bit, 8byte on 32bit platform) already.
+
+But we can align it more explicitly by using anonymous union,
+without adding many `.gc.` again.
+
+Regards,
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From paul at ganssle.io  Wed Apr 17 11:44:52 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Wed, 17 Apr 2019 11:44:52 -0400
+Subject: [Python-Dev] Adding shlex.join?
+Message-ID: <fd1fb5a4-cd6c-6621-03e2-7a77bb6e952c@ganssle.io>
+
+Hey all,
+
+I've been reviewing old "awaiting review" PRs recently, and about a week
+ago I found PR #7605 <https://github.com/python/cpython/pull/7605>,
+adding shlex.join(), with a corresponding bug at bpo-22454
+<https://bugs.python.org/issue22454>. The PR's implementation is simple
+and seems reasonable and decently well-tested, but it has been
+unreviewed for ~10 months.
+
+The reason I'm bringing it up here is that I believe the major blocker
+here is getting agreement to actually add the function. There doesn't
+seem to be much /opposition/ in the BPO issue, but given how
+infrequently the shlex module is changed I'm worried that there may be
+no one around who feels confident to judge how the interface should evolve.
+
+Does anyone feel strongly about this issue? Is there anyone who wants to
+make a yes/no decision on this feature?
+
+Best,
+Paul
+
+P.S. The PR's submitter seems responsive. I made a comment on the
+documentation and it was addressed in something like 5 minutes.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190417/ae86ce43/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190417/ae86ce43/attachment.sig>
+
+From guido at python.org  Wed Apr 17 11:53:26 2019
+From: guido at python.org (Guido van Rossum)
+Date: Wed, 17 Apr 2019 08:53:26 -0700
+Subject: [Python-Dev] Adding shlex.join?
+In-Reply-To: <fd1fb5a4-cd6c-6621-03e2-7a77bb6e952c@ganssle.io>
+References: <fd1fb5a4-cd6c-6621-03e2-7a77bb6e952c@ganssle.io>
+Message-ID: <CAP7+vJJMUV5PwdP6nKm2C0YiJxJ7b6K_+4thcUp6JLmJ28ePSA@mail.gmail.com>
+
+I think it's fine to add this.
+
+On Wed, Apr 17, 2019 at 8:47 AM Paul Ganssle <paul at ganssle.io> wrote:
+
+> Hey all,
+>
+> I've been reviewing old "awaiting review" PRs recently, and about a week
+> ago I found PR #7605 <https://github.com/python/cpython/pull/7605>,
+> adding shlex.join(), with a corresponding bug at bpo-22454
+> <https://bugs.python.org/issue22454>. The PR's implementation is simple
+> and seems reasonable and decently well-tested, but it has been unreviewed
+> for ~10 months.
+>
+> The reason I'm bringing it up here is that I believe the major blocker
+> here is getting agreement to actually add the function. There doesn't seem
+> to be much *opposition* in the BPO issue, but given how infrequently the
+> shlex module is changed I'm worried that there may be no one around who
+> feels confident to judge how the interface should evolve.
+>
+> Does anyone feel strongly about this issue? Is there anyone who wants to
+> make a yes/no decision on this feature?
+>
+> Best,
+> Paul
+>
+> P.S. The PR's submitter seems responsive. I made a comment on the
+> documentation and it was addressed in something like 5 minutes.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190417/5b1063ee/attachment-0001.html>
+
+From esr at thyrsus.com  Wed Apr 17 12:29:25 2019
+From: esr at thyrsus.com (Eric S. Raymond)
+Date: Wed, 17 Apr 2019 12:29:25 -0400
+Subject: [Python-Dev] Adding shlex.join?
+In-Reply-To: <fd1fb5a4-cd6c-6621-03e2-7a77bb6e952c@ganssle.io>
+References: <fd1fb5a4-cd6c-6621-03e2-7a77bb6e952c@ganssle.io>
+Message-ID: <20190417162925.GA16594@thyrsus.com>
+
+Paul Ganssle <paul at ganssle.io>:
+> Hey all,
+> 
+> I've been reviewing old "awaiting review" PRs recently, and about a week
+> ago I found PR #7605 <https://github.com/python/cpython/pull/7605>,
+> adding shlex.join(), with a corresponding bug at bpo-22454
+> <https://bugs.python.org/issue22454>. The PR's implementation is simple
+> and seems reasonable and decently well-tested, but it has been
+> unreviewed for ~10 months.
+> 
+> The reason I'm bringing it up here is that I believe the major blocker
+> here is getting agreement to actually add the function. There doesn't
+> seem to be much /opposition/ in the BPO issue, but given how
+> infrequently the shlex module is changed I'm worried that there may be
+> no one around who feels confident to judge how the interface should evolve.
+> 
+> Does anyone feel strongly about this issue? Is there anyone who wants to
+> make a yes/no decision on this feature?
+> 
+> Best,
+> Paul
+> 
+> P.S. The PR's submitter seems responsive. I made a comment on the
+> documentation and it was addressed in something like 5 minutes.
+
+I'm the person who originally wrote shlex, which I guess makes me the
+authority on designer's intention.
+
+Providing this addition is properly unit-tested (which apparently it is)
+I don't have any objection to it. Seems like a reasonable idea.
+
+So I'll say yes.  But I haven't touched this code in a long time. Maybe
+somebody on the core dev team thinks they own it now; if so, they might
+well be right.  If so, that person should speak up.
+
+I suspect, however, that this code has nobody actively maintaining it
+because it Just Works. In which case, the authority to make this change
+should rest with the person who took the responsibility to review it.
+That would be *you.*
+
+So my advice is: pull the trigger. Get forgiveness if it turns out you need
+it.  I don't expect you will.
+-- 
+		<a href="http://www.catb.org/~esr/">Eric S. Raymond</a>
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: not available
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190417/2a1566c0/attachment.sig>
+
+From hodgestar+pythondev at gmail.com  Wed Apr 17 13:54:29 2019
+From: hodgestar+pythondev at gmail.com (Simon Cross)
+Date: Wed, 17 Apr 2019 19:54:29 +0200
+Subject: [Python-Dev] Adding shlex.join?
+In-Reply-To: <20190417162925.GA16594@thyrsus.com>
+References: <fd1fb5a4-cd6c-6621-03e2-7a77bb6e952c@ganssle.io>
+ <20190417162925.GA16594@thyrsus.com>
+Message-ID: <CAD5NRCEmft1A2qbta=diRhGQw7XMxVg2xA--eHZOjuNB33iFRg@mail.gmail.com>
+
+Software that "Just Works" and hasn't needed maintenance in years is the
+best software. :D
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190417/96042677/attachment.html>
+
