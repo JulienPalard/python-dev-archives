@@ -10706,3 +10706,105 @@ best software. :D
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190417/96042677/attachment.html>
 
+From guido at python.org  Thu Apr 18 10:44:38 2019
+From: guido at python.org (Guido van Rossum)
+Date: Thu, 18 Apr 2019 07:44:38 -0700
+Subject: [Python-Dev] PEP 591 discussion (final qualifier) happening at
+ typing-sig@
+In-Reply-To: <CANW5cDn_uHs3eFrUd=a+Trc5Gii9YhfB12jsLMj-dofc9GnTXg@mail.gmail.com>
+References: <CANW5cD=mWXVxUxSzunrVTrnKHQVmf1X3vrmzRroQr0WYB=OsaQ@mail.gmail.com>
+ <CAPJVwBkhq7L59xd4W9fZow38_5HTwHmnHs3VeA6FAWZFU1Ntyw@mail.gmail.com>
+ <CANW5cDn_uHs3eFrUd=a+Trc5Gii9YhfB12jsLMj-dofc9GnTXg@mail.gmail.com>
+Message-ID: <CAP7+vJJ2S8Sx-HcsJMGd9KVeaPORMHQayKp6VGHQ1CswbJy6eA@mail.gmail.com>
+
+Yes, please add this to the PEP in the rejected ideas section, with the
+motivation for rejection -- the example can show how to work around it.
+
+On Tue, Apr 16, 2019 at 12:51 AM Michael Sullivan <sully at msully.net> wrote:
+
+> On Mon, Apr 15, 2019 at 8:12 PM Nathaniel Smith <njs at pobox.com> wrote:
+>
+>> On Mon, Apr 15, 2019 at 5:00 PM Michael Sullivan <sully at msully.net>
+>> wrote:
+>> >
+>> > I've submitted PEP 591 (Adding a final qualifier to typing) for
+>> discussion to typing-sig [1].
+>>
+>> I'm not on typing-sig [1] so I'm replying here.
+>>
+>> > Here's the abstract:
+>> > This PEP proposes a "final" qualifier to be added to the ``typing``
+>> > module---in the form of a ``final`` decorator and a ``Final`` type
+>> > annotation---to serve three related purposes:
+>> >
+>> > * Declaring that a method should not be overridden
+>> > * Declaring that a class should not be subclassed
+>> > * Declaring that a variable or attribute should not be reassigned
+>>
+>> I've been meaning to start blocking subclassing at runtime (e.g. like
+>> [2]), so being able to express that to the typechecker seems like a
+>> nice addition. I'm assuming though that the '@final' decorator doesn't
+>> have any runtime effect, so I'd have to say it twice?
+>>
+>> @typing.final
+>> class MyClass(metaclass=othermod.Final):
+>>     ...
+>>
+>> Or on 3.6+ with __init_subclass__, it's easy to define a @final
+>> decorator that works at runtime, but I guess this would have to be a
+>> different decorator?
+>>
+>> @typing.final
+>> @alsoruntime.final
+>> class MyClass:
+>>     ...
+>>
+>> This seems kinda awkward. Have you considered giving it a runtime
+>> effect, or providing some way for users to combine these two things
+>> together on their own?
+>>
+>> Nothing else in typing does any type of runtime enforcement, so I'd be
+> reluctant to start here.
+>
+> One approach would be doing something like this (maybe in a support
+> module):
+> if typing.TYPE_CHECKING:
+>     from typing import final
+> else:
+>     from alsoruntime import final
+>
+> So that at checking time, the typechecker would use the typing final but
+> at runtime we'd get something that does enforcement.
+> (And for the pre-3.6 case, you could maybe use something like
+> six.add_metaclass in order to specify the metaclass as a decorator.)
+>
+> I can add this as an example to the PEP.
+>
+> -sully
+>
+>
+>> -n
+>>
+>> [1] https://github.com/willingc/pep-communication/issues/1
+>> [2] https://stackoverflow.com/a/3949004/1925449
+>>
+>> --
+>> Nathaniel J. Smith -- https://vorpus.org
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190418/ea53b4f9/attachment.html>
+
