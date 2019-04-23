@@ -11462,3 +11462,936 @@ intentional or because they're cutting corners, but it works...
 -- 
 Nathaniel J. Smith -- https://vorpus.org
 
+From chris.barker at noaa.gov  Mon Apr 22 13:06:20 2019
+From: chris.barker at noaa.gov (Chris Barker)
+Date: Mon, 22 Apr 2019 10:06:20 -0700
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+Message-ID: <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+
+On Fri, Apr 12, 2019 at 10:20 AM Brett Cannon <brett at python.org> wrote:
+
+>
+>> This doesn't strike me as needing an optimization through a dedicated
+> method.
+>
+
+maybe a new dict mapping type -- "shared_dict" -- it would be used in
+places like the csv reader where it makes sense, but wouldn't impact the
+regular dict at all.
+
+you could get really clever an have it auto-convert to a regular dict when
+any changes were made that are incompatible with the shared keys...
+
+-CHB
+
+-- 
+
+Christopher Barker, Ph.D.
+Oceanographer
+
+Emergency Response Division
+NOAA/NOS/OR&R            (206) 526-6959   voice
+7600 Sand Point Way NE   (206) 526-6329   fax
+Seattle, WA  98115       (206) 526-6317   main reception
+
+Chris.Barker at noaa.gov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190422/8a411d56/attachment.html>
+
+From brett at python.org  Mon Apr 22 15:40:42 2019
+From: brett at python.org (Brett Cannon)
+Date: Mon, 22 Apr 2019 12:40:42 -0700
+Subject: [Python-Dev] Concurrent.futures: no type discovery for PyCharm
+In-Reply-To: <CAEfz+Tx2LgLdObi29zEdRr7wn4goscAoNN5BF9rxvvjU7k+CGg@mail.gmail.com>
+References: <CAAp-DqJDntTssLxsxnJD46HWOfEJLSnMN37n+795hiZti31V4g@mail.gmail.com>
+ <CAEfz+TyMurhKyErb2d38h8AGAUny5cRHLwGUOy8kPevUKkhVrA@mail.gmail.com>
+ <CAAp-Dq+wi=Ctd4-MR_BTX-qu=nCRe27=UPstQ7aXK0NsXU+Hkg@mail.gmail.com>
+ <CAEfz+Tx2LgLdObi29zEdRr7wn4goscAoNN5BF9rxvvjU7k+CGg@mail.gmail.com>
+Message-ID: <CAP1=2W7QsfZorVoveOF9t=-snt8xSndTjio2rJRP84fyguPGsw@mail.gmail.com>
+
+On Sat, Apr 20, 2019 at 2:10 PM Inada Naoki <songofacandy at gmail.com> wrote:
+
+> "import typing" is slow too.
+>
+
+But is it so slow as to not do the right thing here and use the 'typing'
+module as expected? If you have so much work you need to launch some
+threads or processes to deal with it then a single import isn't going to be
+your biggest bottleneck.
+
+-Brett
+
+
+>
+> 2019?4?21?(?) 1:43 Ilya Kamenshchikov <ikamenshchikov at gmail.com>:
+>
+>> alright, so would an import under TYPE_CHECKING guard be an option? like:
+>>
+>> from typing import TYPE_CHECKING
+>> if TYPE_CHECKING:
+>>     from .process import ProcessPoolExecutor
+>>     from .thread import ThreadPoolExecutor
+>>
+>>
+>> Perhaps we can have both clarity and performance.
+>>
+>> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190422/0a69b682/attachment.html>
+
+From andrew.svetlov at gmail.com  Mon Apr 22 18:21:35 2019
+From: andrew.svetlov at gmail.com (Andrew Svetlov)
+Date: Tue, 23 Apr 2019 01:21:35 +0300
+Subject: [Python-Dev] Concurrent.futures: no type discovery for PyCharm
+In-Reply-To: <CAP1=2W7QsfZorVoveOF9t=-snt8xSndTjio2rJRP84fyguPGsw@mail.gmail.com>
+References: <CAAp-DqJDntTssLxsxnJD46HWOfEJLSnMN37n+795hiZti31V4g@mail.gmail.com>
+ <CAEfz+TyMurhKyErb2d38h8AGAUny5cRHLwGUOy8kPevUKkhVrA@mail.gmail.com>
+ <CAAp-Dq+wi=Ctd4-MR_BTX-qu=nCRe27=UPstQ7aXK0NsXU+Hkg@mail.gmail.com>
+ <CAEfz+Tx2LgLdObi29zEdRr7wn4goscAoNN5BF9rxvvjU7k+CGg@mail.gmail.com>
+ <CAP1=2W7QsfZorVoveOF9t=-snt8xSndTjio2rJRP84fyguPGsw@mail.gmail.com>
+Message-ID: <CAL3CFcVOJKzxC6TciLu_6Vi3EXbH7eELTFcf_WvgNWBmgDKz0g@mail.gmail.com>
+
+I see the chicken and egg problem here.
+If we are talking about typing module usage -- typeshed is the type
+hints provider.
+If PyCharm doesn't want to use it -- it is not CPython problem.
+
+I think there is no need to change python code itself but used tooling.
+
+On Mon, Apr 22, 2019 at 11:06 PM Brett Cannon <brett at python.org> wrote:
+>
+>
+>
+> On Sat, Apr 20, 2019 at 2:10 PM Inada Naoki <songofacandy at gmail.com> wrote:
+>>
+>> "import typing" is slow too.
+>
+>
+> But is it so slow as to not do the right thing here and use the 'typing' module as expected? If you have so much work you need to launch some threads or processes to deal with it then a single import isn't going to be your biggest bottleneck.
+>
+> -Brett
+>
+>>
+>>
+>> 2019?4?21?(?) 1:43 Ilya Kamenshchikov <ikamenshchikov at gmail.com>:
+>>>
+>>> alright, so would an import under TYPE_CHECKING guard be an option? like:
+>>>
+>>> from typing import TYPE_CHECKING
+>>> if TYPE_CHECKING:
+>>>     from .process import ProcessPoolExecutor
+>>>     from .thread import ThreadPoolExecutor
+>>>
+>>>
+>>> Perhaps we can have both clarity and performance.
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/andrew.svetlov%40gmail.com
+
+
+
+-- 
+Thanks,
+Andrew Svetlov
+
+From steve.dower at python.org  Mon Apr 22 18:46:55 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 22 Apr 2019 15:46:55 -0700
+Subject: [Python-Dev] Concurrent.futures: no type discovery for PyCharm
+In-Reply-To: <CAL3CFcVOJKzxC6TciLu_6Vi3EXbH7eELTFcf_WvgNWBmgDKz0g@mail.gmail.com>
+References: <CAAp-DqJDntTssLxsxnJD46HWOfEJLSnMN37n+795hiZti31V4g@mail.gmail.com>
+ <CAEfz+TyMurhKyErb2d38h8AGAUny5cRHLwGUOy8kPevUKkhVrA@mail.gmail.com>
+ <CAAp-Dq+wi=Ctd4-MR_BTX-qu=nCRe27=UPstQ7aXK0NsXU+Hkg@mail.gmail.com>
+ <CAEfz+Tx2LgLdObi29zEdRr7wn4goscAoNN5BF9rxvvjU7k+CGg@mail.gmail.com>
+ <CAP1=2W7QsfZorVoveOF9t=-snt8xSndTjio2rJRP84fyguPGsw@mail.gmail.com>
+ <CAL3CFcVOJKzxC6TciLu_6Vi3EXbH7eELTFcf_WvgNWBmgDKz0g@mail.gmail.com>
+Message-ID: <ebc82d4a-771f-4cbb-204a-b0786345e437@python.org>
+
+On 22Apr2019 1521, Andrew Svetlov wrote:
+> I see the chicken and egg problem here.
+> If we are talking about typing module usage -- typeshed is the type
+> hints provider.
+> If PyCharm doesn't want to use it -- it is not CPython problem.
+> 
+> I think there is no need to change python code itself but used tooling.
+
+It's not typeshed related, it's most likely because Python 3.7 
+Lib/concurrent/future/__init__.py switched from always importing the 
+subclasses to doing it lazily in a module __getattr__ function. I assume 
+for performance, since either submodule may have deep import chains.
+
+Presumably PyCharm has not yet added support for this, and so it simply 
+doesn't know how to resolve ThreadPoolExecutor or ProcessPoolExecutor 
+without actually executing code (which most static analysers will 
+hesitate to do, since you don't know if that code is "os.system('rm -rf 
+/')" until it's too late).
+
+Perhaps for the sake of IDEs and static analysers we could make a policy 
+for standard library modules to include an "if False:" or "TYPE_CHECKING 
+= False; if TYPE_CHECKING:" block that includes the import statement 
+when adding lazy module attribute resolution?
+
+Cheers,
+Steve
+
+From songofacandy at gmail.com  Mon Apr 22 18:55:16 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Tue, 23 Apr 2019 07:55:16 +0900
+Subject: [Python-Dev] Concurrent.futures: no type discovery for PyCharm
+In-Reply-To: <CAP1=2W7QsfZorVoveOF9t=-snt8xSndTjio2rJRP84fyguPGsw@mail.gmail.com>
+References: <CAAp-DqJDntTssLxsxnJD46HWOfEJLSnMN37n+795hiZti31V4g@mail.gmail.com>
+ <CAEfz+TyMurhKyErb2d38h8AGAUny5cRHLwGUOy8kPevUKkhVrA@mail.gmail.com>
+ <CAAp-Dq+wi=Ctd4-MR_BTX-qu=nCRe27=UPstQ7aXK0NsXU+Hkg@mail.gmail.com>
+ <CAEfz+Tx2LgLdObi29zEdRr7wn4goscAoNN5BF9rxvvjU7k+CGg@mail.gmail.com>
+ <CAP1=2W7QsfZorVoveOF9t=-snt8xSndTjio2rJRP84fyguPGsw@mail.gmail.com>
+Message-ID: <CAEfz+TyfnnOt+PgdGV6kGyP_HCOjK1x_XOq4kAnPyNfOcQL37Q@mail.gmail.com>
+
+On Tue, Apr 23, 2019 at 4:40 AM Brett Cannon <brett at python.org> wrote:
+>
+> On Sat, Apr 20, 2019 at 2:10 PM Inada Naoki <songofacandy at gmail.com> wrote:
+>>
+>> "import typing" is slow too.
+>
+> But is it so slow as to not do the right thing here and use the 'typing' module as expected?
+
+I don't know it is not a "right thing" yet.  It feel it is just a
+workaround for PyCharm at the moment.
+
+__dir__ and __all__ has ProcessPoolExecutor and ThreadPoolExecutor for
+interactive shell.  So Python REPL can complete them.  But we didn't discussed
+about "static hinting" version of __all__ in PEP 562.
+
+If we decide it's a "right way", we can update example code in PEP 562.
+
+But when we use lazy import, we want to make import faster.
+Adding more 3~5ms import time seems not so happy solution.
+
+Maybe, can we add TYPE_CHECKING=False in builtins?
+
+
+> If you have so much work you need to launch some threads or processes to deal with it then a single import isn't going to be your biggest bottleneck.
+
+Importing futures module doesn't mean the app really need
+thread or processes.  That's why we defer importing ThreadPoolExecutor
+and ProcessPoolExecutor.
+
+And people who want apps like vim starts quickly (~200ms), we want avoid
+every "significant overhead" as possible.  Not only "the biggest bottleneck"
+is the problem.
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From songofacandy at gmail.com  Mon Apr 22 19:03:05 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Tue, 23 Apr 2019 08:03:05 +0900
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+Message-ID: <CAEfz+Tw=5whsoX9DYGof8cH7k11r+NWKAocdU+ZsufvHrH0QJw@mail.gmail.com>
+
+On Tue, Apr 23, 2019 at 2:18 AM Chris Barker via Python-Dev
+<python-dev at python.org> wrote:
+>
+> On Fri, Apr 12, 2019 at 10:20 AM Brett Cannon <brett at python.org> wrote:
+>>>
+>>>
+>> This doesn't strike me as needing an optimization through a dedicated method.
+>
+> maybe a new dict mapping type -- "shared_dict" -- it would be used in places like the csv reader where it makes sense, but wouldn't impact the regular dict at all.
+>
+> you could get really clever an have it auto-convert to a regular dict when any changes were made that are incompatible with the shared keys...
+
+
+My current idea is adding builder in somewhere in stdlib (maybe collections?):
+
+  builder = DictBuilder(keys_tuple)
+  value = builder(values)  # repeatedly called.
+
+I don't want to add new mapping type because we already have shared key dict,
+and changing mapping type may cause backward compatibility problem.
+
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From v+python at g.nevcal.com  Mon Apr 22 19:36:32 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Mon, 22 Apr 2019 16:36:32 -0700
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <CAEfz+Tw=5whsoX9DYGof8cH7k11r+NWKAocdU+ZsufvHrH0QJw@mail.gmail.com>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+ <CAEfz+Tw=5whsoX9DYGof8cH7k11r+NWKAocdU+ZsufvHrH0QJw@mail.gmail.com>
+Message-ID: <4ba59cfd-c82a-df10-9ff2-bd8d000f85d6@g.nevcal.com>
+
+On 4/22/2019 4:03 PM, Inada Naoki wrote:
+> On Tue, Apr 23, 2019 at 2:18 AM Chris Barker via Python-Dev
+> <python-dev at python.org> wrote:
+>> On Fri, Apr 12, 2019 at 10:20 AM Brett Cannon <brett at python.org> wrote:
+>>>>
+>>> This doesn't strike me as needing an optimization through a dedicated method.
+>> maybe a new dict mapping type -- "shared_dict" -- it would be used in places like the csv reader where it makes sense, but wouldn't impact the regular dict at all.
+>>
+>> you could get really clever an have it auto-convert to a regular dict when any changes were made that are incompatible with the shared keys...
+>
+> My current idea is adding builder in somewhere in stdlib (maybe collections?):
+>
+>    builder = DictBuilder(keys_tuple)
+>    value = builder(values)  # repeatedly called.
+>
+> I don't want to add new mapping type because we already have shared key dict,
+> and changing mapping type may cause backward compatibility problem.
+>
+>
+> Regards,
+As a heavy user of some self-written code that does stuff very similar 
+to csv reader, and creates lots of same-key dicts, I'd be supportive of 
+a performance enhancing solution here, although I haven't done a 
+detailed study of where the time is currently spent.
+
+Is the problem that the existing shared key dict isn't always detected? 
+Or just that knowing in advance that it is expected to be a shared key 
+dict can save the detection work?
+
+I do know that in my code, I have a complete list of keys and values 
+when I create each dict, and would be happy to tweak it to use the most 
+performance technique. The above looks like a nice interface, assuming 
+that values is expected to be in the same iterable order as keys_tuple 
+(but is there a need for keys_tuple to be a tuple? could it be any 
+iterable?).
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190422/9942021f/attachment.html>
+
+From steve at pearwood.info  Mon Apr 22 20:19:30 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Tue, 23 Apr 2019 10:19:30 +1000
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+Message-ID: <20190423001930.GL3010@ando.pearwood.info>
+
+On Mon, Apr 22, 2019 at 10:06:20AM -0700, Chris Barker via Python-Dev wrote:
+
+> maybe a new dict mapping type -- "shared_dict" -- it would be used in
+> places like the csv reader where it makes sense, but wouldn't impact the
+> regular dict at all.
+> 
+> you could get really clever an have it auto-convert to a regular dict when
+> any changes were made that are incompatible with the shared keys...
+
+Oh, you mean just like regular dicts with shared keys already do :-)
+
+https://www.python.org/dev/peps/pep-0412/
+
+Perhaps I've missed something in this discussion, but isn't this a 
+matter of just making the existing shared-keys functionality explicitly 
+usable rather than just purely implicit? Quoting from the PEP:
+
+  When dictionaries are created to fill the __dict__ slot of an object, 
+  they are created in split form. The keys table is cached in the type, 
+  potentially allowing all attribute dictionaries of instances of one 
+  class to share keys. In the event of the keys of these dictionaries 
+  starting to diverge, individual dictionaries will lazily convert to 
+  the combined-table form. 
+
+There's no explicit interface to control this; it all happens by magic, 
+behind the scenes. I think the proposal here is to add some sort of 
+interface, possibly a new method, to explicitly use key sharing.
+
+
+-- 
+Steven
+
+From v+python at g.nevcal.com  Mon Apr 22 21:22:30 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Mon, 22 Apr 2019 18:22:30 -0700
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <20190423001930.GL3010@ando.pearwood.info>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+ <20190423001930.GL3010@ando.pearwood.info>
+Message-ID: <1514bfce-6aed-5b88-bbb6-78a9cc261282@g.nevcal.com>
+
+On 4/22/2019 5:19 PM, Steven D'Aprano wrote:
+> Oh, you mean just like regular dicts with shared keys already do:-)
+>
+> https://www.python.org/dev/peps/pep-0412/
+>
+> Perhaps I've missed something in this discussion, but isn't this a
+> matter of just making the existing shared-keys functionality explicitly
+> usable rather than just purely implicit? Quoting from the PEP:
+>
+>    When dictionaries are created to fill the __dict__ slot of an object,
+>    they are created in split form. The keys table is cached in the type,
+>    potentially allowing all attribute dictionaries of instances of one
+>    class to share keys. In the event of the keys of these dictionaries
+>    starting to diverge, individual dictionaries will lazily convert to
+>    the combined-table form.
+>
+> There's no explicit interface to control this; it all happens by magic,
+> behind the scenes. I think the proposal here is to add some sort of
+> interface, possibly a new method, to explicitly use key sharing.
+
+Thanks for the PEP reference; I'd forgotten some of the details, and 
+hadn't yet gone to look them up.
+
+Yes, it is all magic, but is only available for object __dict__ slot 
+dicts. I'd forgotten that that was the "detection" mechanism.? In the 
+general case, it would be too time-consuming to examine all existing 
+dicts to discover some that might accidentally have the same keys, 
+whereas Mark realized that objects very frequently have __dict__ slot 
+dictionaries with the same keys, and were ripe for (significant memory 
+and minor performance) optimization.
+
+Inada is now proposing a way to allow the coder to suggest a group of 
+dictionaries that might benefit from the same gains, by preclassifying 
+non-__dict__ slot dictionaries to do similar sharing.
+
+CSV reader is an exemplary candidate, because it creates groups of dicts 
+that use the same keys. (column names). I have other code that does 
+similar things, that would get similar benefits.
+
+Seems like since it is just an interface to existing builtin code, that 
+the one interface function (or dictionary factory class) could just as 
+well be a builtin function, instead of requiring an import.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190422/ca34d53f/attachment-0001.html>
+
+From steve.dower at python.org  Mon Apr 22 22:21:41 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 22 Apr 2019 19:21:41 -0700
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <1514bfce-6aed-5b88-bbb6-78a9cc261282@g.nevcal.com>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+ <20190423001930.GL3010@ando.pearwood.info>
+ <1514bfce-6aed-5b88-bbb6-78a9cc261282@g.nevcal.com>
+Message-ID: <f8c036c7-1987-42b3-238c-6c38f13bf23c@python.org>
+
+On 22Apr2019 1822, Glenn Linderman wrote:
+> Inada is now proposing a way to allow the coder to suggest a group of 
+> dictionaries that might benefit from the same gains, by preclassifying 
+> non-__dict__ slot dictionaries to do similar sharing.
+> 
+> CSV reader is an exemplary candidate, because it creates groups of dicts 
+> that use the same keys. (column names). I have other code that does 
+> similar things, that would get similar benefits.
+> 
+> Seems like since it is just an interface to existing builtin code, that 
+> the one interface function (or dictionary factory class) could just as 
+> well be a builtin function, instead of requiring an import.
+
+Sounds like a similar optimisation to sys.intern() is for strings.
+
+I see no reason to try and avoid an import here - it's definitely a 
+special-case situation - but otherwise having a function to say "clone 
+and update this dict" that starts by sharing the keys in the same way 
+that __dict__ does (including the transformation when necessary) seems 
+like an okay addition. Maybe copy() could just be enabled for this?
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Mon Apr 22 22:27:43 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 22 Apr 2019 19:27:43 -0700
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <f8c036c7-1987-42b3-238c-6c38f13bf23c@python.org>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+ <20190423001930.GL3010@ando.pearwood.info>
+ <1514bfce-6aed-5b88-bbb6-78a9cc261282@g.nevcal.com>
+ <f8c036c7-1987-42b3-238c-6c38f13bf23c@python.org>
+Message-ID: <25ca35f9-ae2b-ed4e-cb07-8d8fa87f6dbf@python.org>
+
+On 22Apr2019 1921, Steve Dower wrote:
+> On 22Apr2019 1822, Glenn Linderman wrote:
+>> Inada is now proposing a way to allow the coder to suggest a group of 
+>> dictionaries that might benefit from the same gains, by preclassifying 
+>> non-__dict__ slot dictionaries to do similar sharing.
+>>
+>> CSV reader is an exemplary candidate, because it creates groups of 
+>> dicts that use the same keys. (column names). I have other code that 
+>> does similar things, that would get similar benefits.
+>>
+>> Seems like since it is just an interface to existing builtin code, 
+>> that the one interface function (or dictionary factory class) could 
+>> just as well be a builtin function, instead of requiring an import.
+> 
+> Sounds like a similar optimisation to sys.intern() is for strings.
+> 
+> I see no reason to try and avoid an import here - it's definitely a 
+> special-case situation - but otherwise having a function to say "clone 
+> and update this dict" that starts by sharing the keys in the same way 
+> that __dict__ does (including the transformation when necessary) seems 
+> like an okay addition. Maybe copy() could just be enabled for this?
+
+Or possibly just "dict(existing_dict).update(new_items)".
+
+My primary concern is still to avoid making CPython performance 
+characteristics part of the Python language definition. That only makes 
+it harder for alternate implementations. (Even though I was out-voted 
+last time on this issue since all the publicly-known alternate 
+implementations said it would be okay... I'm still going to put in a 
+vote for avoiding new language semantics for the sake of a single 
+runtime's performance characteristics.)
+
+Cheers,
+Steve
+
+From v+python at g.nevcal.com  Tue Apr 23 00:19:08 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Mon, 22 Apr 2019 21:19:08 -0700
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <25ca35f9-ae2b-ed4e-cb07-8d8fa87f6dbf@python.org>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+ <20190423001930.GL3010@ando.pearwood.info>
+ <1514bfce-6aed-5b88-bbb6-78a9cc261282@g.nevcal.com>
+ <f8c036c7-1987-42b3-238c-6c38f13bf23c@python.org>
+ <25ca35f9-ae2b-ed4e-cb07-8d8fa87f6dbf@python.org>
+Message-ID: <daf0ad7d-1c80-da54-336b-b21c6ff29a63@g.nevcal.com>
+
+On 4/22/2019 7:27 PM, Steve Dower wrote:
+> On 22Apr2019 1921, Steve Dower wrote:
+>> On 22Apr2019 1822, Glenn Linderman wrote:
+>>> Inada is now proposing a way to allow the coder to suggest a group 
+>>> of dictionaries that might benefit from the same gains, by 
+>>> preclassifying non-__dict__ slot dictionaries to do similar sharing.
+>>>
+>>> CSV reader is an exemplary candidate, because it creates groups of 
+>>> dicts that use the same keys. (column names). I have other code that 
+>>> does similar things, that would get similar benefits.
+>>>
+>>> Seems like since it is just an interface to existing builtin code, 
+>>> that the one interface function (or dictionary factory class) could 
+>>> just as well be a builtin function, instead of requiring an import.
+>>
+>> Sounds like a similar optimisation to sys.intern() is for strings.
+>>
+>> I see no reason to try and avoid an import here - it's definitely a 
+>> special-case situation - but otherwise having a function to say 
+>> "clone and update this dict" that starts by sharing the keys in the 
+>> same way that __dict__ does (including the transformation when 
+>> necessary) seems like an okay addition. Maybe copy() could just be 
+>> enabled for this?
+>
+> Or possibly just "dict(existing_dict).update(new_items)".
+>
+> My primary concern is still to avoid making CPython performance 
+> characteristics part of the Python language definition. That only 
+> makes it harder for alternate implementations. (Even though I was 
+> out-voted last time on this issue since all the publicly-known 
+> alternate implementations said it would be okay... I'm still going to 
+> put in a vote for avoiding new language semantics for the sake of a 
+> single runtime's performance characteristics.)
+
+While Inada's suggested DictBuilder interface was immediately obvious, I 
+don't get how either copy or update would achieve the goal. Perhaps you 
+could explain? Particularly, what would be the trigger that would make 
+dict() choose to create a shared key dictionary from the start? Unless 
+it is known that there will be lots of (mostly static) dictionaries with 
+the same set of keys at the time of creation of the first one, creating 
+a shared key dictionary in every case would cause later inefficiencies 
+in converting them, when additional items are added? (I'm assuming 
+without knowledge that a single shared key dictionary is less efficient 
+than a single regular dictionary.)
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190422/af8028e7/attachment.html>
+
+From v+python at g.nevcal.com  Tue Apr 23 00:28:46 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Mon, 22 Apr 2019 21:28:46 -0700
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <25ca35f9-ae2b-ed4e-cb07-8d8fa87f6dbf@python.org>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+ <20190423001930.GL3010@ando.pearwood.info>
+ <1514bfce-6aed-5b88-bbb6-78a9cc261282@g.nevcal.com>
+ <f8c036c7-1987-42b3-238c-6c38f13bf23c@python.org>
+ <25ca35f9-ae2b-ed4e-cb07-8d8fa87f6dbf@python.org>
+Message-ID: <72b0f6a8-1110-1b5b-d796-94a1e5d28d70@g.nevcal.com>
+
+On 4/22/2019 7:27 PM, Steve Dower wrote:
+> On 22Apr2019 1921, Steve Dower wrote:
+>> On 22Apr2019 1822, Glenn Linderman wrote:
+>>> Inada is now proposing a way to allow the coder to suggest a group 
+>>> of dictionaries that might benefit from the same gains, by 
+>>> preclassifying non-__dict__ slot dictionaries to do similar sharing.
+>>>
+>>> CSV reader is an exemplary candidate, because it creates groups of 
+>>> dicts that use the same keys. (column names). I have other code that 
+>>> does similar things, that would get similar benefits.
+>>>
+>>> Seems like since it is just an interface to existing builtin code, 
+>>> that the one interface function (or dictionary factory class) could 
+>>> just as well be a builtin function, instead of requiring an import.
+>>
+>> Sounds like a similar optimisation to sys.intern() is for strings.
+>>
+>> I see no reason to try and avoid an import here - it's definitely a 
+>> special-case situation - but otherwise having a function to say 
+>> "clone and update this dict" that starts by sharing the keys in the 
+>> same way that __dict__ does (including the transformation when 
+>> necessary) seems like an okay addition. Maybe copy() could just be 
+>> enabled for this?
+>
+> Or possibly just "dict(existing_dict).update(new_items)".
+>
+> My primary concern is still to avoid making CPython performance 
+> characteristics part of the Python language definition. That only 
+> makes it harder for alternate implementations. (Even though I was 
+> out-voted last time on this issue since all the publicly-known 
+> alternate implementations said it would be okay... I'm still going to 
+> put in a vote for avoiding new language semantics for the sake of a 
+> single runtime's performance characteristics.)
+
+I note that dict() doesn't have a method to take two parallel iterables 
+of keys/values and create a dict... if it did, that could be a trigger 
+that a shared key dict might be appropriate... it seems more likely that 
+data in that form is dealing with rows and columns, instead of the forms 
+currently accepted by dict().
+
+Perhaps an alternate constructor that took data in that form, AND 
+defined an optional parameter to trigger a shared dict, would be a 
+useful addition to the language.? Other implementations could ignore the 
+optional parameter if they want, and the implementation would be a 
+one-liner calling the current constructor and zip()ing the parameters.
+
+The alternate constructor would be nice even if shared key dicts were 
+not particularly needed in an application, and would provide a method of 
+adding a trigger for the shared key optimization when appropriate.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190422/4e80d52e/attachment.html>
+
+From songofacandy at gmail.com  Tue Apr 23 00:43:07 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Tue, 23 Apr 2019 13:43:07 +0900
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <25ca35f9-ae2b-ed4e-cb07-8d8fa87f6dbf@python.org>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+ <20190423001930.GL3010@ando.pearwood.info>
+ <1514bfce-6aed-5b88-bbb6-78a9cc261282@g.nevcal.com>
+ <f8c036c7-1987-42b3-238c-6c38f13bf23c@python.org>
+ <25ca35f9-ae2b-ed4e-cb07-8d8fa87f6dbf@python.org>
+Message-ID: <CAEfz+Ty2er+XWQViESypsT8U0RS203VDK-e_PxQLVSTDVhT7KA@mail.gmail.com>
+
+On Tue, Apr 23, 2019 at 11:30 AM Steve Dower <steve.dower at python.org> wrote:
+>
+> Or possibly just "dict(existing_dict).update(new_items)".
+>
+
+Do you mean .update accepts values tuple?
+I can't think it's
+
+> My primary concern is still to avoid making CPython performance
+> characteristics part of the Python language definition. That only makes
+> it harder for alternate implementations.
+
+Note that this proposal is not only for key sharing dict:
+
+* We can avoid rebuilding hash table again and again.
+* We can avoid checking duplicated keys again and again.
+
+These characteristics are not only for Python, but for all mapping
+implementations using hash table.
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From steve.dower at python.org  Tue Apr 23 01:54:39 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 22 Apr 2019 22:54:39 -0700
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <CAEfz+Ty2er+XWQViESypsT8U0RS203VDK-e_PxQLVSTDVhT7KA@mail.gmail.com>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+ <20190423001930.GL3010@ando.pearwood.info>
+ <1514bfce-6aed-5b88-bbb6-78a9cc261282@g.nevcal.com>
+ <f8c036c7-1987-42b3-238c-6c38f13bf23c@python.org>
+ <25ca35f9-ae2b-ed4e-cb07-8d8fa87f6dbf@python.org>
+ <CAEfz+Ty2er+XWQViESypsT8U0RS203VDK-e_PxQLVSTDVhT7KA@mail.gmail.com>
+Message-ID: <31b4e1aa-ef17-6ece-5698-acb1aee9fb35@python.org>
+
+On 22Apr2019 2143, Inada Naoki wrote:
+> On Tue, Apr 23, 2019 at 11:30 AM Steve Dower <steve.dower at python.org> wrote:
+>>
+>> Or possibly just "dict(existing_dict).update(new_items)".
+>>
+> 
+> Do you mean .update accepts values tuple?
+> I can't think it's
+
+Not sure what you were going to go on to say here, but why not?
+
+If it's a key-sharing dict, then all the keys are strings. We know that 
+when we go to do the update, so we can intern all the strings (going to 
+do that anyway) and then it's a quick check if it already exists. If 
+it's a regular dict, then we calculate hashes as normal. Updating the 
+value is just a decref, incref and assignment.
+
+If not all these conditions are met, we convert to a regular dict. The 
+proposed function was going to raise an error in this case, so all we've 
+done is make it transparent. The biggest downside is now you don't get a 
+warning that your preferred optimization isn't actually working when you 
+pass in new_items with different keys from what were in existing_dict.
+
+Note that it .update() would probably require a dict or key/value tuples 
+here - but if you have the keys in a tuple already then zip() is going 
+to be good enough for setting it (in fact, zip(existing_dict, 
+new_values) should be fine, and we can internally special-case that 
+scenario, too). I'd assumed the benefit was in memory usage after 
+construction, rather than speed-to-construct, since everyone keeps 
+talking about "key-sharing dictionaries" and not "arrays" ;)
+
+(Randomizing side note: is this scenario enough to make a case for a 
+built-in data frame type?)
+
+>> My primary concern is still to avoid making CPython performance
+>> characteristics part of the Python language definition. That only makes
+>> it harder for alternate implementations.
+> 
+> Note that this proposal is not only for key sharing dict:
+> 
+> * We can avoid rebuilding hash table again and again.
+> * We can avoid checking duplicated keys again and again.
+> 
+> These characteristics are not only for Python, but for all mapping
+> implementations using hash table.
+
+I believe all of these are met by making d2=dict(d1) construct a dict d2 
+that shares keys with d1 by default. Can you show how they are not?
+
+* when you only d2.update existing keys, no need to rebuild the table
+* a duplicated key overwrites multiple times - what else are you going 
+to do? This is already easiest, fastest, uses the least memory and is 
+most consistent with every other form of setting dict items. Why 
+complicate things by checking them? Let the caller do it
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Tue Apr 23 01:59:56 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 22 Apr 2019 22:59:56 -0700
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <daf0ad7d-1c80-da54-336b-b21c6ff29a63@g.nevcal.com>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+ <20190423001930.GL3010@ando.pearwood.info>
+ <1514bfce-6aed-5b88-bbb6-78a9cc261282@g.nevcal.com>
+ <f8c036c7-1987-42b3-238c-6c38f13bf23c@python.org>
+ <25ca35f9-ae2b-ed4e-cb07-8d8fa87f6dbf@python.org>
+ <daf0ad7d-1c80-da54-336b-b21c6ff29a63@g.nevcal.com>
+Message-ID: <c8698b9a-59d3-5de7-813a-f3a96cb77b0b@python.org>
+
+On 22Apr2019 2119, Glenn Linderman wrote:
+> While Inada's suggested DictBuilder interface was immediately obvious, I 
+> don't get how either copy or update would achieve the goal. Perhaps you 
+> could explain? Particularly, what would be the trigger that would make 
+> dict() choose to create a shared key dictionary from the start? Unless 
+> it is known that there will be lots of (mostly static) dictionaries with 
+> the same set of keys at the time of creation of the first one, creating 
+> a shared key dictionary in every case would cause later inefficiencies 
+> in converting them, when additional items are added? (I'm assuming 
+> without knowledge that a single shared key dictionary is less efficient 
+> than a single regular dictionary.)
+
+Passing a dictionary to the dict() constructor creates a copy of that 
+dictionary (as does copy.copy()). What other trigger do you need to 
+decide "it contains the same keys"? It's a copy of the original dict, so 
+by definition at that point it may as well share its entire contents 
+with the original.
+
+Basically this is just a partial copy-on-write, where we copy values 
+eagerly - since they're almost certainly going to change - and keys 
+lazily - since there are known scenarios where they are not going to be 
+changed, but we'll pay the cost later if it turns out they are.
+
+Cheers,
+Steve
+
+From songofacandy at gmail.com  Tue Apr 23 03:08:01 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Tue, 23 Apr 2019 16:08:01 +0900
+Subject: [Python-Dev] Proposal: dict.with_values(iterable)
+In-Reply-To: <31b4e1aa-ef17-6ece-5698-acb1aee9fb35@python.org>
+References: <CAEfz+Tz=oVVv17-PXcWeh36NynfHe7kpjHxLAEZsYt5MPr6-Dw@mail.gmail.com>
+ <q8qb72$2rr4$1@blaine.gmane.org>
+ <CAP1=2W7=gTxPDZaMcWtYVTuKspkidyL5zFZWT1j5WKADq6vSvg@mail.gmail.com>
+ <CALGmxELviSPGjqHKJ-YhoxY4PXMKsVAzrgEcr7kmg8X0eyM1ew@mail.gmail.com>
+ <20190423001930.GL3010@ando.pearwood.info>
+ <1514bfce-6aed-5b88-bbb6-78a9cc261282@g.nevcal.com>
+ <f8c036c7-1987-42b3-238c-6c38f13bf23c@python.org>
+ <25ca35f9-ae2b-ed4e-cb07-8d8fa87f6dbf@python.org>
+ <CAEfz+Ty2er+XWQViESypsT8U0RS203VDK-e_PxQLVSTDVhT7KA@mail.gmail.com>
+ <31b4e1aa-ef17-6ece-5698-acb1aee9fb35@python.org>
+Message-ID: <CAEfz+Tw_nKu2MwZabOXQ0-iC8TS1SW52QwCK3j=ia8_+DmTvEw@mail.gmail.com>
+
+On Tue, Apr 23, 2019 at 2:54 PM Steve Dower <steve.dower at python.org> wrote:
+>
+> On 22Apr2019 2143, Inada Naoki wrote:
+> > On Tue, Apr 23, 2019 at 11:30 AM Steve Dower <steve.dower at python.org> wrote:
+> >>
+> >> Or possibly just "dict(existing_dict).update(new_items)".
+> >>
+> >
+> > Do you mean .update accepts values tuple?
+> > I can't think it's
+>
+> Not sure what you were going to go on to say here, but why not?
+
+Sorry, I sent mail without finishing.
+
+dict.update() has too many overloading.
+Adding values_tuple is impossible without breaking backward compatibility.
+
+But I think you're saying about items_sequence, not values.
+
+>
+> If it's a key-sharing dict, then all the keys are strings. We know that
+> when we go to do the update, so we can intern all the strings (going to
+> do that anyway) and then it's a quick check if it already exists. If
+> it's a regular dict, then we calculate hashes as normal. Updating the
+> value is just a decref, incref and assignment.
+
+There are some problem.
+
+1. Searching hash table is not zero-cost, comparing to appending to sequence.
+   This cost is very near to building new hash tables.
+
+2. In my proposal, main user is csv.DictReader or sql.DictCursor.
+   They parse only values on each rows.   So they need to use map.
+
+3. (CPython only) dict.copy(), dict(dict), and dict.update() are general purpose
+   methods.  There is no obvious place to start using key-sharing dict.
+
+That's why I proposed specific method / function for specific purpose.
+
+>
+> Note that it .update() would probably require a dict or key/value tuples
+> here - but if you have the keys in a tuple already then zip() is going
+> to be good enough for setting it (in fact, zip(existing_dict,
+> new_values) should be fine, and we can internally special-case that
+> scenario, too).
+
+If *CPython* specialized dict(zip(dict, values)),  it still be CPython
+implementation detail.
+Do you want recommend using such CPython hacky optimization?
+Should we use such optimization in stdlib, even if it will be slower
+than dict(zip(keys_tuple, values)) on some other Python implementations?
+
+Or do you propose making dict(zip(dict, values)) optimization as
+language specification?
+
+One obvious advantage of having DictBuilder is it is for specific
+purpose.  It has at least same performance to dict(zip(keys, values))
+on all Python implementations.
+Libraries like csv parser can use it without worrying about its performance
+on Python other than CPython.
+
+
+> I'd assumed the benefit was in memory usage after
+> construction, rather than speed-to-construct, since everyone keeps
+> talking about "key-sharing dictionaries" and not "arrays" ;)
+
+Both is important.  I had talked about non key-sharing dict.
+
+> (Randomizing side note: is this scenario enough to make a case for a
+> built-in data frame type?)
+
+https://xkcd.com/927/
+
+
+> >> My primary concern is still to avoid making CPython performance
+> >> characteristics part of the Python language definition. That only makes
+> >> it harder for alternate implementations.
+> >
+> > Note that this proposal is not only for key sharing dict:
+> >
+> > * We can avoid rebuilding hash table again and again.
+> > * We can avoid checking duplicated keys again and again.
+> >
+> > These characteristics are not only for Python, but for all mapping
+> > implementations using hash table.
+>
+> I believe all of these are met by making d2=dict(d1) construct a dict d2
+> that shares keys with d1 by default. Can you show how they are not?
+
+If you want only copy, it's same.
+
+>
+> * when you only d2.update existing keys, no need to rebuild the table
+> * a duplicated key overwrites multiple times - what else are you going
+> to do?
+
+But all keys should be looked up.  It is very similar overhead to rebuilding
+hash table.
+
+> This is already easiest, fastest, uses the least memory and is
+> most consistent with every other form of setting dict items. Why
+> complicate things by checking them? Let the caller do it
+
+As I wrote above, it is:
+
+* slower than my proposal.
+* no obvious place to start using key sharing dict.
+
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
