@@ -14192,3 +14192,1253 @@ Of course, performance is main concern too.
 -- 
 Inada Naoki  <songofacandy at gmail.com>
 
+From J.Demeyer at UGent.be  Wed Apr 24 03:24:47 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 24 Apr 2019 09:24:47 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+Message-ID: <5CC00F3F.9090602@UGent.be>
+
+On 2019-04-24 01:44, Victor Stinner wrote:
+> I would like to
+> be able to run C extensions compiled in release mode on a Python
+> compiled in debug mode
+
+That seems like a very good idea. I would certainly use the debug mode 
+while developing CPython or C extensions.
+
+From vano at mail.mipt.ru  Wed Apr 24 07:44:35 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Wed, 24 Apr 2019 14:44:35 +0300
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <73aa488a-614a-25a7-df7c-94f1fd285c9f@mail.mipt.ru>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <73aa488a-614a-25a7-df7c-94f1fd285c9f@mail.mipt.ru>
+Message-ID: <8d9ffb09-2a9a-c07a-357d-e7a35b22909d@mail.mipt.ru>
+
+On 24.04.2019 3:50, Ivan Pozdeev via Python-Dev wrote:
+> On 24.04.2019 2:44, Victor Stinner wrote:
+>> Hi,
+>>
+>> Two weeks ago, I started a thread "No longer enable Py_TRACE_REFS by
+>> default in debug build", but I lost myself in details, I forgot the
+>> main purpose of my proposal...
+>>
+>> Let me retry from scratch with a more explicit title: I would like to
+>> be able to run C extensions compiled in release mode on a Python
+>> compiled in debug mode ("pydebug").
+>
+> This is going to be impossible because debug Python links against debug C runtime which is binary incompatible with the release one (at 
+> least, in Windows).
+
+To elaborate:
+
+As per 
+https://stackoverflow.com/questions/37541210/whats-the-difference-in-usage-between-shared-libraries-built-in-debug-and-relea/37580323#37580323 ,
+Problems will occur if you have two modules that 1. use different versions or binary representations of a type and 2. exchange objects of 
+that type
+
+Now, I trust Victor has ensured no discrepancies in explicitly exchanged types.
+But I'm not sure if Python and the extension still rely on implicitly sharing some C runtime entities. (In Py2, that would at least be 
+descriptor table that MSVCRT maintains privately but Py3 doesn't rely on it AFAIK).
+
+>> The use case is to debug bugs in C
+>> extensions thanks to additional runtime checks of a Python debug
+>> build, and more generally get a better debugging experiences on
+>> Python. Even for pure Python, a debug build is useful (to get the
+>> Pyhon traceback in gdb using "py-bt" command).
+> That said, debug vs release extension compilation is currently bugged. It's impossible to make a debug build of an extension against a 
+> release Python (linked against release runtime, so not fully debug, just without optimizations) and vice versa. pip fails to build 
+> extensions for a debug Python for the same reason. I've no idea how (and if at all) people manage to diagnose problems in extensions.
+> https://bugs.python.org/issue33637
+>>
+>> Currently, using a Python compiled in debug mode means to have to
+>> recompile C extensions in debug mode. Compile a C extension requires a
+>> C compiler, header files, pull dependencies, etc. It can be very
+>> complicated in practical (and pollute your system with all these
+>> additional dependencies). On Linux, it's already hard, but on Windows
+>> it can be even harder.
+>>
+>> Just one concrete example: no debug build of numpy is provided at
+>> https://pypi.org/project/numpy/ Good luck to build numpy in debug mode
+>> manually (install OpenBLAS, ATLAS, Fortran compiler, Cython, etc.)
+>> :-)
+> The above paragraph is probably the reason ;-)
+>>
+>> -- 
+>>
+>> The first requirement for the use case is that a Python debug build
+>> supports the ABI of a release build. The current blocker issue is that
+>> the Py_DEBUG define imply the Py_TRACE_REFS define: PyObject gets 2
+>> extra fields (_ob_prev and _ob_next) which change the offset of all
+>> attributes of all objects and makes the ABI completely incompatible. I
+>> propose to no longer imply Py_TRACE_REFS *by default* (but keep the
+>> code):
+>>
+>> https://bugs.python.org/issue36465
+>> https://github.com/python/cpython/pull/12615
+>>
+>> (Py_TRACE_REFS would be a different ABI.)
+>>
+>> The second issue is that library filenames are different for a debug
+>> build: SOABI gets an additional "d" flag for Py_DEBUG. A debug build
+>> should first look for "NAME.cpython-38dm.so" (flags: "dm"), but then
+>> also look for "NAME.cpython-38m.so" (flags: "m"). The opposite is not
+>> possible: a debug build contains many additional functions missing
+>> from a release build.
+>>
+>> For Windows, maybe we should provide a Python compiled in debug mode
+>> with the same C Runtime than a Python compiled in release mode.
+>> Otherwise, the debug C Runtime is causing another ABI issue.
+>>
+>> Maybe pip could be enhanced to support installing C extensions
+>> compiled in release mode when using a debug mode. But that's more for
+>> convenience, it's not really required, since it is easy to switch the
+>> Python runtime between release and debug build.
+>>
+>> Apart of Py_TRACE_REFS, I'm not aware of other ABI differences in
+>> structures. I know that the COUNT_ALLOCS define changes the ABI, but
+>> it's not implied by Py_DEBUG: you have to opt-in for COUNT_ALLOCS. (I
+>> propose to do the same for Py_TRACE_REFS ;-))
+>>
+>> Note: Refleaks buildbots don't use Py_TRACE_REFS to track memory
+>> leaks, only sys.gettotalrefcount().
+>>
+>> -- 
+>>
+>> Python debug build has many benefit. If you ignore C extensions, the
+>> debug build is usually compiled with compiler optimization disabled
+>> which makes debugging in gdb a much better experience. If you never
+>> tried: on a release build, most (if not all) variables are "<optimized
+>> out>" and it's really painful to basic debug functions like displaying
+>> the current Python frame.
+>>
+>> Assertions are removed in release modes, whereas they can detect a
+>> wide range of bugs way earlier: integer overflow, buffer under- and
+>> overflow, exceptions ignored silently, etc. Nobody likes to see a bug
+>> for the first time in production. For example, I modified Python 3.8
+>> to now logs I/O errors when a file is closed implicitly, but only in
+>> debug or development mode. In release Python silently ignored EBADF
+>> error on such case, whereas it can lead to very nasty bugs causing
+>> Python to call abort() (which creates a coredump on Linux): see
+>> https://bugs.python.org/issue18748 ...
+>>
+>> DeprecationWarning and ResourceWarning are shown by default in debug mode :-)
+>>
+>> There are too many different additional checks done at runtime: I
+>> cannot list them all here.
+>>
+>> -- 
+>>
+>> Being able to switch between Python in release mode and Python in
+>> debug mode is a first step. My long term plan would be to better
+>> separate "Python" from its "runtime". CPython in release mode would be
+>> one runtime, CPython in debug mode would be another runtime, PyPy can
+>> seeen as another runtime, etc. The more general idea is: "compile your
+>> C extension once and use any Python runtime".
+>>
+>> https://pythoncapi.readthedocs.io/runtimes.html#runtimes
+>>
+>> If you opt-in for the stable ABI, you can already switch between
+>> runtimes of different Python versions (ex: Python 3.6 or Python 3.8).
+>>
+>> Victor
+>> -- 
+>> Night gathers, and now my watch begins. It shall not end until my death.
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vano%40mail.mipt.ru
+>
+-- 
+Regards,
+Ivan
+
+
+From solipsis at pitrou.net  Wed Apr 24 10:03:22 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 24 Apr 2019 16:03:22 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+Message-ID: <20190424160322.63323ce1@fsol>
+
+On Wed, 24 Apr 2019 01:44:17 +0200
+Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> The first requirement for the use case is that a Python debug build
+> supports the ABI of a release build. The current blocker issue is that
+> the Py_DEBUG define imply the Py_TRACE_REFS define: PyObject gets 2
+> extra fields (_ob_prev and _ob_next) which change the offset of all
+> attributes of all objects and makes the ABI completely incompatible. I
+> propose to no longer imply Py_TRACE_REFS *by default* (but keep the
+> code):
+> 
+> https://bugs.python.org/issue36465
+> https://github.com/python/cpython/pull/12615
+
++1 from me.
+
+> The second issue is that library filenames are different for a debug
+> build: SOABI gets an additional "d" flag for Py_DEBUG. A debug build
+> should first look for "NAME.cpython-38dm.so" (flags: "dm"), but then
+> also look for "NAME.cpython-38m.so" (flags: "m").
+
+Sounds fair (but only on Unix, I guess).
+
+> Maybe pip could be enhanced to support installing C extensions
+> compiled in release mode when using a debug mode. But that's more for
+> convenience, it's not really required, since it is easy to switch the
+> Python runtime between release and debug build.
+
+Not sure what you mean by "easy to switch the Python runtime".  As soon
+as I want to use pip, I have to use a release build, right?
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Wed Apr 24 12:02:18 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 24 Apr 2019 18:02:18 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+Message-ID: <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+
+Hum, I found issues with libpython: C extensions are explicitly linked
+to libpython built in release mode. So a debug python loading a C
+extension may load libpython in release mode, whereas libpython in
+debug mode is already loaded.
+
+When Python is built with --enable-shared, the python3.7 program is
+linked to libpython3.7m.so.1.0 on Linux. C extensions are explicitly
+linked to libpython3.7m as well:
+
+$ python3.7-config --ldflags
+... -lpython3.7m ...
+
+Example with numpy:
+
+$ ldd /usr/lib64/python3.7/site-packages/numpy/core/umath.cpython-37m-x86_64-linux-gnu.so
+    ...
+    libpython3.7m.so.1.0 => /lib64/libpython3.7m.so.1.0 (...)
+    ...
+
+When Python 3.7 is compiled in debug mode, libpython gets a "d" flag
+for debug: libpython3.7dm.so.1.0.
+
+I see 2 solutions:
+
+(1) Use a different directory. If "libpython" gets the same filename
+in release and debug mode, at least, they must be installed in
+different directories. If libpython build in debug mode is installed
+in /usr/lib64/python3.7-dbg/ for example, python3.7-dbg should be
+compiled with -rpath /usr/lib64/python3.7-dbg/ to get the debug
+libpython.
+
+(2) If "libpython" gets a different filename in debug mode, C
+extensions should not be linked to libpython explicitly but
+*implicitly* to avoid picking the wrong libpython. For example, remove
+"-lpython3.7m" from "python3.7-config --ldflags" output.
+
+The option (1) rely on rpath which is discouraged by Linux vendors and
+may not be supported by all operating systems.
+
+The option (2) is simpler and likely more portable.
+
+Currently, C extensions of the standard library may or may not be
+linked to libpython depending on they are built. In practice, both
+work since python3.7 is already linked to libpython: so libpython is
+already loaded in memory before C extensions are loaded.
+
+I opened https://bugs.python.org/issue34814 to discuss how C
+extensions of the standard library should be linked but I closed it
+because we failed to find a consensus and the initial use case became
+a non-issue. It seems like we should reopen the discussion :-)
+
+Victor
+
+From solipsis at pitrou.net  Wed Apr 24 13:00:21 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 24 Apr 2019 19:00:21 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+Message-ID: <20190424190021.6e4852ec@fsol>
+
+On Wed, 24 Apr 2019 18:02:18 +0200
+Victor Stinner <vstinner at redhat.com> wrote:
+> 
+> I see 2 solutions:
+> 
+> (1) Use a different directory. If "libpython" gets the same filename
+> in release and debug mode, at least, they must be installed in
+> different directories. If libpython build in debug mode is installed
+> in /usr/lib64/python3.7-dbg/ for example, python3.7-dbg should be
+> compiled with -rpath /usr/lib64/python3.7-dbg/ to get the debug
+> libpython.
+> 
+> (2) If "libpython" gets a different filename in debug mode, C
+> extensions should not be linked to libpython explicitly but
+> *implicitly* to avoid picking the wrong libpython. For example, remove
+> "-lpython3.7m" from "python3.7-config --ldflags" output.
+> 
+> The option (1) rely on rpath which is discouraged by Linux vendors and
+> may not be supported by all operating systems.
+> 
+> The option (2) is simpler and likely more portable.
+> 
+> Currently, C extensions of the standard library may or may not be
+> linked to libpython depending on they are built. In practice, both
+> work since python3.7 is already linked to libpython: so libpython is
+> already loaded in memory before C extensions are loaded.
+
+You can participate in https://bugs.python.org/issue21536
+
+Regards
+
+Antoine.
+
+
+
+From stefan_ml at behnel.de  Wed Apr 24 13:22:02 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Wed, 24 Apr 2019 19:22:02 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <5CC00F3F.9090602@UGent.be>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <5CC00F3F.9090602@UGent.be>
+Message-ID: <q9q5vt$153n$1@blaine.gmane.org>
+
+Jeroen Demeyer schrieb am 24.04.19 um 09:24:
+> On 2019-04-24 01:44, Victor Stinner wrote:
+>> I would like to
+>> be able to run C extensions compiled in release mode on a Python
+>> compiled in debug mode
+> 
+> That seems like a very good idea. I would certainly use the debug mode
+> while developing CPython or C extensions.
+
++1
+
+Stefan
+
+
+From guido at python.org  Wed Apr 24 14:23:40 2019
+From: guido at python.org (Guido van Rossum)
+Date: Wed, 24 Apr 2019 11:23:40 -0700
+Subject: [Python-Dev] Typing Summit at PyCon US
+In-Reply-To: <CAP7+vJL0_Y2gfs3C2-u80ZK2JCfX-Gx=a_2G2kTD9OG3-oqn5A@mail.gmail.com>
+References: <CAP7+vJL0_Y2gfs3C2-u80ZK2JCfX-Gx=a_2G2kTD9OG3-oqn5A@mail.gmail.com>
+Message-ID: <CAP7+vJLSiO4GXBmMj3rKxwAu88POPAE-nK5BKZkc0mU910fr7w@mail.gmail.com>
+
+I'd like to remind everyone that in 8 days, at PyCon US in Cleveland, we'll
+have the Typing Summit (the day after the Language Summit). There's still
+room to register <https://goo.gl/forms/rG9dVTBbgyBgDK8H2>! So far I've
+received just under 20 registrations -- there's room for at least 20 more!
+The summit is for both developers and users of static type checkers for
+Python.
+
+Topics will include (not necessarily in this order):
+
+Michael Sullivan: Annotation growth at Dropbox, and how we used mypyc to
+speed up mypy 4x.
+Jelle Zijlstra: The future of typeshed.
+Jukka Lehtosalo: Modular typeshed.
+Ivan Levkivskyi: Typing and mypy usability.
+Andrey Vlasovskikh: Incremental static analysis in PyCharm.
+Guido van Rossum: Overview of upcoming typing PEPs (544: Protocols; 586:
+Literal; 589: TypedDict; 591: Final).
+
+There's also room to discuss more speculative changes to the type system,
+especially changes needed to support numpy, such as integer generics and
+variadic type variables, and special cases for wrapper functions using
+*(*args, **kwds). I'm looking for volunteers to speak about these topics.
+
+
+On Fri, Mar 22, 2019 at 11:23 AM Guido van Rossum <guido at python.org> wrote:
+
+> The typing summit is primarily a place for developers of type checkers to
+> collaborate, but we are also inviting (potential) users of type checkers.
+> For example, there are plans to extend the standard Python type system with
+> features intended to support numpy, Pandas, tensorflow and similar
+> libraries, and we will discuss these at the summit. Therefore developers
+> and power-users of such frameworks are especially welcome at the summit.
+>
+> With Ewa's and Dropbox's help I've arranged a room at PyCon.
+>
+>
+> *When: Thursday May 2nd, 1-5 pm (i.e. the day between the Language Summit
+> and the conference proper)*
+> *Where: Room 6 at PyCon in Cleveland*
+>
+> If you're planning to attend, please fill out this form:
+>
+> https://goo.gl/forms/rG9dVTBbgyBgDK8H2
+>
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190424/1174fb4a/attachment.html>
+
+From vano at mail.mipt.ru  Wed Apr 24 14:55:21 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Wed, 24 Apr 2019 21:55:21 +0300
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <20190424160322.63323ce1@fsol>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <20190424160322.63323ce1@fsol>
+Message-ID: <b5d77be4-e3a9-e85d-9ae7-c73ef483859e@mail.mipt.ru>
+
+On 24.04.2019 17:03, Antoine Pitrou wrote:
+> On Wed, 24 Apr 2019 01:44:17 +0200
+> Victor Stinner <vstinner at redhat.com> wrote:
+>> The first requirement for the use case is that a Python debug build
+>> supports the ABI of a release build. The current blocker issue is that
+>> the Py_DEBUG define imply the Py_TRACE_REFS define: PyObject gets 2
+>> extra fields (_ob_prev and _ob_next) which change the offset of all
+>> attributes of all objects and makes the ABI completely incompatible. I
+>> propose to no longer imply Py_TRACE_REFS *by default* (but keep the
+>> code):
+>>
+>> https://bugs.python.org/issue36465
+>> https://github.com/python/cpython/pull/12615
+> +1 from me.
+>
+>> The second issue is that library filenames are different for a debug
+>> build: SOABI gets an additional "d" flag for Py_DEBUG. A debug build
+>> should first look for "NAME.cpython-38dm.so" (flags: "dm"), but then
+>> also look for "NAME.cpython-38m.so" (flags: "m").
+> Sounds fair (but only on Unix, I guess).
+>
+>> Maybe pip could be enhanced to support installing C extensions
+>> compiled in release mode when using a debug mode. But that's more for
+>> convenience, it's not really required, since it is easy to switch the
+>> Python runtime between release and debug build.
+> Not sure what you mean by "easy to switch the Python runtime".  As soon
+> as I want to use pip, I have to use a release build, right?
+No, pip works with a debug Python just as well (python.bat -m ensurepip) and installs modules to `<source tree>/site-packages` IIRC.
+But building extensions is broken in this case as per https://mail.python.org/pipermail/python-dev/2019-April/157180.html .
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vano%40mail.mipt.ru
+
+-- 
+Regards,
+Ivan
+
+
+From nas-python at arctrix.com  Wed Apr 24 14:55:01 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Wed, 24 Apr 2019 12:55:01 -0600
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+Message-ID: <20190424185501.j6kjdbmb4adj4x6x@python.ca>
+
+On 2019-04-24, Victor Stinner wrote:
+> The current blocker issue is that the Py_DEBUG define imply the
+> Py_TRACE_REFS define
+
+I think your change to make Py_TRACE_REFS as separate configure flag
+is fine.  I've used the trace fields to debug occasionally but I
+don't use it often enough to need it enabled by Py_DEBUG.
+
+> Being able to switch between Python in release mode and Python in
+> debug mode is a first step. My long term plan would be to better
+> separate "Python" from its "runtime".
+
+Regarding the Py_TRACE_REFS fields, I think we can't do them without
+breaking the ABI because of the following.  For GC objects, they are
+always allocated by _PyObject_GC_New/_PyObject_GC_NewVar.  So, we
+can allocate the extra space needed for the GC linked list.  For
+non-GC objects, that's not the case.  Extensions can allocate using
+malloc() directly or their own allocator and then pass that memory
+to be initialized as a PyObject.
+
+I think that's a poor design and I think we should try to make slow
+progress in fixing it.  I think non-GC objects should also get
+allocated by a Python API.  In that case, the Py_TRACE_REFS
+functionality could be implemented in a way that doesn't break the
+ABI.  It also makes the CPython API more friendly for alternative
+Python runtimes like PyPy, etc.
+
+Note that this change would not prevent an extension from allocating
+memory with it's own allocator.  It just means that memory can't
+hold a PyObject.  The extension PyObject would need to have a
+pointer that points to this externally allocated memory.
+
+I can imagine there could be some situations when people really
+want a PyObject to reside in a certain memory location.  E.g. maybe
+you have some kind of special shared memory area.  In that case, I
+think we could have specialized APIs to create PyObjects using a
+specialized allocator.  Those APIs would not be supported by
+some runtimes (e.g. tracing/moving GC for PyObjects) and the APIs
+would not be used by most extensions.
+
+Regards,
+
+  Neil
+
+From pviktori at redhat.com  Wed Apr 24 18:24:15 2019
+From: pviktori at redhat.com (Petr Viktorin)
+Date: Wed, 24 Apr 2019 18:24:15 -0400
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+Message-ID: <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com>
+
+So, I spent another day pondering the PEPs.
+
+I love PEP 590's simplicity and PEP 580's extensibility. As I hinted 
+before, I hope they can they be combined, and I believe we can achieve 
+that by having PEP 590's (o+offset) point not just to function pointer, 
+but to a {function pointer; flags} struct with flags defined for two 
+optimizations:
+- "Method-like", i.e. compatible with LOAD_METHOD/CALL_METHOD.
+- "Argument offsetting request", allowing PEP 590's 
+PY_VECTORCALL_ARGUMENTS_OFFSET optimization.
+
+This would mean one basic call signature (today's METH_FASTCALL | 
+METH_KEYWORD), with individual optimizations available if both the 
+caller and callee support them.
+
+
+
+In case you want to know my thoughts or details, let me indulge in some 
+detailed comparisons and commentary that led to this.
+I also give a more detailed proposal below.
+Keep in mind I wrote this before I distilled it to the paragraph above, 
+and though the distillation is written as a diff to PEP 590, I still 
+think of this as merging both PEPs.
+
+
+PEP 580 tries hard to work with existing call conventions (like METH_O, 
+METH_VARARGS), making them fast.
+PEP 590 just defines a new convention. Basically, any callable that 
+wants performance improvements must switch to METH_VECTORCALL (fastcall).
+I believe PEP 590's approach is OK. To stay as performant as possible, C 
+extension authors will need to adapt their code regularly. If they 
+don't, no harm -- the code will still work as before, and will still be 
+about as fast as it was before.
+In exchange for this, Python (and Cython, etc.) can focus on optimizing 
+one calling convention, rather than a variety, each with its own 
+advantages and drawbacks.
+
+Extending PEP 580 to support a new calling convention will involve 
+defining a new CCALL_* constant, and adding to existing dispatch code.
+Extending PEP 590 to support a new calling convention will most likely 
+require a new type flag, and either changing the vectorcall semantics or 
+adding a new pointer.
+To be a bit more concrete, I think of possible extensions to PEP 590 as 
+things like:
+- Accepting a kwarg dict directly, without copying the items to 
+tuple/array (as in PEP 580's CCALL_VARARGS|CCALL_KEYWORDS)
+- Prepending more than one positional argument, or appending positional 
+arguments
+- When an optimization like LOAD_METHOD/CALL_METHOD turns out to no 
+longer be relevant, removing it to simplify/speed up code.
+I expect we'll later find out that something along these lines might 
+improve performance. PEP 590 would make it hard to experiment.
+
+I mentally split PEP 590 into two pieces: formalizing fastcall, plus one 
+major "extension" -- making bound methods fast.
+When seen this way, this "extension" is quite heavy: it adds an 
+additional type flag, Py_TPFLAGS_METHOD_DESCRIPTOR, and uses a bit in 
+the "Py_ssize_t nargs" argument as additional flag. Both type flags and 
+nargs bits are very limited resources. If I was sure vectorcall is the 
+final best implementation we'll have, I'd go and approve it ? but I 
+think we still need room for experimentation, in the form of more such 
+extensions.
+PEP 580, with its collection of per-instance data and flags, is 
+definitely more extensible. What I don't like about it is that it has 
+the extensions built-in; mandatory for all callers/callees.
+
+PEP 580 adds a common data struct to callable instances. Currently these 
+are all data bound methods want to use (cc_flags, cc_func, cc_parent, 
+cr_self). Various flags are consulted in order to deliver the needed 
+info to the underlying function.
+PEP 590 lets the callable object store data it needs independently. It 
+provides a clever mechanism for pre-allocating space for bound methods' 
+prepended "self" argument, so data can be provided cheaply, though it's 
+still done by the callable itself.
+Callables that would need to e.g. prepend more than one argument won't 
+be able to use this mechanism, but y'all convinced me that is not worth 
+optimizing for.
+
+PEP 580's goal seems to be that making a callable behave like a Python 
+function/method is just a matter of the right set of flags. Jeroen 
+called this "complexity in the protocol".
+PEP 590, on the other hand, leaves much to individual callable types. 
+This is "complexity in the users of the protocol".
+I now don't see a problem with PEP 590's approach. Not all users will 
+need the complexity. We need to give CPython and Cython the tools to 
+make implementing "def"-like functions possible (and fast), but if other 
+extensions need to match the behavior of Python functions, they should 
+just use Cython. Emulating Python functions is a special-enough use case 
+that it doesn't justify complicating the protocol, and the same goes for 
+implementing Python's built-in functions (with all their historical 
+baggage).
+
+
+
+My more full proposal for a compromise between PEP 580 and 590 would go 
+something like below.
+
+The type flag (Py_TPFLAGS_HAVE_VECTORCALL/Py_TPFLAGS_HAVE_CCALL) and 
+offset (tp_vectorcall_offset/tp_ccalloffset; in tp_print's place) stay.
+
+The offset identifies a per-instance structure with two fields:
+- Function pointer (with the vectorcall signature)
+- Flags
+Storing any other per-instance data (like PEP 580's cr_self/cc_parent) 
+is the responsibility of each callable type.
+
+Two flags are defined initially:
+1. "Method-like" (like Py_TPFLAGS_METHOD_DESCRIPTOR in PEP 580, or 
+non-NULL cr_self in PEP 580). Having the flag here instead of a type 
+flag will prevent tp_call-only callables from taking advantage of 
+LOAD_METHOD/CALL_METHOD optimisation, but I think that's OK.
+
+2. Request to reserve space for one argument before the args array, as 
+in PEP 590's argument offsetting. If the flag is missing, nargs may not 
+include PY_VECTORCALL_ARGUMENTS_OFFSET. A mechanism incompatible with 
+offsetting may use the bit for another purpose.
+
+Both flags may be simply ignored by the caller (or not be set by the 
+callee in the first place), reverting to a more straightforward (but 
+less performant) code path. This should also be the case for any flags 
+added in the future.
+Note how without these flags, the protocol (and its documentation) will 
+be extremely simple.
+This mechanism would work with my examples of possible future extensions:
+- "kwarg dict": A flag would enable the `kwnames` argument to be a dict 
+instead of a tuple.
+- prepending/appending several positional arguments: The callable's 
+request for how much space to allocate stored right after the {func; 
+flags} struct. As in argument offsetting, a bit in nargs would indicate 
+that the request was honored. (If this was made incompatible with 
+one-arg offsetting, it could reuse the bit.)
+- removing an optimization: CPython would simply stop using an 
+optimizations (but not remove the flag). Extensions could continue to 
+use the optimization between themselves.
+
+As in PEP 590, any class that uses this mechanism shall not be usable as 
+a base class. This will simplify implementation and tests, but hopefully 
+the limitation will be removed in the future. (Maybe even in the initial 
+implementation.)
+
+The METH_VECTORCALL (aka CCALL_FASTCALL|CCALL_KEYWORDS) calling 
+convention is added to the public API. The other calling conventions 
+(PEP 580's CCALL_O, CCALL_NOARGS, CCALL_VARARGS, CCALL_KEYWORDS, 
+CCALL_FASTCALL, CCALL_DEFARG) as well as argument type checking 
+(CCALL_OBJCLASS) and self slicing (CCALL_SELFARG) are left up to the 
+callable.
+
+No equivalent of PEP 580's restrictions on the __name__ attribute. In my 
+opinion, the PyEval_GetFuncName function should just be deprecated in 
+favor of getting the __name__ attribute and checking if it's a string. 
+It would be possible to add a public helper that returns a proper 
+reference, but that doesn't seem worth it. Either way, I consider this 
+out of scope of this PEP.
+
+No equivalent of PEP 580's PyCCall_GenericGetParent and 
+PyCCall_GenericGetQualname either -- again, if needed, they should be 
+retrieved as normal attributes. As I see it, the operation doesn't need 
+to be particularly fast.
+
+No equivalent of PEP 580's PyCCall_Call, and no support for dict in 
+PyCCall_FastCall's kwds argument. To be fast, extensions should avoid 
+passing kwargs in a dict. Let's see how far that takes us. (FWIW, this 
+also avoids subtle issues with dict mutability.)
+
+Profiling stays as in PEP 580: only exact function types generate the 
+events.
+
+As in PEP 580, PyCFunction_GetFlags and PyCFunction_GET_FLAGS are deprecated
+
+As in PEP 580, nothing is added to the stable ABI
+
+
+Does that sound reasonable?
+
+From pviktori at redhat.com  Wed Apr 24 18:24:04 2019
+From: pviktori at redhat.com (Petr Viktorin)
+Date: Wed, 24 Apr 2019 18:24:04 -0400
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <5CAE76B6.6090501@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com> <5CAE76B6.6090501@UGent.be>
+Message-ID: <19993545-3fdf-4bf6-56dd-e926d2032a3a@redhat.com>
+
+On 4/10/19 7:05 PM, Jeroen Demeyer wrote:
+> On 2019-04-10 18:25, Petr Viktorin wrote:
+>> Hello!
+>> I've had time for a more thorough reading of PEP 590 and the reference
+>> implementation. Thank you for the work!
+> 
+> And thank you for the review!
+> 
+>> I'd now describe the fundamental
+>> difference between PEP 580 and PEP 590 as:
+>> - PEP 580 tries to optimize all existing calling conventions
+>> - PEP 590 tries to optimize (and expose) the most general calling
+>> convention (i.e. fastcall)
+> 
+> And PEP 580 has better performance overall, even for METH_FASTCALL. See 
+> this thread:
+> https://mail.python.org/pipermail/python-dev/2019-April/156954.html
+> 
+> Since these PEPs are all about performance, I consider this a very 
+> relevant argument in favor of PEP 580.
+
+All about performance as well as simplicity, correctness, testability, 
+teachability... And PEP 580 touches some introspection :)
+
+>> PEP 580 also does a number of other things, as listed in PEP 579. But I
+>> think PEP 590 does not block future PEPs for the other items.
+>> On the other hand, PEP 580 has a much more mature implementation -- and
+>> that's where it picked up real-world complexity.
+> About complexity, please read what I wrote in
+> https://mail.python.org/pipermail/python-dev/2019-March/156853.html
+> 
+> I claim that the complexity in the protocol of PEP 580 is a good thing, 
+> as it removes complexity from other places, in particular from the users 
+> of the protocol (better have a complex protocol that's simple to use, 
+> rather than a simple protocol that's complex to use).
+
+I think we're talking past each other. I see now it as:
+
+PEP 580 takes existing complexity and makes it available to all users, 
+in a simpler way. It makes existing code faster.
+
+PEP 590 defines a new simple/fast protocol for its users, and instead of 
+making existing complexity faster and easier to use, it's left to be 
+deprecated/phased out (or kept in existing classes for backwards 
+compatibility). It makes it possible for future code to be faster/simpler.
+
+I think things should be simple by default, but if people want some 
+extra performance, they can opt in to some extra complexity.
+
+
+> As a more concrete example of the simplicity that PEP 580 could bring, 
+> CPython currently has 2 classes for bound methods implemented in C:
+> - "builtin_function_or_method" for normal C methods
+> - "method-descriptor" for slot wrappers like __eq__ or __add__
+> 
+> With PEP 590, these classes would need to stay separate to get maximal 
+> performance. With PEP 580, just one class for bound methods would be 
+> sufficient and there wouldn't be any performance loss. And this extends 
+> to custom third-party function/method classes, for example as 
+> implemented by Cython.
+
+Yet, for backwards compatibility reasons, we can't merge the classes.
+Also, I think CPython and Cython are exactly the users that can trade 
+some extra complexity for better performance.
+
+>> Jeroen's analysis from
+>> https://mail.python.org/pipermail/python-dev/2018-July/154238.html seems
+>> to miss a step at the top:
+>>
+>> a. CALL_FUNCTION* / CALL_METHOD opcode
+>> ?????? calls
+>> b. _PyObject_FastCallKeywords()
+>> ?????? which calls
+>> c. _PyCFunction_FastCallKeywords()
+>> ?????? which calls
+>> d. _PyMethodDef_RawFastCallKeywords()
+>> ?????? which calls
+>> e. the actual C function (*ml_meth)()
+>>
+>> I think it's more useful to say that both PEPs bridge a->e (via
+>> _Py_VectorCall or PyCCall_Call).
+> 
+> Not quite. For a builtin_function_or_method, we have with PEP 580:
+> 
+> a. call_function()
+>  ??? calls
+> d. PyCCall_FastCall
+>  ??? which calls
+> e. the actual C function
+> 
+> and with PEP 590 it's more like:
+> 
+> a. call_function()
+>  ??? calls
+> c. _PyCFunction_FastCallKeywords
+>  ??? which calls
+> d. _PyMethodDef_RawFastCallKeywords
+>  ??? which calls
+> e. the actual C function
+> 
+> Level c. above is the vectorcall wrapper, which is a level that PEP 580 
+> doesn't have.
+
+PEP 580 optimizes all the code paths, where PEP 590 optimizes the fast 
+path, and makes sure most/all use cases can use (or switch to) the fast 
+path.
+Both fast paths are fast: bridging a->e using zero-copy arg passing with 
+some C calls and flag checks.
+
+The PEP 580 approach is faster; PEP 590's is simpler.
+
+
+>> Jeroen, is there something in PEPs 579/580 that PEP 590 blocks, or
+>> should address?
+> 
+> Well, PEP 580 is an extensible protocol while PEP 590 is not. But, 
+> PyTypeObject is extensible, so even with PEP 590 one can always extend 
+> that (for example, PEP 590 uses a type flag Py_TPFLAGS_METHOD_DESCRIPTOR 
+> where PEP 580 instead uses the structs for the C call protocol). But I 
+> guess that extending PyTypeObject will be harder to justify (say, in a 
+> future PEP) than extending the C call protocol.
+
+That's a good point.
+
+
+> Also, it's explicitly allowed for users of the PEP 580 protocol to 
+> extend the PyCCallDef structure with custom fields. But I don't have a 
+> concrete idea of whether that will be useful.
+
+Unless I'm missing something, that would be effectively the same as 
+extending their own instance struct. To bring any benefits, the extended 
+PyCCallDef would need to be standardized in a PEP.
+
+
+From pviktori at redhat.com  Wed Apr 24 18:25:40 2019
+From: pviktori at redhat.com (Petr Viktorin)
+Date: Wed, 24 Apr 2019 18:25:40 -0400
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+Message-ID: <5a0eda4c-1e34-132e-05bf-72bcb40f44e3@redhat.com>
+
+Hi Mark! See my more general reply; here I'll just tie loose ends with a 
+few +1s.
+
+On 4/14/19 7:30 AM, Mark Shannon wrote:
+> On 10/04/2019 5:25 pm, Petr Viktorin wrote:
+[...]
+>> PEP 590 is built on a simple idea, formalizing fastcall. But it is 
+>> complicated by PY_VECTORCALL_ARGUMENTS_OFFSET and 
+>> Py_TPFLAGS_METHOD_DESCRIPTOR.
+>> As far as I understand, both are there to avoid intermediate 
+>> bound-method object for LOAD_METHOD/CALL_METHOD. (They do try to be 
+>> general, but I don't see any other use case.)
+>> Is that right?
+> 
+> Not quite.
+> Py_TPFLAGS_METHOD_DESCRIPTOR is for LOAD_METHOD/CALL_METHOD, it allows 
+> any callable descriptor to benefit from the LOAD_METHOD/CALL_METHOD 
+> optimisation.
+> 
+> PY_VECTORCALL_ARGUMENTS_OFFSET exists so that callables that make onward 
+> calls with an additional argument can do so efficiently. The obvious 
+> example is bound-methods, but classes are at least as important.
+> cls(*args) -> cls.new(cls, *args) -> cls.__init__(self, *args)
+
+I see. Thanks!
+
+>> (I'm running out of time today, but I'll write more on why I'm asking, 
+>> and on the case I called "impossible" (while avoiding creation of a 
+>> "bound method" object), later.)
+
+Let me drop this thread; I stand corrected.
+
+>> Another point I'd like some discussion on is that vectorcall function 
+>> pointer is per-instance. It looks this is only useful for type 
+>> objects, but it will add a pointer to every new-style callable object 
+>> (including functions). That seems wasteful.
+>> Why not have a per-type pointer, and for types that need it (like 
+>> PyTypeObject), make it dispatch to an instance-specific function?
+> 
+> Firstly, each callable has different behaviour, so it makes sense to be 
+> able to do the dispatch from caller to callee in one step. Having a 
+> per-object function pointer allows that.
+> Secondly, callables are either large or transient. If large, then the 
+> extra few bytes makes little difference. If transient then, it matters 
+> even less.
+> The total increase in memory is likely to be only a few tens of 
+> kilobytes, even for a large program.
+
+That makes sense.
+
+From njs at pobox.com  Thu Apr 25 02:31:04 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Wed, 24 Apr 2019 23:31:04 -0700
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+Message-ID: <CAPJVwB=Xw79L-xEkwmPsGfHZkzHEjp65j4+9C2PObNTWLcg61g@mail.gmail.com>
+
+You don't necessarily need rpath actually. The Linux loader has a
+bug/feature where once it has successfully loaded a library with a given
+soname, then any future requests for that soname within the same process
+will automatically return that same library, regardless of rpath settings
+etc. So as long as the main interpreter has loaded libpython.whatever from
+the correct directory, then extension modules will all get that same
+version. The rpath won't matter at all.
+
+It is annoying in general that on Linux, we have these two different ways
+to build extension modules. It definitely violates TOOWTDI :-). It would be
+nice at some point to get rid of one of them.
+
+Note that we can't get rid of the two different ways entirely though ? on
+Windows, extension modules *must* link to libpython.dll, and on macOS,
+extension modules *can't* link to libpython.dylib. So the best we can hope
+for is to make Linux consistently do one of these, instead of supporting
+both.
+
+In principle, having extension modules link to libpython.so is a good
+thing. Suppose that someone wants to dynamically load the python
+interpreter into their program as some kind of plugin. (Examples: Apache's
+mod_python, LibreOffice's support for writing macros in Python.) It would
+be nice to be able to load python2 and python3 simultaneously into the same
+process as distinct plugins. And this is totally doable in theory, *but* it
+means that you can't assume that the interpreter's symbols will be
+automagically injected into extension modules, so it's only possible if
+extension modules link to libpython.so.
+
+In practice, extension modules have never consistently linked to
+libpython.so, so everybody who loads the interpreter as a plugin has
+already worked around this. Specifically, they use RTLD_GLOBAL to dump all
+the interpreter's symbols into the global namespace. This is why you can't
+have python2 and python3 mod_python at the same time in the same Apache.
+And since everyone is already working around this, linking to libpython.so
+currently has zero benefit... in fact manylinux wheels are actually
+forbidden to link to libpython.so, because this is the only way to get
+wheels that work on every interpreter.
+
+-n
+
+On Wed, Apr 24, 2019, 09:54 Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hum, I found issues with libpython: C extensions are explicitly linked
+> to libpython built in release mode. So a debug python loading a C
+> extension may load libpython in release mode, whereas libpython in
+> debug mode is already loaded.
+>
+> When Python is built with --enable-shared, the python3.7 program is
+> linked to libpython3.7m.so.1.0 on Linux. C extensions are explicitly
+> linked to libpython3.7m as well:
+>
+> $ python3.7-config --ldflags
+> ... -lpython3.7m ...
+>
+> Example with numpy:
+>
+> $ ldd /usr/lib64/python3.7/site-packages/numpy/core/
+> umath.cpython-37m-x86_64-linux-gnu.so
+>     ...
+>     libpython3.7m.so.1.0 => /lib64/libpython3.7m.so.1.0 (...)
+>     ...
+>
+> When Python 3.7 is compiled in debug mode, libpython gets a "d" flag
+> for debug: libpython3.7dm.so.1.0.
+>
+> I see 2 solutions:
+>
+> (1) Use a different directory. If "libpython" gets the same filename
+> in release and debug mode, at least, they must be installed in
+> different directories. If libpython build in debug mode is installed
+> in /usr/lib64/python3.7-dbg/ for example, python3.7-dbg should be
+> compiled with -rpath /usr/lib64/python3.7-dbg/ to get the debug
+> libpython.
+>
+> (2) If "libpython" gets a different filename in debug mode, C
+> extensions should not be linked to libpython explicitly but
+> *implicitly* to avoid picking the wrong libpython. For example, remove
+> "-lpython3.7m" from "python3.7-config --ldflags" output.
+>
+> The option (1) rely on rpath which is discouraged by Linux vendors and
+> may not be supported by all operating systems.
+>
+> The option (2) is simpler and likely more portable.
+>
+> Currently, C extensions of the standard library may or may not be
+> linked to libpython depending on they are built. In practice, both
+> work since python3.7 is already linked to libpython: so libpython is
+> already loaded in memory before C extensions are loaded.
+>
+> I opened https://bugs.python.org/issue34814 to discuss how C
+> extensions of the standard library should be linked but I closed it
+> because we failed to find a consensus and the initial use case became
+> a non-issue. It seems like we should reopen the discussion :-)
+>
+> Victor
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+>
+
+On Wed, Apr 24, 2019, 09:54 Victor Stinner <vstinner at redhat.com> wrote:
+
+> Hum, I found issues with libpython: C extensions are explicitly linked
+> to libpython built in release mode. So a debug python loading a C
+> extension may load libpython in release mode, whereas libpython in
+> debug mode is already loaded.
+>
+> When Python is built with --enable-shared, the python3.7 program is
+> linked to libpython3.7m.so.1.0 on Linux. C extensions are explicitly
+> linked to libpython3.7m as well:
+>
+> $ python3.7-config --ldflags
+> ... -lpython3.7m ...
+>
+> Example with numpy:
+>
+> $ ldd /usr/lib64/python3.7/site-packages/numpy/core/
+> umath.cpython-37m-x86_64-linux-gnu.so
+>     ...
+>     libpython3.7m.so.1.0 => /lib64/libpython3.7m.so.1.0 (...)
+>     ...
+>
+> When Python 3.7 is compiled in debug mode, libpython gets a "d" flag
+> for debug: libpython3.7dm.so.1.0.
+>
+> I see 2 solutions:
+>
+> (1) Use a different directory. If "libpython" gets the same filename
+> in release and debug mode, at least, they must be installed in
+> different directories. If libpython build in debug mode is installed
+> in /usr/lib64/python3.7-dbg/ for example, python3.7-dbg should be
+> compiled with -rpath /usr/lib64/python3.7-dbg/ to get the debug
+> libpython.
+>
+> (2) If "libpython" gets a different filename in debug mode, C
+> extensions should not be linked to libpython explicitly but
+> *implicitly* to avoid picking the wrong libpython. For example, remove
+> "-lpython3.7m" from "python3.7-config --ldflags" output.
+>
+> The option (1) rely on rpath which is discouraged by Linux vendors and
+> may not be supported by all operating systems.
+>
+> The option (2) is simpler and likely more portable.
+>
+> Currently, C extensions of the standard library may or may not be
+> linked to libpython depending on they are built. In practice, both
+> work since python3.7 is already linked to libpython: so libpython is
+> already loaded in memory before C extensions are loaded.
+>
+> I opened https://bugs.python.org/issue34814 to discuss how C
+> extensions of the standard library should be linked but I closed it
+> because we failed to find a consensus and the initial use case became
+> a non-issue. It seems like we should reopen the discussion :-)
+>
+> Victor
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190424/684ba17a/attachment.html>
+
+From doko at ubuntu.com  Thu Apr 25 03:18:54 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Thu, 25 Apr 2019 09:18:54 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+Message-ID: <92ffccf0-b990-6dd1-1ca5-5361ecb0bf31@ubuntu.com>
+
+On 24.04.19 18:02, Victor Stinner wrote:
+> Hum, I found issues with libpython: C extensions are explicitly linked
+> to libpython built in release mode. So a debug python loading a C
+> extension may load libpython in release mode, whereas libpython in
+> debug mode is already loaded.
+> 
+> When Python is built with --enable-shared, the python3.7 program is
+> linked to libpython3.7m.so.1.0 on Linux. C extensions are explicitly
+> linked to libpython3.7m as well:
+> 
+> $ python3.7-config --ldflags
+> ... -lpython3.7m ...
+> 
+> Example with numpy:
+> 
+> $ ldd /usr/lib64/python3.7/site-packages/numpy/core/umath.cpython-37m-x86_64-linux-gnu.so
+>     ...
+>     libpython3.7m.so.1.0 => /lib64/libpython3.7m.so.1.0 (...)
+>     ...
+> 
+> When Python 3.7 is compiled in debug mode, libpython gets a "d" flag
+> for debug: libpython3.7dm.so.1.0.
+> 
+> I see 2 solutions:
+> 
+> (1) Use a different directory. If "libpython" gets the same filename
+> in release and debug mode, at least, they must be installed in
+> different directories. If libpython build in debug mode is installed
+> in /usr/lib64/python3.7-dbg/ for example, python3.7-dbg should be
+> compiled with -rpath /usr/lib64/python3.7-dbg/ to get the debug
+> libpython.
+> 
+> (2) If "libpython" gets a different filename in debug mode, C
+> extensions should not be linked to libpython explicitly but
+> *implicitly* to avoid picking the wrong libpython. For example, remove
+> "-lpython3.7m" from "python3.7-config --ldflags" output.
+> 
+> The option (1) rely on rpath which is discouraged by Linux vendors and
+> may not be supported by all operating systems.
+> 
+> The option (2) is simpler and likely more portable.
+> 
+> Currently, C extensions of the standard library may or may not be
+> linked to libpython depending on they are built. In practice, both
+> work since python3.7 is already linked to libpython: so libpython is
+> already loaded in memory before C extensions are loaded.
+
+the purpose of python-config here is not clear. Whether it's intended to be used
+for linking extensions, or embedded interpreters. Currently you are using the
+same for both use cases.
+
+From doko at ubuntu.com  Thu Apr 25 03:14:27 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Thu, 25 Apr 2019 09:14:27 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CAPJVwB=Xw79L-xEkwmPsGfHZkzHEjp65j4+9C2PObNTWLcg61g@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+ <CAPJVwB=Xw79L-xEkwmPsGfHZkzHEjp65j4+9C2PObNTWLcg61g@mail.gmail.com>
+Message-ID: <d8ab141b-3714-71f9-1601-c763ca47cb91@ubuntu.com>
+
+On 25.04.19 08:31, Nathaniel Smith wrote:
+> You don't necessarily need rpath actually. The Linux loader has a
+> bug/feature where once it has successfully loaded a library with a given
+> soname, then any future requests for that soname within the same process
+> will automatically return that same library, regardless of rpath settings
+> etc. So as long as the main interpreter has loaded libpython.whatever from
+> the correct directory, then extension modules will all get that same
+> version. The rpath won't matter at all.
+> 
+> It is annoying in general that on Linux, we have these two different ways
+> to build extension modules. It definitely violates TOOWTDI :-). It would be
+> nice at some point to get rid of one of them.
+> 
+> Note that we can't get rid of the two different ways entirely though ? on
+> Windows, extension modules *must* link to libpython.dll, and on macOS,
+> extension modules *can't* link to libpython.dylib. So the best we can hope
+> for is to make Linux consistently do one of these, instead of supporting
+> both.
+> 
+> In principle, having extension modules link to libpython.so is a good
+> thing. Suppose that someone wants to dynamically load the python
+> interpreter into their program as some kind of plugin. (Examples: Apache's
+> mod_python, LibreOffice's support for writing macros in Python.) It would
+> be nice to be able to load python2 and python3 simultaneously into the same
+> process as distinct plugins. And this is totally doable in theory, *but* it
+> means that you can't assume that the interpreter's symbols will be
+> automagically injected into extension modules, so it's only possible if
+> extension modules link to libpython.so.
+> 
+> In practice, extension modules have never consistently linked to
+> libpython.so, so everybody who loads the interpreter as a plugin has
+> already worked around this. Specifically, they use RTLD_GLOBAL to dump all
+> the interpreter's symbols into the global namespace. This is why you can't
+> have python2 and python3 mod_python at the same time in the same Apache.
+> And since everyone is already working around this, linking to libpython.so
+> currently has zero benefit... in fact manylinux wheels are actually
+> forbidden to link to libpython.so, because this is the only way to get
+> wheels that work on every interpreter.
+
+extensions in Debian/Ubuntu packages are not linked against libpython.so, but
+the main reason here is that sometimes you have to extensions built in
+transition periods like for 3.6 and 3.7. And this is also the default when not
+configuring with --enable-shared.
+
+From doko at ubuntu.com  Thu Apr 25 03:24:57 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Thu, 25 Apr 2019 09:24:57 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+Message-ID: <7aad8d69-2d66-54a3-26a4-20dcc5150f66@ubuntu.com>
+
+On 24.04.19 01:44, Victor Stinner wrote:
+> Hi,
+> 
+> Two weeks ago, I started a thread "No longer enable Py_TRACE_REFS by
+> default in debug build", but I lost myself in details, I forgot the
+> main purpose of my proposal...
+> 
+> Let me retry from scratch with a more explicit title: I would like to
+> be able to run C extensions compiled in release mode on a Python
+> compiled in debug mode ("pydebug"). The use case is to debug bugs in C
+> extensions thanks to additional runtime checks of a Python debug
+> build, and more generally get a better debugging experiences on
+> Python. Even for pure Python, a debug build is useful (to get the
+> Pyhon traceback in gdb using "py-bt" command).
+> 
+> Currently, using a Python compiled in debug mode means to have to
+> recompile C extensions in debug mode. Compile a C extension requires a
+> C compiler, header files, pull dependencies, etc. It can be very
+> complicated in practical (and pollute your system with all these
+> additional dependencies). On Linux, it's already hard, but on Windows
+> it can be even harder.
+> 
+> Just one concrete example: no debug build of numpy is provided at
+> https://pypi.org/project/numpy/ Good luck to build numpy in debug mode
+> manually (install OpenBLAS, ATLAS, Fortran compiler, Cython, etc.)
+> :-)
+
+there's a simple solution: apt install python3-numpy-dbg cython3-dbg ;)  So
+depending on the package maintainer, you already have that available, but it is
+extra maintenance cost.  Simplifying that would be a good idea.  However I still
+would like to be able to have "debug" and "non-debug" builds co-installable at
+the same time.
+
