@@ -15442,3 +15442,874 @@ extra maintenance cost.  Simplifying that would be a good idea.  However I still
 would like to be able to have "debug" and "non-debug" builds co-installable at
 the same time.
 
+From J.Demeyer at UGent.be  Thu Apr 25 05:12:18 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 25 Apr 2019 11:12:18 +0200
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <19993545-3fdf-4bf6-56dd-e926d2032a3a@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com> <5CAE76B6.6090501@UGent.be>
+ <19993545-3fdf-4bf6-56dd-e926d2032a3a@redhat.com>
+Message-ID: <5CC179F2.5050200@UGent.be>
+
+On 2019-04-25 00:24, Petr Viktorin wrote:
+> PEP 590 defines a new simple/fast protocol for its users, and instead of
+> making existing complexity faster and easier to use, it's left to be
+> deprecated/phased out (or kept in existing classes for backwards
+> compatibility). It makes it possible for future code to be faster/simpler.
+
+Can you elaborate on what you mean with this deprecating/phasing out?
+
+What's your view on dealing with method classes (not necessarily right 
+now, but in the future)? Do you think that having separate method 
+classes like method-wrapper (for example [].__add__) is good or bad?
+
+Since the way how PEP 580 and PEP 590 deal with bound method classes is 
+very different, I would like to know the roadmap for this.
+
+
+Jeroen.
+
+From vstinner at redhat.com  Thu Apr 25 06:39:44 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 25 Apr 2019 12:39:44 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CAPJVwB=Xw79L-xEkwmPsGfHZkzHEjp65j4+9C2PObNTWLcg61g@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+ <CAPJVwB=Xw79L-xEkwmPsGfHZkzHEjp65j4+9C2PObNTWLcg61g@mail.gmail.com>
+Message-ID: <CA+3bQGFD_9HZbMKKCsJBi2f7v+rtrz93uKw=VP4O1RZK81vJ1w@mail.gmail.com>
+
+Hi,
+
+I'm now convinced that C extensions must *not* be linked to libpython on Unix.
+
+I wrote PR 12946:
+https://github.com/python/cpython/pull/12946
+
+    bpo-21536: C extensions are no longer linked to libpython
+
+    On Unix, C extensions are no longer linked to libpython.
+
+    It is now possible to load a C extension built using a shared library
+    Python with a statically linked Python.
+
+    When Python is embedded, libpython must not be loaded with
+    RTLD_LOCAL, but RTDL_GLOBAL instead. Previously, using RTLD_LOCAL, it
+    was already not possible to load C extensions which were not linked
+    to libpython, like C extensions of the standard library built by the
+    "*shared*" section of Modules/Setup.
+
+    distutils, python-config and python-config.py have been modified.
+
+This PR allows to load a C extension built by a shared libpython with
+a statically linked Python:
+https://bugs.python.org/issue21536#msg340819
+
+It also allows to load C extension built in release mode with a Python
+built in debug mode:
+https://bugs.python.org/issue21536#msg340821
+
+
+Le jeu. 25 avr. 2019 ? 08:31, Nathaniel Smith <njs at pobox.com> a ?crit :
+> In principle, having extension modules link to libpython.so is a good thing. Suppose that someone wants to dynamically load the python interpreter into their program as some kind of plugin. (Examples: Apache's mod_python, LibreOffice's support for writing macros in Python.) It would be nice to be able to load python2 and python3 simultaneously into the same process as distinct plugins. And this is totally doable in theory, *but* it means that you can't assume that the interpreter's symbols will be automagically injected into extension modules, so it's only possible if extension modules link to libpython.so.
+
+I'm aware of 2 special use cases of libpython:
+
+
+(A) Embed Python using RTLD_LOCAL: dlopen("libpython2.7.so.1.0",
+RTLD_LOCAL | RTLD_NOW)
+
+Example of issues describing this use case:
+
+* 2003: https://bugs.python.org/issue832799
+* 2006: https://bugs.python.org/issue1429775
+* 2018: https://bugs.python.org/issue34814 and
+https://bugzilla.redhat.com/show_bug.cgi?id=1585201
+
+Python started to link C extensions to libpython in 2006 for this use case.
+
+
+ (B) Load "libpython2" (Python 2) and "libpython3" (Python 3).
+
+I heard this idea... but I never saw anyone doing it in practice. I
+don't understand how it could work in a single address space.
+
+
+Linking C extensions to libpython is causing different issues:
+
+(1) C extension built by a shared library Python cannot be loaded with
+a statically linked Python:
+https://bugs.python.org/issue21536
+
+(2) C extension built in release mode cannot be loaded with Python
+built in debug mode. That's the issue discussed in this thread ;-)
+
+(3) C extension built by Python 3.6 cannot be loaded in Python 3.7,
+even if it has been compiled using the stable ABI (Py_LIMITED_API).
+
+(4) C extensions of the standard library built by "*shared*" of
+Modules/Setup are *not* linked to libpython. For example, _struct.so
+on Fedora is not linked to libpython, whereas . If libpython is loaded
+with RTLD_LOCAL (use case A), import _struct fails.
+
+
+The use case (A) (RTLD_LOCAL) is trivial to fix: replace RTLD_LOCAL
+with RTLD_GLOBAL.
+
+The use case (B) (libpython2 + libpython3) is also easy to workaround:
+just use 2 separated processes. Python 2 will reach its end of life at
+the end of the year, I'm not sure that we should worry too much about
+this use case.
+
+The issue (1) (statically/shared) is a very practical issue.
+Fedora/RHEL uses libpython whereas Debian/Ubuntu uses statically
+linked Python. C extension compiled on Fedora/RHEL is linked to
+libpython and so cannot be loaded on Debian/Ubuntu (their Python
+doesn't have libpython!). That's why manylinux forbid link to link to
+libpython: be able to load C extensions on all Linux distributions.
+
+IMHO issues (1), (2), (3), (4) are more valuable to be fixed than
+supporting use cases (A) and (B).
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Thu Apr 25 06:53:23 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 25 Apr 2019 12:53:23 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <92ffccf0-b990-6dd1-1ca5-5361ecb0bf31@ubuntu.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+ <92ffccf0-b990-6dd1-1ca5-5361ecb0bf31@ubuntu.com>
+Message-ID: <CA+3bQGEOVPEH+mGFVZwfu2H_4sB5gaN1O1R5_+9E28s-UU-oTA@mail.gmail.com>
+
+Le jeu. 25 avr. 2019 ? 09:30, Matthias Klose <doko at ubuntu.com> a ?crit :
+> the purpose of python-config here is not clear. Whether it's intended to be used
+> for linking extensions, or embedded interpreters. Currently you are using the
+> same for both use cases.
+
+My PR 12946 removes libpython from distutils, python-config and
+python-config.py:
+https://github.com/python/cpython/pull/12946
+
+Do you mean that this change will break the build of applications
+embedding Python? If yes, what can done to fix that?
+
+Provide a different script to the specific case of embedded Python? Or
+add a new option to specify that you are embedding Python?
+
+In Python 3.7, the required linker flag is "-lpython3.7m". It's not
+trivial to guess the "m" suffix. FYI Python 3.8 it becames just
+"-lpython3.8": I removed the "m" suffix which was useless.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Thu Apr 25 07:14:10 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 25 Apr 2019 13:14:10 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <7aad8d69-2d66-54a3-26a4-20dcc5150f66@ubuntu.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <7aad8d69-2d66-54a3-26a4-20dcc5150f66@ubuntu.com>
+Message-ID: <CA+3bQGGMXV_=GsBuFWm5OiLSiCUPp15eb9cd2UffVXbVxqAWdg@mail.gmail.com>
+
+Le jeu. 25 avr. 2019 ? 09:34, Matthias Klose <doko at ubuntu.com> a ?crit :
+> there's a simple solution: apt install python3-numpy-dbg cython3-dbg ;)  So
+> depending on the package maintainer, you already have that available, but it is
+> extra maintenance cost.  Simplifying that would be a good idea.
+
+Fedora provides "debuginfo" for all binarry packages (like numpy), but
+that's different from a debug build. Usually, C code of packages are
+optimized by gcc -O2 or even gcc -O3 which makes the debugging
+experience very painful: gdb fails to read C local variables and just
+say "<optimized out>". To debug internals, you want a debug build
+compiled by gcc -Og or (better IMHO) gcc -O0.
+
+If you want to inspect *Python* internals but you don't need to
+inspect numpy internals, being able to run a release numpy on a debug
+Python is convenient.
+
+With an additional change on SOABI (I will open a separated issue for
+that), my PR 12946 (no longer link C extensions to libpython) allows
+to load lxml built in release mode in a Python built in debug mode!
+That's *very* useful for debugging. I show an example of the gdb
+experience with a release Python vs debug Python:
+
+https://bugs.python.org/issue21536#msg340821
+
+With a release Python, the basic function "py-bt" works as expected,
+but inspecting Python internals doesn't work: most local C variables
+are "optimized out" :-(
+
+With a debug Python, the debugging experience is *much* better: it's
+possible to inspect Python internals!
+
+
+> However I still
+> would like to be able to have "debug" and "non-debug" builds co-installable at
+> the same time.
+
+One option is to keep "d" flag in the SOABI so C extensions get a
+different SO filename (no change compared to Python 3.7):
+"NAME.cpython-38-x86_64-linux-gnu.so" for release vs
+"NAME.cpython-38d-x86_64-linux-gnu.so" for debug, debug gets "d"
+suffix ("cpython-38" vs "cpython-38d").
+
+*But* modify importlib when Python is compiled in debug mode to look
+also to SO without the "d" suffix: first try load
+"NAME.cpython-38d-x86_64-linux-gnu.so" (debug: "d" suffix). If there
+is no match, look for "NAME.cpython-38-x86_64-linux-gnu.so" (release:
+no suffix). Since the ABI is now compatible in Python 3.8, it should
+"just work" :-)
+
+>From a Linux packager perspective, nothing changes ;-) We can still
+provide "apt install python3-numpy-dbg" (debug) which can is
+co-installable with "apt install python3-numpy" (release).
+
+The benefit is that it will be possible to load C extensions which are
+only available in the release flavor with a debug Python ;-)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Thu Apr 25 07:26:35 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 25 Apr 2019 13:26:35 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CA+3bQGEOVPEH+mGFVZwfu2H_4sB5gaN1O1R5_+9E28s-UU-oTA@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+ <92ffccf0-b990-6dd1-1ca5-5361ecb0bf31@ubuntu.com>
+ <CA+3bQGEOVPEH+mGFVZwfu2H_4sB5gaN1O1R5_+9E28s-UU-oTA@mail.gmail.com>
+Message-ID: <CA+3bQGGQRc+C9VfA+ShBRnOT68c-Zk7YHak-VTuHmAEdJc75GQ@mail.gmail.com>
+
+I looked how fonforge gets compiler and linker flags to embed Python:
+it seems like to "pkg-config --libs python-2.7" which returns
+"-lpython2.7". My PR doesn't change Misc/python.pc. Should I modify
+Misc/python.pc as well... or not? :-) I'm not used to pkg-config. I
+don't know if it's common that C extensions are built using
+pkg-config. I guess that distutils is more commonly used to build C
+extensions.
+
+Victor
+
+Le jeu. 25 avr. 2019 ? 12:53, Victor Stinner <vstinner at redhat.com> a ?crit :
+> Le jeu. 25 avr. 2019 ? 09:30, Matthias Klose <doko at ubuntu.com> a ?crit :
+> > the purpose of python-config here is not clear. Whether it's intended to be used
+> > for linking extensions, or embedded interpreters. Currently you are using the
+> > same for both use cases.
+>
+> My PR 12946 removes libpython from distutils, python-config and
+> python-config.py:
+> https://github.com/python/cpython/pull/12946
+>
+> Do you mean that this change will break the build of applications
+> embedding Python? If yes, what can done to fix that?
+>
+> Provide a different script to the specific case of embedded Python? Or
+> add a new option to specify that you are embedding Python?
+>
+> In Python 3.7, the required linker flag is "-lpython3.7m". It's not
+> trivial to guess the "m" suffix. FYI Python 3.8 it becames just
+> "-lpython3.8": I removed the "m" suffix which was useless.
+>
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From doko at ubuntu.com  Thu Apr 25 07:41:38 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Thu, 25 Apr 2019 13:41:38 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CA+3bQGGQRc+C9VfA+ShBRnOT68c-Zk7YHak-VTuHmAEdJc75GQ@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <CA+3bQGGQN3_F4er6YRmaKU0tWx9soF1nLfBYpAd9UA5YniOkvA@mail.gmail.com>
+ <92ffccf0-b990-6dd1-1ca5-5361ecb0bf31@ubuntu.com>
+ <CA+3bQGEOVPEH+mGFVZwfu2H_4sB5gaN1O1R5_+9E28s-UU-oTA@mail.gmail.com>
+ <CA+3bQGGQRc+C9VfA+ShBRnOT68c-Zk7YHak-VTuHmAEdJc75GQ@mail.gmail.com>
+Message-ID: <9085f0c0-d84a-a339-3a34-ce3ac8e10ee7@ubuntu.com>
+
+On 25.04.19 13:26, Victor Stinner wrote:
+> I looked how fonforge gets compiler and linker flags to embed Python:
+> it seems like to "pkg-config --libs python-2.7" which returns
+> "-lpython2.7". My PR doesn't change Misc/python.pc. Should I modify
+> Misc/python.pc as well... or not? :-) I'm not used to pkg-config. I
+> don't know if it's common that C extensions are built using
+> pkg-config. I guess that distutils is more commonly used to build C
+> extensions.
+
+... except for all the software which is doing some embedding (e.g. vim), or is
+building some bindings as part of the upstream software. So yes, there is some
+stuff ...
+
+The tendency seems to deprecate your own config helper in favor of pkgconfig.
+However I'm not sure how this would do with the current MacOS python-config
+python script.  If we want to differentiate between embedding and extensions,
+then we need two different module names, maybe keeping the current one for
+extensions, and having a new one for embedding.
+
+Not sure about python-config, if we want a new helper for embedding, or add new
+options for the existing script.
+
+> Victor
+> 
+> Le jeu. 25 avr. 2019 ? 12:53, Victor Stinner <vstinner at redhat.com> a ?crit :
+>> Le jeu. 25 avr. 2019 ? 09:30, Matthias Klose <doko at ubuntu.com> a ?crit :
+>>> the purpose of python-config here is not clear. Whether it's intended to be used
+>>> for linking extensions, or embedded interpreters. Currently you are using the
+>>> same for both use cases.
+>>
+>> My PR 12946 removes libpython from distutils, python-config and
+>> python-config.py:
+>> https://github.com/python/cpython/pull/12946
+>>
+>> Do you mean that this change will break the build of applications
+>> embedding Python? If yes, what can done to fix that?
+>>
+>> Provide a different script to the specific case of embedded Python? Or
+>> add a new option to specify that you are embedding Python?
+>>
+>> In Python 3.7, the required linker flag is "-lpython3.7m". It's not
+>> trivial to guess the "m" suffix. FYI Python 3.8 it becames just
+>> "-lpython3.8": I removed the "m" suffix which was useless.
+>>
+>> Victor
+>> --
+>> Night gathers, and now my watch begins. It shall not end until my death.
+> 
+> 
+> 
+
+
+From doko at ubuntu.com  Thu Apr 25 07:48:05 2019
+From: doko at ubuntu.com (Matthias Klose)
+Date: Thu, 25 Apr 2019 13:48:05 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CA+3bQGGMXV_=GsBuFWm5OiLSiCUPp15eb9cd2UffVXbVxqAWdg@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <7aad8d69-2d66-54a3-26a4-20dcc5150f66@ubuntu.com>
+ <CA+3bQGGMXV_=GsBuFWm5OiLSiCUPp15eb9cd2UffVXbVxqAWdg@mail.gmail.com>
+Message-ID: <6a395e77-d681-69f8-ba32-f6fd47f261cb@ubuntu.com>
+
+On 25.04.19 13:14, Victor Stinner wrote:
+> Le jeu. 25 avr. 2019 ? 09:34, Matthias Klose <doko at ubuntu.com> a ?crit :
+>> there's a simple solution: apt install python3-numpy-dbg cython3-dbg ;)  So
+>> depending on the package maintainer, you already have that available, but it is
+>> extra maintenance cost.  Simplifying that would be a good idea.
+> 
+> Fedora provides "debuginfo" for all binarry packages (like numpy), but
+> that's different from a debug build. Usually, C code of packages are
+> optimized by gcc -O2 or even gcc -O3 which makes the debugging
+> experience very painful: gdb fails to read C local variables and just
+> say "<optimized out>". To debug internals, you want a debug build
+> compiled by gcc -Og or (better IMHO) gcc -O0.
+> 
+> If you want to inspect *Python* internals but you don't need to
+> inspect numpy internals, being able to run a release numpy on a debug
+> Python is convenient.
+
+yes, the Debian/Ubuntu packages contain both the debug build, and the debug info
+for they normal build, e.g.
+
+/usr/lib/debug/.build-id/3a/8ea2ab6ee85ff68879a48170966873eb8da781.debug
+/usr/lib/debug/.build-id/78/5ff95f8d2d06c5990ae4e03cdff99452ca0de9.debug
+/usr/lib/debug/.build-id/92/e008cffa3f09106214bfb6b80b7fd02ceab74f.debug
+/usr/lib/debug/.build-id/ab/33160518c41acc0488bbc3af878995ef74e07f.debug
+/usr/lib/debug/.build-id/bd/65896626a4c6566e96ad008362922cf6a39cd6.debug
+/usr/lib/debug/.build-id/f1/e83b14a76dd9564e962dcdd2f70202e6fdb2b1.debug
+/usr/lib/debug/.build-id/ff/5eab5fd2d14f4bfa6a1ef2300358efdc7dd800.debug
+/usr/lib/python3/dist-packages/lxml/_elementpath.cpython-37dm-x86_64-linux-gnu.so
+/usr/lib/python3/dist-packages/lxml/builder.cpython-37dm-x86_64-linux-gnu.so
+/usr/lib/python3/dist-packages/lxml/etree.cpython-37dm-x86_64-linux-gnu.so
+/usr/lib/python3/dist-packages/lxml/html/clean.cpython-37dm-x86_64-linux-gnu.so
+/usr/lib/python3/dist-packages/lxml/html/diff.cpython-37dm-x86_64-linux-gnu.so
+/usr/lib/python3/dist-packages/lxml/objectify.cpython-37dm-x86_64-linux-gnu.so
+/usr/lib/python3/dist-packages/lxml/sax.cpython-37dm-x86_64-linux-gnu.so
+
+> With an additional change on SOABI (I will open a separated issue for
+> that), my PR 12946 (no longer link C extensions to libpython) allows
+> to load lxml built in release mode in a Python built in debug mode!
+> That's *very* useful for debugging. I show an example of the gdb
+> experience with a release Python vs debug Python:
+> 
+> https://bugs.python.org/issue21536#msg340821
+> 
+> With a release Python, the basic function "py-bt" works as expected,
+> but inspecting Python internals doesn't work: most local C variables
+> are "optimized out" :-(
+> 
+> With a debug Python, the debugging experience is *much* better: it's
+> possible to inspect Python internals!
+> 
+> 
+>> However I still
+>> would like to be able to have "debug" and "non-debug" builds co-installable at
+>> the same time.
+> 
+> One option is to keep "d" flag in the SOABI so C extensions get a
+> different SO filename (no change compared to Python 3.7):
+> "NAME.cpython-38-x86_64-linux-gnu.so" for release vs
+> "NAME.cpython-38d-x86_64-linux-gnu.so" for debug, debug gets "d"
+> suffix ("cpython-38" vs "cpython-38d").
+> 
+> *But* modify importlib when Python is compiled in debug mode to look
+> also to SO without the "d" suffix: first try load
+> "NAME.cpython-38d-x86_64-linux-gnu.so" (debug: "d" suffix). If there
+> is no match, look for "NAME.cpython-38-x86_64-linux-gnu.so" (release:
+> no suffix). Since the ABI is now compatible in Python 3.8, it should
+> "just work" :-)
+> 
+> From a Linux packager perspective, nothing changes ;-) We can still
+> provide "apt install python3-numpy-dbg" (debug) which can is
+> co-installable with "apt install python3-numpy" (release).
+> 
+> The benefit is that it will be possible to load C extensions which are
+> only available in the release flavor with a debug Python ;-)
+
+yes, that sounds good.  Are there use cases where you only want to load *some*
+debug extensions, even if more are installed?
+
+
+From J.Demeyer at UGent.be  Thu Apr 25 10:42:45 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 25 Apr 2019 16:42:45 +0200
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com>
+Message-ID: <5CC1C765.1020608@UGent.be>
+
+On 2019-04-25 00:24, Petr Viktorin wrote:
+> I believe we can achieve
+> that by having PEP 590's (o+offset) point not just to function pointer,
+> but to a {function pointer; flags} struct with flags defined for two
+> optimizations:
+
+What's the rationale for putting the flags in the instance? Do you 
+expect flags to be different between one instance and another instance 
+of the same class?
+
+> Both type flags and
+> nargs bits are very limited resources.
+
+Type flags are only a limited resource if you think that all flags ever 
+added to a type must be put into tp_flags. There is nothing wrong with 
+adding new fields tp_extraflags or tp_vectorcall_flags to a type.
+
+> What I don't like about it is that it has
+> the extensions built-in; mandatory for all callers/callees.
+
+I don't agree with the above sentence about PEP 580:
+- callers should use APIs like PyCCall_FastCall() and shouldn't need to 
+worry about the implementation details at all.
+- callees can opt out of all the extensions by not setting any special 
+flags and setting cr_self to a non-NULL value. When using the flags 
+CCALL_FASTCALL | CCALL_KEYWORDS, then implementing the callee is exactly 
+the same as PEP 590.
+
+> As in PEP 590, any class that uses this mechanism shall not be usable as
+> a base class.
+
+Can we please lift this restriction? There is really no reason for it. 
+I'm not aware of any similar restriction anywhere in CPython. Note that 
+allowing subclassing is not the same as inheriting the protocol. As a 
+compromise, we could simply never inherit the protocol.
+
+
+Jeroen.
+
+From pviktori at redhat.com  Thu Apr 25 12:17:53 2019
+From: pviktori at redhat.com (Petr Viktorin)
+Date: Thu, 25 Apr 2019 12:17:53 -0400
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <5CC1C765.1020608@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+Message-ID: <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+
+On 4/25/19 10:42 AM, Jeroen Demeyer wrote:
+> On 2019-04-25 00:24, Petr Viktorin wrote:
+>> I believe we can achieve
+>> that by having PEP 590's (o+offset) point not just to function pointer,
+>> but to a {function pointer; flags} struct with flags defined for two
+>> optimizations:
+> 
+> What's the rationale for putting the flags in the instance? Do you 
+> expect flags to be different between one instance and another instance 
+> of the same class?
+
+I'm not tied to that idea. If there's a more reasonable place to put the 
+flags, let's go for it, but it's not a big enough issue so it shouldn't 
+complicate the protocol much. Quoting Mark from the other subthread:
+> Callables are either large or transient. If large, then the extra few bytes makes little difference. If transient then, it matters even less.
+
+
+>> Both type flags and
+>> nargs bits are very limited resources.
+> 
+> Type flags are only a limited resource if you think that all flags ever 
+> added to a type must be put into tp_flags. There is nothing wrong with 
+> adding new fields tp_extraflags or tp_vectorcall_flags to a type.
+
+Indeed. Extra flags are just what I think PEP 590 is missing.
+
+>> What I don't like about it is that it has
+>> the extensions built-in; mandatory for all callers/callees.
+> 
+> I don't agree with the above sentence about PEP 580:
+> - callers should use APIs like PyCCall_FastCall() and shouldn't need to 
+> worry about the implementation details at all.
+> - callees can opt out of all the extensions by not setting any special 
+> flags and setting cr_self to a non-NULL value. When using the flags 
+> CCALL_FASTCALL | CCALL_KEYWORDS, then implementing the callee is exactly 
+> the same as PEP 590.
+
+Imagine an extension author sitting down to read the docs and implement 
+a callable:
+
+- PEP 580 introduces 6 CCALL_* combinations: you need to select the best 
+one for your use case. Also, add two structs to the instance & link them 
+via pointers, make sure you support descriptor behavior and the __name__ 
+attribute. (Plus there are features for special purposes: CCALL_DEFARG, 
+CCALL_OBJCLASS, self-slicing, but you can skip that initially.)
+- My proposal: to the instance, add a function pointer with known 
+signature and flags which you set to zero. Add an offset to the type, 
+and set a type flag. (There are additional possible optimizations, but 
+you can skip them initially.)
+
+PEP 580 makes a lot of sense if you read it all, but I fear there'll be 
+very few people who read and understand it.
+And is not important just for extension authors (admittedly, 
+implementing a callable directly using the C API is often a bad idea). 
+The more people understand the mechanism, the more people can help with 
+further improvements.
+
+
+I don't see the benefit of supporting METH_VARARGS, METH_NOARGS, and 
+METH_O calling conventions (beyond backwards compatibility and 
+comptibility with Python's *args syntax).
+For keywords, I see a benefit in supporting *only one* of kwarg dict or 
+kwarg tuple: if the caller and callee don't agree on which one to use, 
+you need an expensive conversion. If we say tuple is the way, some of 
+them will need to adapt, but within the set of those that do it any 
+caller/callee combination will be fast. (And if tuple only turns out to 
+be wrong choice, adding dict support in the future shouldn't be hard.)
+
+That leaves fastcall (with tuple only) as the focus of this PEP, and the 
+other calling conventions essentially as implementation details of 
+builtin functions/methods.
+
+
+>> As in PEP 590, any class that uses this mechanism shall not be usable as
+>> a base class.
+> 
+> Can we please lift this restriction? There is really no reason for it. 
+> I'm not aware of any similar restriction anywhere in CPython. Note that 
+> allowing subclassing is not the same as inheriting the protocol.
+
+Sure, let's use PEP 580 treatment of inheritance.
+Even if we don't, I don't think dropping this restriction would be a 
+PEP-level change. It can be dropped as soon as an implementation and 
+tests are ready, and inheritance issues ironed out. But it doesn't need 
+to be in the initial implementation.
+
+> As a compromise, we could simply never inherit the protocol.
+
+That also sounds reasonable for the initial implementation.
+
+From pviktori at redhat.com  Thu Apr 25 17:11:36 2019
+From: pviktori at redhat.com (Petr Viktorin)
+Date: Thu, 25 Apr 2019 17:11:36 -0400
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <5CC179F2.5050200@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com> <5CAE76B6.6090501@UGent.be>
+ <19993545-3fdf-4bf6-56dd-e926d2032a3a@redhat.com> <5CC179F2.5050200@UGent.be>
+Message-ID: <49c8c9d4-1537-fc54-1ebd-e908d4a858d7@redhat.com>
+
+On 4/25/19 5:12 AM, Jeroen Demeyer wrote:
+> On 2019-04-25 00:24, Petr Viktorin wrote:
+>> PEP 590 defines a new simple/fast protocol for its users, and instead of
+>> making existing complexity faster and easier to use, it's left to be
+>> deprecated/phased out (or kept in existing classes for backwards
+>> compatibility). It makes it possible for future code to be 
+>> faster/simpler.
+> 
+> Can you elaborate on what you mean with this deprecating/phasing out?
+
+Kept for backwards compatibility, but not actively recommended or 
+optimized. Perhaps made slower if that would help performance elsewhere.
+
+
+> What's your view on dealing with method classes (not necessarily right 
+> now, but in the future)? Do you think that having separate method 
+> classes like method-wrapper (for example [].__add__) is good or bad?
+
+I fully agree with PEP 579's point on complexity:
+> There are a huge number of classes involved to implement all variations of methods. This is not a problem by itself, but a compounding issue.
+
+The main problem is that, currently, you sometimes need to care about 
+this (due to CPython special casing its own classes, without fallback to 
+some public API). Ideally, what matters is the protocols the class 
+implements rather than the class itself. If that is solved, having so 
+many different classes becomes curious but unimportant -- merging them 
+shouldn't be a priority.
+
+I'd concentrate on two efforts instead:
+
+- Calling should have a fast public API. (That's this PEP.)
+- Introspection should have well-defined, consistently used public API 
+(but not necessarily fast).
+
+For introspection, I think the way is implementing the necessary API 
+(e.g. dunder attributes) and changing things like inspect, traceback 
+generation, etc. to use them. CPython's callable classes should stay as 
+internal implementation details. (Specifically: I'm against making them 
+subclassable: allowing subclasses basically makes everything about the 
+superclass an API.)
+
+> Since the way how PEP 580 and PEP 590 deal with bound method classes is 
+> very different, I would like to know the roadmap for this.
+
+My thoughts are not the roadmap, of course :)
+
+
+Speaking about roadmaps, I often use PEP 579 to check what I'm 
+forgetting. Here are my thoughts on it:
+
+
+## Naming (The word "built-in" is overused in Python)
+
+This is a social/docs problem, and out of scope of the technical 
+efforts. PEPs should always define the terms they use (even in the case 
+where there is an official definition, but it doesn't match popular usage).
+
+
+## Not extendable
+
+As I mentioned above, I'm against opening the callables for subclassing. 
+We should define and use protocols instead.
+
+
+## cfunctions do not become methods
+
+If we were designing Python from scratch, this should have been done 
+differently.
+Now this is a problem for Cython to solve. CPython should provide the 
+tools to do so.
+
+
+## Semantics of inspect.isfunction
+
+I don't like inspect.isfunction, because "Is it a function?" is almost 
+never what you actually want to ask. I'd like to deprecate it in favor 
+of explicit functions like "Does it have source code?", "Is it 
+callable?", or even "Is it exactly types.FunctionType?".
+But I'm against changing its behavior -- people are expecting the 
+current answer.
+
+
+## C functions should have access to the function object
+
+That's where my stake in all this is; I want to move on with PEP 573 
+after 580/590 is sorted out.
+
+
+## METH_FASTCALL is private and undocumented
+
+This is the intersection of PEP 580 and 590.
+
+
+## Allowing native C arguments
+
+This would be a very experimental feature. Argument Clinic itself is not 
+intended for public use, locking its "impl" functions as part of public 
+API is off the table at this point.
+Cython's cpdef allows this nicely, and CPython's API is full of C 
+functions. That should be good enough good for now.
+
+
+## Complexity
+
+We should simpify, but I think the number of callable classes is not the 
+best metric to focus on.
+
+
+## PyMethodDef is too limited
+
+This is a valid point. But the PyMethodDef array is little more than a 
+shortcut to creating methods directly in a loop. The immediate 
+workaround could be to create a new constructor for methods. Then we can 
+look into expressing the data declaratively again.
+
+
+## Slot wrappers have no custom documentation
+
+I think this can now be done with a new custom slot wrapper class. 
+Perhaps that can be added to CPython when it matures.
+
+
+## Static methods and class methods should be callable
+
+This is a valid, though minor, point. I don't event think it would be a 
+PEP-level change.
+
+
+From stefan_ml at behnel.de  Thu Apr 25 17:56:56 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Thu, 25 Apr 2019 23:56:56 +0200
+Subject: [Python-Dev] Any core dev event plans for EP19?
+Message-ID: <q9taf8$k2e$1@blaine.gmane.org>
+
+Hi core devs,
+
+there are several core dev events happening at the US PyCon this year, so I
+was wondering if we could organise something similar at EuroPython. Does
+anyone have any plans or ideas already? And, how many of us are planning to
+attend EP19 in Basel this year? Unless there's something already going on
+that I missed, I can (try to) set up a poll on dpo to count the interest
+and collect ideas.
+
+Sprints would probably be a straight-forward option, a mentoring session
+could be another, a language summit or PEP discussion/mentoring round would
+also be a possibility. More ideas welcome.
+
+Stefan
+
+
+From levkivskyi at gmail.com  Thu Apr 25 18:05:20 2019
+From: levkivskyi at gmail.com (Ivan Levkivskyi)
+Date: Thu, 25 Apr 2019 15:05:20 -0700
+Subject: [Python-Dev] Any core dev event plans for EP19?
+In-Reply-To: <q9taf8$k2e$1@blaine.gmane.org>
+References: <q9taf8$k2e$1@blaine.gmane.org>
+Message-ID: <CAOMjWkk9cmAHT8Yg5snzigiK=c=3zaMg9jg5B-SZgAMV4MZvcw@mail.gmail.com>
+
+Hi,
+
+I want to come to EP this year, but didn't register yet, is registration
+already open?
+
+--
+Ivan
+
+
+
+On Thu, 25 Apr 2019 at 15:01, Stefan Behnel <stefan_ml at behnel.de> wrote:
+
+> Hi core devs,
+>
+> there are several core dev events happening at the US PyCon this year, so I
+> was wondering if we could organise something similar at EuroPython. Does
+> anyone have any plans or ideas already? And, how many of us are planning to
+> attend EP19 in Basel this year? Unless there's something already going on
+> that I missed, I can (try to) set up a poll on dpo to count the interest
+> and collect ideas.
+>
+> Sprints would probably be a straight-forward option, a mentoring session
+> could be another, a language summit or PEP discussion/mentoring round would
+> also be a possibility. More ideas welcome.
+>
+> Stefan
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/levkivskyi%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190425/c7ed5603/attachment.html>
+
+From berker.peksag at gmail.com  Thu Apr 25 19:15:16 2019
+From: berker.peksag at gmail.com (=?UTF-8?Q?Berker_Peksa=C4=9F?=)
+Date: Fri, 26 Apr 2019 02:15:16 +0300
+Subject: [Python-Dev] Any core dev event plans for EP19?
+In-Reply-To: <q9taf8$k2e$1@blaine.gmane.org>
+References: <q9taf8$k2e$1@blaine.gmane.org>
+Message-ID: <CAF4280KRD5zCA-QhfhcyMQ_Fc0C37RL4kAxog+oaQCowVLNhnw@mail.gmail.com>
+
+On Fri, Apr 26, 2019 at 1:01 AM Stefan Behnel <stefan_ml at behnel.de> wrote:
+> there are several core dev events happening at the US PyCon this year, so I
+> was wondering if we could organise something similar at EuroPython. Does
+> anyone have any plans or ideas already? And, how many of us are planning to
+> attend EP19 in Basel this year? Unless there's something already going on
+> that I missed, I can (try to) set up a poll on dpo to count the interest
+> and collect ideas.
+
+Note that this year's core dev sprint will be held in London. See
+https://discuss.python.org/t/2019-core-dev-sprint-location-date/489
+for the previous discussion. There are only two months between both
+events, so perhaps we can leave things like discussions on active PEPs
+to the core dev sprint?
+
+(And welcome to the team!)
+
+--Berker
+
+From stefan_ml at behnel.de  Fri Apr 26 01:56:06 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Fri, 26 Apr 2019 07:56:06 +0200
+Subject: [Python-Dev] Any core dev event plans for EP19?
+In-Reply-To: <CAF4280KRD5zCA-QhfhcyMQ_Fc0C37RL4kAxog+oaQCowVLNhnw@mail.gmail.com>
+References: <q9taf8$k2e$1@blaine.gmane.org>
+ <CAF4280KRD5zCA-QhfhcyMQ_Fc0C37RL4kAxog+oaQCowVLNhnw@mail.gmail.com>
+Message-ID: <q9u6hn$2g0c$1@blaine.gmane.org>
+
+Berker Peksa? schrieb am 26.04.19 um 01:15:
+> Note that this year's core dev sprint will be held in London. See
+> https://discuss.python.org/t/2019-core-dev-sprint-location-date/489
+> for the previous discussion. There are only two months between both
+> events, so perhaps we can leave things like discussions on active PEPs
+> to the core dev sprint?
+> (And welcome to the team!)
+
+Ah, nice! Thanks for telling me, I wasn't aware of it. London is just a day
+by train from where I live, I'm totally in for that.
+
+Stefan
+
+
