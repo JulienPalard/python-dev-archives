@@ -16313,3 +16313,1018 @@ by train from where I live, I'm totally in for that.
 Stefan
 
 
+From J.Demeyer at UGent.be  Fri Apr 26 06:54:35 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 26 Apr 2019 12:54:35 +0200
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+Message-ID: <5CC2E36B.1080302@UGent.be>
+
+Hello,
+
+after reading the various comments and thinking about it more, let me 
+propose a real compromise between PEP 580 and PEP 590.
+
+My proposal is: take the general framework of PEP 580 but support only a 
+single calling convention like PEP 590. The single calling convention 
+supported would be what is currently specified by the flag combination 
+CCALL_DEFARG|CCALL_FASTCALL|CCALL_KEYWORDS.
+
+This way, the flags CCALL_VARARGS, CCALL_FASTCALL, CCALL_O, 
+CCALL_NOARGS, CCALL_KEYWORDS, CCALL_DEFARG can be dropped.
+
+This calling convention is very similar to the calling convention of PEP 
+590, except that:
+- the callable is replaced by a pointer to a PyCCallDef (the structure 
+from PEP 580, but possibly without cc_parent)
+- there is a self argument like PEP 580. This implies support for the 
+CCALL_SELFARG flag from PEP 580 and no support for the 
+PY_VECTORCALL_ARGUMENTS_OFFSET trick of PEP 590.
+
+Background:
+
+I added support for all those calling conventions in PEP 580 because I 
+didn't want to make any compromise regarding performance. When writing 
+PEP 580, I assumed that any kind of performance regression would be a 
+reason to reject PEP 580.
+
+However, it seems now that you're willing to accept PEP 590 instead 
+which does introduce performance regressions in certain code paths. So 
+that suggests that we could keep the good parts of PEP 580 but reduce 
+its complexity by having a single calling convention like PEP 590.
+
+If you compare this compromise to PEP 590, the main difference is 
+dealing with bound methods. Personally, I really like the idea of having 
+a *single* bound method class which would be used by all kinds of 
+function classes without any loss of performance (not only in CPython 
+itself, but also by Cython and other C extensions). To support that, we 
+need something like the PyCCallRoot structure from PEP 580, together 
+with the special handling for self.
+
+About cc_parent and CCALL_OBJCLASS: I prefer to keep that because it 
+allows to merge classes for bare functions (not inside a class) and 
+unbound methods (functions inside a class). Concretely, that could 
+reduce code duplication between builtin_function_or_method and 
+method_descriptor. But I'm also fine with removing cc_parent and 
+CCALL_OBJCLASS. In any case, we can decide that later.
+
+
+What do you think?
+Jeroen.
+
+From tir.karthi at gmail.com  Fri Apr 26 06:56:45 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Fri, 26 Apr 2019 16:26:45 +0530
+Subject: [Python-Dev] Any core dev event plans for EP19?
+In-Reply-To: <CAOMjWkk9cmAHT8Yg5snzigiK=c=3zaMg9jg5B-SZgAMV4MZvcw@mail.gmail.com>
+References: <q9taf8$k2e$1@blaine.gmane.org>
+ <CAOMjWkk9cmAHT8Yg5snzigiK=c=3zaMg9jg5B-SZgAMV4MZvcw@mail.gmail.com>
+Message-ID: <CAAjsFLS1GqPZSjEtsanw1Gw35xZi2Y0YzOrO542Txkhk2AMCDA@mail.gmail.com>
+
+On Fri, Apr 26, 2019 at 3:40 AM Ivan Levkivskyi <levkivskyi at gmail.com>
+wrote:
+
+> Hi,
+>
+> I want to come to EP this year, but didn't register yet, is registration
+> already open?
+>
+> Just to add to this core developers are eligible for free entry to the
+conference : https://www.europython-society.org/core-grant
+
+-- 
+Regards,
+Karthikeyan S
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190426/08c03da9/attachment.html>
+
+From pierre.glaser at inria.fr  Fri Apr 26 08:32:31 2019
+From: pierre.glaser at inria.fr (Pierre Glaser)
+Date: Fri, 26 Apr 2019 14:32:31 +0200 (CEST)
+Subject: [Python-Dev] Increasing the C-optimized pickle extensibility
+Message-ID: <2040555306.8345029.1556281951734.JavaMail.zimbra@inria.fr>
+
+Hi All, 
+
+We (Antoine Pitrou, Olivier Grisel and myself) spent some efforts recently on 
+enabling pickle extensions to extend the C-optimized Pickler instead of the 
+pure Python one. 
+
+Pickle extensions have a crucial role in many distributed computing libraries: 
+cloudpickle (https://github.com/cloudpipe/cloudpickle) for example is vendored 
+in dask, pyspark, ray, and joblib. 
+Early benchmarks show that relying on the C-optimized pickle yields 
+significant serialization speed improvements (up to 30x faster). 
+(draft PR of the CPickler-backed version of cloudpickle: https://github.com/cloudpipe/cloudpickle/pull/253) 
+
+To make extending the C Pickler possible, we are currently moving forward with 
+a few enhancements to the public pickle API. 
+
+* First, we are enabling Pickler subclasses to implement a reducer_override 
+method, that will be have priority over the registered reducers in the 
+dispatch_table and over the default handling of classes and functions. 
+(PR link: https://github.com/python/cpython/pull/12499) 
+
+* Then, we are adding a new keyword argument to save_reduce called state_setter. 
+(consequently we allow a reducer's return value to have a new, 6th item). 
+This state setter callable is useful to override programmatically the state updating 
+behavior of an object, that would otherwise be restricted to its static 
+``__setstate__`` method. 
+(PR link: https://github.com/python/cpython/pull/12588) 
+
+The PR review process of these changes is in progress, and anyone is welcomed 
+to chime in and share some thoughts. 
+
+The first addition is very non-invasive. We estimated that the second point did 
+not require introducing a new opcode, as this change could be implemented as 
+simple sequence of standard pickle instructions. We therefore think that it is 
+not necessary to make this change dependent on the new protocol 5 proposed in 
+PEP 574. 
+
+The key advantage in not creating a new opcode that this makes our change 
+backward-compatible, meaning that 3.8-written pickles will not break because of 
+our change if read using earlier Python versions. 
+
+OTOH, one might argue that a new OPCODE might 
+* make the code a little bit cleaner 
+* make it easier to interpret disassembled pickle strings. 
+
+If you are interested, here is an example of a disassembled pickle string 
+using our currently proposed solution: 
+https://github.com/pierreglaser/cpython/pull/2#issuecomment-486243350 
+
+Does anyone have an opinion on this? 
+
+Thanks, 
+
+Pierre 
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190426/6578a59e/attachment-0001.html>
+
+From guido at python.org  Fri Apr 26 10:49:45 2019
+From: guido at python.org (Guido van Rossum)
+Date: Fri, 26 Apr 2019 07:49:45 -0700
+Subject: [Python-Dev] Steering Council Update for April 2019
+Message-ID: <CAP7+vJKy-vWOH9+wOH+FqAQ9vb2=n5NkUusB8Mu2zFSjXeXfzQ@mail.gmail.com>
+
+I've posted an update from the Steering Council to our repo:
+
+https://github.com/python/steering-council/blob/master/updates/2019-04-26_steering-council-update.md
+
+I will also link to this on Discourse (discuss.python.org).
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190426/69aa9fcd/attachment.html>
+
+From J.Demeyer at UGent.be  Fri Apr 26 10:52:18 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 26 Apr 2019 16:52:18 +0200
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <49c8c9d4-1537-fc54-1ebd-e908d4a858d7@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com> <5CAE76B6.6090501@UGent.be>
+ <19993545-3fdf-4bf6-56dd-e926d2032a3a@redhat.com> <5CC179F2.5050200@UGent.be>
+ <49c8c9d4-1537-fc54-1ebd-e908d4a858d7@redhat.com>
+Message-ID: <5CC31B22.7070705@UGent.be>
+
+On 2019-04-25 23:11, Petr Viktorin wrote:
+> My thoughts are not the roadmap, of course :)
+
+I asked about methods because we should aware of the consequences when 
+choosing between PEP 580 and PEP 590 (or some compromise). There are 
+basically 3 different ways of dealing with bound methods:
+
+(A) put methods inside the protocol. This is PEP 580 and my 580/590 
+compromise proposal. The disadvantage here is complexity in the protocol.
+
+(B) don't put methods inside the protocol and use a single generic 
+method class types.MethodType. This is the status-quo for Python 
+functions. It has the disadvantage of being slightly slower: there is an 
+additional level of indirection when calling a bound method object.
+
+(C) don't put methods inside the protocol but use multiple method 
+classes, one for every function class. This is the status-quo for 
+functions implemented in C. This has the disadvantage of code duplication.
+
+I think that the choice between PEP 580 or 590 should be done together 
+with a choice of one of the above options. For example, I really don't 
+like the code duplication of (C), so I would prefer PEP 590 with (B) 
+over PEP 590 with (C).
+
+From guido at python.org  Fri Apr 26 11:15:02 2019
+From: guido at python.org (Guido van Rossum)
+Date: Fri, 26 Apr 2019 08:15:02 -0700
+Subject: [Python-Dev] Increasing the C-optimized pickle extensibility
+In-Reply-To: <2040555306.8345029.1556281951734.JavaMail.zimbra@inria.fr>
+References: <2040555306.8345029.1556281951734.JavaMail.zimbra@inria.fr>
+Message-ID: <CAP7+vJLTA=9LeGM=ugwVwbsCu1HmbYOmEQt=_=VkV1PVM7K2XQ@mail.gmail.com>
+
+I think it's better not to introduce a new opcode, for the reason you
+stated -- you don't want your pickles to be unreadable by older Python
+versions, if you can help it.
+
+On Fri, Apr 26, 2019 at 5:59 AM Pierre Glaser <pierre.glaser at inria.fr>
+wrote:
+
+> Hi All,
+>
+> We (Antoine Pitrou, Olivier Grisel and myself) spent some efforts recently
+> on
+> enabling pickle extensions to extend the C-optimized Pickler instead of the
+> pure Python one.
+>
+> Pickle extensions have a crucial role in many distributed computing
+> libraries:
+> cloudpickle (https://github.com/cloudpipe/cloudpickle) for example is
+> vendored
+> in dask, pyspark, ray, and joblib.
+> Early benchmarks show that relying on the C-optimized pickle yields
+> significant serialization speed improvements (up to 30x faster).
+> (draft PR of the CPickler-backed version of cloudpickle:
+> https://github.com/cloudpipe/cloudpickle/pull/253)
+>
+> To make extending the C Pickler possible, we are currently moving forward
+> with
+> a few enhancements to the public pickle API.
+>
+> * First, we are enabling Pickler subclasses to implement a reducer_override
+>   method, that will be have priority over the registered reducers in the
+>   dispatch_table and over the default handling of classes and functions.
+>   (PR link: https://github.com/python/cpython/pull/12499)
+>
+> * Then, we are adding a new keyword argument to save_reduce called
+> state_setter.
+>   (consequently we allow a reducer's return value to have a new, 6th item).
+>   This state setter callable is useful to override programmatically the
+> state updating
+>   behavior of an object, that would otherwise be restricted to its static
+>   ``__setstate__`` method.
+>   (PR link: https://github.com/python/cpython/pull/12588)
+>
+> The PR review process of these changes is in progress, and anyone is
+> welcomed
+> to chime in and share some thoughts.
+>
+> The first addition is very non-invasive. We estimated that the second
+> point did
+> not require introducing a new opcode, as this change could be implemented
+> as
+> simple sequence of standard pickle instructions. We therefore think that
+> it is
+> not necessary to make this change dependent on the new protocol 5 proposed
+> in
+> PEP 574.
+>
+> The key advantage in not creating a new opcode that this makes our change
+> backward-compatible, meaning that 3.8-written pickles will not break
+> because of
+> our change if read using earlier Python versions.
+>
+> OTOH, one might argue that a new OPCODE might
+> * make the code a little bit cleaner
+> * make it easier to interpret disassembled pickle strings.
+>
+> If you are interested, here is an example of a disassembled pickle string
+> using our currently proposed solution:
+> https://github.com/pierreglaser/cpython/pull/2#issuecomment-486243350
+>
+> Does anyone have an opinion on this?
+>
+> Thanks,
+>
+> Pierre
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190426/102aea43/attachment.html>
+
+From ericsnowcurrently at gmail.com  Fri Apr 26 11:18:27 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Fri, 26 Apr 2019 09:18:27 -0600
+Subject: [Python-Dev] Steering Council Update for April 2019
+In-Reply-To: <CAP7+vJKy-vWOH9+wOH+FqAQ9vb2=n5NkUusB8Mu2zFSjXeXfzQ@mail.gmail.com>
+References: <CAP7+vJKy-vWOH9+wOH+FqAQ9vb2=n5NkUusB8Mu2zFSjXeXfzQ@mail.gmail.com>
+Message-ID: <CALFfu7CK=UJrvzQEz+Bb-GuspZgtnyDS2ZpuHYwCRU07Cg9-cw@mail.gmail.com>
+
+Thanks to each of you for the update and the hard work!
+
+-eric
+
+On Fri, Apr 26, 2019 at 8:52 AM Guido van Rossum <guido at python.org> wrote:
+>
+> I've posted an update from the Steering Council to our repo:
+>
+> https://github.com/python/steering-council/blob/master/updates/2019-04-26_steering-council-update.md
+>
+> I will also link to this on Discourse (discuss.python.org).
+>
+> --
+> --Guido van Rossum (python.org/~guido)
+> Pronouns: he/him/his (why is my pronoun here?)
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/ericsnowcurrently%40gmail.com
+
+From ericsnowcurrently at gmail.com  Fri Apr 26 12:46:31 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Fri, 26 Apr 2019 10:46:31 -0600
+Subject: [Python-Dev] Actor Model in Python
+In-Reply-To: <CAHGMwNOyA_W4ebhMn8gg8DTfjO-5MFdfZAOthQjTVcuWEAkRqQ@mail.gmail.com>
+References: <CAHGMwNOyA_W4ebhMn8gg8DTfjO-5MFdfZAOthQjTVcuWEAkRqQ@mail.gmail.com>
+Message-ID: <CALFfu7Af0rMvAyC=OLtZ9P_4qJBEKE+9Wba71tSFD_5g53bFEw@mail.gmail.com>
+
+On Sun, Mar 31, 2019 at 9:19 AM Aratz Manterola Lasa via Python-Dev
+<python-dev at python.org> wrote:
+> I was wondering if there was any Python project aiming to implement the actor model for python concurrency.
+
+As far as the standard library goes, the explicitly supported
+concurrency models are: threading, multiprocessing, and async/await.
+Between these (and a few other parts provided by Python) anyone can
+build libraries that emulate various other concurrency models.  Such
+libraries exist on the cheeseshop (PyPI), though I don't know about
+packages for the actor model specifically.  I recommend searching
+there for such packages.  If you don't find one then perhaps you've
+found a new project to start. :)
+
+Also, I have a proposal [1] for Python 3.9 that provides first class
+[low level] support for concurrency models like CSP and the actor
+model.  This is done with multiple [mostly] isolated interpreters per
+process and with basic "channels" for safely passing messages between
+them.  While the proposed library is intended to be useful on its own,
+it is also intended to provide effective building blocks for library
+authors.  Note that the PEP has not been accepted and is not
+guaranteed to be accepted (though I'm hopeful).
+
+Regardless, consider posting to python-list at python.org for feedback
+from the broader Python community.  This list is specifically used for
+the development of the Python language itself.  Thanks!
+
+-eric
+
+
+[1] https://www.python.org/dev/peps/pep-0554/
+
+From status at bugs.python.org  Fri Apr 26 14:07:55 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 26 Apr 2019 18:07:55 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190426180755.412D452BE98@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-04-19 - 2019-04-26)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7083 (+25)
+  closed 41402 (+39)
+  total  48485 (+64)
+
+Open issues with patches: 2821 
+
+
+Issues opened (46)
+==================
+
+#11871: test_default_timeout() of test_threading.BarrierTests failure:
+https://bugs.python.org/issue11871  reopened by vstinner
+
+#36672: A compiler warning in winreg.SetValue()
+https://bugs.python.org/issue36672  opened by ZackerySpytz
+
+#36673: Comment/PI parsing support for ElementTree
+https://bugs.python.org/issue36673  opened by scoder
+
+#36674: "unittest.TestCase.debug" should honour "skip" (and other test
+https://bugs.python.org/issue36674  opened by dmaurer
+
+#36675: Doctest directives and comments not visible or missing from co
+https://bugs.python.org/issue36675  opened by steven.daprano
+
+#36676: Make ET.XMLParser target aware of namespace prefixes
+https://bugs.python.org/issue36676  opened by scoder
+
+#36678: duplicate method definitions in Lib/test/test_dataclasses.py
+https://bugs.python.org/issue36678  opened by xdegaye
+
+#36679: duplicate method definition in Lib/test/test_genericclass.py
+https://bugs.python.org/issue36679  opened by xdegaye
+
+#36680: duplicate method definition in  Lib/test/test_importlib/test_u
+https://bugs.python.org/issue36680  opened by xdegaye
+
+#36681: duplicate method definition in  Lib/test/test_logging.py
+https://bugs.python.org/issue36681  opened by xdegaye
+
+#36683: duplicate method definition in Lib/test/test_utf8_mode.py
+https://bugs.python.org/issue36683  opened by xdegaye
+
+#36684: codecov.io code coverage has not updated since 2019-04-13
+https://bugs.python.org/issue36684  opened by gphemsley
+
+#36685: C implementation of xml.etree.ElementTree does not make a copy
+https://bugs.python.org/issue36685  opened by gphemsley
+
+#36686: Docs: asyncio.loop.subprocess_exec documentation is confusing,
+https://bugs.python.org/issue36686  opened by sbstp
+
+#36688: _dummy_thread lacks an RLock implementaiton
+https://bugs.python.org/issue36688  opened by xtreak
+
+#36689: docs: os.path.commonpath raises ValueError for different drive
+https://bugs.python.org/issue36689  opened by lazka
+
+#36691: SystemExit & sys.exit : Allow both exit status and message
+https://bugs.python.org/issue36691  opened by takluyver
+
+#36692: Unexpected stderr output from test_sys_settrace
+https://bugs.python.org/issue36692  opened by ncoghlan
+
+#36694: Excessive memory use or memory fragmentation when unpickling m
+https://bugs.python.org/issue36694  opened by Ellenbogen
+
+#36697: inspect.getclosurevars returns wrong globals dict
+https://bugs.python.org/issue36697  opened by Noitul
+
+#36698: Shell restart when error message contains non-BMP characters
+https://bugs.python.org/issue36698  opened by TheMathsGod
+
+#36699: building for riscv multilib (patch attached)
+https://bugs.python.org/issue36699  opened by Andreas K. H??ttel
+
+#36700: base64 has old references that should be updated
+https://bugs.python.org/issue36700  opened by paulehoffman
+
+#36702: test_dtrace failed
+https://bugs.python.org/issue36702  opened by sayno996
+
+#36703: [Easy][Windows] test_subprocess: test_close_fds_with_stdio() h
+https://bugs.python.org/issue36703  opened by vstinner
+
+#36704: logging.FileHandler currently hardcodes errors='strict'
+https://bugs.python.org/issue36704  opened by sourcejedi
+
+#36706: Python script on startup stucks at import
+https://bugs.python.org/issue36706  opened by serge g
+
+#36709: Asyncio SSL keep-alive connections raise errors after loop clo
+https://bugs.python.org/issue36709  opened by tomchristie
+
+#36710: Pass _PyRuntimeState as an argument rather than using the _PyR
+https://bugs.python.org/issue36710  opened by vstinner
+
+#36711: duplicate method definition in Lib/email/feedparser.py
+https://bugs.python.org/issue36711  opened by xdegaye
+
+#36712: duplicate method definition in Lib/email/test/test_email_renam
+https://bugs.python.org/issue36712  opened by xdegaye
+
+#36713: uplicate method definition in Lib/ctypes/test/test_unicode.py
+https://bugs.python.org/issue36713  opened by xdegaye
+
+#36714: Tweak doctest 'example' regex to allow a leading ellipsis in '
+https://bugs.python.org/issue36714  opened by bskinn
+
+#36715: Dictionary initialization
+https://bugs.python.org/issue36715  opened by Aditya Sane
+
+#36716: Embedded Python fails to import module files with version_plat
+https://bugs.python.org/issue36716  opened by ecosatto
+
+#36717: Allow retrieval of return value from the target of a threading
+https://bugs.python.org/issue36717  opened by Joel Croteau2
+
+#36719: regrtest --findleaks should fail if an uncollectable object is
+https://bugs.python.org/issue36719  opened by vstinner
+
+#36721: Add pkg-config python-3.8-embed
+https://bugs.python.org/issue36721  opened by vstinner
+
+#36723: Unittest Discovery for namespace subpackages dot notation fail
+https://bugs.python.org/issue36723  opened by mrwaffles
+
+#36724: Clear _PyRuntime at exit
+https://bugs.python.org/issue36724  opened by vstinner
+
+#36725: Reference leak regression with Python3.8a3
+https://bugs.python.org/issue36725  opened by kayhayen
+
+#36728: Remove PyEval_ReInitThreads() from the public C API
+https://bugs.python.org/issue36728  opened by vstinner
+
+#36729: Delete unused text variable on tests
+https://bugs.python.org/issue36729  opened by eamanu
+
+#36730: Change outdated references to macOS
+https://bugs.python.org/issue36730  opened by Sebastian Bassi
+
+#36732: test_asyncio: test_huge_content_recvinto() fails randomly
+https://bugs.python.org/issue36732  opened by vstinner
+
+#36734: Modules/faulthandler.c does not compile on HP-UX due to bpo-35
+https://bugs.python.org/issue36734  opened by michael-o
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36732: test_asyncio: test_huge_content_recvinto() fails randomly
+https://bugs.python.org/issue36732
+
+#36730: Change outdated references to macOS
+https://bugs.python.org/issue36730
+
+#36729: Delete unused text variable on tests
+https://bugs.python.org/issue36729
+
+#36728: Remove PyEval_ReInitThreads() from the public C API
+https://bugs.python.org/issue36728
+
+#36723: Unittest Discovery for namespace subpackages dot notation fail
+https://bugs.python.org/issue36723
+
+#36721: Add pkg-config python-3.8-embed
+https://bugs.python.org/issue36721
+
+#36717: Allow retrieval of return value from the target of a threading
+https://bugs.python.org/issue36717
+
+#36713: uplicate method definition in Lib/ctypes/test/test_unicode.py
+https://bugs.python.org/issue36713
+
+#36712: duplicate method definition in Lib/email/test/test_email_renam
+https://bugs.python.org/issue36712
+
+#36703: [Easy][Windows] test_subprocess: test_close_fds_with_stdio() h
+https://bugs.python.org/issue36703
+
+#36702: test_dtrace failed
+https://bugs.python.org/issue36702
+
+#36699: building for riscv multilib (patch attached)
+https://bugs.python.org/issue36699
+
+#36692: Unexpected stderr output from test_sys_settrace
+https://bugs.python.org/issue36692
+
+#36676: Make ET.XMLParser target aware of namespace prefixes
+https://bugs.python.org/issue36676
+
+#36675: Doctest directives and comments not visible or missing from co
+https://bugs.python.org/issue36675
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36734: Modules/faulthandler.c does not compile on HP-UX due to bpo-35
+https://bugs.python.org/issue36734
+
+#36729: Delete unused text variable on tests
+https://bugs.python.org/issue36729
+
+#36725: Reference leak regression with Python3.8a3
+https://bugs.python.org/issue36725
+
+#36724: Clear _PyRuntime at exit
+https://bugs.python.org/issue36724
+
+#36719: regrtest --findleaks should fail if an uncollectable object is
+https://bugs.python.org/issue36719
+
+#36715: Dictionary initialization
+https://bugs.python.org/issue36715
+
+#36710: Pass _PyRuntimeState as an argument rather than using the _PyR
+https://bugs.python.org/issue36710
+
+#36688: _dummy_thread lacks an RLock implementaiton
+https://bugs.python.org/issue36688
+
+#36685: C implementation of xml.etree.ElementTree does not make a copy
+https://bugs.python.org/issue36685
+
+#36683: duplicate method definition in Lib/test/test_utf8_mode.py
+https://bugs.python.org/issue36683
+
+#36681: duplicate method definition in  Lib/test/test_logging.py
+https://bugs.python.org/issue36681
+
+#36680: duplicate method definition in  Lib/test/test_importlib/test_u
+https://bugs.python.org/issue36680
+
+#36679: duplicate method definition in Lib/test/test_genericclass.py
+https://bugs.python.org/issue36679
+
+#36678: duplicate method definitions in Lib/test/test_dataclasses.py
+https://bugs.python.org/issue36678
+
+#36676: Make ET.XMLParser target aware of namespace prefixes
+https://bugs.python.org/issue36676
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#36710: Pass _PyRuntimeState as an argument rather than using the _PyR
+https://bugs.python.org/issue36710  12 msgs
+
+#36725: Reference leak regression with Python3.8a3
+https://bugs.python.org/issue36725   8 msgs
+
+#35224: PEP 572: Assignment Expressions
+https://bugs.python.org/issue35224   6 msgs
+
+#36670: test suite broken due to cpu usage feature on win 10/ german
+https://bugs.python.org/issue36670   6 msgs
+
+#16079: list duplicate test names with patchcheck
+https://bugs.python.org/issue16079   5 msgs
+
+#35824: http.cookies._CookiePattern modifying regular expressions
+https://bugs.python.org/issue35824   5 msgs
+
+#36661: Missing dataclass decorator import in dataclasses module docs
+https://bugs.python.org/issue36661   5 msgs
+
+#36719: regrtest --findleaks should fail if an uncollectable object is
+https://bugs.python.org/issue36719   5 msgs
+
+#32424: Synchronize copy methods between Python and C implementations 
+https://bugs.python.org/issue32424   4 msgs
+
+#36624: cleanup the stdlib and tests with regard to sys.platform usage
+https://bugs.python.org/issue36624   4 msgs
+
+
+
+Issues closed (40)
+==================
+
+#9194: winreg:fixupMultiSZ should check that P < Q in the inner loop
+https://bugs.python.org/issue9194  closed by steve.dower
+
+#17349: wsgiref.simple_server.demo_app is not PEP-3333 compatible
+https://bugs.python.org/issue17349  closed by berker.peksag
+
+#18372: _Pickler_New() doesn't call PyObject_GC_Track(self)
+https://bugs.python.org/issue18372  closed by inada.naoki
+
+#21536: extension built with a shared python cannot be loaded with a s
+https://bugs.python.org/issue21536  closed by vstinner
+
+#23078: unittest.mock patch autospec doesn't work on staticmethods
+https://bugs.python.org/issue23078  closed by berker.peksag
+
+#24011: Add error checks to PyInit_signal()
+https://bugs.python.org/issue24011  closed by berker.peksag
+
+#28552: Distutils fail if sys.executable is None
+https://bugs.python.org/issue28552  closed by vstinner
+
+#30840: Contrary to documentation, relative imports cannot pass throug
+https://bugs.python.org/issue30840  closed by ncoghlan
+
+#35149: pip3 show causing Error for  ConfigParaser
+https://bugs.python.org/issue35149  closed by eryksun
+
+#36454: test_time: test_monotonic() failed on AMD64 FreeBSD 10-STABLE 
+https://bugs.python.org/issue36454  closed by vstinner
+
+#36465: Make release and debug ABI compatible
+https://bugs.python.org/issue36465  closed by vstinner
+
+#36469: Stuck during interpreter exit, attempting to take the GIL
+https://bugs.python.org/issue36469  closed by mocramis
+
+#36523: Add docstring to io.IOBase.writelines
+https://bugs.python.org/issue36523  closed by inada.naoki
+
+#36546: Add quantiles() to the statistics module
+https://bugs.python.org/issue36546  closed by rhettinger
+
+#36635: Add _testinternalcapi module
+https://bugs.python.org/issue36635  closed by vstinner
+
+#36645: re.sub() library entry does not adequately document surprising
+https://bugs.python.org/issue36645  closed by berker.peksag
+
+#36650: Cached method implementation no longer works on Python 3.7.3
+https://bugs.python.org/issue36650  closed by rhettinger
+
+#36658: Py_Initialze() throws error 'unable to load the file system en
+https://bugs.python.org/issue36658  closed by steve.dower
+
+#36659: distutils UnixCCompiler: Remove standard library path from rpa
+https://bugs.python.org/issue36659  closed by vstinner
+
+#36668: semaphore_tracker is not reused by child processes
+https://bugs.python.org/issue36668  closed by pitrou
+
+#36669: weakref proxy doesn't support the matrix multiplication operat
+https://bugs.python.org/issue36669  closed by SilentGhost
+
+#36671: str.lower() looses character information when working with UTF
+https://bugs.python.org/issue36671  closed by SilentGhost
+
+#36677: support visual studio multiprocess compile
+https://bugs.python.org/issue36677  closed by Manjusaka
+
+#36682: duplicate method definitions in Lib/test/test_sys_setprofile.p
+https://bugs.python.org/issue36682  closed by steve.dower
+
+#36687: subprocess encoding
+https://bugs.python.org/issue36687  closed by sbstp
+
+#36690: A typing error in demo rpython.py
+https://bugs.python.org/issue36690  closed by berker.peksag
+
+#36693: Reversing large ranges results in a minor type inconsistency
+https://bugs.python.org/issue36693  closed by rhettinger
+
+#36695: Change (regression?) in v3.8.0a3 doctest output after capturin
+https://bugs.python.org/issue36695  closed by bskinn
+
+#36696: possible multiple regressions on AIX
+https://bugs.python.org/issue36696  closed by vstinner
+
+#36701: module 'urllib' has no attribute 'request'
+https://bugs.python.org/issue36701  closed by brett.cannon
+
+#36705: Unexpected Behaviour of pprint.pprint
+https://bugs.python.org/issue36705  closed by fdrake
+
+#36707: The "m" ABI flag of SOABI for pymalloc is no longer needed
+https://bugs.python.org/issue36707  closed by vstinner
+
+#36708: can not execute the python + version, to launch python under w
+https://bugs.python.org/issue36708  closed by brett.cannon
+
+#36718: Python 2.7 compilation fails on AMD64 Ubuntu Shared 2.7 buildb
+https://bugs.python.org/issue36718  closed by vstinner
+
+#36720: Correct Should to Must in Definition of object.__len__
+https://bugs.python.org/issue36720  closed by brett.cannon
+
+#36722: In debug build, load also C extensions compiled in release mod
+https://bugs.python.org/issue36722  closed by vstinner
+
+#36726: Empty select() on windows gives error.
+https://bugs.python.org/issue36726  closed by martin.panter
+
+#36727: python 3.6+ docs use ul tags instead of ol tags
+https://bugs.python.org/issue36727  closed by eric.smith
+
+#36731: Add example to priority queue
+https://bugs.python.org/issue36731  closed by rhettinger
+
+#36733: make regen-all doesn't work in subfolder: No module named Pars
+https://bugs.python.org/issue36733  closed by vstinner
+
+From pwang at anaconda.com  Fri Apr 26 17:57:31 2019
+From: pwang at anaconda.com (Peter Wang)
+Date: Fri, 26 Apr 2019 16:57:31 -0500
+Subject: [Python-Dev] Increasing the C-optimized pickle extensibility
+In-Reply-To: <CAP7+vJLTA=9LeGM=ugwVwbsCu1HmbYOmEQt=_=VkV1PVM7K2XQ@mail.gmail.com>
+References: <2040555306.8345029.1556281951734.JavaMail.zimbra@inria.fr>
+ <CAP7+vJLTA=9LeGM=ugwVwbsCu1HmbYOmEQt=_=VkV1PVM7K2XQ@mail.gmail.com>
+Message-ID: <CABGrp+9CDuKXFdBcOiA9v91u-yA7MxLLG=XAnGyJ8OrDd1PVuQ@mail.gmail.com>
+
+I strongly second not breaking backwards compatibility and
+interoperability, especially for persistent artifacts, unless there is a
+*REALLY* good reason.  A potential unintended side effect of such breakages
+is that it slows down adoption of the new version.
+
+-Peter
+
+On Fri, Apr 26, 2019 at 10:27 AM Guido van Rossum <guido at python.org> wrote:
+
+> I think it's better not to introduce a new opcode, for the reason you
+> stated -- you don't want your pickles to be unreadable by older Python
+> versions, if you can help it.
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190426/970d3785/attachment.html>
+
+From wes.turner at gmail.com  Fri Apr 26 22:14:16 2019
+From: wes.turner at gmail.com (Wes Turner)
+Date: Fri, 26 Apr 2019 22:14:16 -0400
+Subject: [Python-Dev] Actor Model in Python
+In-Reply-To: <CALFfu7Af0rMvAyC=OLtZ9P_4qJBEKE+9Wba71tSFD_5g53bFEw@mail.gmail.com>
+References: <CAHGMwNOyA_W4ebhMn8gg8DTfjO-5MFdfZAOthQjTVcuWEAkRqQ@mail.gmail.com>
+ <CALFfu7Af0rMvAyC=OLtZ9P_4qJBEKE+9Wba71tSFD_5g53bFEw@mail.gmail.com>
+Message-ID: <CACfEFw8G3hGaTUASJ3_QH15oxt_+C2AK4Qy_DYcrR5XkDu9hyA@mail.gmail.com>
+
+https://trio.readthedocs.io/en/latest/reference-core.html#synchronizing-and-communicating-between-tasks
+
+https://pypi.org/search/?q=Actor+model
+
+https://en.wikipedia.org/wiki/Actor_model
+
+https://en.wikipedia.org/wiki/Bulk_synchronous_parallel#The_model
+
+
+
+On Friday, April 26, 2019, Eric Snow <ericsnowcurrently at gmail.com> wrote:
+
+> On Sun, Mar 31, 2019 at 9:19 AM Aratz Manterola Lasa via Python-Dev
+> <python-dev at python.org> wrote:
+> > I was wondering if there was any Python project aiming to implement the
+> actor model for python concurrency.
+>
+> As far as the standard library goes, the explicitly supported
+> concurrency models are: threading, multiprocessing, and async/await.
+> Between these (and a few other parts provided by Python) anyone can
+> build libraries that emulate various other concurrency models.  Such
+> libraries exist on the cheeseshop (PyPI), though I don't know about
+> packages for the actor model specifically.  I recommend searching
+> there for such packages.  If you don't find one then perhaps you've
+> found a new project to start. :)
+>
+> Also, I have a proposal [1] for Python 3.9 that provides first class
+> [low level] support for concurrency models like CSP and the actor
+> model.  This is done with multiple [mostly] isolated interpreters per
+> process and with basic "channels" for safely passing messages between
+> them.  While the proposed library is intended to be useful on its own,
+> it is also intended to provide effective building blocks for library
+> authors.  Note that the PEP has not been accepted and is not
+> guaranteed to be accepted (though I'm hopeful).
+>
+>
+
+> Regardless, consider posting to python-list at python.org for feedback
+> from the broader Python community.  This list is specifically used for
+> the development of the Python language itself.  Thanks!
+
+
+Or python-ideas at python.org ,
+though I'm not sure what would be needed from core Python or stdlib to
+create another actor model abstraction on top of the actual concurrency
+primitives.
+
+Truly functional actors are slow when/because the memory is not shared
+inter-process
+
+https://arrow.apache.org/docs/python/memory.html#referencing-and-allocating-memory
+
+https://arrow.apache.org/docs/python/ipc.html#arbitrary-object-serialization
+
+https://www.python.org/dev/peps/pep-0554/#interpreter-isolation
+
+
+>
+> -eric
+>
+>
+> [1] https://www.python.org/dev/peps/pep-0554/
+
+
+"PEP 554 -- Multiple Interpreters in the Stdlib"
+https://www.python.org/dev/peps/pep-0554/
+
+Is there / are there Issues, PRs, and Mailing List Threads regarding the
+status of this proposal?
+
+So sorry to interrupt,
+
+
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/
+> wes.turner%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190426/c40ea6a6/attachment.html>
+
+From armin.rigo at gmail.com  Sat Apr 27 01:22:55 2019
+From: armin.rigo at gmail.com (Armin Rigo)
+Date: Sat, 27 Apr 2019 07:22:55 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <20190424185501.j6kjdbmb4adj4x6x@python.ca>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <20190424185501.j6kjdbmb4adj4x6x@python.ca>
+Message-ID: <CAMSv6X2neB+UhG3EkKh6CuCKDd9DBx-vJW3UaWjwbFKiX7cc4Q@mail.gmail.com>
+
+Hi Neil,
+
+On Wed, 24 Apr 2019 at 21:17, Neil Schemenauer <nas-python at arctrix.com> wrote:
+> Regarding the Py_TRACE_REFS fields, I think we can't do them without
+> breaking the ABI because of the following.  For GC objects, they are
+> always allocated by _PyObject_GC_New/_PyObject_GC_NewVar.  So, we
+> can allocate the extra space needed for the GC linked list.  For
+> non-GC objects, that's not the case.  Extensions can allocate using
+> malloc() directly or their own allocator and then pass that memory
+> to be initialized as a PyObject.
+>
+> I think that's a poor design and I think we should try to make slow
+> progress in fixing it.
+
+Such progress needs to start with the global static PyTypeObjects that
+all extensions define.  This is going to be impossible to fix without
+requiring a big fix in of *all* of them.  (Unless of course you mean
+to still allow them, but then Py_TRACE_REF can't be implemented in a
+way that doesn't break the ABI.)
+
+
+A bient?t,
+
+Armin.
+
+On Wed, 24 Apr 2019 at 21:17, Neil Schemenauer <nas-python at arctrix.com> wrote:
+>
+> On 2019-04-24, Victor Stinner wrote:
+> > The current blocker issue is that the Py_DEBUG define imply the
+> > Py_TRACE_REFS define
+>
+> I think your change to make Py_TRACE_REFS as separate configure flag
+> is fine.  I've used the trace fields to debug occasionally but I
+> don't use it often enough to need it enabled by Py_DEBUG.
+>
+> > Being able to switch between Python in release mode and Python in
+> > debug mode is a first step. My long term plan would be to better
+> > separate "Python" from its "runtime".
+>
+> Regarding the Py_TRACE_REFS fields, I think we can't do them without
+> breaking the ABI because of the following.  For GC objects, they are
+> always allocated by _PyObject_GC_New/_PyObject_GC_NewVar.  So, we
+> can allocate the extra space needed for the GC linked list.  For
+> non-GC objects, that's not the case.  Extensions can allocate using
+> malloc() directly or their own allocator and then pass that memory
+> to be initialized as a PyObject.
+>
+> I think that's a poor design and I think we should try to make slow
+> progress in fixing it.  I think non-GC objects should also get
+> allocated by a Python API.  In that case, the Py_TRACE_REFS
+> functionality could be implemented in a way that doesn't break the
+> ABI.  It also makes the CPython API more friendly for alternative
+> Python runtimes like PyPy, etc.
+>
+> Note that this change would not prevent an extension from allocating
+> memory with it's own allocator.  It just means that memory can't
+> hold a PyObject.  The extension PyObject would need to have a
+> pointer that points to this externally allocated memory.
+>
+> I can imagine there could be some situations when people really
+> want a PyObject to reside in a certain memory location.  E.g. maybe
+> you have some kind of special shared memory area.  In that case, I
+> think we could have specialized APIs to create PyObjects using a
+> specialized allocator.  Those APIs would not be supported by
+> some runtimes (e.g. tracing/moving GC for PyObjects) and the APIs
+> would not be used by most extensions.
+>
+> Regards,
+>
+>   Neil
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/armin.rigo%40gmail.com
+
