@@ -17328,3 +17328,1142 @@ On Wed, 24 Apr 2019 at 21:17, Neil Schemenauer <nas-python at arctrix.com> wrote
 > https://mail.python.org/mailman/listinfo/python-dev
 > Unsubscribe: https://mail.python.org/mailman/options/python-dev/armin.rigo%40gmail.com
 
+From mark at hotpy.org  Sat Apr 27 05:19:15 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Sat, 27 Apr 2019 10:19:15 +0100
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <5CB442F3.5060705@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org> <5CB442F3.5060705@UGent.be>
+Message-ID: <988d377d-fcf1-bbcc-152f-3f54d820bdbf@hotpy.org>
+
+Hi Jeroen,
+
+On 15/04/2019 9:38 am, Jeroen Demeyer wrote:
+> On 2019-04-14 13:30, Mark Shannon wrote:
+>> PY_VECTORCALL_ARGUMENTS_OFFSET exists so that callables that make onward
+>> calls with an additional argument can do so efficiently. The obvious
+>> example is bound-methods, but classes are at least as important.
+>> cls(*args) -> cls.new(cls, *args) -> cls.__init__(self, *args)
+> 
+> But tp_new and tp_init take the "cls" and "self" as separate arguments, 
+> not as part of *args. So I don't see why you need 
+> PY_VECTORCALL_ARGUMENTS_OFFSET for this.
+
+Here's some (untested) code for an implementation of vectorcall for 
+object subtypes implemented in Python. It uses 
+PY_VECTORCALL_ARGUMENTS_OFFSET to save memory allocation when calling 
+the __init__ method.
+
+https://github.com/python/cpython/commit/9ff46e3ba0747f386f9519933910d63d5caae6ee#diff-c3cf251f16d5a03a9e7d4639f2d6f998R3820
+
+Cheers,
+Mark.
+
+From mark at hotpy.org  Sat Apr 27 05:26:29 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Sat, 27 Apr 2019 10:26:29 +0100
+Subject: [Python-Dev] PEP 580 and PEP 590 comparison.
+In-Reply-To: <5CB4422D.8030507@UGent.be>
+References: <fbd39af1-7f12-ff4f-e987-7d316943c346@hotpy.org>
+ <5CB4422D.8030507@UGent.be>
+Message-ID: <04dc374d-a648-a3f0-5a1f-fee4ec2b1b98@hotpy.org>
+
+Hi,
+
+On 15/04/2019 9:34 am, Jeroen Demeyer wrote:
+> On 2019-04-14 13:34, Mark Shannon wrote:
+>> I'll address capability first.
+> 
+> I don't think that comparing "capability" makes a lot of sense since 
+> neither PEP 580 nor PEP 590 adds any new capabilities to CPython. They 
+> are meant to allow doing things faster, not to allow more things.
+> 
+> And yes, the C call protocol can be implemented on top of the vectorcall 
+> protocol and conversely, but that doesn't mean much.
+
+That isn't true. You cannot implement PEP 590 on top of PEP 580. PEP 580 
+isn't as general.
+Specifically, and this is important, PEP 580 cannot implement efficient 
+calls to class objects without breaking the ABI.
+
+> 
+>> Now performance.
+>>
+>> Currently the PEP 590 implementation is intentionally minimal. It does
+>> nothing for performance.
+> 
+> So, we're missing some information here. What kind of performance 
+> improvements are possible with PEP 590 which are not in the reference 
+> implementation?
+
+Performance improvements include, but aren't limited to:
+
+1. Much faster calls to common classes: range(), set(), type(), list(), etc.
+2. Modifying argument clinic to produce C functions compatible with the 
+vectorcall, allowing the interpreter to call the C function directly, 
+with no additional overhead beyond the vectorcall call sequence.
+3. Customization of the C code for function objects depending on the 
+Python code. The would probably be limited to treating closures and 
+generator function differently, but optimizing other aspects of the 
+Python function call is possible.
+
+> 
+>> The benchmark Jeroen provides is a
+>> micro-benchmark that calls the same functions repeatedly. This is
+>> trivial and unrealistic.
+> 
+> Well, it depends what you want to measure... I'm trying to measure 
+> precisely the thing that makes PEP 580 and PEP 590 different from the 
+> status-quo, so in that sense those benchmarks are very relevant.
+> 
+> I think that the following 3 statements are objectively true:
+> 
+> (A) Both PEP 580 and PEP 590 add a new calling convention, which is 
+> equally fast as builtin functions (and hence faster than tp_call).
+Yes
+
+> (B) Both PEP 580 and PEP 590 keep roughly the same performance as the 
+> status-quo for existing function/method calls.
+For the minimal implementation of PEP 590, yes. I would expect a small 
+improvement with and implementation of PEP 590 including optimizations.
+
+> (C) While the performance of PEP 580 and PEP 590 is roughly the same,
+> PEP 580 is slightly faster (based on the reference implementations 
+> linked from PEP 580 and PEP 590)I quite deliberately used the term "minimal" to describe the 
+implementation of PEP 590 you have been using.
+PEP 590 allows many optimizations.
+Comparing the performance of the four hundred line minimal diff for PEP 
+590 with the full four thousand line diff for PEP 580 is misleading.
+
+> 
+> Two caveats concerning (C):
+> - the difference may be too small to matter. Relatively, it's a few 
+> percent of the call time but in absolute numbers, it's less than 10 CPU 
+> clock cycles.
+> - there might be possible improvements to the reference implementation 
+> of either PEP 580/PEP 590. I don't expect big differences though.
+> 
+>> To repeat an example
+>> from an earlier email, which may have been overlooked, this code reduces
+>> the time to create ranges and small lists by about 30%
+> 
+> That's just a special case of the general fact (A) above and using the 
+> new calling convention for "type". It's an argument in favor of both PEP 
+> 580 and PEP 590, not for PEP 590 specifically.
+
+It very much is an argument in favor of PEP 590. PEP 580 cannot do this.
+
+Cheers,
+Mark.
+
+From mark at hotpy.org  Sat Apr 27 07:32:54 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Sat, 27 Apr 2019 12:32:54 +0100
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com>
+Message-ID: <4da05381-9cce-2e41-f76f-cc33f359268c@hotpy.org>
+
+Hi Petr,
+
+On 24/04/2019 11:24 pm, Petr Viktorin wrote:
+> So, I spent another day pondering the PEPs.
+> 
+> I love PEP 590's simplicity and PEP 580's extensibility. As I hinted 
+> before, I hope they can they be combined, and I believe we can achieve 
+> that by having PEP 590's (o+offset) point not just to function pointer, 
+> but to a {function pointer; flags} struct with flags defined for two 
+> optimizations:
+> - "Method-like", i.e. compatible with LOAD_METHOD/CALL_METHOD.
+> - "Argument offsetting request", allowing PEP 590's 
+> PY_VECTORCALL_ARGUMENTS_OFFSET optimization.
+
+A big problem with adding another field to the structure is that it 
+prevents classes from implementing vectorcall.
+A 30% reduction in the time to create ranges, small lists and sets and 
+to call type(x) is easily worth the a single tp_flag, IMO.
+
+As an aside, there are currently over 10 spare flags. As long we don't 
+consume more that one a year, we have over a decade to make tp_flags a 
+uint64_t. It already consumes 64 bits on any 64 bit machine, due to the 
+struct layout.
+
+As I've said before, PEP 590 is universal and capable of supporting an 
+implementation of PEP 580 on top of it. Therefore, adding any flags or 
+fields from PEP 580 to PEP 590 will not increase its capability.
+Since any extra fields will require at least as many memory accesses as 
+before, it will not improve performance and by restricting layout may 
+decrease it.
+
+> 
+> This would mean one basic call signature (today's METH_FASTCALL | 
+> METH_KEYWORD), with individual optimizations available if both the 
+> caller and callee support them.
+> 
+
+That would prevent the code having access to the callable object. That 
+access is a fundamental part of both PEP 580 and PEP 590 and the key 
+motivating factor for both.
+
+> 
+> 
+> In case you want to know my thoughts or details, let me indulge in some 
+> detailed comparisons and commentary that led to this.
+> I also give a more detailed proposal below.
+> Keep in mind I wrote this before I distilled it to the paragraph above, 
+> and though the distillation is written as a diff to PEP 590, I still 
+> think of this as merging both PEPs.
+> 
+> 
+> PEP 580 tries hard to work with existing call conventions (like METH_O, 
+> METH_VARARGS), making them fast.
+> PEP 590 just defines a new convention. Basically, any callable that 
+> wants performance improvements must switch to METH_VECTORCALL (fastcall).
+> I believe PEP 590's approach is OK. To stay as performant as possible, C 
+> extension authors will need to adapt their code regularly. If they 
+> don't, no harm -- the code will still work as before, and will still be 
+> about as fast as it was before.
+
+As I see it, authors of C extensions have five options with PEP 590.
+Option 4, do nothing, is the recommended option :)
+
+1. Use the PyMethodDef protocol, it will work exactly the same as 
+before. It's already fairly quick in most cases.
+2. Use Cython and let Cython take care of handling the vectorcall interface.
+3. Use Argument Clinic, and let Argument Clinic take care of handling 
+the vectorcall interface.
+4. Do nothing. This the same as 1-3 above depending on what you were 
+already doing.
+5. Implement the vectorcall call directly. This might be a bit quicker 
+than the above, but probably not enough to be worth it, unless you are 
+implementing numpy or something like that.
+
+> In exchange for this, Python (and Cython, etc.) can focus on optimizing 
+> one calling convention, rather than a variety, each with its own 
+> advantages and drawbacks.
+> 
+> Extending PEP 580 to support a new calling convention will involve 
+> defining a new CCALL_* constant, and adding to existing dispatch code.
+> Extending PEP 590 to support a new calling convention will most likely 
+> require a new type flag, and either changing the vectorcall semantics or 
+> adding a new pointer.
+> To be a bit more concrete, I think of possible extensions to PEP 590 as 
+> things like:
+> - Accepting a kwarg dict directly, without copying the items to 
+> tuple/array (as in PEP 580's CCALL_VARARGS|CCALL_KEYWORDS)
+> - Prepending more than one positional argument, or appending positional 
+> arguments
+> - When an optimization like LOAD_METHOD/CALL_METHOD turns out to no 
+> longer be relevant, removing it to simplify/speed up code.
+> I expect we'll later find out that something along these lines might 
+> improve performance. PEP 590 would make it hard to experiment.
+> 
+> I mentally split PEP 590 into two pieces: formalizing fastcall, plus one 
+> major "extension" -- making bound methods fast.
+
+Not just bound methods, any callable that adds an extra argument before 
+dispatching to another callable. This includes builtin-methods, classes 
+and a few others.
+Setting the Py_TPFLAGS_METHOD_DESCRIPTOR flag states the behaviour of 
+the object when used as a descriptor. It is up to the implementation to 
+use that information how it likes.
+If LOAD_METHOD/CALL_METHOD gets replaced, then the new implementation 
+can still use this information.
+
+> When seen this way, this "extension" is quite heavy: it adds an 
+> additional type flag, Py_TPFLAGS_METHOD_DESCRIPTOR, and uses a bit in 
+> the "Py_ssize_t nargs" argument as additional flag. Both type flags and 
+> nargs bits are very limited resources. If I was sure vectorcall is the 
+> final best implementation we'll have, I'd go and approve it ? but I 
+> think we still need room for experimentation, in the form of more such 
+> extensions.
+> PEP 580, with its collection of per-instance data and flags, is 
+> definitely more extensible. What I don't like about it is that it has 
+> the extensions built-in; mandatory for all callers/callees.
+> 
+> PEP 580 adds a common data struct to callable instances. Currently these 
+> are all data bound methods want to use (cc_flags, cc_func, cc_parent, 
+> cr_self). Various flags are consulted in order to deliver the needed 
+> info to the underlying function.
+> PEP 590 lets the callable object store data it needs independently. It 
+> provides a clever mechanism for pre-allocating space for bound methods' 
+> prepended "self" argument, so data can be provided cheaply, though it's 
+> still done by the callable itself.
+> Callables that would need to e.g. prepend more than one argument won't 
+> be able to use this mechanism, but y'all convinced me that is not worth 
+> optimizing for.
+> 
+> PEP 580's goal seems to be that making a callable behave like a Python 
+> function/method is just a matter of the right set of flags. Jeroen 
+> called this "complexity in the protocol".
+> PEP 590, on the other hand, leaves much to individual callable types. 
+> This is "complexity in the users of the protocol".
+> I now don't see a problem with PEP 590's approach. Not all users will 
+> need the complexity. We need to give CPython and Cython the tools to 
+> make implementing "def"-like functions possible (and fast), but if other 
+> extensions need to match the behavior of Python functions, they should 
+> just use Cython. Emulating Python functions is a special-enough use case 
+> that it doesn't justify complicating the protocol, and the same goes for 
+> implementing Python's built-in functions (with all their historical 
+> baggage).
+> 
+> 
+> 
+> My more full proposal for a compromise between PEP 580 and 590 would go 
+> something like below.
+> 
+> The type flag (Py_TPFLAGS_HAVE_VECTORCALL/Py_TPFLAGS_HAVE_CCALL) and 
+> offset (tp_vectorcall_offset/tp_ccalloffset; in tp_print's place) stay.
+> 
+> The offset identifies a per-instance structure with two fields:
+> - Function pointer (with the vectorcall signature)
+> - Flags
+> Storing any other per-instance data (like PEP 580's cr_self/cc_parent) 
+> is the responsibility of each callable type.
+> 
+> Two flags are defined initially:
+> 1. "Method-like" (like Py_TPFLAGS_METHOD_DESCRIPTOR in PEP 580, or 
+> non-NULL cr_self in PEP 580). Having the flag here instead of a type 
+> flag will prevent tp_call-only callables from taking advantage of 
+> LOAD_METHOD/CALL_METHOD optimisation, but I think that's OK.
+> 
+> 2. Request to reserve space for one argument before the args array, as 
+> in PEP 590's argument offsetting. If the flag is missing, nargs may not 
+> include PY_VECTORCALL_ARGUMENTS_OFFSET. A mechanism incompatible with 
+> offsetting may use the bit for another purpose.
+> 
+> Both flags may be simply ignored by the caller (or not be set by the 
+> callee in the first place), reverting to a more straightforward (but 
+> less performant) code path. This should also be the case for any flags 
+> added in the future.
+> Note how without these flags, the protocol (and its documentation) will 
+> be extremely simple.
+> This mechanism would work with my examples of possible future extensions:
+> - "kwarg dict": A flag would enable the `kwnames` argument to be a dict 
+> instead of a tuple.
+> - prepending/appending several positional arguments: The callable's 
+> request for how much space to allocate stored right after the {func; 
+> flags} struct. As in argument offsetting, a bit in nargs would indicate 
+> that the request was honored. (If this was made incompatible with 
+> one-arg offsetting, it could reuse the bit.)
+> - removing an optimization: CPython would simply stop using an 
+> optimizations (but not remove the flag). Extensions could continue to 
+> use the optimization between themselves.
+
+This seems a lot more complex than the caller setting a bit to tell the 
+callee whether it has allocated extra space.
+
+> 
+> As in PEP 590, any class that uses this mechanism shall not be usable as 
+> a base class. This will simplify implementation and tests, but hopefully 
+> the limitation will be removed in the future. (Maybe even in the initial 
+> implementation.)
+> 
+> The METH_VECTORCALL (aka CCALL_FASTCALL|CCALL_KEYWORDS) calling 
+> convention is added to the public API. The other calling conventions 
+> (PEP 580's CCALL_O, CCALL_NOARGS, CCALL_VARARGS, CCALL_KEYWORDS, 
+> CCALL_FASTCALL, CCALL_DEFARG) as well as argument type checking 
+> (CCALL_OBJCLASS) and self slicing (CCALL_SELFARG) are left up to the 
+> callable.
+> 
+> No equivalent of PEP 580's restrictions on the __name__ attribute. In my 
+> opinion, the PyEval_GetFuncName function should just be deprecated in 
+> favor of getting the __name__ attribute and checking if it's a string. 
+> It would be possible to add a public helper that returns a proper 
+> reference, but that doesn't seem worth it. Either way, I consider this 
+> out of scope of this PEP.
+> 
+> No equivalent of PEP 580's PyCCall_GenericGetParent and 
+> PyCCall_GenericGetQualname either -- again, if needed, they should be 
+> retrieved as normal attributes. As I see it, the operation doesn't need 
+> to be particularly fast.
+> 
+> No equivalent of PEP 580's PyCCall_Call, and no support for dict in 
+> PyCCall_FastCall's kwds argument. To be fast, extensions should avoid 
+> passing kwargs in a dict. Let's see how far that takes us. (FWIW, this 
+> also avoids subtle issues with dict mutability.)
+> 
+> Profiling stays as in PEP 580: only exact function types generate the 
+> events.
+> 
+> As in PEP 580, PyCFunction_GetFlags and PyCFunction_GET_FLAGS are 
+> deprecated
+> 
+> As in PEP 580, nothing is added to the stable ABI
+> 
+> 
+> Does that sound reasonable?
+
+From mark at hotpy.org  Sat Apr 27 08:07:25 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Sat, 27 Apr 2019 13:07:25 +0100
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <5CC1C765.1020608@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+Message-ID: <f3da3ad1-4caf-ccd5-6c77-5f5777e56f0e@hotpy.org>
+
+Hi Jeroen,
+
+On 25/04/2019 3:42 pm, Jeroen Demeyer wrote:
+> On 2019-04-25 00:24, Petr Viktorin wrote:
+>> I believe we can achieve
+>> that by having PEP 590's (o+offset) point not just to function pointer,
+>> but to a {function pointer; flags} struct with flags defined for two
+>> optimizations:
+> 
+> What's the rationale for putting the flags in the instance? Do you 
+> expect flags to be different between one instance and another instance 
+> of the same class?
+> 
+>> Both type flags and
+>> nargs bits are very limited resources.
+> 
+> Type flags are only a limited resource if you think that all flags ever 
+> added to a type must be put into tp_flags. There is nothing wrong with 
+> adding new fields tp_extraflags or tp_vectorcall_flags to a type.
+> 
+>> What I don't like about it is that it has
+>> the extensions built-in; mandatory for all callers/callees.
+> 
+> I don't agree with the above sentence about PEP 580:
+> - callers should use APIs like PyCCall_FastCall() and shouldn't need to 
+> worry about the implementation details at all.
+> - callees can opt out of all the extensions by not setting any special 
+> flags and setting cr_self to a non-NULL value. When using the flags 
+> CCALL_FASTCALL | CCALL_KEYWORDS, then implementing the callee is exactly 
+> the same as PEP 590.
+> 
+>> As in PEP 590, any class that uses this mechanism shall not be usable as
+>> a base class.
+> 
+> Can we please lift this restriction? There is really no reason for it. 
+> I'm not aware of any similar restriction anywhere in CPython. Note that 
+> allowing subclassing is not the same as inheriting the protocol. As a 
+> compromise, we could simply never inherit the protocol.
+
+AFAICT, any limitations on subclassing exist solely to prevent tp_call 
+and the PEP 580/590 function pointer being in conflict. This limitation 
+is inherent and the same for both PEPs. Do you agree?
+
+Let us conside a class C that sets the 
+Py_TPFLAGS_HAVE_CCALL/Py_TPFLAGS_HAVE_VECTORCALL flag.
+It will set the function pointer in a new instance, C(), when the object 
+is created. If we create a new class D:
+class D(C):
+     __call__(self, ...):
+         ...
+
+and then create an instance `d = D()` then calling d will have two 
+contradictory behaviours; the one installed by C in the function pointer 
+and the one specified by D.__call__
+
+We can ensure correct behaviour by setting the function pointer to NULL 
+or a forwarding function (depending on the implementation) if __call__ 
+has been overridden. This would be enforced at class creation/readying time.
+
+Cheers,
+Mark.
+
+From J.Demeyer at UGent.be  Sat Apr 27 08:27:53 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Sat, 27 Apr 2019 14:27:53 +0200
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <f3da3ad1-4caf-ccd5-6c77-5f5777e56f0e@hotpy.org>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <f3da3ad1-4caf-ccd5-6c77-5f5777e56f0e@hotpy.org>
+Message-ID: <5CC44AC9.9020501@UGent.be>
+
+On 2019-04-27 14:07, Mark Shannon wrote:
+> class D(C):
+>      __call__(self, ...):
+>          ...
+>
+> and then create an instance `d = D()` then calling d will have two
+> contradictory behaviours; the one installed by C in the function pointer
+> and the one specified by D.__call__
+
+It's true that the function pointer in D will be wrong but it's also 
+irrelevant since the function pointer won't be used: class D won't have 
+the flag Py_TPFLAGS_HAVE_CCALL/Py_TPFLAGS_HAVE_VECTORCALL set.
+
+From stefan_ml at behnel.de  Sat Apr 27 10:44:29 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Sat, 27 Apr 2019 16:44:29 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <6a395e77-d681-69f8-ba32-f6fd47f261cb@ubuntu.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <7aad8d69-2d66-54a3-26a4-20dcc5150f66@ubuntu.com>
+ <CA+3bQGGMXV_=GsBuFWm5OiLSiCUPp15eb9cd2UffVXbVxqAWdg@mail.gmail.com>
+ <6a395e77-d681-69f8-ba32-f6fd47f261cb@ubuntu.com>
+Message-ID: <qa1pse$v7c$1@blaine.gmane.org>
+
+Matthias Klose schrieb am 25.04.19 um 13:48:
+> Are there use cases where you only want to load *some*
+> debug extensions, even if more are installed?
+
+Not sure if there are _important_ use cases (that could justify certain
+design decisions), but I can certainly imagine using a non-debug (and
+therefore faster) Pandas or NumPy for preparing some data that I need to
+debug my own code. More generally, whenever I can avoid using a debug
+version of a *dependency* that I don't need to include in my debug
+analysis, it's probably a good idea to not use the debug version.
+
+Even given venvs and virtualisation techniques, it would probably be nice
+if users could install debug+nondebug versions of libraries once and then
+import the right one at need, rather than having to set up a new
+environment (while they're on a train in the middle of nowhere without fast
+access to PyPI).
+
+Stefan
+
+
+From mark at hotpy.org  Sat Apr 27 05:47:46 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Sat, 27 Apr 2019 10:47:46 +0100
+Subject: [Python-Dev] PEP 590 discussion
+In-Reply-To: <19993545-3fdf-4bf6-56dd-e926d2032a3a@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com> <5CAE76B6.6090501@UGent.be>
+ <19993545-3fdf-4bf6-56dd-e926d2032a3a@redhat.com>
+Message-ID: <73165133-21ec-b030-cbd8-0f57b85c3873@hotpy.org>
+
+Hi Petr,
+
+On 24/04/2019 11:24 pm, Petr Viktorin wrote:
+> On 4/10/19 7:05 PM, Jeroen Demeyer wrote:
+>> On 2019-04-10 18:25, Petr Viktorin wrote:
+>>> Hello!
+>>> I've had time for a more thorough reading of PEP 590 and the reference
+>>> implementation. Thank you for the work!
+>>
+>> And thank you for the review!
+>>
+>>> I'd now describe the fundamental
+>>> difference between PEP 580 and PEP 590 as:
+>>> - PEP 580 tries to optimize all existing calling conventions
+>>> - PEP 590 tries to optimize (and expose) the most general calling
+>>> convention (i.e. fastcall)
+>>
+>> And PEP 580 has better performance overall, even for METH_FASTCALL. 
+>> See this thread:
+>> https://mail.python.org/pipermail/python-dev/2019-April/156954.html
+>>
+>> Since these PEPs are all about performance, I consider this a very 
+>> relevant argument in favor of PEP 580.
+> 
+> All about performance as well as simplicity, correctness, testability, 
+> teachability... And PEP 580 touches some introspection :)
+> 
+>>> PEP 580 also does a number of other things, as listed in PEP 579. But I
+>>> think PEP 590 does not block future PEPs for the other items.
+>>> On the other hand, PEP 580 has a much more mature implementation -- and
+>>> that's where it picked up real-world complexity.
+>> About complexity, please read what I wrote in
+>> https://mail.python.org/pipermail/python-dev/2019-March/156853.html
+>>
+>> I claim that the complexity in the protocol of PEP 580 is a good 
+>> thing, as it removes complexity from other places, in particular from 
+>> the users of the protocol (better have a complex protocol that's 
+>> simple to use, rather than a simple protocol that's complex to use).
+> 
+> I think we're talking past each other. I see now it as:
+> 
+> PEP 580 takes existing complexity and makes it available to all users, 
+> in a simpler way. It makes existing code faster.
+> 
+> PEP 590 defines a new simple/fast protocol for its users, and instead of 
+> making existing complexity faster and easier to use, it's left to be 
+> deprecated/phased out (or kept in existing classes for backwards 
+> compatibility). It makes it possible for future code to be faster/simpler.
+> 
+> I think things should be simple by default, but if people want some 
+> extra performance, they can opt in to some extra complexity.
+> 
+> 
+>> As a more concrete example of the simplicity that PEP 580 could bring, 
+>> CPython currently has 2 classes for bound methods implemented in C:
+>> - "builtin_function_or_method" for normal C methods
+>> - "method-descriptor" for slot wrappers like __eq__ or __add__
+>>
+>> With PEP 590, these classes would need to stay separate to get maximal 
+>> performance. With PEP 580, just one class for bound methods would be 
+>> sufficient and there wouldn't be any performance loss. And this 
+>> extends to custom third-party function/method classes, for example as 
+>> implemented by Cython.
+> 
+> Yet, for backwards compatibility reasons, we can't merge the classes.
+> Also, I think CPython and Cython are exactly the users that can trade 
+> some extra complexity for better performance.
+> 
+>>> Jeroen's analysis from
+>>> https://mail.python.org/pipermail/python-dev/2018-July/154238.html seems
+>>> to miss a step at the top:
+>>>
+>>> a. CALL_FUNCTION* / CALL_METHOD opcode
+>>> ?????? calls
+>>> b. _PyObject_FastCallKeywords()
+>>> ?????? which calls
+>>> c. _PyCFunction_FastCallKeywords()
+>>> ?????? which calls
+>>> d. _PyMethodDef_RawFastCallKeywords()
+>>> ?????? which calls
+>>> e. the actual C function (*ml_meth)()
+>>>
+>>> I think it's more useful to say that both PEPs bridge a->e (via
+>>> _Py_VectorCall or PyCCall_Call).
+>>
+>> Not quite. For a builtin_function_or_method, we have with PEP 580:
+>>
+>> a. call_function()
+>> ???? calls
+>> d. PyCCall_FastCall
+>> ???? which calls
+>> e. the actual C function
+>>
+>> and with PEP 590 it's more like:
+>>
+>> a. call_function()
+>> ???? calls
+>> c. _PyCFunction_FastCallKeywords
+>> ???? which calls
+>> d. _PyMethodDef_RawFastCallKeywords
+>> ???? which calls
+>> e. the actual C function
+>>
+>> Level c. above is the vectorcall wrapper, which is a level that PEP 
+>> 580 doesn't have.
+> 
+> PEP 580 optimizes all the code paths, where PEP 590 optimizes the fast 
+> path, and makes sure most/all use cases can use (or switch to) the fast 
+> path. > Both fast paths are fast: bridging a->e using zero-copy arg passing with
+> some C calls and flag checks.
+> 
+> The PEP 580 approach is faster; PEP 590's is simpler.
+
+Why do you say that PEP 580's approach is faster? There is no evidence 
+for this.
+The only evidence so far is a couple of contrived benchmarks. Jeroen's 
+showed a ~1% speedup for PEP 580 and mine showed a ~30% speed up for PEP 
+590.
+This clearly shows that I am better and coming up with contrived 
+benchmarks :)
+
+PEP 590 was chosen as the fastest protocol I could come up with that was 
+fully general, and wasn't so complex as to be unusable.
+
+> 
+> 
+>>> Jeroen, is there something in PEPs 579/580 that PEP 590 blocks, or
+>>> should address?
+>>
+>> Well, PEP 580 is an extensible protocol while PEP 590 is not. But, 
+>> PyTypeObject is extensible, so even with PEP 590 one can always extend 
+>> that (for example, PEP 590 uses a type flag 
+>> Py_TPFLAGS_METHOD_DESCRIPTOR where PEP 580 instead uses the structs 
+>> for the C call protocol). But I guess that extending PyTypeObject will 
+>> be harder to justify (say, in a future PEP) than extending the C call 
+>> protocol.
+> 
+> That's a good point.
+
+Saying that PEP 590 is not extensible is true, but misleading.
+PEP 590 is fully universal, it supports callables that can do anything 
+with anything. There is no need for it to be extended because it already 
+supports any possible behaviour.
+
+Cheers,
+Mark.
+
+From paul at ganssle.io  Sat Apr 27 12:39:57 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Sat, 27 Apr 2019 12:39:57 -0400
+Subject: [Python-Dev] datetime.fromisocalendar
+Message-ID: <63756c7f-e07e-3556-7ab0-47c3fc3072de@ganssle.io>
+
+Greetings,
+
+Some time ago, I proposed adding a `.fromisocalendar` alternate
+constructor to `datetime` (bpo-36004
+<https://bugs.python.org/issue36004>), with a corresponding
+implementation (PR #11888
+<https://github.com/python/cpython/pull/11888>). I advertised it on
+datetime-SIG some time ago but haven't seen much discussion there, so
+I'd like to bring it to python-dev's attention as we near the cut-off
+for new Python 3.8 features.
+
+Other than the fact that I've needed this functionality in the past, I
+also think a good general principle for the datetime module is that when
+a class (time, date, datetime) has a "serialization" method (.strftime,
+.timestamp, .isoformat, .isocalendar, etc), there should be a
+corresponding /deserialization/ method (.strptime, .fromtimestamp,
+.fromisoformat) that constructs a datetime from the output. Now that
+`fromisoformat` was introduced in Python 3.7, I think `isocalendar` is
+the only remaining method without an inverse. Do people agree with this
+principle? Should we add the `fromisocalendar` method?
+
+Thanks,
+Paul
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190427/f135ee77/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190427/f135ee77/attachment.sig>
+
+From jp at nexedi.com  Sat Apr 27 12:04:38 2019
+From: jp at nexedi.com (Jean-Paul Smets)
+Date: Sat, 27 Apr 2019 16:04:38 +0000
+Subject: [Python-Dev] Actor Model in Python
+In-Reply-To: <CAHGMwNOyA_W4ebhMn8gg8DTfjO-5MFdfZAOthQjTVcuWEAkRqQ@mail.gmail.com>
+References: <CAHGMwNOyA_W4ebhMn8gg8DTfjO-5MFdfZAOthQjTVcuWEAkRqQ@mail.gmail.com>
+Message-ID: <f44c2440e0b28a4b067ec33b5447d3cf@nexedi.com>
+
+Hello, 
+
+ERP5 https://erp5.nexedi.com) implements the "Actalk" actor model in a
+library called "CMFActivity". Processing (ex. financial transactions,
+machine learning) can be distributed on a cluster of servers.  
+
+Actalk is interesting because it provides a way to unify and combine
+multiple OOCP models within the same runtime, rather than being forced
+to use only one. 
+
+ 	* Actalk: http://www-poleia.lip6.fr/~briot/actalk/papers/PAPERS.html
+ 	* CMFActivity:
+https://lab.nexedi.com/nexedi/erp5/tree/master/product/CMFActivity
+
+Go channels concurrency model is ported to python:
+https://pypi.org/project/pygolang/ 
+
+Nexedi has plans to experiment a port of Actalk to Cython with GIL-less
+concurrency. 
+
+Regards, 
+
+JPS. 
+
+Le 2019-03-31 12:30, Aratz Manterola Lasa via Python-Dev a ?crit :
+
+> Hello, 
+> I was wondering if there was any Python project aiming to implement the actor model for python concurrency. ?Does anyone know it? 
+> Aratz. 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/nicolas%40nexedi.com
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190427/aac9fe22/attachment.html>
+
+From chris at withers.org  Sat Apr 27 13:30:10 2019
+From: chris at withers.org (Chris Withers)
+Date: Sat, 27 Apr 2019 18:30:10 +0100
+Subject: [Python-Dev] git history conundrum
+Message-ID: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+
+Hi All,
+
+I'm in the process of bringing the mock backport up to date, but this 
+has got me stumped:
+
+$ git log --oneline? --no-merges 
+5943ea76d529f9ea18c73a61e10c6f53bdcc864f.. -- Lib/unittest/mock.py 
+Lib/unittest/test/testmock/ | tail
+362f058a89 Issue #28735: Fixed the comparison of mock.MagickMock with 
+mock.ANY.
+d9c956fb23 Issue #20804: The unittest.mock.sentinel attributes now 
+preserve their identity when they are copied or pickled.
+84b6fb0eea Fix unittest.mock._Call: don't ignore name
+161a4dd495 Issue #28919: Simplify _copy_func_details() in unittest.mock
+ac5084b6c7 Fixes issue28380: unittest.mock Mock autospec functions now 
+properly support assert_called, assert_not_called, and assert_called_once.
+0be894b2f6 Issue #27895:? Spelling fixes (Contributed by Ville Skytt?).
+15f44ab043 Issue #27895:? Spelling fixes (Contributed by Ville Skytt?).
+d4583d7fea Issue #26750: use inspect.isdatadescriptor instead of our own 
+_is_data_descriptor().
+9854789efe Issue #26750: unittest.mock.create_autospec() now works 
+properly for subclasses of property() and other data descriptors.
+204bf0b9ae English spelling and grammar fixes
+
+Right, so I've merged up to 15f44ab043, what comes next?
+
+$ git log --oneline? --no-merges 15f44ab043.. -- Lib/unittest/mock.py 
+Lib/unittest/test/testmock/ | tail -n 3
+161a4dd495 Issue #28919: Simplify _copy_func_details() in unittest.mock
+ac5084b6c7 Fixes issue28380: unittest.mock Mock autospec functions now 
+properly support assert_called, assert_not_called, and assert_called_once.
+0be894b2f6 Issue #27895:? Spelling fixes (Contributed by Ville Skytt?).
+
+Okay, no idea why 0be894b2f6 is there, appears to be a totally identical 
+commit to 15f44ab043, so let's skip it:
+
+$ git log --oneline? --no-merges 0be894b2f6.. -- Lib/unittest/mock.py 
+Lib/unittest/test/testmock/ | tail -n 3
+161a4dd495 Issue #28919: Simplify _copy_func_details() in unittest.mock
+ac5084b6c7 Fixes issue28380: unittest.mock Mock autospec functions now 
+properly support assert_called, assert_not_called, and assert_called_once.
+15f44ab043 Issue #27895:? Spelling fixes (Contributed by Ville Skytt?).
+
+Wat?! Why is 15f44ab043 showing up again?!
+
+What's the git subtlety I'm missing here?
+
+Chris
+
+From jp at nexedi.com  Sat Apr 27 12:02:02 2019
+From: jp at nexedi.com (Jean-Paul Smets)
+Date: Sat, 27 Apr 2019 16:02:02 +0000
+Subject: [Python-Dev] Actor Model in Python
+In-Reply-To: <CAHGMwNOyA_W4ebhMn8gg8DTfjO-5MFdfZAOthQjTVcuWEAkRqQ@mail.gmail.com>
+References: <CAHGMwNOyA_W4ebhMn8gg8DTfjO-5MFdfZAOthQjTVcuWEAkRqQ@mail.gmail.com>
+Message-ID: <61d5f630775e33d2e6d790e2398af069@nexedi.com>
+
+Hello, 
+
+ERP5 https://erp5.nexedi.com) implements the "Actalk" actor model in a
+library called "CMFActivity". Processing (ex. financial transactions,
+machine learning) can be distributed on a cluster of servers.  
+
+Actalk is interesting because it provides a way to unify and combine
+multiple OOCP models within the same runtime, rather than being forced
+to use only one. 
+
+ 	* Actalk: http://www-poleia.lip6.fr/~briot/actalk/papers/PAPERS.html
+ 	* CMFActivity:
+https://lab.nexedi.com/nexedi/erp5/tree/master/product/CMFActivity
+
+Go channels concurrency model is ported to python:
+https://pypi.org/project/pygolang/ 
+
+Nexedi has plans to experiment a port of Actalk to Cython with GIL-less
+concurrency. 
+
+Regards, 
+
+JPS. 
+
+Le 2019-03-31 12:30, Aratz Manterola Lasa via Python-Dev a ?crit :
+
+> Hello, 
+> I was wondering if there was any Python project aiming to implement the actor model for python concurrency. ?Does anyone know it? 
+> Aratz. 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/nicolas%40nexedi.com
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190427/6ec8fe26/attachment.html>
+
+From njs at pobox.com  Sat Apr 27 15:24:10 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Sat, 27 Apr 2019 12:24:10 -0700
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CAMSv6X2neB+UhG3EkKh6CuCKDd9DBx-vJW3UaWjwbFKiX7cc4Q@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <20190424185501.j6kjdbmb4adj4x6x@python.ca>
+ <CAMSv6X2neB+UhG3EkKh6CuCKDd9DBx-vJW3UaWjwbFKiX7cc4Q@mail.gmail.com>
+Message-ID: <CAPJVwBnKAM1fgpAZkBBnzbDcvjbbK40dvZ2_HRj7MWbxo--CEQ@mail.gmail.com>
+
+On Sat, Apr 27, 2019, 04:27 Armin Rigo <armin.rigo at gmail.com> wrote:
+
+> Hi Neil,
+>
+> On Wed, 24 Apr 2019 at 21:17, Neil Schemenauer <nas-python at arctrix.com>
+> wrote:
+> > Regarding the Py_TRACE_REFS fields, I think we can't do them without
+> > breaking the ABI because of the following.  For GC objects, they are
+> > always allocated by _PyObject_GC_New/_PyObject_GC_NewVar.  So, we
+> > can allocate the extra space needed for the GC linked list.  For
+> > non-GC objects, that's not the case.  Extensions can allocate using
+> > malloc() directly or their own allocator and then pass that memory
+> > to be initialized as a PyObject.
+> >
+> > I think that's a poor design and I think we should try to make slow
+> > progress in fixing it.
+>
+> Such progress needs to start with the global static PyTypeObjects that
+> all extensions define.  This is going to be impossible to fix without
+> requiring a big fix in of *all* of them.  (Unless of course you mean
+> to still allow them, but then Py_TRACE_REF can't be implemented in a
+> way that doesn't break the ABI.)
+>
+
+For Py_TRACE_REFS specifically, IIUC the only goal is to be able to produce
+a list of all live objects on demand. If that's the goal, then static type
+objects aren't a huge deal. You can't add extra data into the type objects
+themselves, but since there's a fixed set of them and they're immortal, you
+can just build a static list of all of them in PyType_Ready.
+
+-n
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190427/2d8d3d07/attachment.html>
+
+From J.Demeyer at UGent.be  Sat Apr 27 15:40:18 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Sat, 27 Apr 2019 21:40:18 +0200
+Subject: [Python-Dev] PEP 580 and PEP 590 comparison.
+In-Reply-To: <04dc374d-a648-a3f0-5a1f-fee4ec2b1b98@hotpy.org>
+References: <fbd39af1-7f12-ff4f-e987-7d316943c346@hotpy.org>
+ <5CB4422D.8030507@UGent.be> <04dc374d-a648-a3f0-5a1f-fee4ec2b1b98@hotpy.org>
+Message-ID: <5CC4B022.1080802@UGent.be>
+
+On 2019-04-27 11:26, Mark Shannon wrote:
+> Specifically, and this is important, PEP 580 cannot implement efficient
+> calls to class objects without breaking the ABI.
+
+First of all, the layout of PyTypeObject isn't actually part of the 
+stable ABI (see PEP 384). So, we wouldn't be breaking anything by 
+extending PyTypeObject.
+
+Second, even if you don't buy this argument and you really think that we 
+should guarantee ABI-compatibility, we can still solve that in PEP 580 
+by special-casing instances of "type". Sure, that's an annoyance but 
+it's not a fundamental obstruction.
+
+Jeroen.
+
+From J.Demeyer at UGent.be  Sat Apr 27 16:04:28 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Sat, 27 Apr 2019 22:04:28 +0200
+Subject: [Python-Dev] PEP 580 and PEP 590 comparison.
+In-Reply-To: <04dc374d-a648-a3f0-5a1f-fee4ec2b1b98@hotpy.org>
+References: <fbd39af1-7f12-ff4f-e987-7d316943c346@hotpy.org>
+ <5CB4422D.8030507@UGent.be> <04dc374d-a648-a3f0-5a1f-fee4ec2b1b98@hotpy.org>
+Message-ID: <5CC4B5CC.3010102@UGent.be>
+
+On 2019-04-27 11:26, Mark Shannon wrote:
+> Performance improvements include, but aren't limited to:
+>
+> 1. Much faster calls to common classes: range(), set(), type(), list(),
+> etc.
+
+That's not specific to PEP 590. It can be done with any proposal. I know 
+that there is the ABI issue with PEP 580, but that's not such a big 
+problem as you seem to think (see my last e-mail).
+
+> 2. Modifying argument clinic to produce C functions compatible with the
+> vectorcall, allowing the interpreter to call the C function directly,
+> with no additional overhead beyond the vectorcall call sequence.
+
+This is a very good point. Doing this will certainly reduce the overhead 
+of PEP 590 over PEP 580.
+
+> 3. Customization of the C code for function objects depending on the
+> Python code. The would probably be limited to treating closures and
+> generator function differently, but optimizing other aspects of the
+> Python function call is possible.
+
+I'm not entirely sure what you mean, but I'm pretty sure that it's not 
+specific to PEP 590.
+
+
+Jeroen.
+
+From guido at python.org  Sat Apr 27 16:33:45 2019
+From: guido at python.org (Guido van Rossum)
+Date: Sat, 27 Apr 2019 13:33:45 -0700
+Subject: [Python-Dev] datetime.fromisocalendar
+In-Reply-To: <63756c7f-e07e-3556-7ab0-47c3fc3072de@ganssle.io>
+References: <63756c7f-e07e-3556-7ab0-47c3fc3072de@ganssle.io>
+Message-ID: <CAP7+vJKPLwCRqyoq__BY9cLT+u8URQ4+0kosZwozp6Qb-QnoFQ@mail.gmail.com>
+
+I think it?s a good idea.
+
+On Sat, Apr 27, 2019 at 11:43 AM Paul Ganssle <paul at ganssle.io> wrote:
+
+> Greetings,
+>
+> Some time ago, I proposed adding a `.fromisocalendar` alternate
+> constructor to `datetime` (bpo-36004 <https://bugs.python.org/issue36004>),
+> with a corresponding implementation (PR #11888
+> <https://github.com/python/cpython/pull/11888>). I advertised it on
+> datetime-SIG some time ago but haven't seen much discussion there, so I'd
+> like to bring it to python-dev's attention as we near the cut-off for new
+> Python 3.8 features.
+>
+> Other than the fact that I've needed this functionality in the past, I
+> also think a good general principle for the datetime module is that when a
+> class (time, date, datetime) has a "serialization" method (.strftime,
+> .timestamp, .isoformat, .isocalendar, etc), there should be a corresponding
+> *deserialization* method (.strptime, .fromtimestamp, .fromisoformat) that
+> constructs a datetime from the output. Now that `fromisoformat` was
+> introduced in Python 3.7, I think `isocalendar` is the only remaining
+> method without an inverse. Do people agree with this principle? Should we
+> add the `fromisocalendar` method?
+>
+> Thanks,
+> Paul
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+-- 
+--Guido (mobile)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190427/3beff194/attachment.html>
+
+From vadmium+py at gmail.com  Sat Apr 27 22:51:14 2019
+From: vadmium+py at gmail.com (Martin Panter)
+Date: Sun, 28 Apr 2019 02:51:14 +0000
+Subject: [Python-Dev] git history conundrum
+In-Reply-To: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+References: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+Message-ID: <CA+eR4cEFzvUrfqR1AL+gD8dsHgMOgwEYHvrXL=Gg6KfsEHdNdA@mail.gmail.com>
+
+On Sat, 27 Apr 2019 at 19:07, Chris Withers <chris at withers.org> wrote:
+> Right, so I've merged up to 15f44ab043, what comes next?
+>
+> $ git log --oneline  --no-merges 15f44ab043.. -- Lib/unittest/mock.py
+> Lib/unittest/test/testmock/ | tail -n 3
+
+This Git command line means list all the revisions except 15f44ab043
+and those leading up to it.
+
+> 161a4dd495 Issue #28919: Simplify _copy_func_details() in unittest.mock
+> ac5084b6c7 Fixes issue28380: unittest.mock Mock autospec functions now
+> properly support assert_called, assert_not_called, and assert_called_once.
+> 0be894b2f6 Issue #27895:  Spelling fixes (Contributed by Ville Skytt?).
+>
+> Okay, no idea why 0be894b2f6 is there, appears to be a totally identical
+> commit to 15f44ab043
+
+Git revision 15f44ab043 is the original spelling fixes, which were
+pushed to the Mercurial ?default? branch (= Git master) for Python 3.6
+by Raymond. Revision 0be894b2f6 is my backport to the 3.5 branch, done
+about a week later. The backport is probably a subset of the original,
+rather than identical (e.g. the datetime.rst change was not applicable
+to 3.5).
+
+The convention at the time was to keep the 3.5 branch merged into
+Default (Master). That is why my 3.5 backport appears in your history
+of Master.
+
+> so let's skip it:
+>
+> $ git log --oneline  --no-merges 0be894b2f6.. -- Lib/unittest/mock.py
+> Lib/unittest/test/testmock/ | tail -n 3
+> 161a4dd495 Issue #28919: Simplify _copy_func_details() in unittest.mock
+> ac5084b6c7 Fixes issue28380: unittest.mock Mock autospec functions now
+> properly support assert_called, assert_not_called, and assert_called_once.
+> 15f44ab043 Issue #27895:  Spelling fixes (Contributed by Ville Skytt?).
+>
+> Wat?! Why is 15f44ab043 showing up again?!
+
+Because you are asked for all the revisions except my backport and its
+ancestors. As far as Git is concerned, the original spelling fixes are
+not an ancestor of my backport.
+
+I don?t have a copy of the Git repository to try, but I suggest the
+following command is what you want:
+
+git log --oneline  --no-merges HEAD ^15f44ab043 ^0be894b2f6 --
+Lib/unittest/mock.py Lib/unittest/test/testmock/
+
+From chris at withers.org  Sun Apr 28 03:25:30 2019
+From: chris at withers.org (Chris Withers)
+Date: Sun, 28 Apr 2019 08:25:30 +0100
+Subject: [Python-Dev] git history conundrum
+In-Reply-To: <CA+eR4cEFzvUrfqR1AL+gD8dsHgMOgwEYHvrXL=Gg6KfsEHdNdA@mail.gmail.com>
+References: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+ <CA+eR4cEFzvUrfqR1AL+gD8dsHgMOgwEYHvrXL=Gg6KfsEHdNdA@mail.gmail.com>
+Message-ID: <3c7b8ee1-f119-20f9-0c25-3a96923976c8@withers.org>
+
+On 28/04/2019 03:51, Martin Panter wrote:
+> On Sat, 27 Apr 2019 at 19:07, Chris Withers <chris at withers.org> wrote:
+>> Right, so I've merged up to 15f44ab043, what comes next?
+>>
+>> $ git log --oneline --no-merges 15f44ab043.. -- Lib/unittest/mock.py
+>> Lib/unittest/test/testmock/ | tail -n 3
+>
+> This Git command line means list all the revisions except 15f44ab043
+> and those leading up to it.
+
+That seems at odds with what I've found searching online and with the 
+backporting instructions left in the mock backport docs.
+
+My understanding is that 15f44ab043.. expands out to 15f44ab043..HEAD 
+and means "all revs between 15f44ab043 and master":
+
+https://stackoverflow.com/a/7693298/216229
+
+Can you explain what leads you to expect that to behave differently?
+
+> The convention at the time was to keep the 3.5 branch merged into
+> Default (Master). That is why my 3.5 backport appears in your history
+> of Master.
+
+Ah, okay.
+
+> Because you are asked for all the revisions except my backport and its
+> ancestors. As far as Git is concerned, the original spelling fixes are
+> not an ancestor of my backport.
+>
+> I don?t have a copy of the Git repository to try, but I suggest the
+> following command is what you want:
+>
+> git log --oneline --no-merges HEAD ^15f44ab043 ^0be894b2f6 --
+> Lib/unittest/mock.py Lib/unittest/test/testmock/
+
+What's the best way to spell "show me all the revisions on master that 
+affect {mock files} from commit x to HEAD, not including x"?
+
+cheers,
+
+Chris
+
+
