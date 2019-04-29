@@ -18467,3 +18467,363 @@ cheers,
 Chris
 
 
+From chris at withers.org  Sun Apr 28 03:10:14 2019
+From: chris at withers.org (Chris Withers)
+Date: Sun, 28 Apr 2019 08:10:14 +0100
+Subject: [Python-Dev] git history conundrum
+In-Reply-To: <CA+eR4cEFzvUrfqR1AL+gD8dsHgMOgwEYHvrXL=Gg6KfsEHdNdA@mail.gmail.com>
+References: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+ <CA+eR4cEFzvUrfqR1AL+gD8dsHgMOgwEYHvrXL=Gg6KfsEHdNdA@mail.gmail.com>
+Message-ID: <6b6e1fff-808b-2724-b392-21b03387323c@withers.org>
+
+On 28/04/2019 03:51, Martin Panter wrote:
+> On Sat, 27 Apr 2019 at 19:07, Chris Withers <chris at withers.org> wrote:
+>> Right, so I've merged up to 15f44ab043, what comes next?
+>>
+>> $ git log --oneline  --no-merges 15f44ab043.. -- Lib/unittest/mock.py
+>> Lib/unittest/test/testmock/ | tail -n 3
+> 
+> This Git command line means list all the revisions except 15f44ab043
+> and those leading up to it.
+
+That seems at odds with what I've found searching online and with the 
+backporting instructions left in the mock backport docs.
+
+My understanding is that 15f44ab043.. expands out to 15f44ab043..HEAD 
+and means "all revs between 15f44ab043 and master":
+
+https://stackoverflow.com/a/7693298/216229
+
+Can you explain what leads you to expect that to behave differently?
+
+> The convention at the time was to keep the 3.5 branch merged into
+> Default (Master). That is why my 3.5 backport appears in your history
+> of Master.
+
+Ah, okay.
+
+> Because you are asked for all the revisions except my backport and its
+> ancestors. As far as Git is concerned, the original spelling fixes are
+> not an ancestor of my backport.
+> 
+> I don?t have a copy of the Git repository to try, but I suggest the
+> following command is what you want:
+> 
+> git log --oneline  --no-merges HEAD ^15f44ab043 ^0be894b2f6 --
+> Lib/unittest/mock.py Lib/unittest/test/testmock/
+
+What's the best way to spell "show me all the revisions on master that 
+affect {mock files} from commit x to HEAD, not including x"?
+
+cheers,
+
+Chris
+
+From vstinner at redhat.com  Sun Apr 28 04:53:25 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sun, 28 Apr 2019 10:53:25 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a Python
+ compiled in debug mode
+In-Reply-To: <qa1pse$v7c$1@blaine.gmane.org>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <7aad8d69-2d66-54a3-26a4-20dcc5150f66@ubuntu.com>
+ <CA+3bQGGMXV_=GsBuFWm5OiLSiCUPp15eb9cd2UffVXbVxqAWdg@mail.gmail.com>
+ <6a395e77-d681-69f8-ba32-f6fd47f261cb@ubuntu.com>
+ <qa1pse$v7c$1@blaine.gmane.org>
+Message-ID: <CA+3bQGHcQy06Lfc-v32fmgVdOfVFGzhDwWixU1TdLvEcDqEbvw@mail.gmail.com>
+
+FYI I pushed my 3 changes to implement my idea. It is now possible to
+install some extensions in release mode and some others in debug mode.
+Python in debug mode prefers debug extensions. I documented changes here:
+https://docs.python.org/dev/whatsnew/3.8.html#debug-build-uses-the-same-abi-as-release-build
+
+The library filename has to be different in debug mode, so it can be
+co-installable with release build of a C extension.
+
+Victor
+
+Le samedi 27 avril 2019, Stefan Behnel <stefan_ml at behnel.de> a ?crit :
+> Matthias Klose schrieb am 25.04.19 um 13:48:
+>> Are there use cases where you only want to load *some*
+>> debug extensions, even if more are installed?
+>
+> Not sure if there are _important_ use cases (that could justify certain
+> design decisions), but I can certainly imagine using a non-debug (and
+> therefore faster) Pandas or NumPy for preparing some data that I need to
+> debug my own code. More generally, whenever I can avoid using a debug
+> version of a *dependency* that I don't need to include in my debug
+> analysis, it's probably a good idea to not use the debug version.
+>
+> Even given venvs and virtualisation techniques, it would probably be nice
+> if users could install debug+nondebug versions of libraries once and then
+> import the right one at need, rather than having to set up a new
+> environment (while they're on a train in the middle of nowhere without
+fast
+> access to PyPI).
+>
+> Stefan
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190428/2cf78802/attachment.html>
+
+From solipsis at pitrou.net  Sun Apr 28 16:51:01 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sun, 28 Apr 2019 22:51:01 +0200
+Subject: [Python-Dev] git history conundrum
+References: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+ <CA+eR4cEFzvUrfqR1AL+gD8dsHgMOgwEYHvrXL=Gg6KfsEHdNdA@mail.gmail.com>
+ <3c7b8ee1-f119-20f9-0c25-3a96923976c8@withers.org>
+Message-ID: <20190428225101.63d2860b@fsol>
+
+On Sun, 28 Apr 2019 08:25:30 +0100
+Chris Withers <chris at withers.org> wrote:
+> 
+> What's the best way to spell "show me all the revisions on master that 
+> affect {mock files} from commit x to HEAD, not including x"?
+
+Something like:
+
+$ git log x...HEAD -- {mock files}
+
+perhaps?
+
+Regards
+
+Antoine.
+
+
+
+From robertc at robertcollins.net  Sun Apr 28 17:21:39 2019
+From: robertc at robertcollins.net (Robert Collins)
+Date: Mon, 29 Apr 2019 09:21:39 +1200
+Subject: [Python-Dev] git history conundrum
+In-Reply-To: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+References: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+Message-ID: <CAJ3HoZ32eJ8_5oa+K0nXuL6iNb179GR7X=OnfYNDFhxJ+3DNFA@mail.gmail.com>
+
+Thank you!
+
+If I understand correctly this is just the hg style branch backport
+consequence, multiple copies of a change. Should be safe to skip those.
+
+Rob
+
+On Sun, 28 Apr 2019, 07:11 Chris Withers, <chris at withers.org> wrote:
+
+> Hi All,
+>
+> I'm in the process of bringing the mock backport up to date, but this
+> has got me stumped:
+>
+> $ git log --oneline  --no-merges
+> 5943ea76d529f9ea18c73a61e10c6f53bdcc864f.. -- Lib/unittest/mock.py
+> Lib/unittest/test/testmock/ | tail
+> 362f058a89 Issue #28735: Fixed the comparison of mock.MagickMock with
+> mock.ANY.
+> d9c956fb23 Issue #20804: The unittest.mock.sentinel attributes now
+> preserve their identity when they are copied or pickled.
+> 84b6fb0eea Fix unittest.mock._Call: don't ignore name
+> 161a4dd495 Issue #28919: Simplify _copy_func_details() in unittest.mock
+> ac5084b6c7 Fixes issue28380: unittest.mock Mock autospec functions now
+> properly support assert_called, assert_not_called, and assert_called_once.
+> 0be894b2f6 Issue #27895:  Spelling fixes (Contributed by Ville Skytt?).
+> 15f44ab043 Issue #27895:  Spelling fixes (Contributed by Ville Skytt?).
+> d4583d7fea Issue #26750: use inspect.isdatadescriptor instead of our own
+> _is_data_descriptor().
+> 9854789efe Issue #26750: unittest.mock.create_autospec() now works
+> properly for subclasses of property() and other data descriptors.
+> 204bf0b9ae English spelling and grammar fixes
+>
+> Right, so I've merged up to 15f44ab043, what comes next?
+>
+> $ git log --oneline  --no-merges 15f44ab043.. -- Lib/unittest/mock.py
+> Lib/unittest/test/testmock/ | tail -n 3
+> 161a4dd495 Issue #28919: Simplify _copy_func_details() in unittest.mock
+> ac5084b6c7 Fixes issue28380: unittest.mock Mock autospec functions now
+> properly support assert_called, assert_not_called, and assert_called_once.
+> 0be894b2f6 Issue #27895:  Spelling fixes (Contributed by Ville Skytt?).
+>
+> Okay, no idea why 0be894b2f6 is there, appears to be a totally identical
+> commit to 15f44ab043, so let's skip it:
+>
+> $ git log --oneline  --no-merges 0be894b2f6.. -- Lib/unittest/mock.py
+> Lib/unittest/test/testmock/ | tail -n 3
+> 161a4dd495 Issue #28919: Simplify _copy_func_details() in unittest.mock
+> ac5084b6c7 Fixes issue28380: unittest.mock Mock autospec functions now
+> properly support assert_called, assert_not_called, and assert_called_once.
+> 15f44ab043 Issue #27895:  Spelling fixes (Contributed by Ville Skytt?).
+>
+> Wat?! Why is 15f44ab043 showing up again?!
+>
+> What's the git subtlety I'm missing here?
+>
+> Chris
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/robertc%40robertcollins.net
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190429/71af6525/attachment.html>
+
+From chris at withers.org  Sun Apr 28 17:55:10 2019
+From: chris at withers.org (Chris Withers)
+Date: Sun, 28 Apr 2019 22:55:10 +0100
+Subject: [Python-Dev] git history conundrum
+In-Reply-To: <CAJ3HoZ32eJ8_5oa+K0nXuL6iNb179GR7X=OnfYNDFhxJ+3DNFA@mail.gmail.com>
+References: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+ <CAJ3HoZ32eJ8_5oa+K0nXuL6iNb179GR7X=OnfYNDFhxJ+3DNFA@mail.gmail.com>
+Message-ID: <6259012a-f7ea-c294-3bef-f3bef7484a7f@withers.org>
+
+On 28/04/2019 22:21, Robert Collins wrote:
+> Thank you!
+
+Thank me when we get there ;-) Currently in Dec 2018 with a wonderful 
+Py2 failure:
+
+======================================================================
+ERROR: test_autospec_getattr_partial_function 
+(mock.tests.testhelpers.SpecSignatureTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+   File "mock/tests/testhelpers.py", line 973, in 
+test_autospec_getattr_partial_function
+     autospec = create_autospec(proxy)
+   File "mock/mock.py", line 2392, in create_autospec
+     for entry in dir(spec):
+TypeError: __dir__() must return a list, not str
+
+Once we're done, I'll need a username/password that can write to 
+https://pypi.org/project/mock/ ...
+
+> If I understand correctly this is just the hg style branch backport 
+> consequence, multiple copies of a change. Should be safe to skip those.
+
+Yep, current script I've been using is here, high level highlighted:
+
+https://github.com/cjw296/mock/blob/backporting/backport.py#L102-L125
+
+cheers,
+
+Chris
+
+From fuzzyman at voidspace.org.uk  Sun Apr 28 17:57:52 2019
+From: fuzzyman at voidspace.org.uk (Michael Foord)
+Date: Sun, 28 Apr 2019 22:57:52 +0100
+Subject: [Python-Dev] git history conundrum
+In-Reply-To: <6259012a-f7ea-c294-3bef-f3bef7484a7f@withers.org>
+References: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+ <CAJ3HoZ32eJ8_5oa+K0nXuL6iNb179GR7X=OnfYNDFhxJ+3DNFA@mail.gmail.com>
+ <6259012a-f7ea-c294-3bef-f3bef7484a7f@withers.org>
+Message-ID: <D00BF121-F6F6-4799-BDEE-6934E778C0A5@voidspace.org.uk>
+
+
+
+> On 28 Apr 2019, at 22:55, Chris Withers <chris at withers.org> wrote:
+> 
+>> On 28/04/2019 22:21, Robert Collins wrote:
+>> Thank you!
+> 
+> Thank me when we get there ;-) Currently in Dec 2018 with a wonderful Py2 failure:
+> 
+> ======================================================================
+> ERROR: test_autospec_getattr_partial_function (mock.tests.testhelpers.SpecSignatureTest)
+> ----------------------------------------------------------------------
+> Traceback (most recent call last):
+>  File "mock/tests/testhelpers.py", line 973, in test_autospec_getattr_partial_function
+>    autospec = create_autospec(proxy)
+>  File "mock/mock.py", line 2392, in create_autospec
+>    for entry in dir(spec):
+> TypeError: __dir__() must return a list, not str
+> 
+> Once we're done, I'll need a username/password that can write to https://pypi.org/project/mock/ ...
+
+I can add you as a maintainer. Ping me off-list. 
+
+Michael
+
+
+
+> 
+>> If I understand correctly this is just the hg style branch backport consequence, multiple copies of a change. Should be safe to skip those.
+> 
+> Yep, current script I've been using is here, high level highlighted:
+> 
+> https://github.com/cjw296/mock/blob/backporting/backport.py#L102-L125
+> 
+> cheers,
+> 
+> Chris
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/fuzzyman%40voidspace.org.uk
+
+
+From robertc at robertcollins.net  Sun Apr 28 18:03:43 2019
+From: robertc at robertcollins.net (Robert Collins)
+Date: Mon, 29 Apr 2019 10:03:43 +1200
+Subject: [Python-Dev] git history conundrum
+In-Reply-To: <6259012a-f7ea-c294-3bef-f3bef7484a7f@withers.org>
+References: <3140efd6-54ff-40d0-5906-fbb19e99ea76@withers.org>
+ <CAJ3HoZ32eJ8_5oa+K0nXuL6iNb179GR7X=OnfYNDFhxJ+3DNFA@mail.gmail.com>
+ <6259012a-f7ea-c294-3bef-f3bef7484a7f@withers.org>
+Message-ID: <CAJ3HoZ0popwO2L_rSMFQiA8F2NuB1DEcpD_Ooi_wwyC-ri9gNA@mail.gmail.com>
+
+Share your own username with Michael or I and we'll add you there.
+
+Rob
+
+On Mon, 29 Apr 2019, 09:55 Chris Withers, <chris at withers.org> wrote:
+
+> On 28/04/2019 22:21, Robert Collins wrote:
+> > Thank you!
+>
+> Thank me when we get there ;-) Currently in Dec 2018 with a wonderful
+> Py2 failure:
+>
+> ======================================================================
+> ERROR: test_autospec_getattr_partial_function
+> (mock.tests.testhelpers.SpecSignatureTest)
+> ----------------------------------------------------------------------
+> Traceback (most recent call last):
+>    File "mock/tests/testhelpers.py", line 973, in
+> test_autospec_getattr_partial_function
+>      autospec = create_autospec(proxy)
+>    File "mock/mock.py", line 2392, in create_autospec
+>      for entry in dir(spec):
+> TypeError: __dir__() must return a list, not str
+>
+> Once we're done, I'll need a username/password that can write to
+> https://pypi.org/project/mock/ ...
+>
+> > If I understand correctly this is just the hg style branch backport
+> > consequence, multiple copies of a change. Should be safe to skip those.
+>
+> Yep, current script I've been using is here, high level highlighted:
+>
+> https://github.com/cjw296/mock/blob/backporting/backport.py#L102-L125
+>
+> cheers,
+>
+> Chris
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190429/1b719799/attachment.html>
+
