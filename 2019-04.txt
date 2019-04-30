@@ -18827,3 +18827,299 @@ On Mon, 29 Apr 2019, 09:55 Chris Withers, <chris at withers.org> wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190429/1b719799/attachment.html>
 
+From vstinner at redhat.com  Mon Apr 29 09:30:41 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 29 Apr 2019 15:30:41 +0200
+Subject: [Python-Dev] datetime.fromisocalendar
+In-Reply-To: <CAP7+vJKPLwCRqyoq__BY9cLT+u8URQ4+0kosZwozp6Qb-QnoFQ@mail.gmail.com>
+References: <63756c7f-e07e-3556-7ab0-47c3fc3072de@ganssle.io>
+ <CAP7+vJKPLwCRqyoq__BY9cLT+u8URQ4+0kosZwozp6Qb-QnoFQ@mail.gmail.com>
+Message-ID: <CA+3bQGFUkfUtjdLjCCeZW9XepN1SVU7ZFVGgM8pTzrXC6yunoQ@mail.gmail.com>
+
+I reviewed and merged Paul's PR. I concur with Guido, the new
+constructor perfectly makes sense and is useful.
+
+About the implementation: date and time are crazy beasts. Extract of the code:
+
+        if not 0 < week < 53:
+            out_of_range = True
+
+            if week == 53:
+                # ISO years have 53 weeks in them on years starting with a
+                # Thursday and leap years starting on a Wednesday
+                first_weekday = _ymd2ord(year, 1, 1) % 7
+                if (first_weekday == 4 or (first_weekday == 3 and
+                                           _is_leap(year))):
+                    out_of_range = False
+
+            if out_of_range:
+                raise ValueError(f"Invalid week: {week}")
+
+"ISO years have 53 weeks in them on years starting with a Thursday and
+leap years starting on a Wednesday" !?!
+
+Victor
+
+Le sam. 27 avr. 2019 ? 22:37, Guido van Rossum <guido at python.org> a ?crit :
+>
+> I think it?s a good idea.
+>
+> On Sat, Apr 27, 2019 at 11:43 AM Paul Ganssle <paul at ganssle.io> wrote:
+>>
+>> Greetings,
+>>
+>> Some time ago, I proposed adding a `.fromisocalendar` alternate constructor to `datetime` (bpo-36004), with a corresponding implementation (PR #11888). I advertised it on datetime-SIG some time ago but haven't seen much discussion there, so I'd like to bring it to python-dev's attention as we near the cut-off for new Python 3.8 features.
+>>
+>> Other than the fact that I've needed this functionality in the past, I also think a good general principle for the datetime module is that when a class (time, date, datetime) has a "serialization" method (.strftime, .timestamp, .isoformat, .isocalendar, etc), there should be a corresponding deserialization method (.strptime, .fromtimestamp, .fromisoformat) that constructs a datetime from the output. Now that `fromisoformat` was introduced in Python 3.7, I think `isocalendar` is the only remaining method without an inverse. Do people agree with this principle? Should we add the `fromisocalendar` method?
+>>
+>> Thanks,
+>> Paul
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+> --
+> --Guido (mobile)
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vano at mail.mipt.ru  Mon Apr 29 16:56:08 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Mon, 29 Apr 2019 23:56:08 +0300
+Subject: [Python-Dev] datetime.fromisocalendar
+In-Reply-To: <CA+3bQGFUkfUtjdLjCCeZW9XepN1SVU7ZFVGgM8pTzrXC6yunoQ@mail.gmail.com>
+References: <63756c7f-e07e-3556-7ab0-47c3fc3072de@ganssle.io>
+ <CAP7+vJKPLwCRqyoq__BY9cLT+u8URQ4+0kosZwozp6Qb-QnoFQ@mail.gmail.com>
+ <CA+3bQGFUkfUtjdLjCCeZW9XepN1SVU7ZFVGgM8pTzrXC6yunoQ@mail.gmail.com>
+Message-ID: <16fa808e-cb0c-c31e-274d-b60b53ef2a23@mail.mipt.ru>
+
+On 29.04.2019 16:30, Victor Stinner wrote:
+> I reviewed and merged Paul's PR. I concur with Guido, the new
+> constructor perfectly makes sense and is useful.
+>
+> About the implementation: date and time are crazy beasts. Extract of the code:
+>
+>          if not 0 < week < 53:
+>              out_of_range = True
+>
+>              if week == 53:
+>                  # ISO years have 53 weeks in them on years starting with a
+>                  # Thursday and leap years starting on a Wednesday
+>                  first_weekday = _ymd2ord(year, 1, 1) % 7
+>                  if (first_weekday == 4 or (first_weekday == 3 and
+>                                             _is_leap(year))):
+>                      out_of_range = False
+>
+>              if out_of_range:
+>                  raise ValueError(f"Invalid week: {week}")
+>
+> "ISO years have 53 weeks in them on years starting with a Thursday and
+> leap years starting on a Wednesday" !?!
+https://www.staff.science.uu.nl/~gent0113/calendar/isocalendar.htm , linked from 
+https://docs.python.org/3/library/datetime.html?highlight=isocalendar#datetime.date.isocalendar
+> Victor
+>
+> Le sam. 27 avr. 2019 ? 22:37, Guido van Rossum <guido at python.org> a ?crit :
+>> I think it?s a good idea.
+>>
+>> On Sat, Apr 27, 2019 at 11:43 AM Paul Ganssle <paul at ganssle.io> wrote:
+>>> Greetings,
+>>>
+>>> Some time ago, I proposed adding a `.fromisocalendar` alternate constructor to `datetime` (bpo-36004), with a corresponding implementation (PR #11888). I advertised it on datetime-SIG some time ago but haven't seen much discussion there, so I'd like to bring it to python-dev's attention as we near the cut-off for new Python 3.8 features.
+>>>
+>>> Other than the fact that I've needed this functionality in the past, I also think a good general principle for the datetime module is that when a class (time, date, datetime) has a "serialization" method (.strftime, .timestamp, .isoformat, .isocalendar, etc), there should be a corresponding deserialization method (.strptime, .fromtimestamp, .fromisoformat) that constructs a datetime from the output. Now that `fromisoformat` was introduced in Python 3.7, I think `isocalendar` is the only remaining method without an inverse. Do people agree with this principle? Should we add the `fromisocalendar` method?
+>>>
+>>> Thanks,
+>>> Paul
+>>>
+>>> _______________________________________________
+>>> Python-Dev mailing list
+>>> Python-Dev at python.org
+>>> https://mail.python.org/mailman/listinfo/python-dev
+>>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>> --
+>> --Guido (mobile)
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+>
+-- 
+Regards,
+Ivan
+
+
+From nas-python at arctrix.com  Mon Apr 29 20:01:41 2019
+From: nas-python at arctrix.com (Neil Schemenauer)
+Date: Mon, 29 Apr 2019 18:01:41 -0600
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <CAPJVwBnKAM1fgpAZkBBnzbDcvjbbK40dvZ2_HRj7MWbxo--CEQ@mail.gmail.com>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <20190424185501.j6kjdbmb4adj4x6x@python.ca>
+ <CAMSv6X2neB+UhG3EkKh6CuCKDd9DBx-vJW3UaWjwbFKiX7cc4Q@mail.gmail.com>
+ <CAPJVwBnKAM1fgpAZkBBnzbDcvjbbK40dvZ2_HRj7MWbxo--CEQ@mail.gmail.com>
+Message-ID: <20190430000141.sbdhdez3xumf2qgz@python.ca>
+
+On 2019-04-27, Nathaniel Smith wrote:
+> For Py_TRACE_REFS specifically, IIUC the only goal is to be able to produce
+> a list of all live objects on demand. If that's the goal, then static type
+> objects aren't a huge deal. You can't add extra data into the type objects
+> themselves, but since there's a fixed set of them and they're immortal, you
+> can just build a static list of all of them in PyType_Ready.
+
+As far as I understand, we have a similar problem already for
+gc.get_objects() because those static type objects don't have a
+PyGC_Head.  My 2-cent proposal for fixing things in the long term
+would be to introduce a function like PyType_Ready that returns a
+pointer to the new type.  The argument to it would be what is the
+current static type structure.  The function would copy things from
+the static type structure into a newly allocated type structure.
+
+We have a kind of solution already with PyType_FromSpec, etc.
+However, I think it is harder to convert existing extension module
+source code to use that API.  We want to make it very easy for
+people to fix source code.
+
+If we can remove static types, that would allow us to kill off
+Py_TYPE(o)->tp_is_gc(o).  I understand why that exists but I think
+it is quite an ugly detail of the current GC implementation.  I
+wonder about the performance impact of it given current memory
+latencies.  When we do a full GC run, we call PyObject_IS_GC() on
+many objects.  I fear having to lookup and call tp_is_gc could be
+quite expensive.
+
+I've been playing with the idea of using memory bitmaps rather then
+the PyGC_Head.  That idea seems to depend on removing static type
+objects.  Initially I was thinking of it as reducing the memory
+overhead for GC types.  Now I think the memory overhead doesn't
+matter too much but perhaps the bitmaps would be much faster due to
+memory latency.  There is an interesting Youtube video that compares
+vector traversals vs linked list traversals in C++.  Linked lists on
+modern machines are really terrible.
+
+Regards,
+
+  Neil
+
+From vstinner at redhat.com  Mon Apr 29 20:22:59 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 30 Apr 2019 02:22:59 +0200
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <20190430000141.sbdhdez3xumf2qgz@python.ca>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <20190424185501.j6kjdbmb4adj4x6x@python.ca>
+ <CAMSv6X2neB+UhG3EkKh6CuCKDd9DBx-vJW3UaWjwbFKiX7cc4Q@mail.gmail.com>
+ <CAPJVwBnKAM1fgpAZkBBnzbDcvjbbK40dvZ2_HRj7MWbxo--CEQ@mail.gmail.com>
+ <20190430000141.sbdhdez3xumf2qgz@python.ca>
+Message-ID: <CA+3bQGGE8eOdvLA8MDT8jnVz1CGB=FgLBSv+ujzY4TafsS_cWw@mail.gmail.com>
+
+You have my support is you work on removing static types :-)
+
+Here are my notes on the current C APIs to define a type:
+https://pythoncapi.readthedocs.io/type_object.html
+
+IMHO static types should go away in the long term. They are causing
+too many practical issues.
+
+Victor
+
+
+Le mar. 30 avr. 2019 ? 02:01, Neil Schemenauer
+<nas-python at arctrix.com> a ?crit :
+>
+> On 2019-04-27, Nathaniel Smith wrote:
+> > For Py_TRACE_REFS specifically, IIUC the only goal is to be able to produce
+> > a list of all live objects on demand. If that's the goal, then static type
+> > objects aren't a huge deal. You can't add extra data into the type objects
+> > themselves, but since there's a fixed set of them and they're immortal, you
+> > can just build a static list of all of them in PyType_Ready.
+>
+> As far as I understand, we have a similar problem already for
+> gc.get_objects() because those static type objects don't have a
+> PyGC_Head.  My 2-cent proposal for fixing things in the long term
+> would be to introduce a function like PyType_Ready that returns a
+> pointer to the new type.  The argument to it would be what is the
+> current static type structure.  The function would copy things from
+> the static type structure into a newly allocated type structure.
+>
+> We have a kind of solution already with PyType_FromSpec, etc.
+> However, I think it is harder to convert existing extension module
+> source code to use that API.  We want to make it very easy for
+> people to fix source code.
+>
+> If we can remove static types, that would allow us to kill off
+> Py_TYPE(o)->tp_is_gc(o).  I understand why that exists but I think
+> it is quite an ugly detail of the current GC implementation.  I
+> wonder about the performance impact of it given current memory
+> latencies.  When we do a full GC run, we call PyObject_IS_GC() on
+> many objects.  I fear having to lookup and call tp_is_gc could be
+> quite expensive.
+>
+> I've been playing with the idea of using memory bitmaps rather then
+> the PyGC_Head.  That idea seems to depend on removing static type
+> objects.  Initially I was thinking of it as reducing the memory
+> overhead for GC types.  Now I think the memory overhead doesn't
+> matter too much but perhaps the bitmaps would be much faster due to
+> memory latency.  There is an interesting Youtube video that compares
+> vector traversals vs linked list traversals in C++.  Linked lists on
+> modern machines are really terrible.
+>
+> Regards,
+>
+>   Neil
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From njs at pobox.com  Mon Apr 29 20:43:35 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Mon, 29 Apr 2019 17:43:35 -0700
+Subject: [Python-Dev] Use C extensions compiled in release mode on a
+ Python compiled in debug mode
+In-Reply-To: <20190430000141.sbdhdez3xumf2qgz@python.ca>
+References: <CA+3bQGECBtgmnLfW34jy3hk_ZnVeLvsKD7ZaeHB2dhHNV1870Q@mail.gmail.com>
+ <20190424185501.j6kjdbmb4adj4x6x@python.ca>
+ <CAMSv6X2neB+UhG3EkKh6CuCKDd9DBx-vJW3UaWjwbFKiX7cc4Q@mail.gmail.com>
+ <CAPJVwBnKAM1fgpAZkBBnzbDcvjbbK40dvZ2_HRj7MWbxo--CEQ@mail.gmail.com>
+ <20190430000141.sbdhdez3xumf2qgz@python.ca>
+Message-ID: <CAPJVwB==UWJYTC0KEvhn9X6myyCP_xoqX-B9F2KaCJ=p+qJfNg@mail.gmail.com>
+
+On Mon, Apr 29, 2019 at 5:01 PM Neil Schemenauer <nas-python at arctrix.com> wrote:
+> As far as I understand, we have a similar problem already for
+> gc.get_objects() because those static type objects don't have a
+> PyGC_Head.  My 2-cent proposal for fixing things in the long term
+> would be to introduce a function like PyType_Ready that returns a
+> pointer to the new type.  The argument to it would be what is the
+> current static type structure.  The function would copy things from
+> the static type structure into a newly allocated type structure.
+
+I doubt you'll be able to get rid of static types entirely, due to the
+usual issues with C API breakage. And I'm guessing that static types
+make up such a tiny fraction of the address space that merely tweaking
+the percent up or down won't affect performance.
+
+But your proposed new API would make it *way* easier to migrate
+existing code to the stable ABI.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
