@@ -19123,3 +19123,142 @@ existing code to the stable ABI.
 -- 
 Nathaniel J. Smith -- https://vorpus.org
 
+From solipsis at pitrou.net  Tue Apr 30 04:14:28 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 30 Apr 2019 10:14:28 +0200
+Subject: [Python-Dev] PEP 574 ready for review
+Message-ID: <20190430101428.204457e6@fsol>
+
+
+Hello,
+
+I've put the final touches to PEP 574 - Pickle protocol 5 with
+out-of-band data (*).  It is now ready for review.  The implementation
+is fully functional, as well as its PyPI backport (**), and has
+regression tests against Numpy.  Numpy and PyArrow have their own tests
+against the pickle5 backport.
+
+(*) https://www.python.org/dev/peps/pep-0574/
+
+(**) https://pypi.org/project/pickle5/
+
+Regards
+
+Antoine.
+
+
+
+From chris at withers.org  Tue Apr 30 05:26:19 2019
+From: chris at withers.org (Chris Withers)
+Date: Tue, 30 Apr 2019 10:26:19 +0100
+Subject: [Python-Dev] drop jython support in mock backport?
+Message-ID: <b43951d0-ab05-fd9e-a9fa-e8d9ee5d0f9f@withers.org>
+
+[resending to python-dev in case there are Jython users here...]
+
+Hi All,
+
+If you need Jython support in the mock backport, please shout now:
+
+https://github.com/testing-cabal/mock/issues/453
+
+cheers,
+
+Chris
+
+
+From chris at withers.org  Tue Apr 30 17:24:53 2019
+From: chris at withers.org (Chris Withers)
+Date: Tue, 30 Apr 2019 22:24:53 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of python
+ unittest files
+Message-ID: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+
+Hi All,
+
+I have a crazy idea of getting unittest.mock up to 100% code coverage.
+
+I noticed at the bottom of all of the test files in testmock/, there's a:
+
+if __name__ == '__main__':
+ ??? unittest.main()
+
+...block.
+
+How would people feel about these going away? I don't *think* they're 
+needed now that we have unittest discover, but thought I'd ask.
+
+Chris
+
+
+From robertc at robertcollins.net  Tue Apr 30 18:41:45 2019
+From: robertc at robertcollins.net (Robert Collins)
+Date: Wed, 1 May 2019 10:41:45 +1200
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+Message-ID: <CAJ3HoZ18bPgphZOJoCRWnfPrtq=k80fXnH_cyMZSxuhXS6+L_w@mail.gmail.com>
+
+They were never needed ?
+
+Removal is fine with me.
+
+On Wed, 1 May 2019, 09:27 Chris Withers, <chris at withers.org> wrote:
+
+> Hi All,
+>
+> I have a crazy idea of getting unittest.mock up to 100% code coverage.
+>
+> I noticed at the bottom of all of the test files in testmock/, there's a:
+>
+> if __name__ == '__main__':
+>      unittest.main()
+>
+> ...block.
+>
+> How would people feel about these going away? I don't *think* they're
+> needed now that we have unittest discover, but thought I'd ask.
+>
+> Chris
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/robertc%40robertcollins.net
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190501/159b3749/attachment.html>
+
+From ja.py at farowl.co.uk  Tue Apr 30 18:00:25 2019
+From: ja.py at farowl.co.uk (Jeff Allen)
+Date: Tue, 30 Apr 2019 23:00:25 +0100
+Subject: [Python-Dev] drop jython support in mock backport?
+In-Reply-To: <b43951d0-ab05-fd9e-a9fa-e8d9ee5d0f9f@withers.org>
+References: <b43951d0-ab05-fd9e-a9fa-e8d9ee5d0f9f@withers.org>
+Message-ID: <a9d2f40e-a98c-f54f-10e9-1712cc08efbe@farowl.co.uk>
+
+Cross-posting to jython-users for obvious reasons.
+
+Jeff Allen
+
+On 30/04/2019 10:26, Chris Withers wrote:
+> [resending to python-dev in case there are Jython users here...]
+>
+> Hi All,
+>
+> If you need Jython support in the mock backport, please shout now:
+>
+> https://github.com/testing-cabal/mock/issues/453
+>
+> cheers,
+>
+> Chris
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190430/a03cec0d/attachment.html>
+
