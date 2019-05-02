@@ -1,0 +1,1246 @@
+From tjreedy at udel.edu  Wed May  1 01:12:10 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 1 May 2019 01:12:10 -0400
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+Message-ID: <qab9rb$5a7r$1@blaine.gmane.org>
+
+On 4/30/2019 5:24 PM, Chris Withers wrote:
+> Hi All,
+> 
+> I have a crazy idea of getting unittest.mock up to 100% code coverage.
+> 
+> I noticed at the bottom of all of the test files in testmock/, there's a:
+> 
+> if __name__ == '__main__':
+>  ??? unittest.main()
+> 
+> ...block.
+
+Such blocks should be excluded from coverage by the default .coveragerc 
+file.  Mine came with
+
+exclude_lines =
+     # Don't complain if non-runnable code isn't run:
+     if 0:
+     if __name__ == .__main__.:
+     if DEBUG:
+
+
+-- 
+Terry Jan Reedy
+
+
+
+From chris at withers.org  Wed May  1 02:13:16 2019
+From: chris at withers.org (Chris Withers)
+Date: Wed, 1 May 2019 07:13:16 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <qab9rb$5a7r$1@blaine.gmane.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <qab9rb$5a7r$1@blaine.gmane.org>
+Message-ID: <98f5b8b6-6582-e348-c0fc-472ba228f131@withers.org>
+
+On 01/05/2019 06:12, Terry Reedy wrote:
+> Such blocks should be excluded from coverage by the default .coveragerc 
+> file.? Mine came with
+> 
+> exclude_lines =
+>  ??? # Don't complain if non-runnable code isn't run:
+>  ??? if 0:
+>  ??? if __name__ == .__main__.:
+>  ??? if DEBUG:
+
+Which .coveragerc are you referring to? There isn't one in the cpython 
+repo and a current release of coverage.py doesn't appear to exclude 
+these lines for me:
+
+https://circleci.com/gh/testing-cabal/mock/20
+
+(line 44 in mock/tests/testsentinel.py)
+
+Chris
+
+From storchaka at gmail.com  Wed May  1 02:46:57 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Wed, 1 May 2019 09:46:57 +0300
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+Message-ID: <qabfcq$4dkk$1@blaine.gmane.org>
+
+01.05.19 00:24, Chris Withers ????:
+> I have a crazy idea of getting unittest.mock up to 100% code coverage.
+> 
+> I noticed at the bottom of all of the test files in testmock/, there's a:
+> 
+> if __name__ == '__main__':
+>  ??? unittest.main()
+> 
+> ...block.
+> 
+> How would people feel about these going away? I don't *think* they're 
+> needed now that we have unittest discover, but thought I'd ask.
+
+These lines were added for purpose. They are needed for running tests in 
+separate file as a script.
+
+$ ./python Lib/unittest/test/testmock/testcallable.py -v
+test_attributes (__main__.TestCallable) ... ok
+test_create_autospec (__main__.TestCallable) ... ok
+test_create_autospec_instance (__main__.TestCallable) ... ok
+test_hierarchy (__main__.TestCallable) ... ok
+test_non_callable (__main__.TestCallable) ... ok
+test_patch_spec (__main__.TestCallable) ... ok
+test_patch_spec_callable_class (__main__.TestCallable) ... ok
+test_patch_spec_instance (__main__.TestCallable) ... ok
+test_patch_spec_set (__main__.TestCallable) ... ok
+test_patch_spec_set_instance (__main__.TestCallable) ... ok
+test_subclasses (__main__.TestCallable) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.040s
+
+OK
+
+
+From chris at withers.org  Wed May  1 03:09:55 2019
+From: chris at withers.org (Chris Withers)
+Date: Wed, 1 May 2019 08:09:55 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <qabfcq$4dkk$1@blaine.gmane.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <qabfcq$4dkk$1@blaine.gmane.org>
+Message-ID: <10a06aab-7190-c41e-d5f7-64e1b64005ad@withers.org>
+
+On 01/05/2019 07:46, Serhiy Storchaka wrote:
+> 01.05.19 00:24, Chris Withers ????:
+>> I have a crazy idea of getting unittest.mock up to 100% code coverage.
+>>
+>> I noticed at the bottom of all of the test files in testmock/, there's a:
+>>
+>> if __name__ == '__main__':
+>> ???? unittest.main()
+>>
+>> ...block.
+>>
+>> How would people feel about these going away? I don't *think* they're 
+>> needed now that we have unittest discover, but thought I'd ask.
+> 
+> These lines were added for purpose. They are needed for running tests in 
+> separate file as a script.
+> 
+> $ ./python Lib/unittest/test/testmock/testcallable.py -v
+> test_attributes (__main__.TestCallable) ... ok
+> test_create_autospec (__main__.TestCallable) ... ok
+> test_create_autospec_instance (__main__.TestCallable) ... ok
+> test_hierarchy (__main__.TestCallable) ... ok
+> test_non_callable (__main__.TestCallable) ... ok
+> test_patch_spec (__main__.TestCallable) ... ok
+> test_patch_spec_callable_class (__main__.TestCallable) ... ok
+> test_patch_spec_instance (__main__.TestCallable) ... ok
+> test_patch_spec_set (__main__.TestCallable) ... ok
+> test_patch_spec_set_instance (__main__.TestCallable) ... ok
+> test_subclasses (__main__.TestCallable) ... ok
+
+Right, but that's not the documented way of running individual suites in 
+the devguide.
+
+I'm happy to remove these on the basis that there should be one and only 
+one way of doing things like this.
+
+Chris
+
+From tjreedy at udel.edu  Wed May  1 06:24:59 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 1 May 2019 06:24:59 -0400
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <98f5b8b6-6582-e348-c0fc-472ba228f131@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <qab9rb$5a7r$1@blaine.gmane.org>
+ <98f5b8b6-6582-e348-c0fc-472ba228f131@withers.org>
+Message-ID: <qabs5s$7vhm$1@blaine.gmane.org>
+
+On 5/1/2019 2:13 AM, Chris Withers wrote:
+> On 01/05/2019 06:12, Terry Reedy wrote:
+>> Such blocks should be excluded from coverage by the default 
+>> .coveragerc file.? Mine came with
+>>
+>> exclude_lines =
+>> ???? # Don't complain if non-runnable code isn't run:
+>> ???? if 0:
+>> ???? if __name__ == .__main__.:
+>> ???? if DEBUG:
+
+I am fairly sure these are the original lines.  I added more to my 
+personal copy to exclude some things specific to idlelib files.  Idlelib 
+files also have the same statement as the mock files.  It is very handy 
+for development.
+
+> Which .coveragerc are you referring to? 
+
+The file in the directory that contains Ned's coverage package.
+At least that is where it is for me.
+
+> There isn't one in the cpython repo
+
+Since /coverage is not in the Python repo either, I would not expect it 
+to be.
+
+> and a current release of coverage.py doesn't appear to exclude 
+> these lines for me:
+
+> https://circleci.com/gh/testing-cabal/mock/20
+> 
+> (line 44 in mock/tests/testsentinel.py)
+
+I consider this a problem in the circleci coverage setup, not in the 
+mock files.  A faulty exclude-lines section leads to a faulty coverage 
+calculation.  Ned made it user-editable for a reason.
+
+-- 
+Terry Jan Reedy
+
+
+
+From solipsis at pitrou.net  Wed May  1 06:48:31 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 1 May 2019 12:48:31 +0200
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+Message-ID: <20190501124831.7faadb2b@fsol>
+
+On Tue, 30 Apr 2019 22:24:53 +0100
+Chris Withers <chris at withers.org> wrote:
+> Hi All,
+> 
+> I have a crazy idea of getting unittest.mock up to 100% code coverage.
+> 
+> I noticed at the bottom of all of the test files in testmock/, there's a:
+> 
+> if __name__ == '__main__':
+>  ??? unittest.main()
+> 
+> ...block.
+> 
+> How would people feel about these going away? I don't *think* they're 
+> needed now that we have unittest discover, but thought I'd ask.
+
+If you are only asking to remove them because you want that score of
+100% coverage, then I think you shouldn't.
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Wed May  1 08:21:54 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 1 May 2019 08:21:54 -0400
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <10a06aab-7190-c41e-d5f7-64e1b64005ad@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <qabfcq$4dkk$1@blaine.gmane.org>
+ <10a06aab-7190-c41e-d5f7-64e1b64005ad@withers.org>
+Message-ID: <CA+3bQGFiVS5Adu6dr8jnxZSMe6tBi=wH6aUN5-NYhE1EBkQBmQ@mail.gmail.com>
+
+Le mer. 1 mai 2019 ? 03:12, Chris Withers <chris at withers.org> a ?crit :
+> Right, but that's not the documented way of running individual suites in
+> the devguide.
+
+Maybe, but I'm using that sometimes and it's useful for some specific
+issues. Is it possible to run an individual test file using unittest?
+
+Something like ./python -m unittest
+Lib/unittest/test/testmock/testcallable.py -v
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From chris at withers.org  Wed May  1 08:30:40 2019
+From: chris at withers.org (Chris Withers)
+Date: Wed, 1 May 2019 13:30:40 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <CA+3bQGFiVS5Adu6dr8jnxZSMe6tBi=wH6aUN5-NYhE1EBkQBmQ@mail.gmail.com>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <qabfcq$4dkk$1@blaine.gmane.org>
+ <10a06aab-7190-c41e-d5f7-64e1b64005ad@withers.org>
+ <CA+3bQGFiVS5Adu6dr8jnxZSMe6tBi=wH6aUN5-NYhE1EBkQBmQ@mail.gmail.com>
+Message-ID: <a0dd16c9-475a-e15b-114d-fde7121dd5de@withers.org>
+
+On 01/05/2019 13:21, Victor Stinner wrote:
+> Le mer. 1 mai 2019 ? 03:12, Chris Withers <chris at withers.org> a ?crit :
+>> Right, but that's not the documented way of running individual suites in
+>> the devguide.
+> 
+> Maybe, but I'm using that sometimes and it's useful for some specific
+> issues. Is it possible to run an individual test file using unittest?
+> 
+> Something like ./python -m unittest
+> Lib/unittest/test/testmock/testcallable.py -v
+
+Yep:
+
+$ ./python.exe -m unittest Lib/unittest/test/testmock/testsentinel.py
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.002s
+
+$ ./python.exe -m unittest -v Lib/unittest/test/testmock/testsentinel.py
+testBases (Lib.unittest.test.testmock.testsentinel.SentinelTest) ... ok
+testCopy (Lib.unittest.test.testmock.testsentinel.SentinelTest) ... ok
+testDEFAULT (Lib.unittest.test.testmock.testsentinel.SentinelTest) ... ok
+testPickle (Lib.unittest.test.testmock.testsentinel.SentinelTest) ... ok
+testSentinelName (Lib.unittest.test.testmock.testsentinel.SentinelTest) 
+... ok
+testSentinels (Lib.unittest.test.testmock.testsentinel.SentinelTest) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.003s
+
+OK
+
+$ ./python.exe -m unittest -v unittest.test.testmock.testsentinel
+testBases (unittest.test.testmock.testsentinel.SentinelTest) ... ok
+testCopy (unittest.test.testmock.testsentinel.SentinelTest) ... ok
+testDEFAULT (unittest.test.testmock.testsentinel.SentinelTest) ... ok
+testPickle (unittest.test.testmock.testsentinel.SentinelTest) ... ok
+testSentinelName (unittest.test.testmock.testsentinel.SentinelTest) ... ok
+testSentinels (unittest.test.testmock.testsentinel.SentinelTest) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.003s
+
+cheers,
+
+Chris
+
+From p.f.moore at gmail.com  Wed May  1 08:37:01 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Wed, 1 May 2019 13:37:01 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <20190501124831.7faadb2b@fsol>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+Message-ID: <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+
+I agree - removing this just to make the coverage figures look pretty
+seems like the wrong motivation.
+
+Configuring coverage to understand that you want to exclude these
+lines from the checking would be fine, as would accepting that a
+coverage of slightly less than 100% is OK. Removing functionality that
+people use (whether or not they have other ways of getting the same
+results) needs a stronger justification, IMO.
+
+Paul
+
+On Wed, 1 May 2019 at 11:51, Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+> On Tue, 30 Apr 2019 22:24:53 +0100
+> Chris Withers <chris at withers.org> wrote:
+> > Hi All,
+> >
+> > I have a crazy idea of getting unittest.mock up to 100% code coverage.
+> >
+> > I noticed at the bottom of all of the test files in testmock/, there's a:
+> >
+> > if __name__ == '__main__':
+> >      unittest.main()
+> >
+> > ...block.
+> >
+> > How would people feel about these going away? I don't *think* they're
+> > needed now that we have unittest discover, but thought I'd ask.
+>
+> If you are only asking to remove them because you want that score of
+> 100% coverage, then I think you shouldn't.
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/p.f.moore%40gmail.com
+
+From storchaka at gmail.com  Wed May  1 08:39:15 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Wed, 1 May 2019 15:39:15 +0300
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <10a06aab-7190-c41e-d5f7-64e1b64005ad@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <qabfcq$4dkk$1@blaine.gmane.org>
+ <10a06aab-7190-c41e-d5f7-64e1b64005ad@withers.org>
+Message-ID: <qac41d$623f$1@blaine.gmane.org>
+
+01.05.19 10:09, Chris Withers ????:
+> Right, but that's not the documented way of running individual suites in 
+> the devguide.
+> 
+> I'm happy to remove these on the basis that there should be one and only 
+> one way of doing things like this.
+
+This principle is not applicable here because the Python testsuite is 
+not a public API. It is not for use of Python users.
+
+We try to support several different ways of running tests. This allows 
+to catch some environment depended flaws in tests and serves as a kind 
+of the test of unittest itself. Not all test files are made discoverable 
+yet, but we move in this direction.
+
+I do not see what is wrong here and suggest to not break working code.
+
+
+From chris at withers.org  Wed May  1 08:51:22 2019
+From: chris at withers.org (Chris Withers)
+Date: Wed, 1 May 2019 13:51:22 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+ <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+Message-ID: <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+
+On 01/05/2019 13:37, Paul Moore wrote:
+> I agree - removing this just to make the coverage figures look pretty
+> seems like the wrong motivation.
+> 
+> Configuring coverage to understand that you want to exclude these
+> lines from the checking would be fine, as would accepting that a
+> coverage of slightly less than 100% is OK. Removing functionality that
+> people use (whether or not they have other ways of getting the same
+> results) needs a stronger justification, IMO.
+
+It's an interesting point; I personally don't see much value in coverage 
+of less than 100%, if you're going to look at coverage: no-one is going 
+to focus on or potentially even notice whether coverage moved from 99% 
+to 99% (no typo), even though a bunch of new uncovered code may have 
+been introduced.
+
+If people are actually using these blocks, then so be it, but it feels 
+like the people who want them to stick around are saying they're using 
+them just on the off chance they might use them, which feels like a poor 
+reason to keep a bunch of dead code around.
+
+I'm not sure I understand how triggering via unittest or via unittest 
+(again, no typo, both these __main__ blocks and python -m unittest are 
+using the same test runner) could make a difference.
+
+Chris
+
+From chris at withers.org  Wed May  1 08:56:44 2019
+From: chris at withers.org (Chris Withers)
+Date: Wed, 1 May 2019 13:56:44 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <qac41d$623f$1@blaine.gmane.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <qabfcq$4dkk$1@blaine.gmane.org>
+ <10a06aab-7190-c41e-d5f7-64e1b64005ad@withers.org>
+ <qac41d$623f$1@blaine.gmane.org>
+Message-ID: <d5fb0b92-baef-7b04-8ac2-97a7e1ed1222@withers.org>
+
+Sorry, accidentally include a comment for this in a reply to Paul:
+
+On 01/05/2019 13:39, Serhiy Storchaka wrote:
+> We try to support several different ways of running tests. This allows 
+> to catch some environment depended flaws in tests and serves as a kind 
+> of the test of unittest itself. Not all test files are made discoverable 
+> yet, but we move in this direction.
+
+I'm not sure I understand how triggering via unittest or via unittest 
+(no typo, both these __main__ blocks and python -m unittest are using 
+the same test runner) could make a difference.
+
+And sorry, to be clear, I'm only taking about the ones in 
+unittest/mock/testmock - Rob Collins confirmed these where never needed 
+in a private reply:
+
+> They were never needed ?
+> 
+> Removal is fine with me.
+
+
+Chris
+
+From p.f.moore at gmail.com  Wed May  1 09:22:48 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Wed, 1 May 2019 14:22:48 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+ <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+ <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+Message-ID: <CACac1F90cVoU7DeSD2QkYTeSD+TLT80EkNoStx0pZZoY0iV4kQ@mail.gmail.com>
+
+On Wed, 1 May 2019 at 13:53, Chris Withers <chris at withers.org> wrote:
+>
+> On 01/05/2019 13:37, Paul Moore wrote:
+> > I agree - removing this just to make the coverage figures look pretty
+> > seems like the wrong motivation.
+> >
+> > Configuring coverage to understand that you want to exclude these
+> > lines from the checking would be fine, as would accepting that a
+> > coverage of slightly less than 100% is OK. Removing functionality that
+> > people use (whether or not they have other ways of getting the same
+> > results) needs a stronger justification, IMO.
+>
+> It's an interesting point; I personally don't see much value in coverage
+> of less than 100%, if you're going to look at coverage: no-one is going
+> to focus on or potentially even notice whether coverage moved from 99%
+> to 99% (no typo), even though a bunch of new uncovered code may have
+> been introduced.
+
+That's a fair point.
+
+> If people are actually using these blocks, then so be it, but it feels
+> like the people who want them to stick around are saying they're using
+> them just on the off chance they might use them, which feels like a poor
+> reason to keep a bunch of dead code around.
+
+If your argument was "this is dead code, and should be removed to help
+future maintenance", I'd have no problem with that. My point was
+simply that I think that adjusting the code to make the coverage stats
+hit 100% feels like going at things the wrong way round.
+
+Is it really that difficult to simply tell coverage to ignore them? I
+thought someone had already pointed to a coveragerc file that let you
+do this.
+
+Personally, I don't use those blocks at all, so it doesn't matter to
+me whether they stay or go in any practical sense.
+Paul
+
+From chris at withers.org  Wed May  1 09:30:01 2019
+From: chris at withers.org (Chris Withers)
+Date: Wed, 1 May 2019 14:30:01 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <CACac1F90cVoU7DeSD2QkYTeSD+TLT80EkNoStx0pZZoY0iV4kQ@mail.gmail.com>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+ <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+ <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+ <CACac1F90cVoU7DeSD2QkYTeSD+TLT80EkNoStx0pZZoY0iV4kQ@mail.gmail.com>
+Message-ID: <05ef1790-dc90-f5a6-a25c-9ba5abc66a3a@withers.org>
+
+On 01/05/2019 14:22, Paul Moore wrote:
+>> If people are actually using these blocks, then so be it, but it feels
+>> like the people who want them to stick around are saying they're using
+>> them just on the off chance they might use them, which feels like a poor
+>> reason to keep a bunch of dead code around.
+> 
+> If your argument was "this is dead code, and should be removed to help
+> future maintenance", I'd have no problem with that. 
+
+Yep, that's exactly my point :-)
+The dev guide shows how to run individual tests without these and 
+doesn't mention them at all. As someone coming back to core dev late 
+last year, I was left wondering whether I *should* be using them and 
+that created confusion for me; having only one way to do things seems 
+like a good thing here.
+
+> My point was
+> simply that I think that adjusting the code to make the coverage stats
+> hit 100% feels like going at things the wrong way round.
+
+Agreed, but my focus here is to get to 100% for mock so that it's clear 
+that all the code is there for a reason; mock is very complicated by 
+necessity, and having examples of why code needs to be there is what I'm 
+aiming for most of all.
+
+> Is it really that difficult to simply tell coverage to ignore them? I
+> thought someone had already pointed to a coveragerc file that let you
+> do this.
+
+It would be if the cpython repo had a coveragerc, but it does not.
+People maintaining their own ad-hoc coverage configs seems like a pretty 
+bad idea.
+
+> Personally, I don't use those blocks at all, so it doesn't matter to
+> me whether they stay or go in any practical sense.
+
+Right, that's by gut feeling here: I don't want people encountering this 
+mock codebase to have to wonder whether they should be running the tests 
+using these blocks versus the way described in the dev guide, and 
+stressing about what the differences might be, when there aren't any...
+
+Chris
+
+From tir.karthi at gmail.com  Wed May  1 09:52:23 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Wed, 1 May 2019 19:22:23 +0530
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <qac41d$623f$1@blaine.gmane.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <qabfcq$4dkk$1@blaine.gmane.org>
+ <10a06aab-7190-c41e-d5f7-64e1b64005ad@withers.org>
+ <qac41d$623f$1@blaine.gmane.org>
+Message-ID: <CAAjsFLSBWQ+0t6_M4B1YqdO4fUHoC41d-5tD43aaTGt-4_P_0A@mail.gmail.com>
+
+On Wed, May 1, 2019 at 6:13 PM Serhiy Storchaka <storchaka at gmail.com> wrote:
+
+> 01.05.19 10:09, Chris Withers ????:
+> > Right, but that's not the documented way of running individual suites in
+> > the devguide.
+> >
+> > I'm happy to remove these on the basis that there should be one and only
+> > one way of doing things like this.
+>
+> This principle is not applicable here because the Python testsuite is
+> not a public API. It is not for use of Python users.
+>
+> We try to support several different ways of running tests. This allows
+> to catch some environment depended flaws in tests and serves as a kind
+> of the test of unittest itself. Not all test files are made discoverable
+> yet, but we move in this direction.
+>
+
+Agreed. This also has helped in the past to find issues like
+https://bugs.python.org/issue29512#msg299045.
+
+
+>
+> I do not see what is wrong here and suggest to not break working code.
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/tir.karthi%40gmail.com
+>
+
+
+-- 
+Regards,
+Karthikeyan S
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190501/913dbe5b/attachment.html>
+
+From chris at withers.org  Wed May  1 10:20:48 2019
+From: chris at withers.org (Chris Withers)
+Date: Wed, 1 May 2019 15:20:48 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <CAAjsFLSBWQ+0t6_M4B1YqdO4fUHoC41d-5tD43aaTGt-4_P_0A@mail.gmail.com>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <qabfcq$4dkk$1@blaine.gmane.org>
+ <10a06aab-7190-c41e-d5f7-64e1b64005ad@withers.org>
+ <qac41d$623f$1@blaine.gmane.org>
+ <CAAjsFLSBWQ+0t6_M4B1YqdO4fUHoC41d-5tD43aaTGt-4_P_0A@mail.gmail.com>
+Message-ID: <f0ba14d7-faa1-3b3d-5660-6620ebe7464a@withers.org>
+
+On 01/05/2019 14:52, Karthikeyan wrote:
+> 
+> 
+>     We try to support several different ways of running tests. This allows
+>     to catch some environment depended flaws in tests and serves as a kind
+>     of the test of unittest itself. Not all test files are made
+>     discoverable
+>     yet, but we move in this direction.
+> 
+> Agreed. This also has helped in the past to find issues like 
+> https://bugs.python.org/issue29512#msg299045.
+
+My read of that issue is that issue is that the only problem that was 
+found is that an ambiguous way of running tests, which isn't included in 
+the devguide, and maybe for good reason, caused a problem which sucked 
+up a bunch of Victor's time.
+
+The reason Lib/test/ was on sys.path was because the tests were run with 
+./python Lib/test/test_bisect.py, when it shouldn't be.
+
+Had it been run with:
+
+./ python -m test.test_bisect
+
+...it would not have been, and bisect.py would not have needed renaming 
+to bisect_cmd.py.
+
+Chris
+
+From jerrywiltse at gmail.com  Wed May  1 11:09:19 2019
+From: jerrywiltse at gmail.com (Gerald Wiltse)
+Date: Wed, 1 May 2019 11:09:19 -0400
+Subject: [Python-Dev] Location of CI for Windows Embeddable Distro
+Message-ID: <CAML1RCC0vw2V_bitZ0rJFc-VzLgZNShe0wNCb4oZSK0gZYVgfA@mail.gmail.com>
+
+I looked through all the windows builders here and could not find any
+which generate this package, can anyone tell me where the work happens?  I
+also tried searching looking for scripts and CI files which create the
+package in all the relevant repos and could not find those either.
+
+Is this information not public?
+Is it a manual build?
+
+Gerald R. Wiltse
+jerrywiltse at gmail.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190501/af16da11/attachment.html>
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Wed May  1 12:09:13 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Thu, 2 May 2019 01:09:13 +0900
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+ <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+ <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+Message-ID: <23753.50345.124026.479885@turnbull.sk.tsukuba.ac.jp>
+
+Executive summary:
+
+"There should be a tool" (sorry, I'm not volunteering any time soon)
+that could be added to $VCS diff (say, "git coverage-diff" or "git
+diff --coverage").
+
+Chris Withers writes:
+
+ > It's an interesting point; I personally don't see much value in coverage 
+ > of less than 100%, if you're going to look at coverage: no-one is going 
+ > to focus on or potentially even notice whether coverage moved from 99% 
+ > to 99% (no typo), even though a bunch of new uncovered code may have 
+ > been introduced.
+
+I agree with the point you're making (that the difference between 100%
+and 99% is a very significant indicator that "something needs to be
+done here, it's obvious what, and [depending on project process] it's
+obvious who, too"), but it's also true that 99% is 
+better than 98% and definitely better than 90% or less.
+
+Your point that it matters *which* 1% is more important, I think (see
+"Executive summary").
+
+ > If people are actually using these blocks, then so be it, but it feels 
+ > like the people who want them to stick around are saying they're using 
+ > them just on the off chance they might use them, which feels like a poor 
+ > reason to keep a bunch of dead code around.
+
+At least one person says he uses it, although I don't know how that
+fits with Robert's statement that "it was never needed".
+
+Steve
+
+From steve.dower at python.org  Wed May  1 12:22:55 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 1 May 2019 12:22:55 -0400
+Subject: [Python-Dev] Location of CI for Windows Embeddable Distro
+In-Reply-To: <CAML1RCC0vw2V_bitZ0rJFc-VzLgZNShe0wNCb4oZSK0gZYVgfA@mail.gmail.com>
+References: <CAML1RCC0vw2V_bitZ0rJFc-VzLgZNShe0wNCb4oZSK0gZYVgfA@mail.gmail.com>
+Message-ID: <b4196920-94d4-f2de-c444-31d236752a64@python.org>
+
+On 01May2019 1109, Gerald Wiltse wrote:
+> I looked through all the windows builders here and could not find any 
+> which?generate this package, can anyone tell me where the work happens?  
+> I also tried searching looking for scripts and CI files which create the 
+> package in all the relevant repos and could not find those either.
+> 
+> Is this information not public?
+
+It's just not obviously documented (yet). We use the "PC/layout" script 
+(run as "python PC/layout -h" to get arguments). You'll want at least 
+--preset-embed and either --copy or --zip to specify where the layout is 
+created.
+
+> Is it a manual build?
+
+It's semi-automated, but it's only triggered for releases and so it's 
+not part of the normal CI configuration.
+
+Hope that helps,
+Steve
+
+From solipsis at pitrou.net  Wed May  1 12:36:07 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 1 May 2019 18:36:07 +0200
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+ <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+ <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+ <CACac1F90cVoU7DeSD2QkYTeSD+TLT80EkNoStx0pZZoY0iV4kQ@mail.gmail.com>
+ <05ef1790-dc90-f5a6-a25c-9ba5abc66a3a@withers.org>
+Message-ID: <20190501183607.12fcdbe9@fsol>
+
+On Wed, 1 May 2019 14:30:01 +0100
+Chris Withers <chris at withers.org> wrote:
+> 
+> > Is it really that difficult to simply tell coverage to ignore them? I
+> > thought someone had already pointed to a coveragerc file that let you
+> > do this.  
+> 
+> It would be if the cpython repo had a coveragerc, but it does not.
+
+Well, perhaps that could be added ;-)
+
+Regards
+
+Antoine.
+
+
+
+From jerrywiltse at gmail.com  Wed May  1 13:05:36 2019
+From: jerrywiltse at gmail.com (Gerald Wiltse)
+Date: Wed, 1 May 2019 13:05:36 -0400
+Subject: [Python-Dev] Location of CI for Windows Embeddable Distro
+In-Reply-To: <b4196920-94d4-f2de-c444-31d236752a64@python.org>
+References: <CAML1RCC0vw2V_bitZ0rJFc-VzLgZNShe0wNCb4oZSK0gZYVgfA@mail.gmail.com>
+ <b4196920-94d4-f2de-c444-31d236752a64@python.org>
+Message-ID: <CAML1RCBGVu-pnzcJ1Czxv_aFAgs+DgfPB9rjtXHsjdnRp=4eOw@mail.gmail.com>
+
+That does help, thanks so much for the fast response!  I now see how it's
+executed on Azure pipelines also, so that should be enough for me to
+reverse engineer the rest.
+
+Followup questions if you have time:
+1. It seems that directory doesn't exist in the 3.6 branches/tags, so it
+must have been done a different way back then.  Do you think it's
+back-portable to 3.6?
+2. One of our objectives is to effectively create a nearly identical
+embeddable package for linux. Do you think the layout code is generic
+enough to be modified to create a linux equivalent?
+
+Obviously, there are many alternative methods and documents for creating
+"embeddable" pythons on linux, but the windows package has all the
+characteristics we want, and of course we'd like our Windows and Linux
+process build and packaging processes to be as similar as possible, so it
+seems attractive to try to port this layout script to linux.
+
+
+Gerald R. Wiltse
+jerrywiltse at gmail.com
+
+
+
+On Wed, May 1, 2019 at 12:22 PM Steve Dower <steve.dower at python.org> wrote:
+
+> On 01May2019 1109, Gerald Wiltse wrote:
+> > I looked through all the windows builders here and could not find any
+> > which generate this package, can anyone tell me where the work happens?
+> > I also tried searching looking for scripts and CI files which create the
+> > package in all the relevant repos and could not find those either.
+> >
+> > Is this information not public?
+>
+> It's just not obviously documented (yet). We use the "PC/layout" script
+> (run as "python PC/layout -h" to get arguments). You'll want at least
+> --preset-embed and either --copy or --zip to specify where the layout is
+> created.
+>
+> > Is it a manual build?
+>
+> It's semi-automated, but it's only triggered for releases and so it's
+> not part of the normal CI configuration.
+>
+> Hope that helps,
+> Steve
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190501/c831ff35/attachment.html>
+
+From steve.dower at python.org  Wed May  1 13:57:34 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 1 May 2019 13:57:34 -0400
+Subject: [Python-Dev] Location of CI for Windows Embeddable Distro
+In-Reply-To: <CAML1RCBGVu-pnzcJ1Czxv_aFAgs+DgfPB9rjtXHsjdnRp=4eOw@mail.gmail.com>
+References: <CAML1RCC0vw2V_bitZ0rJFc-VzLgZNShe0wNCb4oZSK0gZYVgfA@mail.gmail.com>
+ <b4196920-94d4-f2de-c444-31d236752a64@python.org>
+ <CAML1RCBGVu-pnzcJ1Czxv_aFAgs+DgfPB9rjtXHsjdnRp=4eOw@mail.gmail.com>
+Message-ID: <a94aff02-6bdd-9147-8c15-c04c4e244825@python.org>
+
+On 01May2019 1305, Gerald Wiltse wrote:
+> That does help, thanks so much for the fast response!? I now see how 
+> it's executed on Azure pipelines also, so that should be enough for me 
+> to reverse engineer the rest.
+> 
+> Followup questions if you have time:
+> 1. It seems that directory doesn't exist in the 3.6 branches/tags, so it 
+> must have been done a different way back then.? Do you think it's 
+> back-portable to 3.6?
+
+Yep, it should work with 3.6. There were scripts under Tools/msi back 
+then that did the same thing, but with the Store app I rewrote it to be 
+more flexible.
+
+> 2. One of our objectives is to effectively create a nearly identical 
+> embeddable package for linux. Do you think the layout code is generic 
+> enough to be modified to create a linux equivalent?
+
+Probably not, it's under the "PC" directory because it is entirely 
+CPython specific.
+
+I'd love to be able to have a similar embeddable distro for Linux (and 
+macOS), and I'll be investing some of my time in working towards this, 
+but it's far more complicated than simply laying out the right files. If 
+you're interested in helping with this, then we're in the right place to 
+discuss it, but we'll likely have to move to the issue tracker at some 
+point once we figure out who else wants/needs to be involved.
+
+> Obviously, there are many alternative methods and documents for creating 
+> "embeddable" pythons on linux, but the windows package has all the 
+> characteristics we want, and of course we'd like our Windows and Linux 
+> process build and packaging processes to be as similar as possible, so 
+> it seems attractive to try to port this layout script to linux.
+
+"make install" already does the same thing, but the install location 
+matters at build time, so it's a little more complex to make it work as 
+an embedded runtime. I'm sure there are people who know how to make it 
+work though.
+
+Cheers,
+Steve
+
+From chris at withers.org  Wed May  1 14:13:51 2019
+From: chris at withers.org (Chris Withers)
+Date: Wed, 1 May 2019 19:13:51 +0100
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <23753.50345.124026.479885@turnbull.sk.tsukuba.ac.jp>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+ <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+ <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+ <23753.50345.124026.479885@turnbull.sk.tsukuba.ac.jp>
+Message-ID: <d57265cb-55f0-34df-dbe9-01e593ff250c@withers.org>
+
+On 01/05/2019 17:09, Stephen J. Turnbull wrote:
+> Executive summary:
+> 
+> "There should be a tool" (sorry, I'm not volunteering any time soon)
+> that could be added to $VCS diff (say, "git coverage-diff" or "git
+> diff --coverage").
+
+That sounds like a very hard problem to solve...
+
+>   > If people are actually using these blocks, then so be it, but it feels
+>   > like the people who want them to stick around are saying they're using
+>   > them just on the off chance they might use them, which feels like a poor
+>   > reason to keep a bunch of dead code around.
+> 
+> At least one person says he uses it, although I don't know how that
+> fits with Robert's statement that "it was never needed".
+
+Right, but the more we discuss this, the stronger my feeling that these 
+should be removed everywhere, rather than just the few in 
+unittest.test.test_mock that I intend to remove.
+
+Running:
+
+./python some/package/test_whatever.py
+
+...sets up a fundamentally hostile sys.path. As Karthikeyan highlighted, 
+in https://bugs.python.org/issue29512 this resulted in a year's mucking 
+around on a new tool that was added, and resulted in that tool getting a 
+slightly more clumsy name.
+
+Running:
+
+./python -m unittest some.package.test_whatever
+
+...uses exactly the same runner, just without the unfortunate sys.path 
+addition.
+
+I thought https://www.python.org/dev/peps/pep-0582/ had something about 
+no longer add '.' to sys.path, but looks like I was mistaken.
+
+Chris
+
+From tir.karthi at gmail.com  Wed May  1 15:00:13 2019
+From: tir.karthi at gmail.com (Karthikeyan)
+Date: Thu, 2 May 2019 00:30:13 +0530
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <d57265cb-55f0-34df-dbe9-01e593ff250c@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+ <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+ <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+ <23753.50345.124026.479885@turnbull.sk.tsukuba.ac.jp>
+ <d57265cb-55f0-34df-dbe9-01e593ff250c@withers.org>
+Message-ID: <CAAjsFLQaUAfonbm=Ds5FrE_eoj5JbJJbVRJ6amwfdhruUKUAkA@mail.gmail.com>
+
+> I thought https://www.python.org/dev/peps/pep-0582/ had something about
+> no longer add '.' to sys.path, but looks like I was mistaken.
+>
+
+It was discussed [0] in the past with respect to security since Perl did a
+similar change and PEP 432 is also mentioned in the thread. [1]
+
+[0] https://mail.python.org/pipermail/python-ideas/2017-June/045842.html
+[1] https://mail.python.org/pipermail/python-ideas/2017-June/045849.html
+
+-- 
+Regards,
+Karthikeyan S
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190502/b9b9d08a/attachment.html>
+
+From jerrywiltse at gmail.com  Wed May  1 14:47:23 2019
+From: jerrywiltse at gmail.com (Gerald Wiltse)
+Date: Wed, 1 May 2019 14:47:23 -0400
+Subject: [Python-Dev] Location of CI for Windows Embeddable Distro
+In-Reply-To: <a94aff02-6bdd-9147-8c15-c04c4e244825@python.org>
+References: <CAML1RCC0vw2V_bitZ0rJFc-VzLgZNShe0wNCb4oZSK0gZYVgfA@mail.gmail.com>
+ <b4196920-94d4-f2de-c444-31d236752a64@python.org>
+ <CAML1RCBGVu-pnzcJ1Czxv_aFAgs+DgfPB9rjtXHsjdnRp=4eOw@mail.gmail.com>
+ <a94aff02-6bdd-9147-8c15-c04c4e244825@python.org>
+Message-ID: <CAML1RCDn8r_gLgAg7ZiVLn_mNvcpp4=NoyGc102dY3_HByE6aw@mail.gmail.com>
+
+Yes, I'll help with this, and I try to get signed up with an account for
+the issue tracker ASAP.
+
+I've just started trying to build create the embeddable package for windows
+locally (all from source).  Once I have that automated, I'll take a naive
+stab at the Linux layout.  I'm sure i'll soon hit the additional
+complications you're talking about and come back to you with questions.
+
+Gerald R. Wiltse
+jerrywiltse at gmail.com
+
+
+
+On Wed, May 1, 2019 at 1:57 PM Steve Dower <steve.dower at python.org> wrote:
+
+> On 01May2019 1305, Gerald Wiltse wrote:
+> > That does help, thanks so much for the fast response!  I now see how
+> > it's executed on Azure pipelines also, so that should be enough for me
+> > to reverse engineer the rest.
+> >
+> > Followup questions if you have time:
+> > 1. It seems that directory doesn't exist in the 3.6 branches/tags, so it
+> > must have been done a different way back then.  Do you think it's
+> > back-portable to 3.6?
+>
+> Yep, it should work with 3.6. There were scripts under Tools/msi back
+> then that did the same thing, but with the Store app I rewrote it to be
+> more flexible.
+>
+> > 2. One of our objectives is to effectively create a nearly identical
+> > embeddable package for linux. Do you think the layout code is generic
+> > enough to be modified to create a linux equivalent?
+>
+> Probably not, it's under the "PC" directory because it is entirely
+> CPython specific.
+>
+> I'd love to be able to have a similar embeddable distro for Linux (and
+> macOS), and I'll be investing some of my time in working towards this,
+> but it's far more complicated than simply laying out the right files. If
+> you're interested in helping with this, then we're in the right place to
+> discuss it, but we'll likely have to move to the issue tracker at some
+> point once we figure out who else wants/needs to be involved.
+>
+> > Obviously, there are many alternative methods and documents for creating
+> > "embeddable" pythons on linux, but the windows package has all the
+> > characteristics we want, and of course we'd like our Windows and Linux
+> > process build and packaging processes to be as similar as possible, so
+> > it seems attractive to try to port this layout script to linux.
+>
+> "make install" already does the same thing, but the install location
+> matters at build time, so it's a little more complex to make it work as
+> an embedded runtime. I'm sure there are people who know how to make it
+> work though.
+>
+> Cheers,
+> Steve
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190501/20e55a46/attachment.html>
+
+From ncoghlan at gmail.com  Wed May  1 15:49:24 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Wed, 1 May 2019 12:49:24 -0700
+Subject: [Python-Dev] PEP 574 ready for review
+In-Reply-To: <20190430101428.204457e6@fsol>
+References: <20190430101428.204457e6@fsol>
+Message-ID: <CADiSq7c-eWwtkZ3RYW0eVAvzWMBpMKWY4bioXaXkVy+1nJwfVQ@mail.gmail.com>
+
+Thanks Antoine.
+
+As BDFL-Delegate I'm happy with this version of the PEP, so it's my
+pleasure to accept it for inclusion in Python 3.8.
+
+Regards,
+Nick.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190501/459f8393/attachment-0001.html>
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Wed May  1 16:21:56 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Thu, 2 May 2019 05:21:56 +0900
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <d57265cb-55f0-34df-dbe9-01e593ff250c@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+ <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+ <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+ <23753.50345.124026.479885@turnbull.sk.tsukuba.ac.jp>
+ <d57265cb-55f0-34df-dbe9-01e593ff250c@withers.org>
+Message-ID: <23753.65508.650064.941497@turnbull.sk.tsukuba.ac.jp>
+
+Chris Withers writes:
+ > On 01/05/2019 17:09, Stephen J. Turnbull wrote:
+ > > Executive summary:
+ > > 
+ > > "There should be a tool" (sorry, I'm not volunteering any time soon)
+ > > that could be added to $VCS diff (say, "git coverage-diff" or "git
+ > > diff --coverage").
+ > 
+ > That sounds like a very hard problem to solve...
+
+I would say "compute-intensive" and "refactor-discouraging".
+Presumably a detailed coverage report would identify missing coverage
+by unit (line, function, branch), and if there was a canonical
+ordering on units those reports could be text diffed.  Of course most
+refactorings will break that -- maybe that would be useless, but most
+refactorings will break any diff and we still manage to find them
+useful.  I don't know enough to guess: such considerations are why I'm
+explicitly refusing to volunteer....
+
+ > Right, but the more we discuss this, the stronger my feeling that
+ > these should be removed everywhere, rather than just the few in
+ > unittest.test.test_mock that I intend to remove.
+
+I personally don't have a problem with that proposal or "Chris's
+feeling as sufficient condition" in practice, as I don't run tests
+that way (they frequently don't have an appropriate script interface,
+so I never developed the habit).  My point was more that different
+people have different feelings about this, and there's some "talking
+past" going on because the concrete basis for those increasingly
+strong feelings on both sides seems to mostly be "I haven't heard any
+concrete reasons to change my mind (and likely more important, my way
+of doing things) so my original reasons carry the issue".
+
+Steve
+
+
+From tjreedy at udel.edu  Wed May  1 17:12:42 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 1 May 2019 17:12:42 -0400
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <05ef1790-dc90-f5a6-a25c-9ba5abc66a3a@withers.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+ <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+ <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+ <CACac1F90cVoU7DeSD2QkYTeSD+TLT80EkNoStx0pZZoY0iV4kQ@mail.gmail.com>
+ <05ef1790-dc90-f5a6-a25c-9ba5abc66a3a@withers.org>
+Message-ID: <qad24b$3mhr$1@blaine.gmane.org>
+
+On 5/1/2019 9:30 AM, Chris Withers wrote:
+
+> Agreed, but my focus here is to get to 100% for mock so that it's clear 
+> that all the code is there for a reason; mock is very complicated by 
+> necessity, and having examples of why code needs to be there is what I'm 
+> aiming for most of all.
+
+I agree that complete 100.000% test coverage is a nice ideal, but 
+sometimes the last percent can take hours to accomplish, if it is indeed 
+sensibly possible.  (If mock has no OS dependencies, then it may be for 
+mock.)  It is up to the individual developer to decide what is the 
+priority to spend development time on.
+
+>> Is it really that difficult to simply tell coverage to ignore them? I
+>> thought someone had already pointed to a coveragerc file that let you
+>> do this.
+> 
+> It would be if the cpython repo had a coveragerc, but it does not.
+
+I have asked more that once what .coveragerc file is being used by CI 
+and whether we can somehow properly customize it for CPython.  I have 
+not gotten an answer.
+
+The devguide chapter (5) on coverage is deficient in not even mentioning 
+customization.
+
+> People maintaining their own ad-hoc coverage configs seems like a pretty 
+> bad idea.
+
+I would prefer not having to do that.  But it is better than always 
+getting bogus numbers.  At least *I* can determine the real single-file 
+test coverage for idlelib files (on Windows), even if the public 
+coverage reports are misleading.  Unless I forget, I record it on the 
+first line of text_xxx files.
+
+> Right, that's by gut feeling here: I don't want people encountering this 
+> mock codebase to have to wonder whether they should be running the tests 
+> using these blocks versus the way described in the dev guide,
+
+The devguide describes the dependable but clumsy way to run tests from a 
+command line.  In my opinion, it is the worst way when one is editing a 
+particular file. It is *much* easier to hit one key (F5 in IDLE) in an 
+editor than to switch to a terminal window and type something like
+
+   > python -m unittest idlelib.idle_test.test_configdialog
+
+It is much better to have a SyntaxError marked in the editor than 
+displayed in a terminal or shell.  Live tracebacks in an IDE, that can 
+jump to exception locations in an editor are better than a dead 
+traceback in a terminal window.
+
+With IDLE there is also the issue that automated unittests cannot 
+completely replace human action and judgment.  However, displaying 
+isolated dialogs for human interaction can be automated.  The 'if main' 
+blocks for dialog modules do so.  For example, for configdialog:
+
+if __name__ == '__main__':
+     from unittest import main
+     main('idlelib.idle_test.test_configdialog', verbosity=2, exit=False)
+
+     from idlelib.idle_test.htest import run
+     run(ConfigDialog)
+
+One can either close the box or check the visual appearance and live 
+behavior of the dialog.  In this case, running the class is sufficient. 
+For other modules, additional setup code is needed, which should be 
+excluded from coverage.
+
+> and stressing about what the differences might be, when there aren't any...
+
+Unittest users should know that it has both code and command line APIs.
+The devguide should mention running tests from code with main or refer 
+to the appropriate section of the unittest doc.  It should at least 
+document the use of
+
+if __name__ == '__main__':
+     unittest.main(verbosity=2)
+
+in test_xxx modules.
+
+
+-- 
+Terry Jan Reedy
+
+
