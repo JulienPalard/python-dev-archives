@@ -1244,3 +1244,1329 @@ in test_xxx modules.
 Terry Jan Reedy
 
 
+From jerrywiltse at gmail.com  Thu May  2 11:24:37 2019
+From: jerrywiltse at gmail.com (Gerald Wiltse)
+Date: Thu, 2 May 2019 11:24:37 -0400
+Subject: [Python-Dev] Location of CI for Windows Embeddable Distro
+In-Reply-To: <CAML1RCDn8r_gLgAg7ZiVLn_mNvcpp4=NoyGc102dY3_HByE6aw@mail.gmail.com>
+References: <CAML1RCC0vw2V_bitZ0rJFc-VzLgZNShe0wNCb4oZSK0gZYVgfA@mail.gmail.com>
+ <b4196920-94d4-f2de-c444-31d236752a64@python.org>
+ <CAML1RCBGVu-pnzcJ1Czxv_aFAgs+DgfPB9rjtXHsjdnRp=4eOw@mail.gmail.com>
+ <a94aff02-6bdd-9147-8c15-c04c4e244825@python.org>
+ <CAML1RCDn8r_gLgAg7ZiVLn_mNvcpp4=NoyGc102dY3_HByE6aw@mail.gmail.com>
+Message-ID: <CAML1RCDM4hM1TxTB5CMhCh4Kzd-mv9jNLfL2a1yUbH07j7-euA@mail.gmail.com>
+
+I've successfully automated the build of the embedded zip on Windows for
+3.6 on my internal CI using tools/msi script.
+
+Moving onto linux, can you please summarize the primary
+challenges/differences for creating the embeddable zip for linux?
+
+Gerald R. Wiltse
+jerrywiltse at gmail.com
+
+
+
+On Wed, May 1, 2019 at 2:47 PM Gerald Wiltse <jerrywiltse at gmail.com> wrote:
+
+> Yes, I'll help with this, and I try to get signed up with an account for
+> the issue tracker ASAP.
+>
+> I've just started trying to build create the embeddable package for
+> windows locally (all from source).  Once I have that automated, I'll take a
+> naive stab at the Linux layout.  I'm sure i'll soon hit the additional
+> complications you're talking about and come back to you with questions.
+>
+> Gerald R. Wiltse
+> jerrywiltse at gmail.com
+>
+>
+>
+> On Wed, May 1, 2019 at 1:57 PM Steve Dower <steve.dower at python.org> wrote:
+>
+>> On 01May2019 1305, Gerald Wiltse wrote:
+>> > That does help, thanks so much for the fast response!  I now see how
+>> > it's executed on Azure pipelines also, so that should be enough for me
+>> > to reverse engineer the rest.
+>> >
+>> > Followup questions if you have time:
+>> > 1. It seems that directory doesn't exist in the 3.6 branches/tags, so
+>> it
+>> > must have been done a different way back then.  Do you think it's
+>> > back-portable to 3.6?
+>>
+>> Yep, it should work with 3.6. There were scripts under Tools/msi back
+>> then that did the same thing, but with the Store app I rewrote it to be
+>> more flexible.
+>>
+>> > 2. One of our objectives is to effectively create a nearly identical
+>> > embeddable package for linux. Do you think the layout code is generic
+>> > enough to be modified to create a linux equivalent?
+>>
+>> Probably not, it's under the "PC" directory because it is entirely
+>> CPython specific.
+>>
+>> I'd love to be able to have a similar embeddable distro for Linux (and
+>> macOS), and I'll be investing some of my time in working towards this,
+>> but it's far more complicated than simply laying out the right files. If
+>> you're interested in helping with this, then we're in the right place to
+>> discuss it, but we'll likely have to move to the issue tracker at some
+>> point once we figure out who else wants/needs to be involved.
+>>
+>> > Obviously, there are many alternative methods and documents for
+>> creating
+>> > "embeddable" pythons on linux, but the windows package has all the
+>> > characteristics we want, and of course we'd like our Windows and Linux
+>> > process build and packaging processes to be as similar as possible, so
+>> > it seems attractive to try to port this layout script to linux.
+>>
+>> "make install" already does the same thing, but the install location
+>> matters at build time, so it's a little more complex to make it work as
+>> an embedded runtime. I'm sure there are people who know how to make it
+>> work though.
+>>
+>> Cheers,
+>> Steve
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190502/00974dc5/attachment.html>
+
+From mcepl at cepl.eu  Thu May  2 12:24:28 2019
+From: mcepl at cepl.eu (=?UTF-8?Q?Mat=C4=9Bj?= Cepl)
+Date: Thu, 02 May 2019 18:24:28 +0200
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <qabfcq$4dkk$1@blaine.gmane.org>
+Message-ID: <slrnqcm6ds.846.mcepl@milic.suse.cz>
+
+On 2019-05-01, 06:46 GMT, Serhiy Storchaka wrote:
+> These lines were added for purpose. They are needed for 
+> running tests in separate file as a script.
+>
+> $ ./python Lib/unittest/test/testmock/testcallable.py -v
+> test_attributes (__main__.TestCallable) ... ok
+
+Isn't the standard way how to run one module just?
+
+    $ ./python -mtest -v testmock.testcallable
+
+Best,
+
+Mat?j
+-- 
+https://matej.ceplovi.cz/blog/, Jabber: mcepl at ceplovi.cz
+GPG Finger: 3C76 A027 CA45 AD70 98B5  BC1D 7920 5802 880B C9D8
+ 
+As long as we are thinking of natural values we must say that the
+sun looks down on nothing half so good as a household laughing
+together over a meal, or two friends talking over a pint of beer,
+or a man alone reading a book that interests him; and that all
+economies, politics, laws, armies, and institutions, save insofar
+as they prolong and multiply such scenes, are a mere ploughing
+the sand and sowing the ocean, a meaningless vanity and vexation
+of the spirit. Collective activities are, of course, necessary,
+but this is the end to which they are necessary.
+  -- C.S. Lewis, ?Membership? in ?The Weight of Glory?
+
+
+From jerrywiltse at gmail.com  Thu May  2 14:56:19 2019
+From: jerrywiltse at gmail.com (Gerald Wiltse)
+Date: Thu, 2 May 2019 14:56:19 -0400
+Subject: [Python-Dev] Location of CI for Windows Embeddable Distro
+In-Reply-To: <CAML1RCDM4hM1TxTB5CMhCh4Kzd-mv9jNLfL2a1yUbH07j7-euA@mail.gmail.com>
+References: <CAML1RCC0vw2V_bitZ0rJFc-VzLgZNShe0wNCb4oZSK0gZYVgfA@mail.gmail.com>
+ <b4196920-94d4-f2de-c444-31d236752a64@python.org>
+ <CAML1RCBGVu-pnzcJ1Czxv_aFAgs+DgfPB9rjtXHsjdnRp=4eOw@mail.gmail.com>
+ <a94aff02-6bdd-9147-8c15-c04c4e244825@python.org>
+ <CAML1RCDn8r_gLgAg7ZiVLn_mNvcpp4=NoyGc102dY3_HByE6aw@mail.gmail.com>
+ <CAML1RCDM4hM1TxTB5CMhCh4Kzd-mv9jNLfL2a1yUbH07j7-euA@mail.gmail.com>
+Message-ID: <CAML1RCB-LC9xUJu5pJjeRFSgDBSGDrrHWD3u+cT48=dHaqS6eQ@mail.gmail.com>
+
+With minimal patching of tools/msi/make_zip.py, I was able to create an
+equivalent zip package on Linux.  It doesn't work out of the box of
+course.  I had to do two commands
+
+My biggest concern is that even if the layout is "correct" on linux, the
+python runtime might not actually support being run like this on Linux.
+Perhaps the code for using python36.zip as a landmark and source of modules
+is only implemented on Windows.  Do you know if that is the case?
+
+    tmp$ export LD_LIBRARY_PATH=$(pwd)
+    tmp$ export PYTHONHOME=$(pwd)
+    tmp$ export PYTHONPATH=$(pwd)
+    tmp$ ./python
+    Fatal Python error: Py_Initialize: Unable to get the locale encoding
+    ModuleNotFoundError: No module named 'encodings'
+
+    Current thread 0x00007fdde9eb1680 (most recent call first):
+    Aborted (core dumped)
+
+Here's the full directory structure, error, and patch I created. Any
+additional feedback would be great.
+
+https://gist.github.com/solvingj/87305e0f70e14d738d6989ba2f41352f
+
+Gerald R. Wiltse
+jerrywiltse at gmail.com
+
+
+
+On Thu, May 2, 2019 at 11:24 AM Gerald Wiltse <jerrywiltse at gmail.com> wrote:
+
+> I've successfully automated the build of the embedded zip on Windows for
+> 3.6 on my internal CI using tools/msi script.
+>
+> Moving onto linux, can you please summarize the primary
+> challenges/differences for creating the embeddable zip for linux?
+>
+> Gerald R. Wiltse
+> jerrywiltse at gmail.com
+>
+>
+>
+> On Wed, May 1, 2019 at 2:47 PM Gerald Wiltse <jerrywiltse at gmail.com>
+> wrote:
+>
+>> Yes, I'll help with this, and I try to get signed up with an account for
+>> the issue tracker ASAP.
+>>
+>> I've just started trying to build create the embeddable package for
+>> windows locally (all from source).  Once I have that automated, I'll take a
+>> naive stab at the Linux layout.  I'm sure i'll soon hit the additional
+>> complications you're talking about and come back to you with questions.
+>>
+>> Gerald R. Wiltse
+>> jerrywiltse at gmail.com
+>>
+>>
+>>
+>> On Wed, May 1, 2019 at 1:57 PM Steve Dower <steve.dower at python.org>
+>> wrote:
+>>
+>>> On 01May2019 1305, Gerald Wiltse wrote:
+>>> > That does help, thanks so much for the fast response!  I now see how
+>>> > it's executed on Azure pipelines also, so that should be enough for me
+>>> > to reverse engineer the rest.
+>>> >
+>>> > Followup questions if you have time:
+>>> > 1. It seems that directory doesn't exist in the 3.6 branches/tags, so
+>>> it
+>>> > must have been done a different way back then.  Do you think it's
+>>> > back-portable to 3.6?
+>>>
+>>> Yep, it should work with 3.6. There were scripts under Tools/msi back
+>>> then that did the same thing, but with the Store app I rewrote it to be
+>>> more flexible.
+>>>
+>>> > 2. One of our objectives is to effectively create a nearly identical
+>>> > embeddable package for linux. Do you think the layout code is generic
+>>> > enough to be modified to create a linux equivalent?
+>>>
+>>> Probably not, it's under the "PC" directory because it is entirely
+>>> CPython specific.
+>>>
+>>> I'd love to be able to have a similar embeddable distro for Linux (and
+>>> macOS), and I'll be investing some of my time in working towards this,
+>>> but it's far more complicated than simply laying out the right files. If
+>>> you're interested in helping with this, then we're in the right place to
+>>> discuss it, but we'll likely have to move to the issue tracker at some
+>>> point once we figure out who else wants/needs to be involved.
+>>>
+>>> > Obviously, there are many alternative methods and documents for
+>>> creating
+>>> > "embeddable" pythons on linux, but the windows package has all the
+>>> > characteristics we want, and of course we'd like our Windows and Linux
+>>> > process build and packaging processes to be as similar as possible, so
+>>> > it seems attractive to try to port this layout script to linux.
+>>>
+>>> "make install" already does the same thing, but the install location
+>>> matters at build time, so it's a little more complex to make it work as
+>>> an embedded runtime. I'm sure there are people who know how to make it
+>>> work though.
+>>>
+>>> Cheers,
+>>> Steve
+>>>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190502/3f755990/attachment.html>
+
+From vstinner at redhat.com  Thu May  2 15:59:02 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 2 May 2019 15:59:02 -0400
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization Configuration":
+ 2nd version
+Message-ID: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+
+Hi,
+
+Thanks to Steve Dower's feedback, I enhanced and completed my PEP 587.
+Main changes:
+
+* It is now possible to read the configuration and then modify the
+read configuration. For example, new directories can be added to
+PyConfig.module_search_paths (see the example below and the example in
+the PEP)
+* PyConfig is now "dynamic" by default: strings are duplicated and
+PyConfig_Clear() must be called to release memory
+* PyConfig now only uses wchar_t* for strings (unicode): char* (bytes)
+is no longer used. I had to hack CPython internals for that :-)
+* I added a "_config_version" private field to PyPreConfig and
+PyConfig to prepare the backward compatibility for future changes.
+* I removed the Open Question section: all known issues have been fixed.
+
+During the Language Summit, Brett Cannon said that Steve Dower
+declined the offer to be the BDFL-delegate for this PEP. Thomas
+Wouters proposed himself to be the new BDFL-delegate.
+
+Example to read the configuration, append a directory to sys.path
+(module_search_paths) and then initialize Python with this
+configuration:
+
+    void init_python(void)
+    {
+        PyInitError err;
+        PyConfig config = PyConfig_INIT;
+
+        err = PyConfig_Read(&config);
+        if (_Py_INIT_FAILED(err)) {
+            goto fail;
+        }
+
+        err = PyWideStringList_Append(&config.module_search_paths,
+                                      L"/path/to/more/modules");
+        if (_Py_INIT_FAILED(err)) {
+            goto fail;
+        }
+
+        err = Py_InitializeFromConfig(&config);
+        if (_Py_INIT_FAILED(err)) {
+            goto fail;
+        }
+
+        PyConfig_Clear(&config);
+        return;
+
+    fail:
+        PyConfig_Clear(&config);
+        Py_ExitInitError(err);
+    }
+
+The HTML version will be online shortly:
+https://www.python.org/dev/peps/pep-0587/
+
+Full text below.
+
+Victor
+
+
+PEP: 587
+Title: Python Initialization Configuration
+Author: Nick Coghlan <ncoghlan at gmail.com>, Victor Stinner <vstinner at redhat.com>
+Discussions-To: python-dev at python.org
+Status: Draft
+Type: Standards Track
+Content-Type: text/x-rst
+Created: 27-Mar-2019
+Python-Version: 3.8
+
+Abstract
+========
+
+Add a new C API to configure the Python Initialization providing finer
+control on the whole configuration and better error reporting.
+
+
+Rationale
+=========
+
+Python is highly configurable but its configuration evolved organically:
+configuration parameters is scattered all around the code using
+different ways to set them (mostly global configuration variables and
+functions).  A straightforward and reliable way to configure Python is
+needed. Some configuration parameters are not accessible from the C API,
+or not easily.
+
+The C API of Python 3.7 Initialization takes ``wchar_t*`` strings as
+input whereas the Python filesystem encoding is set during the
+initialization.
+
+This PEP is a partial implementation of PEP 432 which is the overall
+design.  New fields can be added later to ``PyConfig`` structure to
+finish the implementation of the PEP 432 (add a new partial
+initialization which allows to configure Python using Python objects to
+finish the full initialization).
+
+
+Python Initialization C API
+===========================
+
+This PEP proposes to add the following new structures, functions and
+macros.
+
+New structures (4):
+
+* ``PyConfig``
+* ``PyInitError``
+* ``PyPreConfig``
+* ``PyWideStringList``
+
+New functions (16):
+
+* ``Py_PreInitialize(config)``
+* ``Py_PreInitializeFromArgs(config, argc, argv)``
+* ``Py_PreInitializeFromWideArgs(config, argc, argv)``
+* ``PyWideStringList_Append(list, item)``
+* ``PyConfig_DecodeLocale(config_str, str)``
+* ``PyConfig_SetString(config_str, str)``
+* ``PyConfig_Read(config)``
+* ``PyConfig_SetArgv(config, argc, argv)``
+* ``PyConfig_SetWideArgv(config, argc, argv)``
+* ``PyConfig_Clear(config)``
+* ``Py_InitializeFromConfig(config)``
+* ``Py_InitializeFromArgs(config, argc, argv)``
+* ``Py_InitializeFromWideArgs(config, argc, argv)``
+* ``Py_UnixMain(argc, argv)``
+* ``Py_ExitInitError(err)``
+* ``Py_RunMain()``
+
+New macros (9):
+
+* ``PyPreConfig_INIT``
+* ``PyConfig_INIT``
+* ``Py_INIT_OK()``
+* ``Py_INIT_ERR(MSG)``
+* ``Py_INIT_NO_MEMORY()``
+* ``Py_INIT_EXIT(EXITCODE)``
+* ``Py_INIT_IS_ERROR(err)``
+* ``Py_INIT_IS_EXIT(err)``
+* ``Py_INIT_FAILED(err)``
+
+This PEP also adds ``_PyRuntimeState.preconfig`` (``PyPreConfig`` type)
+and ``PyInterpreterState.config`` (``PyConfig`` type) fields to these
+internal structures. ``PyInterpreterState.config`` becomes the new
+reference configuration, replacing global configuration variables and
+other private variables.
+
+
+PyWideStringList
+----------------
+
+``PyWideStringList`` is a list of ``wchar_t*`` strings.
+
+Example to initialize a string from C static array::
+
+    static wchar_t* argv[2] = {
+        L"-c",
+        L"pass",
+    };
+    PyWideStringList config_argv = PyWideStringList_INIT;
+    config_argv.length = Py_ARRAY_LENGTH(argv);
+    config_argv.items = argv;
+
+``PyWideStringList`` structure fields:
+
+* ``length`` (``Py_ssize_t``)
+* ``items`` (``wchar_t**``)
+
+Methods:
+
+* ``PyInitError PyWideStringList_Append(PyWideStringList *list, const
+wchar_t *item)``:
+  Append *item* to *list*.
+
+If *length* is non-zero, *items* must be non-NULL and all strings must
+be non-NULL.
+
+PyInitError
+-----------
+
+``PyInitError`` is a structure to store an error message or an exit code
+for the Python Initialization. For an error, it stores the C function
+name which created the error.
+
+Example::
+
+    PyInitError alloc(void **ptr, size_t size)
+    {
+        *ptr = PyMem_RawMalloc(size);
+        if (*ptr == NULL) {
+            return Py_INIT_NO_MEMORY();
+        }
+        return Py_INIT_OK();
+    }
+
+    int main(int argc, char **argv)
+    {
+        void *ptr;
+        PyInitError err = alloc(&ptr, 16);
+        if (Py_INIT_FAILED(err)) {
+            Py_ExitInitError(err);
+        }
+        PyMem_Free(ptr);
+        return 0;
+    }
+
+``PyInitError`` fields:
+
+* ``exitcode`` (``int``):
+  argument passed to ``exit()`` on Unix and to ``ExitProcess()`` on
+  Windows. Only set by ``Py_INIT_EXIT()``.
+* ``err_msg`` (``const char*``): error message
+* private ``_func`` field: used by ``Py_INIT_ERR()`` to store the C
+  function name which created the error.
+* private ``_type`` field: for internal usage only.
+
+Macro to create an error:
+
+* ``Py_INIT_OK()``: success
+* ``Py_INIT_ERR(err_msg)``: initialization error with a message
+* ``Py_INIT_NO_MEMORY()``: memory allocation failure (out of memory)
+* ``Py_INIT_EXIT(exitcode)``: exit Python with the specified exit code
+
+Other macros and functions:
+
+* ``Py_INIT_IS_ERROR(err)``: Is the result an error?
+* ``Py_INIT_IS_EXIT(err)``: Is the result an exit?
+* ``Py_INIT_FAILED(err)``: Is the result an error or an exit? Similar
+  to ``Py_INIT_IS_ERROR(err) || Py_INIT_IS_EXIT(err)``.
+* ``Py_ExitInitError(err)``: Call ``exit(exitcode)`` on Unix or
+  ``ExitProcess(exitcode)`` if the result is an exit, call
+  ``Py_FatalError(err_msg)`` if the result is an error. Must not be
+  called if the result is a success.
+
+Pre-Initialization with PyPreConfig
+-----------------------------------
+
+``PyPreConfig`` structure is used to pre-initialize Python:
+
+* Set the memory allocator
+* Configure the LC_CTYPE locale
+* Set the UTF-8 mode
+
+Example using the pre-initialization to enable the UTF-8 Mode::
+
+    PyPreConfig preconfig = PyPreConfig_INIT;
+    preconfig.utf8_mode = 1;
+
+    PyInitError err = Py_PreInitialize(&preconfig);
+    if (Py_INIT_FAILED(err)) {
+        Py_ExitInitError(err);
+    }
+
+    /* at this point, Python will speak UTF-8 */
+
+    Py_Initialize();
+    /* ... use Python API here ... */
+    Py_Finalize();
+
+Functions to pre-initialize Python:
+
+* ``PyInitError Py_PreInitialize(const PyPreConfig *config)``
+* ``PyInitError Py_PreInitializeFromArgs(const PyPreConfig *config,
+int argc, char **argv)``
+* ``PyInitError Py_PreInitializeFromWideArgs(const PyPreConfig
+*config, int argc, wchar_t **argv)``
+
+If Python should be pre-initialized explicitly first and then
+initialized with command line arguments, it is possible to pass these
+command line arguments to the pre-initialization since they impact the
+encodings. For example, ``-X utf8`` enables the UTF-8 Mode.
+
+These functions can be called with *config* set to ``NULL``. The caller
+is responsible to handle error using ``Py_INIT_FAILED()`` and
+``Py_ExitInitError()``.
+
+``PyPreConfig`` fields:
+
+* ``allocator`` (``char*``): name of the memory allocator (ex: ``"malloc"``)
+* ``coerce_c_locale_warn`` (``int``): if non-zero, emit a warning if
+the C locale
+  is coerced.
+* ``coerce_c_locale`` (``int``): if equals to 2, coerce the C locale;
+if equals to
+  1, read the LC_CTYPE to decide if it should be coerced.
+* ``dev_mode`` (``int``): see ``PyConfig.dev_mode``
+* ``isolated`` (``int``): see ``PyConfig.isolated``
+* ``legacy_windows_fs_encoding`` (``int``, Windows only): if non-zero, set the
+  Python filesystem encoding to ``"mbcs"``.
+* ``use_environment`` (``int``): see ``PyConfig.use_environment``
+* ``utf8_mode`` (``int``): if non-zero, enable the UTF-8 mode
+
+There is also a private field which is for internal-usage only:
+
+* ``_config_version`` (``int``): Configuration version, used for ABI
+  compatibility
+
+The C locale coercion (PEP 538) and the UTF-8 Mode (PEP 540) are
+disabled by default in ``PyPreConfig``. Set ``coerce_c_locale``,
+``coerce_c_locale_warn`` and ``utf8_mode`` to ``-1`` to let Python
+enable them depending on the user configuration.
+
+Initialization with PyConfig
+----------------------------
+
+The ``PyConfig`` structure contains all parameters to configure Python.
+
+Example::
+
+    PyInitError err;
+    PyConfig config = PyConfig_INIT;
+
+    err = PyConfig_SetString(&config.program_name, L"my_program");
+    if (_Py_INIT_FAILED(err)) {
+        Py_ExitInitError(err);
+    }
+
+    err = Py_InitializeFromConfig(&config);
+    PyConfig_Clear(&config);
+
+    if (Py_INIT_FAILED(err)) {
+        Py_ExitInitError(err);
+    }
+
+``PyConfig`` methods:
+
+* ``PyInitError PyConfig_SetString(wchar_t **config_str, const wchar_t *str)``:
+  Set a config wide string field from *str* (copy the string)
+* ``PyInitError PyConfig_DecodeLocale(wchar_t **config_str, const char *str)``:
+  Decode *str* using ``Py_DecodeLocale()`` and set the result into
+  ``*config_str``. Pre-initialize Python if needed to ensure that
+  encodings are properly configured.
+* ``PyInitError PyConfig_SetArgv(PyConfig *config, int argc, char **argv)``:
+  Set command line arguments (decode bytes). Pre-initialize Python if
+  needed to ensure that encodings are properly configured.
+* ``PyInitError PyConfig_SetWideArgv(PyConfig *config, int argc,
+wchar_t **argv)``:
+  Set command line arguments (wide characters).
+* ``PyInitError PyConfig_Read(PyConfig *config)``:
+  Read all Python configuration
+* ``void PyConfig_Clear(PyConfig *config)``:
+  Release memory
+
+Functions to initialize Python:
+
+* ``PyInitError Py_InitializeFromConfig(const PyConfig *config)``
+
+These functions can be called with *config* set to ``NULL``. The caller
+is responsible to handler error using ``Py_INIT_FAILED()`` and
+``Py_ExitInitError()``.
+
+PyConfig fields:
+
+* ``argv`` (``PyWideStringList``): ``sys.argv``
+* ``base_exec_prefix`` (``wchar_t*``): ``sys.base_exec_prefix``
+* ``base_prefix`` (``wchar_t*``): ``sys.base_prefix``
+* ``buffered_stdio`` (``int``): if equals to 0, enable unbuffered mode,
+  make stdout and stderr streams to be unbuffered.
+* ``bytes_warning`` (``int``): if equals to 1, issue a warning when
+  comparing ``bytes`` or ``bytearray`` with ``str``, or comparing
+  ``bytes`` with ``int``. If equal or greater to 2, raise a
+  ``BytesWarning`` exception.
+* ``check_hash_pycs_mode`` (``wchar_t*``): ``--check-hash-based-pycs``
+  command line option value (see PEP 552)
+* ``dev_mode`` (``int``): Development mode
+* ``dll_path`` (``wchar_t*``, Windows only): Windows DLL path
+* ``dump_refs`` (``int``): if non-zero, display all objects still alive
+  at exit
+* ``exec_prefix`` (``wchar_t*``): ``sys.exec_prefix``
+* ``executable`` (``wchar_t*``): ``sys.executable``
+* ``faulthandler`` (``int``): if non-zero, call
+  ``faulthandler.enable()``
+* ``filesystem_encoding`` (``wchar_t*``): Filesystem encoding,
+  ``sys.getfilesystemencoding()``
+* ``filesystem_errors`` (``wchar_t*``): Filesystem encoding errors,
+  ``sys.getfilesystemencodeerrors()``
+* ``use_hash_seed`` (``int``), ``hash_seed`` (``unsigned long``):
+  randomized hash function seed
+* ``home`` (``wchar_t*``): Python home
+* ``import_time`` (``int``): if non-zero, profile import time
+* ``inspect`` (``int``): enter interactive mode after executing a script or a
+  command
+* ``install_signal_handlers`` (``int``): install signal handlers?
+* ``interactive`` (``int``): interactive mode
+* ``legacy_windows_stdio`` (``int``, Windows only): if non-zero, use
+  ``io.FileIO`` instead of ``WindowsConsoleIO`` for ``sys.stdin``,
+  ``sys.stdout`` and ``sys.stderr``.
+* ``malloc_stats`` (``int``): if non-zero, dump memory allocation
+  statistics at exit
+* ``module_search_path_env`` (``wchar_t*``): ``PYTHONPATH``
+environment variale value
+* ``use_module_search_paths`` (``int``), ``module_search_paths``
+  (``PyWideStringList``): ``sys.path``
+* ``optimization_level`` (``int``): compilation optimization level
+* ``parser_debug`` (``int``): if non-zero, turn on parser debugging output (for
+  expert only, depending on compilation options).
+* ``prefix`` (``wchar_t*``): ``sys.prefix``
+* ``program_name`` (``wchar_t*``): Program name
+* ``program`` (``wchar_t*``): ``argv[0]`` or an empty string
+* ``pycache_prefix`` (``wchar_t*``): ``.pyc`` cache prefix
+* ``quiet`` (``int``): quiet mode (ex: don't display the copyright and version
+  messages even in interactive mode)
+* ``run_command`` (``wchar_t*``): ``-c COMMAND`` argument
+* ``run_filename`` (``wchar_t*``): ``python3 SCRIPT`` argument
+* ``run_module`` (``wchar_t*``): ``python3 -m MODULE`` argument
+* ``show_alloc_count`` (``int``): show allocation counts at exit?
+* ``show_ref_count`` (``int``): show total reference count at exit?
+* ``site_import`` (``int``): import the ``site`` module at startup?
+* ``skip_source_first_line`` (``int``): skip the first line of the source
+* ``stdio_encoding`` (``wchar_t*``), ``stdio_errors`` (``wchar_t*``):
+encoding and encoding errors of
+  ``sys.stdin``, ``sys.stdout`` and ``sys.stderr``
+* ``tracemalloc`` (``int``): if non-zero, call
+  ``tracemalloc.start(value)``
+* ``user_site_directory`` (``int``): if non-zero, add user site directory to
+  ``sys.path``
+* ``verbose`` (``int``): if non-zero, enable verbose mode
+* ``warnoptions`` (``PyWideStringList``): options of the ``warnings``
+module to build filters
+* ``write_bytecode`` (``int``): if non-zero, write ``.pyc`` files
+* ``xoptions`` (``PyWideStringList``): ``sys._xoptions``
+
+There are also private fields which are for internal-usage only:
+
+* ``_config_version`` (``int``): Configuration version, used for ABI
+  compatibility
+* ``_frozen`` (``int``): Emit warning when computing the path
+  configuration?
+* ``_install_importlib`` (``int``): Install importlib?
+
+More complete commented example modifying the configuration before
+calling ``PyConfig_Read()`` and then modify the read configuration::
+
+    PyInitError init_python(const char *program_name)
+    {
+        PyInitError err;
+        PyConfig config = PyConfig_INIT;
+
+        /* Set the program name before reading the configuraton
+           (decode byte string from the locale encoding) */
+        err = PyConfig_DecodeLocale(&config.program_name,
+                                    program_name);
+        if (_Py_INIT_FAILED(err)) {
+            goto fail;
+        }
+
+        /* Read all configuration at once */
+        err = PyConfig_Read(&config);
+        if (_Py_INIT_FAILED(err)) {
+            goto fail;
+        }
+
+        /* Append our custom search path to sys.path */
+        err = PyWideStringList_Append(&config.module_search_paths,
+                                      L"/path/to/more/modules");
+        if (_Py_INIT_FAILED(err)) {
+            goto fail;
+        }
+
+        /* Override executable computed by PyConfig_Read() */
+        err = PyConfig_SetString(&config.executable, L"my_executable");
+        if (_Py_INIT_FAILED(err)) {
+            goto fail;
+        }
+
+        err = Py_InitializeFromConfig(&config);
+
+        /* Py_InitializeFromConfig() copied config which must now be
+           cleared to release memory */
+        PyConfig_Clear(&config);
+
+        return err;
+
+    fail:
+        PyConfig_Clear(&config);
+        Py_ExitInitError(err);
+    }
+
+.. note::
+   ``PyConfig`` does not have any field for extra inittab functions:
+   ``PyImport_AppendInittab()`` and ``PyImport_ExtendInittab()``
+   functions are still relevant.
+
+
+Initialization with static PyConfig
+-----------------------------------
+
+When no ``PyConfig`` method is used but only
+``Py_InitializeFromConfig()``, the caller is responsible for managing
+``PyConfig`` memory which means that static strings and static string
+lists can be used rather than using dynamically allocated memory.  It
+can be used for most simple configurations.
+
+Example of Python initialization enabling the isolated mode::
+
+    PyConfig config = PyConfig_INIT;
+    config.isolated = 1;
+
+    PyInitError err = Py_InitializeFromConfig(&config);
+    if (Py_INIT_FAILED(err)) {
+        Py_ExitInitError(err);
+    }
+    /* ... use Python API here ... */
+    Py_Finalize();
+
+In this example, ``PyConfig_Clear()`` is not needed since ``config``
+does not contain any dynamically allocated string:
+``Py_InitializeFromConfig`` is responsible for filling other fields
+and manage the memory.
+
+For convenience, two other functions are provided:
+
+* ``PyInitError Py_InitializeFromArgs(const PyConfig *config, int
+argc, char **argv)``
+* ``PyInitError Py_InitializeFromWideArgs(const PyConfig *config, int
+argc, wchar_t **argv)``
+
+These functions can be used with static ``PyConfig``.
+
+Pseudo-code of ``Py_InitializeFromArgs()``::
+
+    PyInitError init_with_args(const PyConfig *src_config, int argc,
+char **argv)
+    {
+        PyInitError err;
+        PyConfig config = PyConfig_INIT;
+
+        /* Copy strings and string lists
+         * (memory dynamically allocated on the heap) */
+        err = _PyConfig_Copy(&config, src_config);
+        if (Py_INIT_FAILED(err)) {
+            goto exit;
+        }
+
+        /* Set config.argv: decode argv bytes. Pre-initialize Python
+           if needed to ensure that the encodings are properly
+           configured. */
+        err = PyConfig_SetArgv(&config, argc, argv);
+        if (Py_INIT_FAILED(err)) {
+            goto exit;
+        }
+
+        err = Py_InitializeFromConfig(&config);
+
+    exit:
+        PyConfig_Clear(&config);
+        return err;
+    }
+
+where ``_PyConfig_Copy()`` is an internal function. The actual
+implementation of ``Py_InitializeFromArgs()`` is more complex.
+
+
+Py_UnixMain()
+-------------
+
+Python 3.7 provides a high-level ``Py_Main()`` function which requires
+to pass command line arguments as ``wchar_t*`` strings. It is
+non-trivial to use the correct encoding to decode bytes. Python has its
+own set of issues with C locale coercion and UTF-8 Mode.
+
+This PEP adds a new ``Py_UnixMain()`` function which takes command line
+arguments as bytes::
+
+    int Py_UnixMain(int argc, char **argv)
+
+Py_RunMain()
+------------
+
+The new ``Py_RunMain()`` function executes the command
+(``PyConfig.run_command``), the script (``PyConfig.run_filename``) or
+the module (``PyConfig.run_module``) specified on the command line or in
+the configuration, and then finalizes Python. It returns an exit status
+that can be passed to the ``exit()`` function.
+
+Example of custom Python executable always running in isolated mode::
+
+    #include <Python.h>
+
+    int main(int argc, char *argv[])
+    {
+        PyConfig config = PyConfig_INIT;
+        config.isolated = 1;
+
+        PyInitError err = Py_InitializeFromArgs(&config, argc, argv);
+        if (Py_INIT_FAILED(err)) {
+            Py_ExitInitError(err);
+        }
+
+        /* put more configuration code here if needed */
+
+        return Py_RunMain();
+    }
+
+The example is a basic implementation of the "System Python Executable"
+discussed in PEP 432.
+
+
+Memory allocations and Py_DecodeLocale()
+----------------------------------------
+
+Python memory allocation functions like ``PyMem_RawMalloc()`` must not
+be used before Python pre-initialization.  Calling directly ``malloc()``
+and ``free()`` is always safe.
+
+For ``PyPreConfig`` and static ``PyConfig``, the caller is responsible
+to manage dynamically allocated strings, but static strings and static
+string lists are fine.
+
+Dynamic ``PyConfig`` requires to call ``PyConfig_Clear()`` to release
+memory.
+
+``Py_DecodeLocale()`` must not be called before the pre-initialization.
+
+When using dynanic configuration, ``PyConfig_DecodeLocale()`` must be
+used instead of ``Py_DecodeLocale()``.
+
+
+Backwards Compatibility
+=======================
+
+This PEP only adds a new API: it leaves the existing API unchanged and
+has no impact on the backwards compatibility.
+
+
+Annex: Python Configuration
+===========================
+
+Priority and Rules
+------------------
+
+Priority of configuration parameters, highest to lowest:
+
+* ``PyConfig``
+* ``PyPreConfig``
+* Configuration files
+* Command line options
+* Environment variables
+* Global configuration variables
+
+Priority of warning options, highest to lowest:
+
+* ``PyConfig.warnoptions``
+* ``PyConfig.dev_mode`` (add ``"default"``)
+* ``PYTHONWARNINGS`` environment variables
+* ``-W WARNOPTION`` command line argument
+* ``PyConfig.bytes_warning`` (add ``"error::BytesWarning"`` if greater
+  than 1, or add ``"default::BytesWarning``)
+
+Rules on ``PyConfig`` and ``PyPreConfig`` parameters:
+
+* If ``isolated`` is non-zero, ``use_environment`` and
+  ``user_site_directory`` are set to 0
+* If ``legacy_windows_fs_encoding`` is non-zero, ``utf8_mode`` is set to
+  0
+* If ``dev_mode`` is non-zero, ``allocator`` is set to ``"debug"``,
+  ``faulthandler`` is set to 1, and ``"default"`` filter is added to
+  ``warnoptions``. But ``PYTHONMALLOC`` has the priority over
+  ``dev_mode`` to set the memory allocator.
+
+Configuration Files
+-------------------
+
+Python configuration files:
+
+* ``pyvenv.cfg``
+* ``python._pth`` (Windows only)
+* ``pybuilddir.txt`` (Unix only)
+
+Global Configuration Variables
+------------------------------
+
+Global configuration variables mapped to ``PyPreConfig`` fields:
+
+========================================  ================================
+Variable                                  Field
+========================================  ================================
+``Py_LegacyWindowsFSEncodingFlag``        ``legacy_windows_fs_encoding``
+``Py_LegacyWindowsFSEncodingFlag``        ``legacy_windows_fs_encoding``
+``Py_UTF8Mode``                           ``utf8_mode``
+``Py_UTF8Mode``                           ``utf8_mode``
+========================================  ================================
+
+Global configuration variables mapped to ``PyConfig`` fields:
+
+========================================  ================================
+Variable                                  Field
+========================================  ================================
+``Py_BytesWarningFlag``                   ``bytes_warning``
+``Py_DebugFlag``                          ``parser_debug``
+``Py_DontWriteBytecodeFlag``              ``write_bytecode``
+``Py_FileSystemDefaultEncodeErrors``      ``filesystem_errors``
+``Py_FileSystemDefaultEncoding``          ``filesystem_encoding``
+``Py_FrozenFlag``                         ``_frozen``
+``Py_HasFileSystemDefaultEncoding``       ``filesystem_encoding``
+``Py_HashRandomizationFlag``              ``use_hash_seed``, ``hash_seed``
+``Py_IgnoreEnvironmentFlag``              ``use_environment``
+``Py_InspectFlag``                        ``inspect``
+``Py_InteractiveFlag``                    ``interactive``
+``Py_IsolatedFlag``                       ``isolated``
+``Py_LegacyWindowsStdioFlag``             ``legacy_windows_stdio``
+``Py_NoSiteFlag``                         ``site_import``
+``Py_NoUserSiteDirectory``                ``user_site_directory``
+``Py_OptimizeFlag``                       ``optimization_level``
+``Py_QuietFlag``                          ``quiet``
+``Py_UnbufferedStdioFlag``                ``buffered_stdio``
+``Py_VerboseFlag``                        ``verbose``
+``_Py_HasFileSystemDefaultEncodeErrors``  ``filesystem_errors``
+``Py_BytesWarningFlag``                   ``bytes_warning``
+``Py_DebugFlag``                          ``parser_debug``
+``Py_DontWriteBytecodeFlag``              ``write_bytecode``
+``Py_FileSystemDefaultEncodeErrors``      ``filesystem_errors``
+``Py_FileSystemDefaultEncoding``          ``filesystem_encoding``
+``Py_FrozenFlag``                         ``_frozen``
+``Py_HasFileSystemDefaultEncoding``       ``filesystem_encoding``
+``Py_HashRandomizationFlag``              ``use_hash_seed``, ``hash_seed``
+``Py_IgnoreEnvironmentFlag``              ``use_environment``
+``Py_InspectFlag``                        ``inspect``
+``Py_InteractiveFlag``                    ``interactive``
+``Py_IsolatedFlag``                       ``isolated``
+``Py_LegacyWindowsStdioFlag``             ``legacy_windows_stdio``
+``Py_NoSiteFlag``                         ``site_import``
+``Py_NoUserSiteDirectory``                ``user_site_directory``
+``Py_OptimizeFlag``                       ``optimization_level``
+``Py_QuietFlag``                          ``quiet``
+``Py_UnbufferedStdioFlag``                ``buffered_stdio``
+``Py_VerboseFlag``                        ``verbose``
+``_Py_HasFileSystemDefaultEncodeErrors``  ``filesystem_errors``
+========================================  ================================
+
+
+``Py_LegacyWindowsFSEncodingFlag`` and ``Py_LegacyWindowsStdioFlag`` are
+only available on Windows.
+
+Command Line Arguments
+----------------------
+
+Usage::
+
+    python3 [options]
+    python3 [options] -c COMMAND
+    python3 [options] -m MODULE
+    python3 [options] SCRIPT
+
+
+Command line options mapped to pseudo-action on ``PyConfig`` fields:
+
+================================  ================================
+Option                            ``PyPreConfig`` field
+================================  ================================
+``-X dev``                        ``dev_mode = 1``
+``-X utf8=N``                     ``utf8_mode = N``
+================================  ================================
+
+Command line options mapped to pseudo-action on ``PyConfig`` fields:
+
+================================  ================================
+Option                            ``PyConfig`` field
+================================  ================================
+``-b``                            ``bytes_warning++``
+``-B``                            ``write_bytecode = 0``
+``-c COMMAND``                    ``run_module = COMMAND``
+``--check-hash-based-pycs=MODE``  ``_check_hash_pycs_mode = MODE``
+``-d``                            ``parser_debug++``
+``-E``                            ``use_environment = 0``
+``-i``                            ``inspect++`` and ``interactive++``
+``-I``                            ``isolated = 1``
+``-m MODULE``                     ``run_module = MODULE``
+``-O``                            ``optimization_level++``
+``-q``                            ``quiet++``
+``-R``                            ``use_hash_seed = 0``
+``-s``                            ``user_site_directory = 0``
+``-S``                            ``site_import``
+``-t``                            ignored (kept for backwards compatibility)
+``-u``                            ``buffered_stdio = 0``
+``-v``                            ``verbose++``
+``-W WARNING``                    add ``WARNING`` to ``warnoptions``
+``-x``                            ``skip_source_first_line = 1``
+``-X XOPTION``                    add ``XOPTION`` to ``xoptions``
+``-X dev``                        ``dev_mode = 1``
+``-X faulthandler``               ``faulthandler = 1``
+``-X importtime``                 ``import_time = 1``
+``-X pycache_prefix=PREFIX``      ``pycache_prefix = PREFIX``
+``-X show_alloc_count``           ``show_alloc_count = 1``
+``-X show_ref_count``             ``show_ref_count = 1``
+``-X tracemalloc=N``              ``tracemalloc = N``
+================================  ================================
+
+``-h``, ``-?`` and ``-V`` options are handled outside ``PyConfig``.
+
+Environment Variables
+---------------------
+
+Environment variables mapped to ``PyPreConfig`` fields:
+
+=================================  =============================================
+Variable                           ``PyPreConfig`` field
+=================================  =============================================
+``PYTHONCOERCECLOCALE``            ``coerce_c_locale``, ``coerce_c_locale_warn``
+``PYTHONDEVMODE``                  ``dev_mode``
+``PYTHONLEGACYWINDOWSFSENCODING``  ``legacy_windows_fs_encoding``
+``PYTHONMALLOC``                   ``allocator``
+``PYTHONUTF8``                     ``utf8_mode``
+=================================  =============================================
+
+Environment variables mapped to ``PyConfig`` fields:
+
+=================================  ====================================
+Variable                           ``PyConfig`` field
+=================================  ====================================
+``PYTHONDEBUG``                    ``parser_debug``
+``PYTHONDEVMODE``                  ``dev_mode``
+``PYTHONDONTWRITEBYTECODE``        ``write_bytecode``
+``PYTHONDUMPREFS``                 ``dump_refs``
+``PYTHONEXECUTABLE``               ``program_name``
+``PYTHONFAULTHANDLER``             ``faulthandler``
+``PYTHONHASHSEED``                 ``use_hash_seed``, ``hash_seed``
+``PYTHONHOME``                     ``home``
+``PYTHONINSPECT``                  ``inspect``
+``PYTHONIOENCODING``               ``stdio_encoding``, ``stdio_errors``
+``PYTHONLEGACYWINDOWSSTDIO``       ``legacy_windows_stdio``
+``PYTHONMALLOCSTATS``              ``malloc_stats``
+``PYTHONNOUSERSITE``               ``user_site_directory``
+``PYTHONOPTIMIZE``                 ``optimization_level``
+``PYTHONPATH``                     ``module_search_path_env``
+``PYTHONPROFILEIMPORTTIME``        ``import_time``
+``PYTHONPYCACHEPREFIX,``           ``pycache_prefix``
+``PYTHONTRACEMALLOC``              ``tracemalloc``
+``PYTHONUNBUFFERED``               ``buffered_stdio``
+``PYTHONVERBOSE``                  ``verbose``
+``PYTHONWARNINGS``                 ``warnoptions``
+=================================  ====================================
+
+``PYTHONLEGACYWINDOWSFSENCODING`` and ``PYTHONLEGACYWINDOWSSTDIO`` are
+specific to Windows.
+
+``PYTHONDEVMODE`` is mapped to ``PyPreConfig.dev_mode`` and
+``PyConfig.dev_mode``.
+
+
+Annex: Python 3.7 API
+=====================
+
+Python 3.7 has 4 functions in its C API to initialize and finalize
+Python:
+
+* ``Py_Initialize()``, ``Py_InitializeEx()``: initialize Python
+* ``Py_Finalize()``, ``Py_FinalizeEx()``: finalize Python
+
+Python can be configured using scattered global configuration variables
+(like ``Py_IgnoreEnvironmentFlag``) and using the following functions:
+
+* ``PyImport_AppendInittab()``
+* ``PyImport_ExtendInittab()``
+* ``PyMem_SetAllocator()``
+* ``PyMem_SetupDebugHooks()``
+* ``PyObject_SetArenaAllocator()``
+* ``Py_SetPath()``
+* ``Py_SetProgramName()``
+* ``Py_SetPythonHome()``
+* ``Py_SetStandardStreamEncoding()``
+* ``PySys_AddWarnOption()``
+* ``PySys_AddXOption()``
+* ``PySys_ResetWarnOptions()``
+
+There is also a high-level ``Py_Main()`` function.
+
+
+Copyright
+=========
+
+This document has been placed in the public domain.
+
+From edwin at 211mainstreet.net  Thu May  2 16:20:10 2019
+From: edwin at 211mainstreet.net (Edwin Zimmerman)
+Date: Thu, 2 May 2019 16:20:10 -0400
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 2nd version
+In-Reply-To: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+References: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+Message-ID: <000001d50124$71ef0d40$55cd27c0$@211mainstreet.net>
+
+On Thursday, May 02, 2019 Victor Stinner <vstinner at redhat.com> wrote:
+>
+
+According to this
+
+> * ``run_command`` (``wchar_t*``): ``-c COMMAND`` argument
+> * ``run_filename`` (``wchar_t*``): ``python3 SCRIPT`` argument
+> * ``run_module`` (``wchar_t*``): ``python3 -m MODULE`` argument
+
+
+this
+> ``-c COMMAND``                    ``run_module = COMMAND``
+should read "run_command = COMMAND".  Typo, not?
+
+
+
+From jerrywiltse at gmail.com  Thu May  2 16:29:36 2019
+From: jerrywiltse at gmail.com (Gerald Wiltse)
+Date: Thu, 2 May 2019 16:29:36 -0400
+Subject: [Python-Dev] Location of CI for Windows Embeddable Distro
+In-Reply-To: <CAML1RCB-LC9xUJu5pJjeRFSgDBSGDrrHWD3u+cT48=dHaqS6eQ@mail.gmail.com>
+References: <CAML1RCC0vw2V_bitZ0rJFc-VzLgZNShe0wNCb4oZSK0gZYVgfA@mail.gmail.com>
+ <b4196920-94d4-f2de-c444-31d236752a64@python.org>
+ <CAML1RCBGVu-pnzcJ1Czxv_aFAgs+DgfPB9rjtXHsjdnRp=4eOw@mail.gmail.com>
+ <a94aff02-6bdd-9147-8c15-c04c4e244825@python.org>
+ <CAML1RCDn8r_gLgAg7ZiVLn_mNvcpp4=NoyGc102dY3_HByE6aw@mail.gmail.com>
+ <CAML1RCDM4hM1TxTB5CMhCh4Kzd-mv9jNLfL2a1yUbH07j7-euA@mail.gmail.com>
+ <CAML1RCB-LC9xUJu5pJjeRFSgDBSGDrrHWD3u+cT48=dHaqS6eQ@mail.gmail.com>
+Message-ID: <CAML1RCBKW2U+7cUL=aJXZ0Me5XPc0kNXweKG22RYbBSgK0vebg@mail.gmail.com>
+
+Just an update based on testing.  If I zip the modules up into python36.zip
+(whether in .py or .pyc form) the linux binary does not find them.  If I
+copy them into the embedded root, alongside the python executable, it finds
+them as expected.
+
+This just makes it seem more like an issue where Linux binary does not
+respect .zip file as a source of modules.
+
+Gerald R. Wiltse
+jerrywiltse at gmail.com
+
+
+
+On Thu, May 2, 2019 at 2:56 PM Gerald Wiltse <jerrywiltse at gmail.com> wrote:
+
+> With minimal patching of tools/msi/make_zip.py, I was able to create an
+> equivalent zip package on Linux.  It doesn't work out of the box of
+> course.  I had to do two commands
+>
+> My biggest concern is that even if the layout is "correct" on linux, the
+> python runtime might not actually support being run like this on Linux.
+> Perhaps the code for using python36.zip as a landmark and source of modules
+> is only implemented on Windows.  Do you know if that is the case?
+>
+>     tmp$ export LD_LIBRARY_PATH=$(pwd)
+>     tmp$ export PYTHONHOME=$(pwd)
+>     tmp$ export PYTHONPATH=$(pwd)
+>     tmp$ ./python
+>     Fatal Python error: Py_Initialize: Unable to get the locale encoding
+>     ModuleNotFoundError: No module named 'encodings'
+>
+>     Current thread 0x00007fdde9eb1680 (most recent call first):
+>     Aborted (core dumped)
+>
+> Here's the full directory structure, error, and patch I created. Any
+> additional feedback would be great.
+>
+> https://gist.github.com/solvingj/87305e0f70e14d738d6989ba2f41352f
+>
+> Gerald R. Wiltse
+> jerrywiltse at gmail.com
+>
+>
+>
+> On Thu, May 2, 2019 at 11:24 AM Gerald Wiltse <jerrywiltse at gmail.com>
+> wrote:
+>
+>> I've successfully automated the build of the embedded zip on Windows for
+>> 3.6 on my internal CI using tools/msi script.
+>>
+>> Moving onto linux, can you please summarize the primary
+>> challenges/differences for creating the embeddable zip for linux?
+>>
+>> Gerald R. Wiltse
+>> jerrywiltse at gmail.com
+>>
+>>
+>>
+>> On Wed, May 1, 2019 at 2:47 PM Gerald Wiltse <jerrywiltse at gmail.com>
+>> wrote:
+>>
+>>> Yes, I'll help with this, and I try to get signed up with an account for
+>>> the issue tracker ASAP.
+>>>
+>>> I've just started trying to build create the embeddable package for
+>>> windows locally (all from source).  Once I have that automated, I'll take a
+>>> naive stab at the Linux layout.  I'm sure i'll soon hit the additional
+>>> complications you're talking about and come back to you with questions.
+>>>
+>>> Gerald R. Wiltse
+>>> jerrywiltse at gmail.com
+>>>
+>>>
+>>>
+>>> On Wed, May 1, 2019 at 1:57 PM Steve Dower <steve.dower at python.org>
+>>> wrote:
+>>>
+>>>> On 01May2019 1305, Gerald Wiltse wrote:
+>>>> > That does help, thanks so much for the fast response!  I now see how
+>>>> > it's executed on Azure pipelines also, so that should be enough for
+>>>> me
+>>>> > to reverse engineer the rest.
+>>>> >
+>>>> > Followup questions if you have time:
+>>>> > 1. It seems that directory doesn't exist in the 3.6 branches/tags, so
+>>>> it
+>>>> > must have been done a different way back then.  Do you think it's
+>>>> > back-portable to 3.6?
+>>>>
+>>>> Yep, it should work with 3.6. There were scripts under Tools/msi back
+>>>> then that did the same thing, but with the Store app I rewrote it to be
+>>>> more flexible.
+>>>>
+>>>> > 2. One of our objectives is to effectively create a nearly identical
+>>>> > embeddable package for linux. Do you think the layout code is generic
+>>>> > enough to be modified to create a linux equivalent?
+>>>>
+>>>> Probably not, it's under the "PC" directory because it is entirely
+>>>> CPython specific.
+>>>>
+>>>> I'd love to be able to have a similar embeddable distro for Linux (and
+>>>> macOS), and I'll be investing some of my time in working towards this,
+>>>> but it's far more complicated than simply laying out the right files.
+>>>> If
+>>>> you're interested in helping with this, then we're in the right place
+>>>> to
+>>>> discuss it, but we'll likely have to move to the issue tracker at some
+>>>> point once we figure out who else wants/needs to be involved.
+>>>>
+>>>> > Obviously, there are many alternative methods and documents for
+>>>> creating
+>>>> > "embeddable" pythons on linux, but the windows package has all the
+>>>> > characteristics we want, and of course we'd like our Windows and
+>>>> Linux
+>>>> > process build and packaging processes to be as similar as possible,
+>>>> so
+>>>> > it seems attractive to try to port this layout script to linux.
+>>>>
+>>>> "make install" already does the same thing, but the install location
+>>>> matters at build time, so it's a little more complex to make it work as
+>>>> an embedded runtime. I'm sure there are people who know how to make it
+>>>> work though.
+>>>>
+>>>> Cheers,
+>>>> Steve
+>>>>
+>>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190502/0d72e883/attachment.html>
+
+From vstinner at redhat.com  Thu May  2 16:47:09 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 2 May 2019 16:47:09 -0400
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 2nd version
+In-Reply-To: <000001d50124$71ef0d40$55cd27c0$@211mainstreet.net>
+References: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+ <000001d50124$71ef0d40$55cd27c0$@211mainstreet.net>
+Message-ID: <CA+3bQGHdZAq2jFk5RsTTAn4dAif+-Z-1He95LntzA5aChBK-mA@mail.gmail.com>
+
+Le jeu. 2 mai 2019 ? 16:20, Edwin Zimmerman <edwin at 211mainstreet.net> a ?crit :
+> > ``-c COMMAND``                    ``run_module = COMMAND``
+> should read "run_command = COMMAND".  Typo, not?
+
+Oops, you're right: it's a typo. Now fixed:
+
+``-c COMMAND``                    ``run_command = COMMAND``
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
