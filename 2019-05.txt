@@ -4018,3 +4018,204 @@ Could you use string literals with non-ascii characters? They are more
 used in tests.
 
 
+From eric at trueblade.com  Sat May  4 03:54:04 2019
+From: eric at trueblade.com (Eric V. Smith)
+Date: Sat, 4 May 2019 03:54:04 -0400
+Subject: [Python-Dev] Unicode identifiers in test files?
+In-Reply-To: <qajcis$4c5$1@blaine.gmane.org>
+References: <b3ba2821-44cd-b0d4-143e-561d28da3737@trueblade.com>
+ <qajcis$4c5$1@blaine.gmane.org>
+Message-ID: <cdad4334-b454-ac3c-1f7b-6791bc8f3a5a@trueblade.com>
+
+On 5/4/19 2:48 AM, Serhiy Storchaka wrote:
+> 04.05.19 05:46, Eric V. Smith ????:
+>> Is there a policy against using Unicode identifiers in test files?
+>>
+>> As part of adding !d to f-strings, there's a code path that's only
+>> executed if the text of the expression is non-ascii. The easiest way
+>> to exercise it, and the way I found a bug, is by using an identifier
+>> with Unicode chars. I know we have a policy against this in Lib/, but
+>> what about Lib/test/?
+>>
+>> I could work around this with exec-ing some strings, but that seems
+>> like added confusion that I'd avoid with a real Unicode identifier.
+>
+> Could you use string literals with non-ascii characters? They are more
+> used in tests.
+
+Hi, Serhiy.
+
+I could and will, yes: thanks for the suggestion. But for this specific 
+feature, I also want to test with simple variable-only expressions. I'm 
+either going to use a unicode identifier in the code, or eval one in a 
+string. Doing the eval dance just seems like extra work for some sort of 
+purity that I don't think is important in a test, unless someone can 
+think of a good reason for it.
+
+Eric
+
+From eric at trueblade.com  Sat May  4 04:10:32 2019
+From: eric at trueblade.com (Eric V. Smith)
+Date: Sat, 4 May 2019 04:10:32 -0400
+Subject: [Python-Dev] Unicode identifiers in test files?
+In-Reply-To: <cdad4334-b454-ac3c-1f7b-6791bc8f3a5a@trueblade.com>
+References: <b3ba2821-44cd-b0d4-143e-561d28da3737@trueblade.com>
+ <qajcis$4c5$1@blaine.gmane.org>
+ <cdad4334-b454-ac3c-1f7b-6791bc8f3a5a@trueblade.com>
+Message-ID: <64330e01-d4c0-c048-a2fb-74810cf8d930@trueblade.com>
+
+On 5/4/19 3:54 AM, Eric V. Smith wrote:
+> On 5/4/19 2:48 AM, Serhiy Storchaka wrote:
+>> 04.05.19 05:46, Eric V. Smith ????:
+>>> Is there a policy against using Unicode identifiers in test files?
+>>>
+>>> As part of adding !d to f-strings, there's a code path that's only
+>>> executed if the text of the expression is non-ascii. The easiest way
+>>> to exercise it, and the way I found a bug, is by using an identifier
+>>> with Unicode chars. I know we have a policy against this in Lib/, but
+>>> what about Lib/test/?
+>>>
+>>> I could work around this with exec-ing some strings, but that seems
+>>> like added confusion that I'd avoid with a real Unicode identifier.
+>>
+>> Could you use string literals with non-ascii characters? They are more
+>> used in tests.
+>
+> Hi, Serhiy.
+>
+> I could and will, yes: thanks for the suggestion. But for this specific
+> feature, I also want to test with simple variable-only expressions. I'm
+> either going to use a unicode identifier in the code, or eval one in a
+> string. Doing the eval dance just seems like extra work for some sort of
+> purity that I don't think is important in a test, unless someone can
+> think of a good reason for it.
+
+And I just noticed that PEP 3131 has an exception for tests in its 
+section that says the stdlib can't contain unicode identifiers:
+
+https://www.python.org/dev/peps/pep-3131/#policy-specification
+
+So, since it's the most direct and probably safest thing to do for a 
+test, I'm going to use a unicode identier.
+
+Thanks, all, for your ideas. Especially Greg for reminding me to add the 
+coding comment.
+
+Eric
+
+From songofacandy at gmail.com  Sat May  4 04:45:38 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Sat, 4 May 2019 17:45:38 +0900
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 2nd version
+In-Reply-To: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+References: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+Message-ID: <CAEfz+TzBooCP+tZhd4QGGDz=fQi71EWdJrj=Aea6U34DuqD+uw@mail.gmail.com>
+
+2019?5?3?(?) 4:59 Victor Stinner <vstinner at redhat.com>:
+>
+> * PyConfig now only uses wchar_t* for strings (unicode): char* (bytes)
+> is no longer used. I had to hack CPython internals for that :-)
+
+I prefer char* to wchar_t* on Unix.  Since UTF-8 dominated Unix world
+in these decades, wchar_t* is less usable on Unix nowadays.
+
+Is it impossible to use just char* on Unix and wchar_t* on Windows?
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From vstinner at redhat.com  Sat May  4 11:45:49 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 4 May 2019 11:45:49 -0400
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 2nd version
+In-Reply-To: <CAEfz+TzBooCP+tZhd4QGGDz=fQi71EWdJrj=Aea6U34DuqD+uw@mail.gmail.com>
+References: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+ <CAEfz+TzBooCP+tZhd4QGGDz=fQi71EWdJrj=Aea6U34DuqD+uw@mail.gmail.com>
+Message-ID: <CA+3bQGEnPT2c_WmAOfbQHgutP1ShKv3N8dwFh7D2HHPxv7obQg@mail.gmail.com>
+
+Hi INADA-san,
+
+This PEP is the result of 2 years of refactoring to *simplify* the
+*implementation*. I agree that bytes string is the native type on Unix.
+But. On Windows, Unicode is the native type. On Python 3, Unicode is the
+native type. One key of the simplified implementation is the unique
+PyConfig structure. It means that all platforms have to use the same types.
+
+I love the idea of using only wchar_t* for PyConfig because it makes Python
+initialization more reliable. The question of the encoding used to decode
+byte strings and any possible decoding error (very unlikely thanks to
+surrogateescape) is better defined: it occurs when you set the parameter,
+not "later during init".
+
+The PEP adds Py_UnixMain() for most trivial use cases, and
+PyConfig_DecodeLocale() and PyConfig_SetArgs() for more advanced cases.
+
+Victor
+
+Le samedi 4 mai 2019, Inada Naoki <songofacandy at gmail.com> a ?crit :
+> 2019?5?3?(?) 4:59 Victor Stinner <vstinner at redhat.com>:
+>>
+>> * PyConfig now only uses wchar_t* for strings (unicode): char* (bytes)
+>> is no longer used. I had to hack CPython internals for that :-)
+>
+> I prefer char* to wchar_t* on Unix.  Since UTF-8 dominated Unix world
+> in these decades, wchar_t* is less usable on Unix nowadays.
+>
+> Is it impossible to use just char* on Unix and wchar_t* on Windows?
+>
+> --
+> Inada Naoki  <songofacandy at gmail.com>
+>
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190504/f9a22929/attachment-0001.html>
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Sat May  4 17:02:47 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Sun, 5 May 2019 06:02:47 +0900
+Subject: [Python-Dev] "if __name__ == '__main__'" at the bottom of
+ python unittest files
+In-Reply-To: <qad24b$3mhr$1@blaine.gmane.org>
+References: <01ebef8d-d370-22c5-cb7a-194704a3906c@withers.org>
+ <20190501124831.7faadb2b@fsol>
+ <CACac1F9OJdkc_v0dQJwBMn_nEMecxkLMXKr9f8efQgF4EN4UjA@mail.gmail.com>
+ <d5689034-bce2-9f8c-b53b-01a020565798@withers.org>
+ <CACac1F90cVoU7DeSD2QkYTeSD+TLT80EkNoStx0pZZoY0iV4kQ@mail.gmail.com>
+ <05ef1790-dc90-f5a6-a25c-9ba5abc66a3a@withers.org>
+ <qad24b$3mhr$1@blaine.gmane.org>
+Message-ID: <23757.65015.549415.193161@turnbull.sk.tsukuba.ac.jp>
+
+Terry Reedy writes:
+
+ > I agree that complete 100.000% test coverage is a nice ideal, but
+ > sometimes the last percent can take hours to accomplish, if it is
+ > indeed sensibly possible.
+
+100% test coverage is an ideal.  Reports *claiming* 100% coverage,
+however, are of practical benefit.  The point is to identify a
+regression.
+
+It's best to have 100% coverage, because it's possible that
+improvements in the environment allow a test that wasn't reliable (==
+deterministic) or maybe not even feasible before to become feasible
+and reliable, and a coveragerc that says "oh, that line is OK" will
+obscure that possibility.
+
+But a *claim* (albeit somewhat undermined by a non-trivial coveragerc)
+of 100% coverage means it's *easy to identify regressions in
+coverage*.  I think that's a bigger deal, at least at this time.
+
+ > I have asked more that once what .coveragerc file is being used by
+ > CI and whether we can somehow properly customize it for CPython.
+
+Seconded.  Thank you for pushing this, and for all the other efforts
+you're making here.
+
+Steve
+
+
