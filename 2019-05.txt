@@ -4219,3 +4219,100 @@ you're making here.
 Steve
 
 
+From ericsnowcurrently at gmail.com  Sun May  5 09:47:07 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Sun, 5 May 2019 09:47:07 -0400
+Subject: [Python-Dev] PEP 574 ready for review
+In-Reply-To: <CADiSq7c-eWwtkZ3RYW0eVAvzWMBpMKWY4bioXaXkVy+1nJwfVQ@mail.gmail.com>
+References: <20190430101428.204457e6@fsol>
+ <CADiSq7c-eWwtkZ3RYW0eVAvzWMBpMKWY4bioXaXkVy+1nJwfVQ@mail.gmail.com>
+Message-ID: <CALFfu7A_BZgY7L-x2sPEoDpa65i8Sj1PW_wX+RRb4ADW5xQJag@mail.gmail.com>
+
+On Wed, May 1, 2019, 15:49 Nick Coghlan <ncoghlan at gmail.com> wrote:
+
+> As BDFL-Delegate I'm happy with this version of the PEP, so it's my
+> pleasure to accept it for inclusion in Python 3.8.
+>
+
+Congratulations, Antoine!  This is a big deal and a lot of folks won't
+realize it at first. :)
+
+-eric
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190505/91747d7a/attachment.html>
+
+From encukou at gmail.com  Sun May  5 18:04:06 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Sun, 5 May 2019 18:04:06 -0400
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+Message-ID: <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+
+Hello!
+Sorry for the delay; PyCon is keeping me busy. On the other hand, I
+did get to talk to a lot of smart people here!
+
+I'm leaning toward accepting PEP 590 (with some changes still). Let's
+start focusing on it.
+As for the changes, I have these 4 points:
+
+I feel that the API needs some contact with real users before it's set
+in stone. That was the motivation behind my proposal for PEP 590 with
+additional flags.
+At PyCon, Nick Coghlan suggested another option make the API
+"provisional":  make it formally private.
+Py_TPFLAGS_HAVE_VECTORCALL would be underscore-prefixed, and the docs
+would say that it can change. in Python 3.9, the semantics will be
+finalized and the underscore removed.
+This would allow high-maintenance projects (like Cython) to start
+using it and give their feedback, and we'd have a chance to respond to
+the feedback.
+
+tp_vectorcall_offset should be what's replacing tp_print in the
+struct. The current implementation has tp_vectorcall there. This way,
+Cython can create vectorcall callables for older Pythons. (See PEP
+580: https://www.python.org/dev/peps/pep-0580/#replacing-tp-print).
+
+Subclassing should not be forbidden. Jeroen, do you want write a
+section for how subclassing should work?
+
+Given Jeroen's research and ideas that went into the PEP (and
+hopefully, we'll incorporate some PEP 580 text as well), it seems fair
+to list him as co-author of the accepted PEP, instead of just listing
+PEP 580 in the acknowledgement section.
+
+
+On some other points:
+
+- Single bound method class for all kinds of function classes: This
+would be a cleaner design, yes, but I don't see a pressing need. As
+PEP 579 says, "this is a compounding issue", not a goal. As I recall,
+that is the only major reason for CCALL_DEFARG.
+PEP 590 says that x64 Windows passes 4 arguments in registers.
+Admittedly, I haven't checked this, nor the performance implications
+(so this would be a good point to argue!), but it seems like a good
+reason to keep the argument count down. So, no CCALL_DEFARG.
+
+- In reply to this Mark's note:
+> PEP 590 is fully universal, it supports callables that can do anything with anything. There is no need for it to be extended because it already supports any possible behaviour.
+
+I don't buy this point. The current tp_call also supports any possible
+behavior. Here we want to support any behavior *efficiently*.
+As a specific example: for calling PEP 590 callable with a kwarg dict,
+there'll need to be an extra allocation. That's inefficient relative
+to PEP 580 (or PEP 590 plus allowing a dict in "kwnames"). But I'm
+willing to believe the inefficiency is acceptable.
+
