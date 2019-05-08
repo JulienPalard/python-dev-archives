@@ -4683,3 +4683,1382 @@ Yes, I'd like this yesterday, please :)? Thanks!
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190506/2491be3a/attachment.html>
 
+From steve at holdenweb.com  Tue May  7 03:52:37 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Tue, 7 May 2019 08:52:37 +0100
+Subject: [Python-Dev] Easier debugging with f-strings
+In-Reply-To: <15377535-338f-bd70-8221-52a6509c58a4@g.nevcal.com>
+References: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+ <15377535-338f-bd70-8221-52a6509c58a4@g.nevcal.com>
+Message-ID: <CAMofdRBUd6EN=WqCh_RVdUpq3BO6EhtS3kxueV7XggikvpbL_w@mail.gmail.com>
+
+What's not to like?
+
+
+On Tue, May 7, 2019 at 2:31 AM Glenn Linderman <v+python at g.nevcal.com>
+wrote:
+
+> On 5/6/2019 5:39 PM, Eric V. Smith wrote:
+>
+> Last fall Larry Hastings made a suggestion for adding a way to make
+> so-called "print-based debugging" easier with f-strings. Basically the
+> approach is that f-strings would be able to produce the text of the
+> expression and the value of that expression, without repeating the
+> expression in the f-sting. No more writing f'foo={foo}, bar={bar}'. foo and
+> bar should each only be in there once each!
+>
+>
+> My plan is to commit this change before 3.8b1. If anyone would like to
+> discuss it at PyCon, I'll be around until about 10:30 am on Tuesday. I'll
+> be in the CPython sprint room, and I'll be watching bpo, too.
+>
+>
+> Yes, I'd like this yesterday, please :)  Thanks!
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/3cb46ad8/attachment.html>
+
+From p.f.moore at gmail.com  Tue May  7 04:02:13 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Tue, 7 May 2019 09:02:13 +0100
+Subject: [Python-Dev] Easier debugging with f-strings
+In-Reply-To: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+References: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+Message-ID: <CACac1F9A3qTCto473snQfGa4jOEV2mWvLfQitvPJ6vSxG8qi3A@mail.gmail.com>
+
+On Tue, 7 May 2019 at 01:43, Eric V. Smith <eric at trueblade.com> wrote:
+> After that lightning talk, Larry and I talked about it some more, and
+> for a number of reasons decided that it would make more sense if the
+> syntax used an = sign. So we came up with f"{foo=}", which would also
+> produce "foo='Hello'".
+
+Works for me. Whatever the spelling, I expect I'll use this a lot - thanks :-)
+
+Paul
+
+From barry at python.org  Tue May  7 09:49:46 2019
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 7 May 2019 09:49:46 -0400
+Subject: [Python-Dev] Easier debugging with f-strings
+In-Reply-To: <CAMofdRBUd6EN=WqCh_RVdUpq3BO6EhtS3kxueV7XggikvpbL_w@mail.gmail.com>
+References: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+ <15377535-338f-bd70-8221-52a6509c58a4@g.nevcal.com>
+ <CAMofdRBUd6EN=WqCh_RVdUpq3BO6EhtS3kxueV7XggikvpbL_w@mail.gmail.com>
+Message-ID: <556F2AB8-F595-4700-9663-FB9066489369@python.org>
+
+On May 7, 2019, at 03:52, Steve Holden <steve at holdenweb.com> wrote:
+> 
+> What's not to like?
+
+My only complaint is that you steadfastly refuse use Guido?s time machine keys to make this available in 3.7.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/a1ff2e0a/attachment.sig>
+
+From larry at hastings.org  Tue May  7 10:21:51 2019
+From: larry at hastings.org (Larry Hastings)
+Date: Tue, 7 May 2019 10:21:51 -0400
+Subject: [Python-Dev] Easier debugging with f-strings
+In-Reply-To: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+References: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+Message-ID: <a5c759ac-f626-6587-e5d0-ea4b5d16f30b@hastings.org>
+
+
+Guido just stopped by--we're all at the PyCon 2019 dev sprints--and we 
+had a chat about it.? Guido likes it but wanted us to restore a little 
+of the magical behavior we had in "!d": now, = in f-strings will default 
+to repr (!r), /unless/ you specify a format spec. If you specify a 
+format spec it will always default to format.? And naturally if you 
+specify an explicit conversion function (!r !s !a) it will use that.
+
+This makes !f irrelevant, so we're removing it.
+
+Here's the thinking: 99% of the time the user will just use {foo=}, and 
+for that you want repr.? After that, 0.99% of the time the user will 
+want a format spec that applies directly the value. It's exceedingly 
+unlikely that someone will want a format spec, but want it to apply to 
+repr(value) and not value itself.? So that's /possible/ 
+(f'{foo=!r:20}').? But the default behavior is the most common case at 
+every step.
+
+
+"So, is it checked in?" --GvR,
+
+
+//arry/
+
+
+On 5/6/19 8:39 PM, Eric V. Smith wrote:
+> Last fall Larry Hastings made a suggestion for adding a way to make 
+> so-called "print-based debugging" easier with f-strings. Basically the 
+> approach is that f-strings would be able to produce the text of the 
+> expression and the value of that expression, without repeating the 
+> expression in the f-sting. No more writing f'foo={foo}, bar={bar}'. 
+> foo and bar should each only be in there once each!
+>
+> At PyCon US 2019 I did a lightning talk about this, suggesting the 
+> syntax of !d, so that if foo="Hello", then f"{foo!d}" would produce 
+> "foo='Hello'". That is, it's the text of the expression, followed by 
+> an equal sign, followed by the repr of the expression. I have 
+> implemented this and a PR exists. Arbitrary expressions are allowed. I 
+> heard from core devs and end users after this talk, and all were 
+> positive.
+>
+> After that lightning talk, Larry and I talked about it some more, and 
+> for a number of reasons decided that it would make more sense if the 
+> syntax used an = sign. So we came up with f"{foo=}", which would also 
+> produce "foo='Hello'".
+>
+> The reasons for the change are:
+> - Having '=' in the expression is a better mnemonic than !d.
+> - By not using a conversion starting with !, we can compose = with the 
+> existing ! conversions, !r, !s, and the rarely used !a.
+> - We can let the user have a little more control of the resulting string.
+>
+> Another thing I like about this approach over !d is that the patch is 
+> simpler, because there are fewer special cases. And because there are 
+> fewer special cases in the code, I think the proposal is easier to 
+> explain than !d (in particular how it interacts (or doesn't!) with 
+> format specifiers).
+>
+> There's a good rationale here, along with a PR: 
+> https://bugs.python.org/issue36817.
+>
+> My plan is to commit this change before 3.8b1. If anyone would like to 
+> discuss it at PyCon, I'll be around until about 10:30 am on Tuesday. 
+> I'll be in the CPython sprint room, and I'll be watching bpo, too.
+>
+> Eric
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: 
+> https://mail.python.org/mailman/options/python-dev/larry%40hastings.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/320fcd01/attachment.html>
+
+From lukasz at langa.pl  Tue May  7 10:58:27 2019
+From: lukasz at langa.pl (=?utf-8?Q?=C5=81ukasz_Langa?=)
+Date: Tue, 7 May 2019 10:58:27 -0400
+Subject: [Python-Dev] [RELEASE] Python 3.8.0a4 is now available for testing
+Message-ID: <27210321-6B27-4629-9643-2A64F62DA85D@langa.pl>
+
+It's time for the LAST alpha of Python 3.8.0. Go get it here:
+https://www.python.org/downloads/release/python-380a4/ <https://www.python.org/downloads/release/python-380a4/>
+
+Python 3.8.0a4 is the fourth and final alpha release of Python 3.8,
+the next feature release of Python.  During the alpha phase, Python 3.8
+remains under heavy development: additional features will be added
+and existing features may be modified or deleted.  Please keep in mind
+that this is a preview release and its use is not recommended for
+production environments.  The first beta release, 3.8.0b1, is planned
+for 2019-05-31.
+
+The release has slipped a week because of me being overwhelmed
+with PyCon US this year.  There was also a release blocker and
+a breaking change to ElementTree.  Anyway, sorry for the wait!
+I moved the planned date of beta1 a few days to make up for it.
+
+If you have a feature you're working on and you'd like to see it in
+3.8.0, NOW IS THE TIME TO ACT. Please don't wait until May 30th,
+get a proper review and land your change as soon as possible.
+
+Q: Can I get my feature in after that date if I ask nicely?
+A: Yes, of course. I will release it in Python 3.9.
+
+- ?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/048f5414/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/048f5414/attachment-0001.sig>
+
+From skip.montanaro at gmail.com  Tue May  7 11:01:39 2019
+From: skip.montanaro at gmail.com (Skip Montanaro)
+Date: Tue, 7 May 2019 10:01:39 -0500
+Subject: [Python-Dev] Easier debugging with f-strings
+In-Reply-To: <556F2AB8-F595-4700-9663-FB9066489369@python.org>
+References: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+ <15377535-338f-bd70-8221-52a6509c58a4@g.nevcal.com>
+ <CAMofdRBUd6EN=WqCh_RVdUpq3BO6EhtS3kxueV7XggikvpbL_w@mail.gmail.com>
+ <556F2AB8-F595-4700-9663-FB9066489369@python.org>
+Message-ID: <CANc-5UzGu3o_PqrJ+-R3aO8uVfDQZEPjDj8oHrC97+hxkcbH=Q@mail.gmail.com>
+
+> My only complaint is that you steadfastly refuse use Guido?s time machine keys to make this available in 3.7.
+
+Wait a minute, Barry. You mean you don't already have an Emacs
+function to do the rewriting as a pre-save-hook?
+
+Skip
+
+From eric at trueblade.com  Tue May  7 11:33:10 2019
+From: eric at trueblade.com (Eric V. Smith)
+Date: Tue, 7 May 2019 11:33:10 -0400
+Subject: [Python-Dev] Easier debugging with f-strings
+In-Reply-To: <556F2AB8-F595-4700-9663-FB9066489369@python.org>
+References: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+ <15377535-338f-bd70-8221-52a6509c58a4@g.nevcal.com>
+ <CAMofdRBUd6EN=WqCh_RVdUpq3BO6EhtS3kxueV7XggikvpbL_w@mail.gmail.com>
+ <556F2AB8-F595-4700-9663-FB9066489369@python.org>
+Message-ID: <7e6a8718-d74e-9f24-b0ae-5405f9d2e49d@trueblade.com>
+
+On 5/7/19 9:49 AM, Barry Warsaw wrote:
+> On May 7, 2019, at 03:52, Steve Holden <steve at holdenweb.com> wrote:
+>>
+>> What's not to like?
+>
+> My only complaint is that you steadfastly refuse use Guido?s time machine keys to make this available in 3.7.
+
+Open a feature request here: https://github.com/asottile/future-fstrings
+
+!
+
+Eric
+
+
+From tim.peters at gmail.com  Tue May  7 12:50:54 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Tue, 7 May 2019 11:50:54 -0500
+Subject: [Python-Dev] Easier debugging with f-strings
+In-Reply-To: <a5c759ac-f626-6587-e5d0-ea4b5d16f30b@hastings.org>
+References: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+ <a5c759ac-f626-6587-e5d0-ea4b5d16f30b@hastings.org>
+Message-ID: <CAExdVNmHXbv7hSzL3Pat3+Df9+oyHc-OtswXUfqce18UgkU5ew@mail.gmail.com>
+
+[Larry Hastings <larry at hastings.org>]
+> Guido just stopped by--we're all at the PyCon 2019 dev sprints--and we had
+> a chat about it.  Guido likes it but wanted us to restore a little of the magical
+> behavior we had in "!d": now, = in f-strings will default to repr (!r), unless
+> you specify a format spec. If you specify a format spec it will always default
+> to format.  And naturally if you specify an explicit conversion function (!r !s !a)
+> it will use that.
+>
+> This makes !f irrelevant, so we're removing it.
+>
+> Here's the thinking: 99% of the time the user will just use {foo=}, and for that
+> you want repr.  After that, 0.99% of the time the user will want a format spec
+> that applies directly the value.  It's exceedingly unlikely that someone will
+> want a format spec, but want it to apply to repr(value) and not value itself.  So
+> that's possible (f'{foo=!r:20}').  But the default behavior is the most common
+> case at every step.
+
++1.  Perfect!  I'm one of the 0.99% who will frequently use this to
+display floats, and really wants them to show as "0.99%" rather than
+"0.9913499340289%".
+
+BTW, that Guido person has made enough decent contributions by now
+that I think he should be asked whether he wants to become a core dev!
+
+From eric at trueblade.com  Tue May  7 12:59:52 2019
+From: eric at trueblade.com (Eric V. Smith)
+Date: Tue, 7 May 2019 12:59:52 -0400
+Subject: [Python-Dev] Easier debugging with f-strings
+In-Reply-To: <CAExdVNmHXbv7hSzL3Pat3+Df9+oyHc-OtswXUfqce18UgkU5ew@mail.gmail.com>
+References: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+ <a5c759ac-f626-6587-e5d0-ea4b5d16f30b@hastings.org>
+ <CAExdVNmHXbv7hSzL3Pat3+Df9+oyHc-OtswXUfqce18UgkU5ew@mail.gmail.com>
+Message-ID: <43D94CC8-4FEB-45E2-A141-C5C0DA9E8C65@trueblade.com>
+
+Hi, Tim. 
+
+Your name came up frequently as a target for this use case. I think we?ve come up with a pretty good solution. 
+
+Now if I could only convince my clients to upgrade from 2.7! I?ve heard about these f-string things, and I think I would enjoy using them. 
+
+Eric
+
+> On May 7, 2019, at 12:50 PM, Tim Peters <tim.peters at gmail.com> wrote:
+> 
+> [Larry Hastings <larry at hastings.org>]
+>> Guido just stopped by--we're all at the PyCon 2019 dev sprints--and we had
+>> a chat about it.  Guido likes it but wanted us to restore a little of the magical
+>> behavior we had in "!d": now, = in f-strings will default to repr (!r), unless
+>> you specify a format spec. If you specify a format spec it will always default
+>> to format.  And naturally if you specify an explicit conversion function (!r !s !a)
+>> it will use that.
+>> 
+>> This makes !f irrelevant, so we're removing it.
+>> 
+>> Here's the thinking: 99% of the time the user will just use {foo=}, and for that
+>> you want repr.  After that, 0.99% of the time the user will want a format spec
+>> that applies directly the value.  It's exceedingly unlikely that someone will
+>> want a format spec, but want it to apply to repr(value) and not value itself.  So
+>> that's possible (f'{foo=!r:20}').  But the default behavior is the most common
+>> case at every step.
+> 
+> +1.  Perfect!  I'm one of the 0.99% who will frequently use this to
+> display floats, and really wants them to show as "0.99%" rather than
+> "0.9913499340289%".
+> 
+> BTW, that Guido person has made enough decent contributions by now
+> that I think he should be asked whether he wants to become a core dev!
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/eric%2Ba-python-dev%40trueblade.com
+
+
+From solipsis at pitrou.net  Tue May  7 14:09:15 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 7 May 2019 20:09:15 +0200
+Subject: [Python-Dev] PEP 574 ready for review
+In-Reply-To: <CADiSq7c-eWwtkZ3RYW0eVAvzWMBpMKWY4bioXaXkVy+1nJwfVQ@mail.gmail.com>
+References: <20190430101428.204457e6@fsol>
+ <CADiSq7c-eWwtkZ3RYW0eVAvzWMBpMKWY4bioXaXkVy+1nJwfVQ@mail.gmail.com>
+Message-ID: <20190507200915.54a39451@fsol>
+
+
+Should I submit a PR to change the PEP status or would you like to do
+it?
+
+Regards
+
+Antoine.
+
+
+On Wed, 1 May 2019 12:49:24 -0700
+Nick Coghlan <ncoghlan at gmail.com> wrote:
+> Thanks Antoine.
+> 
+> As BDFL-Delegate I'm happy with this version of the PEP, so it's my
+> pleasure to accept it for inclusion in Python 3.8.
+> 
+> Regards,
+> Nick.
+> 
+
+
+From paul at ganssle.io  Tue May  7 15:42:56 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Tue, 7 May 2019 15:42:56 -0400
+Subject: [Python-Dev] Adding a tzidx cache to datetime
+Message-ID: <ab658c54-71e3-f2eb-e94e-24ea671b7755@ganssle.io>
+
+Greetings all,
+
+I have one last feature request that I'd like added to datetime for
+Python 3.8, and this one I think could use some more discussion, the
+addition of a "time zone index cache" to the /datetime/ object. The
+rationale is laid out in detail in bpo-35723
+<https://bugs.python.org/issue35723>. The general problem is that
+currently, /every/ invocation of utcoffset, tzname and dst needs to do
+full, independent calculations of the time zone offsets, even for time
+zones where the mapping is guaranteed to be stable because datetimes are
+immutable. I have a proof of concept implementation: PR #11529
+<https://github.com/python/cpython/pull/11529/>.
+
+I'm envisioning that the `datetime` class will add a private `_tzidx`
+single-byte member (it seems that this does not increase the size of the
+datetime object, because it's just using an unused alignment byte).
+`datetime` will also add a `tzidx()` method, which will return `_tzidx`
+if it's been set and otherwise it will call `self.tzinfo.tzidx()`.? If
+`self.tzinfo.tzidx()` returns a number between 0 and 254 (inclusive), it
+sets `_tzidx` to this value. tzidx() then returns whatever
+self.tzinfo.tzidx() returned.
+
+The value of this is that as far as I can tell, nearly all non-trivial
+tzinfo implementations construct a list of possible offsets, and
+implement utcoffset(), tzname() and dst() by calculating an index into
+that list and returning it. There are almost always less than 255
+distinct offsets. By adding this cache /on the datetime/, we're using a
+small amount of currently-unused memory to prevent unnecessary
+calculations about a given datetime. The feature is entirely opt-in, and
+has no downsides if it goes unused, and it makes it possible to write
+tzinfo implementations that are both lazy and as fast as the "eager
+calculation" mode that pytz uses (and that causes many problems for
+pytz's users).
+
+I have explored the idea of using an lru cache of some sort on the
+tzinfo object itself, but there are two problems with this:
+
+1. Calculating the hash of a datetime calls .utcoffset(), which means
+that it is necessary to, at minimum, do a `replace` on the datetime (and
+constructing a new datetime is a pretty considerable speed hit)
+
+2. It will be a much bigger memory cost, since my current proposal uses
+approximately zero additional memory (not sure if the alignment stuff is
+platform-dependent or something, but it doesn't use additional memory on
+my linux computer).
+
+I realize this proposal is somewhat difficult to wrap your head around,
+so if anyone would like to chat with me about it in person, I'll be at
+PyCon sprints until Thursday morning.
+
+Best,
+Paul
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/e54f2aad/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/e54f2aad/attachment.sig>
+
+From robb at datalogics.com  Tue May  7 16:09:34 2019
+From: robb at datalogics.com (Rob Boehne)
+Date: Tue, 7 May 2019 20:09:34 +0000
+Subject: [Python-Dev] Can't build 3.7.3 on AIX
+Message-ID: <F183544A-F397-4A07-8152-713896C0E625@datalogics.com>
+
+Hello,
+
+I?m attempting to get a recent version of Python3 running on my UNIX build machines, but having a problem under AIX.
+This seems like it might be since 3.6.5, but I?ve not actually attempted anything else other than 3.6.8 which fails similarly.
+I?m building with the native C compiler in 64-bit mode, using OBJECT_MODE=64 exported in the environment.  I have attached config.log.
+Is this a known issue? TIA - Rob
+
+
+
+  ../../Python-3.7.3/config.guess
+
+powerpc-ibm-aix7.1.4.0
+
+
+
+../../Python-3.7.3/Modules/makexp_aix Modules/python.exp . libpython3.7m.a;  xlc_r -L/raid/checkouts-raid/robb/zlib-dl/Release/rs6000aix_64/lib  -Wl,-blibpath:/opt/IBM/xlmass/8.1.3/lib/aix61:/opt/IBM/xlc/13.1.3/lib:/usr/lib:/lib:/opt/Python-3.7/lib -q64    -Wl,-bE:Modules/python.exp -lld -o python Programs/python.o libpython3.7m.so -lintl -ldl    -lm
+
+LIBPATH=/raid/checkouts-raid/robb/nepal/build-py37 ./python -E -S -m sysconfig --generate-posix-vars ;\
+
+if test $? -ne 0 ; then \
+
+        echo "generate-posix-vars failed" ; \
+
+        rm -f ./pybuilddir.txt ; \
+
+        exit 1 ; \
+
+fi
+
+Fatal Python error: _Py_HashRandomization_Init: failed to get random numbers to initialize Python
+
+
+
+generate-posix-vars failed
+
+Makefile:603: recipe for target 'pybuilddir.txt' failed
+
+gmake: *** [pybuilddir.txt] Error 1
+
+
+
+[cid:image002.png at 01D3D0E3.DCFE6710]
+
+Rob Boehne
+Senior Software Architect | Datalogics, Inc.
++1.312.853.8351<tel:(312)%20853-8351> | robb at datalogics.com<mailto:robb at datalogics.com>
+datalogics.com<http://www.datalogics.com/> | blogs.datalogics.com<http://blogs.datalogics.com/>
+
+Connect with us: Facebook<https://www.facebook.com/DatalogicsInc> | Twitter<https://twitter.com/DatalogicsInc> | LinkedIn<https://www.linkedin.com/company/datalogics?actionToken=p=p%3Dbiz-company-login%26c%3D3217e65a-bdc2-4b38-8f9c-13c982e8c529%26m%3Dcompany_feed%26n%3D0&t=a%3DisFolloweeOfPoster%253Dfalse%2526distanceFromActor%253D-1%2526actorType%253D%2526likedByUser%253Dfalse%2526targetId%253D%2526recentCommentUrns%253D%2526targetType%253D%2526sponsoredFlag%253DORGANIC%2526verbType%253Dlinkedin%25253Ashare%2526objectType%253Dlinkedin%25253Aarticle%2526totalShares%253D0%2526activityId%253Durn%25253Ali%25253Aactivity%25253A6263731876121362433%2526recentLikerUrns%253D%2526actorId%253Durn%25253Ali%25253Acompany%25253A14000%2526totalComments%253D0%2526relevanceScore%253D0.0%2526recentCommenterUrns%253D%2526isPublic%253Dtrue%2526time%253D-1%2526totalLikes%253D0%2526objectId%253Durn%25253Ali%25253Aarticle%25253A7793179909183391510%2526distanceFromNestedActor%253D-1%26s%3DORG> | YouTube<https://www.youtube.com/user/Datalogics>
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/e69cca8a/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image001.png
+Type: image/png
+Size: 124449 bytes
+Desc: image001.png
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/e69cca8a/attachment-0001.png>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: config.log
+Type: application/octet-stream
+Size: 1065198 bytes
+Desc: config.log
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/e69cca8a/attachment-0001.obj>
+
+From bbk1524 at gmail.com  Tue May  7 15:47:52 2019
+From: bbk1524 at gmail.com (Ben Kane)
+Date: Tue, 7 May 2019 15:47:52 -0400
+Subject: [Python-Dev] Hello
+Message-ID: <CAC7z9xCT4WZpCU4rJLUL1XhJaTuEVHvL2rVCnWebWcxEfM8JDA@mail.gmail.com>
+
+My name is Ben Kane. I'm joining this mailing list and introducing myself
+as asked in the "welcome to python-dev" email. I've been using Python for
+maybe 7 years now. I started to learn it in college to help with accounting
+homework and I continue to use it now for personal projects ranging from
+small scripts to larger applications and in my day job as a LinkedIn Site
+Reliability Engineer.
+
+I'd like to contribute back to the language that's helped me so much; and
+talking with core devs at PyCon 2019 has really encouraged me. So I'll be
+lurking and trying to pick things up as I see them.
+
+Thanks!
+-- 
+
+Ben Kane
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/4a040e5b/attachment.html>
+
+From christian at python.org  Tue May  7 16:26:17 2019
+From: christian at python.org (Christian Heimes)
+Date: Tue, 7 May 2019 16:26:17 -0400
+Subject: [Python-Dev] PEP 578 accepted
+Message-ID: <2f1e4bef-d845-c006-537f-d81abc4c980c@python.org>
+
+Hi,
+
+Steve and I worked on the final touch of the PEP during PyCon. PEP 578
+[1] is now ready. As the BDFL delegate I'm honoured to accept Steve's PEP.
+
+There is a very slim possibility that the PEP implementation might need
+adjustment for Linux. I haven't got feedback from a Red Hat engineer
+that works on Linux Kernel Auditing team. Everybody is busy with RHEL 8
+release and the Red Hat Summit in Boston. I don't anticipate any changes
+to the PEP itself. After some consideration I decided to accept PEP now
+to give Steve enough time to push and test his implementation. There is
+sufficient time to address issues until the first release candidate of
+3.8.0.
+
+Thanks Steve, it's been a privilege to work with you!
+
+Christian
+
+[1] https://www.python.org/dev/peps/pep-0578/
+
+From vstinner at redhat.com  Tue May  7 16:42:20 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 7 May 2019 16:42:20 -0400
+Subject: [Python-Dev] Can't build 3.7.3 on AIX
+In-Reply-To: <F183544A-F397-4A07-8152-713896C0E625@datalogics.com>
+References: <F183544A-F397-4A07-8152-713896C0E625@datalogics.com>
+Message-ID: <CA+3bQGFGAyhn124=PUXrn1JmcTYpFc3CS12PgsEKJRqCjCfdRg@mail.gmail.com>
+
+Please report the bug at https://bugs.python.org/ ;-)
+
+I'm not sure how _PyOS_URandom() / pyurandom() is implemented on AIX. I
+guess that it reads from /dev/urandom.
+
+Please attach config.log to your bug report.
+
+Victor
+
+Le mar. 7 mai 2019 ? 16:30, Rob Boehne <robb at datalogics.com> a ?crit :
+
+> Hello,
+>
+>
+>
+> I?m attempting to get a recent version of Python3 running on my UNIX build
+> machines, but having a problem under AIX.
+>
+> This seems like it might be since 3.6.5, but I?ve not actually attempted
+> anything else other than 3.6.8 which fails similarly.
+>
+> I?m building with the native C compiler in 64-bit mode, using
+> OBJECT_MODE=64 exported in the environment.  I have attached config.log.
+>
+> Is this a known issue? TIA - Rob
+>
+>
+>
+>
+>
+>   ../../Python-3.7.3/config.guess
+>
+> powerpc-ibm-aix7.1.4.0
+>
+>
+>
+>
+>
+> ../../Python-3.7.3/Modules/makexp_aix Modules/python.exp . libpython3.7m.a;
+> xlc_r -L/raid/checkouts-raid/robb/zlib-dl/Release/rs6000aix_64/lib  -Wl,-blibpath:/opt/IBM/xlmass/8.1.3/lib/aix61:/opt/IBM/xlc/13.1.3/lib:/usr/lib:/lib:/opt/Python-3.7/lib
+> -q64    -Wl,-bE:Modules/python.exp -lld -o python Programs/python.o
+> libpython3.7m.so -lintl -ldl    -lm
+>
+> LIBPATH=/raid/checkouts-raid/robb/nepal/build-py37 ./python -E -S -m
+> sysconfig --generate-posix-vars ;\
+>
+> if test $? -ne 0 ; then \
+>
+>         echo "generate-posix-vars failed" ; \
+>
+>         rm -f ./pybuilddir.txt ; \
+>
+>         exit 1 ; \
+>
+> fi
+>
+> Fatal Python error: _Py_HashRandomization_Init: failed to get random
+> numbers to initialize Python
+>
+>
+>
+> generate-posix-vars failed
+>
+> Makefile:603: recipe for target 'pybuilddir.txt' failed
+>
+> gmake: *** [pybuilddir.txt] Error 1
+>
+>
+>
+>
+>
+>
+>
+> [image: cid:image002.png at 01D3D0E3.DCFE6710]
+>
+> *Rob Boehne*
+>
+> Senior Software Architect | Datalogics, Inc.
+>
+> +1.312.853.8351 <(312)%20853-8351> | robb at datalogics.com
+>
+> datalogics.com <http://www.datalogics.com/> | blogs.datalogics.com
+>
+> Connect with us: Facebook <https://www.facebook.com/DatalogicsInc> |
+> Twitter <https://twitter.com/DatalogicsInc> | LinkedIn
+> <https://www.linkedin.com/company/datalogics?actionToken=p=p%3Dbiz-company-login%26c%3D3217e65a-bdc2-4b38-8f9c-13c982e8c529%26m%3Dcompany_feed%26n%3D0&t=a%3DisFolloweeOfPoster%253Dfalse%2526distanceFromActor%253D-1%2526actorType%253D%2526likedByUser%253Dfalse%2526targetId%253D%2526recentCommentUrns%253D%2526targetType%253D%2526sponsoredFlag%253DORGANIC%2526verbType%253Dlinkedin%25253Ashare%2526objectType%253Dlinkedin%25253Aarticle%2526totalShares%253D0%2526activityId%253Durn%25253Ali%25253Aactivity%25253A6263731876121362433%2526recentLikerUrns%253D%2526actorId%253Durn%25253Ali%25253Acompany%25253A14000%2526totalComments%253D0%2526relevanceScore%253D0.0%2526recentCommenterUrns%253D%2526isPublic%253Dtrue%2526time%253D-1%2526totalLikes%253D0%2526objectId%253Durn%25253Ali%25253Aarticle%25253A7793179909183391510%2526distanceFromNestedActor%253D-1%26s%3DORG>
+>  | YouTube <https://www.youtube.com/user/Datalogics>
+>
+>
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/72d21850/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image001.png
+Type: image/png
+Size: 124449 bytes
+Desc: not available
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/72d21850/attachment-0001.png>
+
+From vstinner at redhat.com  Tue May  7 16:47:30 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 7 May 2019 16:47:30 -0400
+Subject: [Python-Dev] Hello
+In-Reply-To: <CAC7z9xCT4WZpCU4rJLUL1XhJaTuEVHvL2rVCnWebWcxEfM8JDA@mail.gmail.com>
+References: <CAC7z9xCT4WZpCU4rJLUL1XhJaTuEVHvL2rVCnWebWcxEfM8JDA@mail.gmail.com>
+Message-ID: <CA+3bQGH8kGhzi1On9ggGXc9wd6NCE0an9zgEwU-_K4r0Ud3sgw@mail.gmail.com>
+
+Welcome Ben!
+
+Le mar. 7 mai 2019 ? 16:28, Ben Kane <bbk1524 at gmail.com> a ?crit :
+> My name is Ben Kane. I'm joining this mailing list and introducing myself as asked in the "welcome to python-dev" email. I've been using Python for maybe 7 years now. I started to learn it in college to help with accounting homework and I continue to use it now for personal projects ranging from small scripts to larger applications and in my day job as a LinkedIn Site Reliability Engineer.
+>
+> I'd like to contribute back to the language that's helped me so much; and talking with core devs at PyCon 2019 has really encouraged me. So I'll be lurking and trying to pick things up as I see them.
+
+python-dev is not the proper mail to introduce yourself to contribute.
+I suggest you to start reading http://devguide.python.org/ and please
+send the same email to core-mentorship mailing list:
+https://mail.python.org/mailman3/lists/core-mentorship.python.org/?x=22
+
+It would help if you can elaborate on which parts of Python you would
+be interested to contribute ;-)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Tue May  7 16:59:49 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 7 May 2019 16:59:49 -0400
+Subject: [Python-Dev] PEP 574 ready for review
+In-Reply-To: <20190507200915.54a39451@fsol>
+References: <20190430101428.204457e6@fsol>
+ <CADiSq7c-eWwtkZ3RYW0eVAvzWMBpMKWY4bioXaXkVy+1nJwfVQ@mail.gmail.com>
+ <20190507200915.54a39451@fsol>
+Message-ID: <CA+3bQGFdU2RViFv+tg0pmF77VeHMTHpa1SvbzRXnf8w2tmg98Q@mail.gmail.com>
+
+You can do it. I like when the acceptance email is linked from the PEP ;-)
+
+Victor
+
+Le mar. 7 mai 2019 ? 14:12, Antoine Pitrou <solipsis at pitrou.net> a ?crit :
+>
+>
+> Should I submit a PR to change the PEP status or would you like to do
+> it?
+>
+> Regards
+>
+> Antoine.
+>
+>
+> On Wed, 1 May 2019 12:49:24 -0700
+> Nick Coghlan <ncoghlan at gmail.com> wrote:
+> > Thanks Antoine.
+> >
+> > As BDFL-Delegate I'm happy with this version of the PEP, so it's my
+> > pleasure to accept it for inclusion in Python 3.8.
+> >
+> > Regards,
+> > Nick.
+> >
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From robb at datalogics.com  Tue May  7 17:03:17 2019
+From: robb at datalogics.com (Rob Boehne)
+Date: Tue, 7 May 2019 21:03:17 +0000
+Subject: [Python-Dev] Can't build 3.7.3 on AIX
+In-Reply-To: <CA+3bQGFGAyhn124=PUXrn1JmcTYpFc3CS12PgsEKJRqCjCfdRg@mail.gmail.com>
+References: <F183544A-F397-4A07-8152-713896C0E625@datalogics.com>
+ <CA+3bQGFGAyhn124=PUXrn1JmcTYpFc3CS12PgsEKJRqCjCfdRg@mail.gmail.com>
+Message-ID: <5038F465-FB30-4FA5-8B58-1A5CBE1B79B2@datalogics.com>
+
+I?ve created the issue, but was unable to attach config.log ? 413 Request Entity Too Large
+Kept coming up if I attempted to attach the log file.
+
+https://bugs.python.org/issue36843
+
+
+From: Victor Stinner <vstinner at redhat.com>
+Date: Tuesday, May 7, 2019 at 3:42 PM
+To: Rob Boehne <robb at datalogics.com>
+Cc: "python-dev at python.org" <python-dev at python.org>
+Subject: Re: [Python-Dev] Can't build 3.7.3 on AIX
+
+Please report the bug at https://bugs.python.org/<https://nam05.safelinks.protection.outlook.com/?url=https%3A%2F%2Fbugs.python.org%2F&data=02%7C01%7Crobb%40datalogics.com%7C32d8d4229d5e488784c508d6d32c8815%7Cfc3d8cdfd6994f23ae232659c3da4749%7C0%7C0%7C636928585562575348&sdata=p3ikVuanjImoFGHPxnoZGeYinNHfZ43sf07K0Ttuc38%3D&reserved=0> ;-)
+
+I'm not sure how _PyOS_URandom() / pyurandom() is implemented on AIX. I guess that it reads from /dev/urandom.
+
+Please attach config.log to your bug report.
+
+Victor
+
+Le mar. 7 mai 2019 ? 16:30, Rob Boehne <robb at datalogics.com<mailto:robb at datalogics.com>> a ?crit :
+Hello,
+
+I?m attempting to get a recent version of Python3 running on my UNIX build machines, but having a problem under AIX.
+This seems like it might be since 3.6.5, but I?ve not actually attempted anything else other than 3.6.8 which fails similarly.
+I?m building with the native C compiler in 64-bit mode, using OBJECT_MODE=64 exported in the environment.  I have attached config.log.
+Is this a known issue? TIA - Rob
+
+
+
+  ../../Python-3.7.3/config.guess
+
+powerpc-ibm-aix7.1.4.0
+
+
+
+../../Python-3.7.3/Modules/makexp_aix Modules/python.exp . libpython3.7m.a;  xlc_r -L/raid/checkouts-raid/robb/zlib-dl/Release/rs6000aix_64/lib  -Wl,-blibpath:/opt/IBM/xlmass/8.1.3/lib/aix61:/opt/IBM/xlc/13.1.3/lib:/usr/lib:/lib:/opt/Python-3.7/lib -q64    -Wl,-bE:Modules/python.exp -lld -o python Programs/python.o libpython3.7m.so<https://nam05.safelinks.protection.outlook.com/?url=http%3A%2F%2Flibpython3.7m.so&data=02%7C01%7Crobb%40datalogics.com%7C32d8d4229d5e488784c508d6d32c8815%7Cfc3d8cdfd6994f23ae232659c3da4749%7C0%7C0%7C636928585562585670&sdata=M26jv6Tl2SkdwnMIjaZ57UVpClmHPy1efSbk8pH5ewg%3D&reserved=0> -lintl -ldl    -lm
+
+LIBPATH=/raid/checkouts-raid/robb/nepal/build-py37 ./python -E -S -m sysconfig --generate-posix-vars ;\
+
+if test $? -ne 0 ; then \
+
+        echo "generate-posix-vars failed" ; \
+
+        rm -f ./pybuilddir.txt ; \
+
+        exit 1 ; \
+
+fi
+
+Fatal Python error: _Py_HashRandomization_Init: failed to get random numbers to initialize Python
+
+
+
+generate-posix-vars failed
+
+Makefile:603: recipe for target 'pybuilddir.txt' failed
+
+gmake: *** [pybuilddir.txt] Error 1
+
+
+
+[cid:image002.png at 01D3D0E3.DCFE6710]
+
+Rob Boehne
+Senior Software Architect | Datalogics, Inc.
++1.312.853.8351<tel:(312)%20853-8351> | robb at datalogics.com<mailto:robb at datalogics.com>
+datalogics.com<https://nam05.safelinks.protection.outlook.com/?url=http%3A%2F%2Fwww.datalogics.com%2F&data=02%7C01%7Crobb%40datalogics.com%7C32d8d4229d5e488784c508d6d32c8815%7Cfc3d8cdfd6994f23ae232659c3da4749%7C0%7C0%7C636928585562595364&sdata=sKMZvmq69uokuGSvkYMfhYpdvkrD7ZoogBS7vtc7D%2FA%3D&reserved=0> | blogs.datalogics.com<https://nam05.safelinks.protection.outlook.com/?url=http%3A%2F%2Fblogs.datalogics.com%2F&data=02%7C01%7Crobb%40datalogics.com%7C32d8d4229d5e488784c508d6d32c8815%7Cfc3d8cdfd6994f23ae232659c3da4749%7C0%7C0%7C636928585562605371&sdata=W3EXpIZ8b3%2BeWO8u9MgXPuvLlcpQ3lxCMRiik1M2eLc%3D&reserved=0>
+
+Connect with us: Facebook<https://nam05.safelinks.protection.outlook.com/?url=https%3A%2F%2Fwww.facebook.com%2FDatalogicsInc&data=02%7C01%7Crobb%40datalogics.com%7C32d8d4229d5e488784c508d6d32c8815%7Cfc3d8cdfd6994f23ae232659c3da4749%7C0%7C0%7C636928585562615379&sdata=vy2mbRdcwjaFUXb9fH8qlUmLRBmSFyEFnQC2OprvdPs%3D&reserved=0> | Twitter<https://nam05.safelinks.protection.outlook.com/?url=https%3A%2F%2Ftwitter.com%2FDatalogicsInc&data=02%7C01%7Crobb%40datalogics.com%7C32d8d4229d5e488784c508d6d32c8815%7Cfc3d8cdfd6994f23ae232659c3da4749%7C0%7C0%7C636928585562615379&sdata=x7gJ3IOY1h2PAdgRGK5rVcbDeR6MN2cIvAZBGTMLqe0%3D&reserved=0> | LinkedIn<https://nam05.safelinks.protection.outlook.com/?url=https%3A%2F%2Fwww.linkedin.com%2Fcompany%2Fdatalogics%3FactionToken%3Dp%3Dp%253Dbiz-company-login%2526c%253D3217e65a-bdc2-4b38-8f9c-13c982e8c529%2526m%253Dcompany_feed%2526n%253D0%26t%3Da%253DisFolloweeOfPoster%25253Dfalse%252526distanceFromActor%25253D-1%252526actorType%25253D%252526likedByUser%25253Dfalse%252526targetId%25253D%252526recentCommentUrns%25253D%252526targetType%25253D%252526sponsoredFlag%25253DORGANIC%252526verbType%25253Dlinkedin%2525253Ashare%252526objectType%25253Dlinkedin%2525253Aarticle%252526totalShares%25253D0%252526activityId%25253Durn%2525253Ali%2525253Aactivity%2525253A6263731876121362433%252526recentLikerUrns%25253D%252526actorId%25253Durn%2525253Ali%2525253Acompany%2525253A14000%252526totalComments%25253D0%252526relevanceScore%25253D0.0%252526recentCommenterUrns%25253D%252526isPublic%25253Dtrue%252526time%25253D-1%252526totalLikes%25253D0%252526objectId%25253Durn%2525253Ali%2525253Aarticle%2525253A7793179909183391510%252526distanceFromNestedActor%25253D-1%2526s%253DORG&data=02%7C01%7Crobb%40datalogics.com%7C32d8d4229d5e488784c508d6d32c8815%7Cfc3d8cdfd6994f23ae232659c3da4749%7C0%7C0%7C636928585562625387&sdata=91ZWa1RiT6PgsHm8sTFZW%2Fxv%2F2N%2BsazepzejkSFkBSQ%3D&reserved=0> | YouTube<https://nam05.safelinks.protection.outlook.com/?url=https%3A%2F%2Fwww.youtube.com%2Fuser%2FDatalogics&data=02%7C01%7Crobb%40datalogics.com%7C32d8d4229d5e488784c508d6d32c8815%7Cfc3d8cdfd6994f23ae232659c3da4749%7C0%7C0%7C636928585562635394&sdata=Yhu7Hr%2B61IMg5uO1FOmMhSVePKt7cHBm9hz54q22EHA%3D&reserved=0>
+
+
+_______________________________________________
+Python-Dev mailing list
+Python-Dev at python.org<mailto:Python-Dev at python.org>
+https://mail.python.org/mailman/listinfo/python-dev<https://nam05.safelinks.protection.outlook.com/?url=https%3A%2F%2Fmail.python.org%2Fmailman%2Flistinfo%2Fpython-dev&data=02%7C01%7Crobb%40datalogics.com%7C32d8d4229d5e488784c508d6d32c8815%7Cfc3d8cdfd6994f23ae232659c3da4749%7C0%7C0%7C636928585562645396&sdata=ce5gctGreWIqecstTZghtEe%2FPBE4cZoCmqZymW%2Ff%2FAo%3D&reserved=0>
+Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com<https://nam05.safelinks.protection.outlook.com/?url=https%3A%2F%2Fmail.python.org%2Fmailman%2Foptions%2Fpython-dev%2Fvstinner%2540redhat.com&data=02%7C01%7Crobb%40datalogics.com%7C32d8d4229d5e488784c508d6d32c8815%7Cfc3d8cdfd6994f23ae232659c3da4749%7C0%7C0%7C636928585562655404&sdata=yR7AlHO85H8OWwpiLk%2BIEJkBdQHHYcLfTNQWB78ZN%2BY%3D&reserved=0>
+
+
+--
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/ec869e41/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image001.png
+Type: image/png
+Size: 124450 bytes
+Desc: image001.png
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/ec869e41/attachment-0001.png>
+
+From jordan.m.adler at gmail.com  Tue May  7 17:05:57 2019
+From: jordan.m.adler at gmail.com (Jordan Adler)
+Date: Tue, 7 May 2019 17:05:57 -0400
+Subject: [Python-Dev] Definition of equality check behavior
+Message-ID: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+
+Hey folks!
+
+Through the course of work on the future polyfills
+<https://github.com/PythonCharmers/python-future/issues/432> that mimic the
+behavior of Py3 builtins across versions of Python, we've discovered that
+the equality check behavior of at least some builtin types do not
+match the documented
+core data model
+<https://docs.python.org/3/reference/datamodel.html#object.__eq__>.
+
+Specifically, a comparison between a primitive (int, str, float were
+tested) and an object of a different type always return False, instead of
+raising a NotImplementedError.  Consider `1 == '1'` as a test case.
+
+Should the data model be adjusted to declare that primitive types are
+expected to fallback to False, or should the cpython primitive type's
+__eq__ implementation fallback to raise NotImplementedError?
+
+Reasonable people could disagree about the right approach, but my distaste
+for silent failures leads me to recommend that the implementation be
+adjusted to return NotImplementedError as a fallback, and to document that
+the operands should not be coerced to the same type prior to comparison
+(enforcing a stricter equality check). This will of course require a
+deprecation protocol.
+
+Alternatively some new equality operator could be used to specify the level
+of coercion/type checking desired (currently Python has 'is' and '==').
+
+Jordan
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/92adb1b6/attachment.html>
+
+From max.vogler at gmail.com  Tue May  7 18:05:07 2019
+From: max.vogler at gmail.com (Max Vogler)
+Date: Wed, 8 May 2019 00:05:07 +0200
+Subject: [Python-Dev] Definition of equality check behavior
+In-Reply-To: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+References: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+Message-ID: <CAFR_N7zAQBwMBhbox9b9O3JLSoc-To6sCAq63Ehmq54Jg78vgg@mail.gmail.com>
+
+Thanks for starting this discussion and addressing my issue, Jordan.
+
+I would like to clarify the intentions behind my original issue
+<https://github.com/PythonCharmers/python-future/issues/432>: It does not
+concern coercion in Python's __eq__. Instead, the issue concerns the return
+of False instead of NotImplemented in future.types.newstr.__eq__. As a
+result, in special cases this breaks the symmetry of equality.
+
+Also, please be aware of the difference between NotImplemented (a singleton
+that is used as indicator for an unimplemented equality operation) and
+NotImplementedError
+<https://docs.python.org/3/library/exceptions.html#NotImplementedError>, a
+RuntimeError used for example in abstract classes. To quote from the docs:
+> NotImplementedError and NotImplemented are not interchangeable, even
+though they have similar names and purposes.
+
+On Tue, May 7, 2019 at 11:06 PM Jordan Adler <jordan.m.adler at gmail.com>
+wrote:
+
+> Hey folks!
+>
+> Through the course of work on the future polyfills
+> <https://github.com/PythonCharmers/python-future/issues/432> that mimic
+> the behavior of Py3 builtins across versions of Python, we've discovered
+> that the equality check behavior of at least some builtin types do not
+> match the documented core data model
+> <https://docs.python.org/3/reference/datamodel.html#object.__eq__>.
+>
+> Specifically, a comparison between a primitive (int, str, float were
+> tested) and an object of a different type always return False, instead of
+> raising a NotImplementedError.  Consider `1 == '1'` as a test case.
+>
+> Should the data model be adjusted to declare that primitive types are
+> expected to fallback to False, or should the cpython primitive type's
+> __eq__ implementation fallback to raise NotImplementedError?
+>
+> Reasonable people could disagree about the right approach, but my distaste
+> for silent failures leads me to recommend that the implementation be
+> adjusted to return NotImplementedError as a fallback, and to document that
+> the operands should not be coerced to the same type prior to comparison
+> (enforcing a stricter equality check). This will of course require a
+> deprecation protocol.
+>
+> Alternatively some new equality operator could be used to specify the
+> level of coercion/type checking desired (currently Python has 'is' and
+> '==').
+>
+> Jordan
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190508/0cb7e137/attachment.html>
+
+From steve at pearwood.info  Tue May  7 19:17:24 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 8 May 2019 09:17:24 +1000
+Subject: [Python-Dev] Definition of equality check behavior
+In-Reply-To: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+References: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+Message-ID: <20190507231724.GW5010@ando.pearwood.info>
+
+On Tue, May 07, 2019 at 05:05:57PM -0400, Jordan Adler wrote:
+[...]
+> Specifically, a comparison between a primitive (int, str, float were
+> tested) and an object of a different type always return False, instead of
+> raising a NotImplementedError.  Consider `1 == '1'` as a test case.
+
+I think you may be labouring under a few misapprehensions here.
+
+1. Comparisons between builtins such as ints and objects of different 
+types do not always return False:
+
+py> class X:
+...     def __eq__(self, other):
+...             return True
+...
+py> 123 == X()
+True
+
+You don't need a custom class to demonstrate this fact, you just need 
+values which actually are equal:
+
+py> 123 == 1.23e2  # int compared to float
+True
+
+
+2. Comparisons are not supposed to raise NotImplementedError as part of 
+the core data model, they are supposed to return (not raise) 
+NotImplemented. Note that NotImplementedError is a completely different 
+thing).
+
+As the documentation you linked to says:
+
+    A rich comparison method may return the singleton NotImplemented 
+    if it does not implement the operation for a given pair of 
+    arguments.
+
+
+
+3. Equality does not suppress exceptions and lead to silent failure:
+
+py> class Y:
+...     def __eq__(self, other):
+...             raise NotImplementedError
+...
+py> 123 == Y()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "<stdin>", line 3, in __eq__
+NotImplementedError
+
+
+Hope this helps.
+
+
+
+-- 
+Steven
+
+From steve at pearwood.info  Tue May  7 19:30:09 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 8 May 2019 09:30:09 +1000
+Subject: [Python-Dev] Definition of equality check behavior
+In-Reply-To: <CAFR_N7zAQBwMBhbox9b9O3JLSoc-To6sCAq63Ehmq54Jg78vgg@mail.gmail.com>
+References: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+ <CAFR_N7zAQBwMBhbox9b9O3JLSoc-To6sCAq63Ehmq54Jg78vgg@mail.gmail.com>
+Message-ID: <20190507233009.GX5010@ando.pearwood.info>
+
+On Wed, May 08, 2019 at 12:05:07AM +0200, Max Vogler wrote:
+> Thanks for starting this discussion and addressing my issue, Jordan.
+> 
+> I would like to clarify the intentions behind my original issue
+> <https://github.com/PythonCharmers/python-future/issues/432>: It does not
+> concern coercion in Python's __eq__. Instead, the issue concerns the return
+> of False instead of NotImplemented in future.types.newstr.__eq__. 
+
+Unless there is something special about newstr that it should force an 
+unequal result, it should return NotImplemented when comparing to types 
+it knows nothing about.
+
+I'm reluctant to outright declare a class I know nothing about in a 
+library I don't understand is buggy, but on the face of it, if 
+newstr.__eq__ doesn't return NotImplemented, it probably is buggy.
+
+If so, newstr is in good company: failure to return NotImplemented is a 
+very common bug in third-party code. I've written heaps of classes that 
+wrongly force a False result. But I've learned better and don't do it 
+any more :-)
+
+
+
+-- 
+Steven
+
+From ethan at stoneleaf.us  Tue May  7 20:23:09 2019
+From: ethan at stoneleaf.us (Ethan Furman)
+Date: Tue, 7 May 2019 17:23:09 -0700
+Subject: [Python-Dev] Definition of equality check behavior
+In-Reply-To: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+References: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+Message-ID: <945db57c-3b27-0d2f-f8c5-c10e69fd3a0c@stoneleaf.us>
+
+On 05/07/2019 02:05 PM, Jordan Adler wrote:
+
+> Specifically, a comparison between a primitive (int, str, float were
+>  tested) and an object of a different type always return False,
+>  instead of raising a NotImplementedError.  Consider `1 == '1'` as a
+>  test case.
+
+If the object of a different type doesn't support comparing to an int, str, or float then False is the correct answer.  On the other hand, if the object of a different type wants to compare equal to, say, ints then it will have to supply its own __eq__ method to return False/True as appropriate.
+
+
+> Should the data model be adjusted to declare that primitive types are
+>  expected to fallback to False
+
+No, because they aren't.
+
+> or should the cpython primitive type's __eq__ implementation fallback
+>  to raise NotImplementedError?
+
+No, because raising an error is not appropriate.  Did you mean `return NotImplemented`?  Because empirical evidence suggests that they do:
+
+-------
+class MyCustomInt():
+     def __init__(self, value):
+         self.value = value
+     def __eq__(self, other):
+         if isinstance(other, int):
+             return self.value == other
+         else:
+             return NotImplemented
+     def __ne__(self, other):
+         if isinstance(other, int):
+             return self.value != other
+         else:
+             return NotImplemented
+
+core_int = 7
+my_int = MyCustomInt(7)
+
+print(core_int == my_int)  # True
+print(my_int == core_int)  # True
+-------
+
+If the core types were not returning NotImplemented then the above would be False on the `core_int == my_int` line.
+
+Hopefully this is clearer now?
+
+--
+~Ethan~
+
+From steve at pearwood.info  Tue May  7 20:39:37 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 8 May 2019 10:39:37 +1000
+Subject: [Python-Dev] Easier debugging with f-strings
+In-Reply-To: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+References: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+Message-ID: <20190508003937.GA5010@ando.pearwood.info>
+
+Disclaimer: this topic seems to have been split over at least two issues 
+on the bug tracker, a Python-Ideas thread from 2018, Discourse (I 
+think...) and who knows what else. I haven't read it all, so excuse me 
+if I'm raising something already discussed.
+
+On Mon, May 06, 2019 at 08:39:41PM -0400, Eric V. Smith wrote:
+
+> After that lightning talk, Larry and I talked about it some more, and 
+> for a number of reasons decided that it would make more sense if the 
+> syntax used an = sign. So we came up with f"{foo=}", which would also 
+> produce "foo='Hello'".
+> 
+> The reasons for the change are:
+> - Having '=' in the expression is a better mnemonic than !d.
+> - By not using a conversion starting with !, we can compose = with the 
+> existing ! conversions, !r, !s, and the rarely used !a.
+> - We can let the user have a little more control of the resulting string.
+
+You're going to hate me for bike-shedding, but I really don't like using 
+= as a defacto unary postfix operator. To me, spam= is always going to 
+look like it was meant to be spam==<something> and the second half got 
+accidentally deleted.
+
+I don't have a better suggestion, sorry.
+
+In an earlier draft, back when this was spelled !d, you specifically 
+talked about whitespace. Does this still apply?
+
+    spam = 42
+    f'{spam=}'  # returns 'spam=42'
+    f'{spam =}'  # returns 'spam =42'
+    f'{spam = }'  # returns 'spam = 42' I guess?
+    f'{spam+1=}'  # returns 'spam+1=41' I guess?
+
+
+
+
+-- 
+Steven
+
+From bbk1524 at gmail.com  Tue May  7 21:08:41 2019
+From: bbk1524 at gmail.com (Ben Kane)
+Date: Tue, 7 May 2019 21:08:41 -0400
+Subject: [Python-Dev] Hello
+In-Reply-To: <CA+3bQGH8kGhzi1On9ggGXc9wd6NCE0an9zgEwU-_K4r0Ud3sgw@mail.gmail.com>
+References: <CAC7z9xCT4WZpCU4rJLUL1XhJaTuEVHvL2rVCnWebWcxEfM8JDA@mail.gmail.com>
+ <CA+3bQGH8kGhzi1On9ggGXc9wd6NCE0an9zgEwU-_K4r0Ud3sgw@mail.gmail.com>
+Message-ID: <CAC7z9xBThtzDEKvaGqdY8wks28dBQxefR9UCJv2HSCV1NR2b7g@mail.gmail.com>
+
+Sorry Victor, I must have misinterpreted this snippet from the mailbot.
+Maybe it would be a good idea to re-word it? I'll be happy to open an issue
+for that in an appropriate mailing list if you think that would help.
+
+> Welcome to the Python-Dev at python.org mailing list! If you are a new
+subscriber, please take the time to introduce yourself briefly in your
+first post. It is appreciated if you lurk around for a while before
+posting! :-)
+
+I talked to Barry Warsaw about https://bugs.python.org/issue36837 and he
+said I should post to python-dev to get feedback. I'll work on that email
+and post back here once I'm happy with it.
+
+Thanks,
+Ben
+
+
+On Tue, May 7, 2019 at 4:47 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> Welcome Ben!
+>
+> Le mar. 7 mai 2019 ? 16:28, Ben Kane <bbk1524 at gmail.com> a ?crit :
+> > My name is Ben Kane. I'm joining this mailing list and introducing
+> myself as asked in the "welcome to python-dev" email. I've been using
+> Python for maybe 7 years now. I started to learn it in college to help with
+> accounting homework and I continue to use it now for personal projects
+> ranging from small scripts to larger applications and in my day job as a
+> LinkedIn Site Reliability Engineer.
+> >
+> > I'd like to contribute back to the language that's helped me so much;
+> and talking with core devs at PyCon 2019 has really encouraged me. So I'll
+> be lurking and trying to pick things up as I see them.
+>
+> python-dev is not the proper mail to introduce yourself to contribute.
+> I suggest you to start reading http://devguide.python.org/ and please
+> send the same email to core-mentorship mailing list:
+> https://mail.python.org/mailman3/lists/core-mentorship.python.org/?x=22
+>
+> It would help if you can elaborate on which parts of Python you would
+> be interested to contribute ;-)
+>
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+>
+
+
+-- 
+
+Ben Kane
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190507/91b61c03/attachment.html>
+
+From eric at trueblade.com  Tue May  7 21:23:35 2019
+From: eric at trueblade.com (Eric V. Smith)
+Date: Tue, 7 May 2019 21:23:35 -0400
+Subject: [Python-Dev] Easier debugging with f-strings
+In-Reply-To: <20190508003937.GA5010@ando.pearwood.info>
+References: <133ec1d8-cee5-a287-b786-304a7ed0789f@trueblade.com>
+ <20190508003937.GA5010@ando.pearwood.info>
+Message-ID: <a307e077-4df3-ea37-57cc-63c551c308f4@trueblade.com>
+
+On 5/7/19 8:39 PM, Steven D'Aprano wrote:
+> Disclaimer: this topic seems to have been split over at least two issues
+> on the bug tracker, a Python-Ideas thread from 2018, Discourse (I
+> think...) and who knows what else. I haven't read it all, so excuse me
+> if I'm raising something already discussed.
+
+Yeah, it's all over the place. At this stage, I think discussing it here 
+is best.
+
+>
+> On Mon, May 06, 2019 at 08:39:41PM -0400, Eric V. Smith wrote:
+>
+>> After that lightning talk, Larry and I talked about it some more, and
+>> for a number of reasons decided that it would make more sense if the
+>> syntax used an = sign. So we came up with f"{foo=}", which would also
+>> produce "foo='Hello'".
+>>
+>> The reasons for the change are:
+>> - Having '=' in the expression is a better mnemonic than !d.
+>> - By not using a conversion starting with !, we can compose = with the
+>> existing ! conversions, !r, !s, and the rarely used !a.
+>> - We can let the user have a little more control of the resulting string.
+>
+> You're going to hate me for bike-shedding, but I really don't like using
+> = as a defacto unary postfix operator. To me, spam= is always going to
+> look like it was meant to be spam==<something> and the second half got
+> accidentally deleted.
+>
+> I don't have a better suggestion, sorry.
+
+I think = makes a great mnemonic for what's happening. I realize it 
+looks a little funny at first, but just wait until you start confusing 
+it with := (hah!). Everyone else I've discussed it with likes =.
+
+> In an earlier draft, back when this was spelled !d, you specifically
+> talked about whitespace. Does this still apply?
+
+Yes, it does.
+
+>     spam = 42
+>     f'{spam=}'  # returns 'spam=42'
+>     f'{spam =}'  # returns 'spam =42'
+>     f'{spam = }'  # returns 'spam = 42' I guess?
+
+All correct.
+
+>     f'{spam+1=}'  # returns 'spam+1=41' I guess?
+
+I'm not proposing to redefine addition by one, so this is actually 
+'spam+1=43' :)
+
+Eric
+
+
+From tim.peters at gmail.com  Tue May  7 21:23:35 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Tue, 7 May 2019 20:23:35 -0500
+Subject: [Python-Dev] Definition of equality check behavior
+In-Reply-To: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+References: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+Message-ID: <CAExdVNkTQjoG4C_khL4vm7wumxjWTeFhnZqas_yo1SVBW_jh-w@mail.gmail.com>
+
+[Jordan Adler <jordan.m.adler at gmail.com>]
+> Through the course of work on the future polyfills that mimic the behavior
+> of Py3 builtins across versions of Python, we've discovered that the
+> equality check behavior of at least some builtin types do not match the
+> documented core data model.
+>
+> Specifically, a comparison between a primitive (int, str, float were tested)
+> and an object of a different type always return False, instead of raising
+> a NotImplementedError.  Consider `1 == '1'` as a test case.
+>
+> Should the data model be adjusted to declare that primitive types are
+> expected to fallback to False, or should the cpython primitive type's
+> __eq__ implementation fallback to raise NotImplementedError?
+
+Nope ;-)  This isn't a "data model" issue.  Look instead at the
+Standard Library manual's section on Built-In Types, under heading
+Comparisons:
+
+"""
+Objects of different types, except different numeric types, never
+compare equal. ...
+The <, <=, > and >= operators will raise a TypeError exception when
+comparing a complex number with another built-in numeric type, when
+the objects are of different types that cannot be compared, or in
+other cases where there is no defined ordering.
+"""
+
+It's not an object's responsibility to arrange for that.  It's done
+for them by default, and objects only need to supply their own rich
+comparison methods if they don't want the defaults.  For example, when
+comparing an int with another type, all the int rich comparison
+methods _do_ return NotImplemented:
+
+>>> f = 4
+>>> f.__eq__("abc")
+NotImplemented
+
+It's at a higher level that comparison logic says "OK, I gave both
+comparands a chance, and they both returned NotImplemented.  So one
+last chance (from object.c's do_richcompare())":
+
+    /* If neither object implements it, provide a sensible default
+       for == and !=, but raise an exception for ordering. */
+    switch (op) {
+    case Py_EQ:
+        res = (v == w) ? Py_True : Py_False;
+        break;
+    case Py_NE:
+        res = (v != w) ? Py_True : Py_False;
+        break;
+    default:
+        PyErr_Format(PyExc_TypeError,
+                     "'%s' not supported between instances of '%.100s'
+and '%.100s'",
+                     opstrings[op],
+                     v->ob_type->tp_name,
+                     w->ob_type->tp_name);
+        return NULL;
+    }
+
+Then the Py_EQ case of that delivers:
+
+>>> f == "abc"
+False
+
+and the Py_NE case:
+
+>>> f != "abc"
+True
+
+despite that (or because of that ;-) ):
+
+>>> f.__eq__("abc")
+NotImplemented
+>>> "abc".__eq__(f)
+NotImplemented
+
+Note that there's nothing special about builtin types here.  All types
+are treated alike.
+
