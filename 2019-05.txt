@@ -6062,3 +6062,586 @@ NotImplemented
 Note that there's nothing special about builtin types here.  All types
 are treated alike.
 
+From mark at hotpy.org  Wed May  8 10:07:46 2019
+From: mark at hotpy.org (Mark Shannon)
+Date: Wed, 8 May 2019 10:07:46 -0400
+Subject: [Python-Dev] Redoing failed PR checks
+Message-ID: <cad84e3d-fc70-b550-0d3b-10d0797facaf@hotpy.org>
+
+Hi,
+
+How do I redo a failed PR check?
+The appveyor failure for https://github.com/python/cpython/pull/13181 
+appears to be spurious, but there is no obvious way to redo it.
+
+BTW, this is not the first time I've seen a PR blocked by a spurious 
+appveyor failure.
+
+Cheers,
+Mark.
+
+From encukou at gmail.com  Wed May  8 10:13:58 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Wed, 8 May 2019 10:13:58 -0400
+Subject: [Python-Dev] Hello
+In-Reply-To: <CAC7z9xBThtzDEKvaGqdY8wks28dBQxefR9UCJv2HSCV1NR2b7g@mail.gmail.com>
+References: <CAC7z9xCT4WZpCU4rJLUL1XhJaTuEVHvL2rVCnWebWcxEfM8JDA@mail.gmail.com>
+ <CA+3bQGH8kGhzi1On9ggGXc9wd6NCE0an9zgEwU-_K4r0Ud3sgw@mail.gmail.com>
+ <CAC7z9xBThtzDEKvaGqdY8wks28dBQxefR9UCJv2HSCV1NR2b7g@mail.gmail.com>
+Message-ID: <76bd3d71-ac71-727d-7748-46d5aa4c0cd1@gmail.com>
+
+On 5/7/19 9:08 PM, Ben Kane wrote:
+> Sorry Victor, I must have misinterpreted this snippet from the mailbot. 
+> Maybe it would be a good idea to re-word it? I'll be happy to open an 
+> issue for that in an appropriate mailing list if you think that would help.
+> 
+>  > Welcome to the Python-Dev at python.org <mailto:Python-Dev at python.org> 
+> mailing list! If you are a new subscriber, please take the time to 
+> introduce yourself briefly in your first post. It is appreciated if you 
+> lurk around for a while before posting! :-)
+
+Not sure what the original intent was, but I read that as: "Whenever you 
+get to sending your first post, include an introduction in it. But, 
+before you start actively participating, take your time to hang around 
+and absorb the culture."
+
+Perhaps we want to reverse the two sentences to put them in 
+chronological order?
+
+I'm not sure what the proper forum for this discussion would be.
+
+> I talked to Barry Warsaw about https://bugs.python.org/issue36837 and he 
+> said I should post to python-dev to get feedback. I'll work on that 
+> email and post back here once I'm happy with it.
+> 
+> Thanks,
+> Ben
+> 
+> 
+> On Tue, May 7, 2019 at 4:47 PM Victor Stinner <vstinner at redhat.com 
+> <mailto:vstinner at redhat.com>> wrote:
+> 
+>     Welcome Ben!
+> 
+>     Le mar. 7 mai 2019 ? 16:28, Ben Kane <bbk1524 at gmail.com
+>     <mailto:bbk1524 at gmail.com>> a ?crit :
+>      > My name is Ben Kane. I'm joining this mailing list and
+>     introducing myself as asked in the "welcome to python-dev" email.
+>     I've been using Python for maybe 7 years now. I started to learn it
+>     in college to help with accounting homework and I continue to use it
+>     now for personal projects ranging from small scripts to larger
+>     applications and in my day job as a LinkedIn Site Reliability Engineer.
+>      >
+>      > I'd like to contribute back to the language that's helped me so
+>     much; and talking with core devs at PyCon 2019 has really encouraged
+>     me. So I'll be lurking and trying to pick things up as I see them.
+> 
+>     python-dev is not the proper mail to introduce yourself to contribute.
+>     I suggest you to start reading http://devguide.python.org/ and please
+>     send the same email to core-mentorship mailing list:
+>     https://mail.python.org/mailman3/lists/core-mentorship.python.org/?x=22
+> 
+>     It would help if you can elaborate on which parts of Python you would
+>     be interested to contribute ;-)
+> 
+>     Victor
+>     -- 
+>     Night gathers, and now my watch begins. It shall not end until my death.
+> 
+> 
+> 
+> -- 
+> 
+> Ben Kane
+> 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/encukou%40gmail.com
+> 
+
+From eric at trueblade.com  Wed May  8 10:23:35 2019
+From: eric at trueblade.com (Eric V. Smith)
+Date: Wed, 8 May 2019 10:23:35 -0400
+Subject: [Python-Dev] Redoing failed PR checks
+In-Reply-To: <cad84e3d-fc70-b550-0d3b-10d0797facaf@hotpy.org>
+References: <cad84e3d-fc70-b550-0d3b-10d0797facaf@hotpy.org>
+Message-ID: <A45E903B-3479-4D05-96B3-EC2B40CF9614@trueblade.com>
+
+I think you can close and reopen the PR. That?s what I?m trying on my blocked PR. 
+
+--
+Eric V. Smith
+True Blade Systems, Inc
+(301) 859-4544
+
+> On May 8, 2019, at 10:07 AM, Mark Shannon <mark at hotpy.org> wrote:
+> 
+> Hi,
+> 
+> How do I redo a failed PR check?
+> The appveyor failure for https://github.com/python/cpython/pull/13181 appears to be spurious, but there is no obvious way to redo it.
+> 
+> BTW, this is not the first time I've seen a PR blocked by a spurious appveyor failure.
+> 
+> Cheers,
+> Mark.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/eric%2Ba-python-dev%40trueblade.com
+
+
+From barry at python.org  Wed May  8 10:25:50 2019
+From: barry at python.org (Barry Warsaw)
+Date: Wed, 8 May 2019 10:25:50 -0400
+Subject: [Python-Dev] Hello
+In-Reply-To: <76bd3d71-ac71-727d-7748-46d5aa4c0cd1@gmail.com>
+References: <CAC7z9xCT4WZpCU4rJLUL1XhJaTuEVHvL2rVCnWebWcxEfM8JDA@mail.gmail.com>
+ <CA+3bQGH8kGhzi1On9ggGXc9wd6NCE0an9zgEwU-_K4r0Ud3sgw@mail.gmail.com>
+ <CAC7z9xBThtzDEKvaGqdY8wks28dBQxefR9UCJv2HSCV1NR2b7g@mail.gmail.com>
+ <76bd3d71-ac71-727d-7748-46d5aa4c0cd1@gmail.com>
+Message-ID: <18245C2E-EC7B-48D0-8320-05C15E5C27D3@python.org>
+
+On May 8, 2019, at 10:13, Petr Viktorin <encukou at gmail.com> wrote:
+> 
+> Not sure what the original intent was, but I read that as: "Whenever you get to sending your first post, include an introduction in it. But, before you start actively participating, take your time to hang around and absorb the culture."
+> 
+> Perhaps we want to reverse the two sentences to put them in chronological order?
+> 
+> I'm not sure what the proper forum for this discussion would be.
+
+Here or -committers.  Then postmasters to list owner to change the welcome text.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190508/d18a7570/attachment.sig>
+
+From levkivskyi at gmail.com  Wed May  8 10:39:02 2019
+From: levkivskyi at gmail.com (Ivan Levkivskyi)
+Date: Wed, 8 May 2019 15:39:02 +0100
+Subject: [Python-Dev] Definition of equality check behavior
+In-Reply-To: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+References: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+Message-ID: <CAOMjWkn1aD1CtD6t8H08HtdJCEaQohVvJDyfLHCLCC7z8q_2_w@mail.gmail.com>
+
+On Tue, 7 May 2019 at 22:31, Jordan Adler <jordan.m.adler at gmail.com> wrote:
+
+> Hey folks!
+>
+> Through the course of work on the future polyfills
+> <https://github.com/PythonCharmers/python-future/issues/432> that mimic
+> the behavior of Py3 builtins across versions of Python, we've discovered
+> that the equality check behavior of at least some builtin types do not
+> match the documented core data model
+> <https://docs.python.org/3/reference/datamodel.html#object.__eq__>.
+>
+> Specifically, a comparison between a primitive (int, str, float were
+> tested) and an object of a different type always return False, instead of
+> raising a NotImplementedError.  Consider `1 == '1'` as a test case.
+>
+> Should the data model be adjusted to declare that primitive types are
+> expected to fallback to False, or should the cpython primitive type's
+> __eq__ implementation fallback to raise NotImplementedError?
+>
+> Reasonable people could disagree about the right approach, but my distaste
+> for silent failures leads me to recommend that the implementation be
+> adjusted to return NotImplementedError as a fallback, and to document that
+> the operands should not be coerced to the same type prior to comparison
+> (enforcing a stricter equality check). This will of course require a
+> deprecation protocol.
+>
+> Alternatively some new equality operator could be used to specify the
+> level of coercion/type checking desired (currently Python has 'is' and
+> '==').
+>
+
+I don't think there is a chance this can be changed at runtime. OTOH, mypy
+has a (pretty recent, so better use master) flag --strict-equality that
+uses some heuristics to detect suspicious comparisons, identity checks, and
+container checks (all of these may return False at runtime while some
+people want them to be an error, e.g. b'abc' == 'abc', '1' in [1, 2, 3],
+etc).
+
+--
+Ivan
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190508/cd7df324/attachment.html>
+
+From larry at hastings.org  Wed May  8 11:36:45 2019
+From: larry at hastings.org (Larry Hastings)
+Date: Wed, 8 May 2019 11:36:45 -0400
+Subject: [Python-Dev] Farewell, Python 3.4
+Message-ID: <f8034796-9f54-c779-7697-83a86e583a13@hastings.org>
+
+
+It's with a note of sadness that I announce the final retirement of 
+Python 3.4.? The final release was back in March, but I didn't get 
+around to actually closing and deleting the 3.4 branch until this morning.
+
+Python 3.4 introduced many features we all enjoy in modern Python--the 
+asyncio, ensurepip, and enum packages, just to name three.? It's a 
+release I hope we all remember fondly.
+
+My eternal thanks to all the members of the release team that worked on 
+Python 3.4:
+
+    Georg Brandl
+
+    Julien Palard
+
+    Martin von L?wis
+
+    Ned Deily
+
+    Steve Dower
+
+    Terry Reedy
+
+    and all the engineers of the Python infrastructure team.
+
+Special thanks to Benjamin Peterson and Ned Deily, who frequently 
+scurried around behind the scenes cleaning up the messes I cluelessly 
+left in my wake.
+
+Having closed 3.4, I am now retired as Python 3.4 Release Manager.? I 
+regret to inform all of you that you're still stuck with me as Python 
+3.5 Release Manager until sometime next year.
+
+
+My very best wishes,
+
+
+//arry/
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190508/cc7e10bc/attachment.html>
+
+From mal at egenix.com  Wed May  8 11:46:05 2019
+From: mal at egenix.com (M.-A. Lemburg)
+Date: Wed, 8 May 2019 17:46:05 +0200
+Subject: [Python-Dev] Farewell, Python 3.4
+In-Reply-To: <f8034796-9f54-c779-7697-83a86e583a13@hastings.org>
+References: <f8034796-9f54-c779-7697-83a86e583a13@hastings.org>
+Message-ID: <efb89d1b-47a2-8ca2-49b8-241be2231453@egenix.com>
+
+Thank you for having been 3.4 release manager, Larry !
+
+On 08.05.2019 17:36, Larry Hastings wrote:
+> 
+> It's with a note of sadness that I announce the final retirement of
+> Python 3.4.? The final release was back in March, but I didn't get
+> around to actually closing and deleting the 3.4 branch until this morning.
+> 
+> Python 3.4 introduced many features we all enjoy in modern Python--the
+> asyncio, ensurepip, and enum packages, just to name three.? It's a
+> release I hope we all remember fondly.
+> 
+> My eternal thanks to all the members of the release team that worked on
+> Python 3.4:
+> 
+>     Georg Brandl
+> 
+>     Julien Palard
+> 
+>     Martin von L?wis
+> 
+>     Ned Deily
+> 
+>     Steve Dower
+> 
+>     Terry Reedy
+> 
+>     and all the engineers of the Python infrastructure team.
+> 
+> Special thanks to Benjamin Peterson and Ned Deily, who frequently
+> scurried around behind the scenes cleaning up the messes I cluelessly
+> left in my wake.
+> 
+> Having closed 3.4, I am now retired as Python 3.4 Release Manager.? I
+> regret to inform all of you that you're still stuck with me as Python
+> 3.5 Release Manager until sometime next year.
+> 
+> 
+> My very best wishes,
+> 
+> 
+> //arry/
+> 
+> 
+> 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/mal%40egenix.com
+> 
+
+-- 
+Marc-Andre Lemburg
+eGenix.com
+
+Professional Python Services directly from the Experts (#1, May 08 2019)
+>>> Python Projects, Coaching and Consulting ...  http://www.egenix.com/
+>>> Python Database Interfaces ...           http://products.egenix.com/
+>>> Plone/Zope Database Interfaces ...           http://zope.egenix.com/
+________________________________________________________________________
+
+::: We implement business ideas - efficiently in both time and costs :::
+
+   eGenix.com Software, Skills and Services GmbH  Pastor-Loeh-Str.48
+    D-40764 Langenfeld, Germany. CEO Dipl.-Math. Marc-Andre Lemburg
+           Registered at Amtsgericht Duesseldorf: HRB 46611
+               http://www.egenix.com/company/contact/
+                      http://www.malemburg.com/
+
+
+From jordan.m.adler at gmail.com  Wed May  8 11:51:58 2019
+From: jordan.m.adler at gmail.com (Jordan Adler)
+Date: Wed, 8 May 2019 11:51:58 -0400
+Subject: [Python-Dev] Definition of equality check behavior
+In-Reply-To: <CAExdVNkTQjoG4C_khL4vm7wumxjWTeFhnZqas_yo1SVBW_jh-w@mail.gmail.com>
+References: <CAKbmdCt6woyt6EHCTHLK-_3LZW5rkXxepK_A0Kao7A0zoD8x5Q@mail.gmail.com>
+ <CAExdVNkTQjoG4C_khL4vm7wumxjWTeFhnZqas_yo1SVBW_jh-w@mail.gmail.com>
+Message-ID: <CAKbmdCvEQeXrJq8KUdL_Z6qBGHdneVB9pLUscAybpXDbGAAYHg@mail.gmail.com>
+
+Ahh, I didn't locate the documentation on the NotImplemented constant
+<https://docs.python.org/3/library/constants.html#NotImplemented> as I was
+checking 2.7's docs, so I wasn't aware of the layer of indirection and
+fallback behavior for the operator.   Sorry about that!
+
+Based on that, the right call here is to adjust newstr to return that
+singleton where appropriate.
+
+On Tue, May 7, 2019 at 9:23 PM Tim Peters <tim.peters at gmail.com> wrote:
+
+> [Jordan Adler <jordan.m.adler at gmail.com>]
+> > Through the course of work on the future polyfills that mimic the
+> behavior
+> > of Py3 builtins across versions of Python, we've discovered that the
+> > equality check behavior of at least some builtin types do not match the
+> > documented core data model.
+> >
+> > Specifically, a comparison between a primitive (int, str, float were
+> tested)
+> > and an object of a different type always return False, instead of raising
+> > a NotImplementedError.  Consider `1 == '1'` as a test case.
+> >
+> > Should the data model be adjusted to declare that primitive types are
+> > expected to fallback to False, or should the cpython primitive type's
+> > __eq__ implementation fallback to raise NotImplementedError?
+>
+> Nope ;-)  This isn't a "data model" issue.  Look instead at the
+> Standard Library manual's section on Built-In Types, under heading
+> Comparisons:
+>
+> """
+> Objects of different types, except different numeric types, never
+> compare equal. ...
+> The <, <=, > and >= operators will raise a TypeError exception when
+> comparing a complex number with another built-in numeric type, when
+> the objects are of different types that cannot be compared, or in
+> other cases where there is no defined ordering.
+> """
+>
+> It's not an object's responsibility to arrange for that.  It's done
+> for them by default, and objects only need to supply their own rich
+> comparison methods if they don't want the defaults.  For example, when
+> comparing an int with another type, all the int rich comparison
+> methods _do_ return NotImplemented:
+>
+> >>> f = 4
+> >>> f.__eq__("abc")
+> NotImplemented
+>
+> It's at a higher level that comparison logic says "OK, I gave both
+> comparands a chance, and they both returned NotImplemented.  So one
+> last chance (from object.c's do_richcompare())":
+>
+>     /* If neither object implements it, provide a sensible default
+>        for == and !=, but raise an exception for ordering. */
+>     switch (op) {
+>     case Py_EQ:
+>         res = (v == w) ? Py_True : Py_False;
+>         break;
+>     case Py_NE:
+>         res = (v != w) ? Py_True : Py_False;
+>         break;
+>     default:
+>         PyErr_Format(PyExc_TypeError,
+>                      "'%s' not supported between instances of '%.100s'
+> and '%.100s'",
+>                      opstrings[op],
+>                      v->ob_type->tp_name,
+>                      w->ob_type->tp_name);
+>         return NULL;
+>     }
+>
+> Then the Py_EQ case of that delivers:
+>
+> >>> f == "abc"
+> False
+>
+> and the Py_NE case:
+>
+> >>> f != "abc"
+> True
+>
+> despite that (or because of that ;-) ):
+>
+> >>> f.__eq__("abc")
+> NotImplemented
+> >>> "abc".__eq__(f)
+> NotImplemented
+>
+> Note that there's nothing special about builtin types here.  All types
+> are treated alike.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190508/ac8b1267/attachment-0001.html>
+
+From tjreedy at udel.edu  Wed May  8 15:47:18 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 8 May 2019 15:47:18 -0400
+Subject: [Python-Dev] Redoing failed PR checks
+In-Reply-To: <A45E903B-3479-4D05-96B3-EC2B40CF9614@trueblade.com>
+References: <cad84e3d-fc70-b550-0d3b-10d0797facaf@hotpy.org>
+ <A45E903B-3479-4D05-96B3-EC2B40CF9614@trueblade.com>
+Message-ID: <qavbo9$4ssu$1@blaine.gmane.org>
+
+On 5/8/2019 10:23 AM, Eric V. Smith wrote:
+> I think you can close and reopen the PR. That?s what I?m trying on my blocked PR.
+
+That works but reruns all the CI checks, including the ones already 
+passed.  Some bots allow individual reruns, but it is not as clear as it 
+should be.
+
+
+-- 
+Terry Jan Reedy
+
+
+
+From vano at mail.mipt.ru  Wed May  8 16:15:02 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Wed, 8 May 2019 23:15:02 +0300
+Subject: [Python-Dev] Redoing failed PR checks
+In-Reply-To: <qavbo9$4ssu$1@blaine.gmane.org>
+References: <cad84e3d-fc70-b550-0d3b-10d0797facaf@hotpy.org>
+ <A45E903B-3479-4D05-96B3-EC2B40CF9614@trueblade.com>
+ <qavbo9$4ssu$1@blaine.gmane.org>
+Message-ID: <5fee6656-1d33-e478-1018-8ac23c4cc433@mail.mipt.ru>
+
+On 08.05.2019 22:47, Terry Reedy wrote:
+> On 5/8/2019 10:23 AM, Eric V. Smith wrote:
+>> I think you can close and reopen the PR. That?s what I?m trying on my blocked PR.
+>
+> That works but reruns all the CI checks, including the ones already passed.? Some bots allow individual reruns, but it is not as clear as 
+> it should be.
+>
+>
+I think rerunning PR checks is intentionally blocked to prevent submitters from silently smuggling unreliable code in.
+
+Whatever the case, you can make an empty commit with `git commit --allow-empty`
+(credit goes to https://coderwall.com/p/vkdekq/git-commit-allow-empty).
+
+This will rerun things, but all the failures will be visible in the PR.
+
+-- 
+Regards,
+Ivan
+
+
+From ericsnowcurrently at gmail.com  Wed May  8 18:19:05 2019
+From: ericsnowcurrently at gmail.com (Eric Snow)
+Date: Wed, 8 May 2019 18:19:05 -0400
+Subject: [Python-Dev] My PyCon talk on the GIL, the C-API,
+ and subinterpreters
+Message-ID: <CALFfu7B+noSBucySnuWcP4Z=59Tzuf4Jy1MkONK4SL8s0JTXEg@mail.gmail.com>
+
+I just wanted to share links to my talk about the above, which I gave a
+week ago at PyCon.  Enjoy! :)
+
+-eric
+
+video:  https://youtu.be/7RlqbHCCVyc
+slides:  https://bit.ly/2UMMJey
+project:  https://github.com/ericsnowcurrently/multi-core-python
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190508/6860d733/attachment.html>
+
+From benjamin at python.org  Wed May  8 22:23:17 2019
+From: benjamin at python.org (Benjamin Peterson)
+Date: Wed, 08 May 2019 22:23:17 -0400
+Subject: [Python-Dev] Farewell, Python 3.4
+In-Reply-To: <f8034796-9f54-c779-7697-83a86e583a13@hastings.org>
+References: <f8034796-9f54-c779-7697-83a86e583a13@hastings.org>
+Message-ID: <7bca5961-b8cd-42d8-8a00-1384e31de010@www.fastmail.com>
+
+Thank you for your service!
+
+On Wed, May 8, 2019, at 08:37, Larry Hastings wrote:
+> 
+> 
+> It's with a note of sadness that I announce the final retirement of 
+> Python 3.4. The final release was back in March, but I didn't get 
+> around to actually closing and deleting the 3.4 branch until this 
+> morning.
+> 
+> Python 3.4 introduced many features we all enjoy in modern Python--the 
+> asyncio, ensurepip, and enum packages, just to name three. It's a 
+> release I hope we all remember fondly.
+> 
+> My eternal thanks to all the members of the release team that worked on 
+> Python 3.4:
+> 
+> > Georg Brandl
+> 
+> > Julien Palard
+> 
+> > Martin von L?wis
+> 
+> > Ned Deily
+> 
+> > Steve Dower
+> 
+> > Terry Reedy
+> 
+> > and all the engineers of the Python infrastructure team.
+> 
+> Special thanks to Benjamin Peterson and Ned Deily, who frequently 
+> scurried around behind the scenes cleaning up the messes I cluelessly 
+> left in my wake.
+> 
+> Having closed 3.4, I am now retired as Python 3.4 Release Manager. I 
+> regret to inform all of you that you're still stuck with me as Python 
+> 3.5 Release Manager until sometime next year.
+> 
+> 
+> 
+> My very best wishes,
+> 
+> 
+> 
+> */arry*
+> 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: 
+> https://mail.python.org/mailman/options/python-dev/benjamin%40python.org
+>
+
