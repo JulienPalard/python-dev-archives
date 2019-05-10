@@ -6645,3 +6645,943 @@ On Wed, May 8, 2019, at 08:37, Larry Hastings wrote:
 > https://mail.python.org/mailman/options/python-dev/benjamin%40python.org
 >
 
+From jake.tesler at gmail.com  Thu May  9 12:15:41 2019
+From: jake.tesler at gmail.com (Jake Tesler)
+Date: Thu, 9 May 2019 09:15:41 -0700
+Subject: [Python-Dev] PR Review request
+Message-ID: <CAK=F6gvdbz+NeHYkt4ZM4EuMJK7UYsmg6tJFJ1iCmowhbYgx-w@mail.gmail.com>
+
+Hello Python Dev team!
+
+I submitted a Bug+PR back in February and unfortunately, nobody has given
+it a review yet. :/
+
+I'm was hoping that someone could take a look and suggest changes (if
+needed). I realize that there are a ton of PRs and things to review across
+the board, but here's to hoping someone has a little time to take a look at
+mine!
+
+Links:
+Bug: https://bugs.python.org/issue36084
+PR: https://github.com/python/cpython/pull/11993
+
+Thanks so much!
+Cheers,
+-Jake Tesler
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190509/e73056a8/attachment.html>
+
+From encukou at gmail.com  Thu May  9 14:30:23 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 9 May 2019 14:30:23 -0400
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+ <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+Message-ID: <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+
+PEP 590 is on its way to be accepted, with some details still to be
+discussed. I've rejected PEP 580 so we can focus on one place.
+
+Here are things we discussed on GitHub but now seem to agree on:
+
+* The vectorcall function's kwname argument can be NULL.
+* Let's use `vectorcallfunc`, not `vectorcall`, and stop the bikeshedding.
+* `tp_vectorcall_offset` can be `Py_ssize_t` (The discussions around
+signedness and C standards and consistency are interesting, but
+ultimately irrelevant here.)
+* `PyCall_MakeTpCall` can be removed.
+* `PyVectorcall_Function` (for getting the `vectorcallfunc` of an
+object) can be an internal helper. External code should go through
+`PyCall_Vectorcall` (whatever we name it).
+* `PY_VECTORCALL_ARGUMENTS_OFFSET` is OK, bikeshedding over variants
+like `PY_VECTORCALL_PREPEND` won't bring much benefit.
+
+Anyone against, make your point now :)
+
+The following have discussion PRs open:
+
+* `PyCall_MakeVectorCall` name: https://github.com/python/peps/pull/1037
+* Passing a dict to `PyObject_Vectorcall`:
+https://github.com/python/peps/pull/1038
+* Type of the kwnames argument (PyObject/PyTupleObject):
+https://github.com/python/peps/pull/1039
+
+
+The remaining points are:
+
+
+### Making things private
+
+For Python 3.8, the public API should be private, so the API can get
+some contact with the real world. I'd especially like to be able to
+learn from
+Cython's experience using it.
+That would mean:
+
+* _PyObject_Vectorcall
+* _PyCall_MakeVectorCall
+* _PyVectorcall_NARGS
+* _METH_VECTORCALL
+* _Py_TPFLAGS_HAVE_VECTORCALL
+* _Py_TPFLAGS_METHOD_DESCRIPTOR
+
+
+### Can the kwnames tuple be empty?
+
+Disallowing empty tuples means it's easier for the *callee* to detect
+the case of no keyword arguments. Instead of:
+
+    if (kwnames != NULL && PyTuple_GET_SIZE(kwnames))
+
+you have:
+
+    if (kwnames != NULL)
+
+On the other hand, the *caller* would now be responsible for handling
+the no-kwarg case specially.
+
+Jeroen points out:
+> The side of the caller (which should ensure not to send an empty tuple)
+> is CPython and there the issue of people implementing the protocol wrongly
+> doesn't arise.
+> External C code is not expected to manually use tp_vectorcall_offset to make
+> vectorcalls: it is expected to use an API like PyCall_Vectorcall() and that
+> API will ensure to replace an empty tuple with NULL.
+>
+> I see it as an application of https://en.wikipedia.org/wiki/Robustness_principle
+> (Be conservative in what you send, be liberal in what you accept):
+> PyCall_Vectorcall should accept an empty tuple but it should not send an
+> empty tuple to the vectorcall function.
+
+But, if you apply the robustness principle to vectorcallfunc, it
+should accept empty tuples.
+
+
+### `METH_VECTORCALL` function type
+
+Jeroen suggested changing this from:
+
+    `PyObject *(*call) (PyObject *self, PyObject *const *args,
+Py_ssize_t nargs, PyObject *kwname)`
+
+to `vectorcallfunc`, i.e.:
+
+    `PyObject *(*call) (PyObject *callable, Py_ssize_t n, PyObject
+*const *args, PyObject *kwnames)`
+
+Mark argues that this is a major change and prevents the interpreter
+from sanity checking the return value of PyMethodDef defined
+functions.
+(Since the functions are defined by extension code, they need to be
+sanity-checked, and this will be done by PyCFunction's vectorcall
+adapter. Tools like Cython can bypass the check if needed.)
+
+The underlying C function should not need to know how to extract
+"self" from the function object, or how to handle the argument
+offsetting.
+Those should be implementation details.
+
+I see the value in having METH_VECTORCALL equivalent to the existing
+METH_FASTCALL|METH_KEYWORDS.
+(Even though PEP 573 will need to add to the calling convention.)
+
+From brett at python.org  Thu May  9 17:09:39 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 9 May 2019 14:09:39 -0700
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+ <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+ <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+Message-ID: <CAP1=2W6B32OpByRnsu8w+N2TGTY2xzyYaPZGfiT4iE+1gBxjYg@mail.gmail.com>
+
+On Thu, May 9, 2019 at 11:31 AM Petr Viktorin <encukou at gmail.com> wrote:
+
+> PEP 590 is on its way to be accepted, with some details still to be
+> discussed. I've rejected PEP 580 so we can focus on one place.
+>
+> Here are things we discussed on GitHub but now seem to agree on:
+>
+> * The vectorcall function's kwname argument can be NULL.
+> * Let's use `vectorcallfunc`, not `vectorcall`, and stop the bikeshedding.
+> * `tp_vectorcall_offset` can be `Py_ssize_t` (The discussions around
+> signedness and C standards and consistency are interesting, but
+> ultimately irrelevant here.)
+> * `PyCall_MakeTpCall` can be removed.
+> * `PyVectorcall_Function` (for getting the `vectorcallfunc` of an
+> object) can be an internal helper. External code should go through
+> `PyCall_Vectorcall` (whatever we name it).
+> * `PY_VECTORCALL_ARGUMENTS_OFFSET` is OK, bikeshedding over variants
+> like `PY_VECTORCALL_PREPEND` won't bring much benefit.
+>
+> Anyone against, make your point now :)
+>
+
+Any reason the above are all "Vectorcall" and not "VectorCall"? You seem to
+potentially have that capitalization for "PyCall_MakeVectorCall" as
+mentioned below which seems to be asking for typos if there's going to be
+two ways to do it. :)
+
+-Brett
+
+
+>
+> The following have discussion PRs open:
+>
+> * `PyCall_MakeVectorCall` name: https://github.com/python/peps/pull/1037
+> * Passing a dict to `PyObject_Vectorcall`:
+> https://github.com/python/peps/pull/1038
+> * Type of the kwnames argument (PyObject/PyTupleObject):
+> https://github.com/python/peps/pull/1039
+>
+>
+> The remaining points are:
+>
+>
+> ### Making things private
+>
+> For Python 3.8, the public API should be private, so the API can get
+> some contact with the real world. I'd especially like to be able to
+> learn from
+> Cython's experience using it.
+> That would mean:
+>
+> * _PyObject_Vectorcall
+> * _PyCall_MakeVectorCall
+> * _PyVectorcall_NARGS
+> * _METH_VECTORCALL
+> * _Py_TPFLAGS_HAVE_VECTORCALL
+> * _Py_TPFLAGS_METHOD_DESCRIPTOR
+>
+>
+> ### Can the kwnames tuple be empty?
+>
+> Disallowing empty tuples means it's easier for the *callee* to detect
+> the case of no keyword arguments. Instead of:
+>
+>     if (kwnames != NULL && PyTuple_GET_SIZE(kwnames))
+>
+> you have:
+>
+>     if (kwnames != NULL)
+>
+> On the other hand, the *caller* would now be responsible for handling
+> the no-kwarg case specially.
+>
+> Jeroen points out:
+> > The side of the caller (which should ensure not to send an empty tuple)
+> > is CPython and there the issue of people implementing the protocol
+> wrongly
+> > doesn't arise.
+> > External C code is not expected to manually use tp_vectorcall_offset to
+> make
+> > vectorcalls: it is expected to use an API like PyCall_Vectorcall() and
+> that
+> > API will ensure to replace an empty tuple with NULL.
+> >
+> > I see it as an application of
+> https://en.wikipedia.org/wiki/Robustness_principle
+> > (Be conservative in what you send, be liberal in what you accept):
+> > PyCall_Vectorcall should accept an empty tuple but it should not send an
+> > empty tuple to the vectorcall function.
+>
+> But, if you apply the robustness principle to vectorcallfunc, it
+> should accept empty tuples.
+>
+>
+> ### `METH_VECTORCALL` function type
+>
+> Jeroen suggested changing this from:
+>
+>     `PyObject *(*call) (PyObject *self, PyObject *const *args,
+> Py_ssize_t nargs, PyObject *kwname)`
+>
+> to `vectorcallfunc`, i.e.:
+>
+>     `PyObject *(*call) (PyObject *callable, Py_ssize_t n, PyObject
+> *const *args, PyObject *kwnames)`
+>
+> Mark argues that this is a major change and prevents the interpreter
+> from sanity checking the return value of PyMethodDef defined
+> functions.
+> (Since the functions are defined by extension code, they need to be
+> sanity-checked, and this will be done by PyCFunction's vectorcall
+> adapter. Tools like Cython can bypass the check if needed.)
+>
+> The underlying C function should not need to know how to extract
+> "self" from the function object, or how to handle the argument
+> offsetting.
+> Those should be implementation details.
+>
+> I see the value in having METH_VECTORCALL equivalent to the existing
+> METH_FASTCALL|METH_KEYWORDS.
+> (Even though PEP 573 will need to add to the calling convention.)
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190509/60b2e7ee/attachment.html>
+
+From J.Demeyer at UGent.be  Thu May  9 17:14:02 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 9 May 2019 23:14:02 +0200
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+ <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+ <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+Message-ID: <5CD4981A.4010402@UGent.be>
+
+On 2019-05-09 20:30, Petr Viktorin wrote:
+> ### Making things private
+>
+> For Python 3.8, the public API should be private, so the API can get
+> some contact with the real world. I'd especially like to be able to
+> learn from
+> Cython's experience using it.
+> That would mean:
+>
+> * _PyObject_Vectorcall
+> * _PyCall_MakeVectorCall
+> * _PyVectorcall_NARGS
+> * _METH_VECTORCALL
+> * _Py_TPFLAGS_HAVE_VECTORCALL
+> * _Py_TPFLAGS_METHOD_DESCRIPTOR
+
+Do we really have to underscore the names? Would there be a way to mark 
+this API as provisional and subject to change without changing the 
+names? If it turns out that PEP 590 was perfect after all, then we're 
+just breaking stuff in Python 3.9 (when removing the underscores) for no 
+reason.
+
+Alternatively, could we keep the underscored names as official API in 
+Python 3.9?
+
+From J.Demeyer at UGent.be  Thu May  9 17:17:06 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 9 May 2019 23:17:06 +0200
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <CAP1=2W6B32OpByRnsu8w+N2TGTY2xzyYaPZGfiT4iE+1gBxjYg@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+ <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+ <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+ <CAP1=2W6B32OpByRnsu8w+N2TGTY2xzyYaPZGfiT4iE+1gBxjYg@mail.gmail.com>
+Message-ID: <5CD498D2.4030600@UGent.be>
+
+On 2019-05-09 23:09, Brett Cannon wrote:
+> Any reason the above are all "Vectorcall" and not "VectorCall"? You seem
+> to potentially have that capitalization for "PyCall_MakeVectorCall" as
+> mentioned below which seems to be asking for typos if there's going to
+> be two ways to do it. :)
+
+"PyCall_MakeVectorCall" is a typo for "PyVectorcall_Call" 
+(https://github.com/python/peps/pull/1037)
+
+Everything else uses "Vectorcall" or "VECTORCALL". In text, we use 
+"vectorcall" without a space.
+
+From J.Demeyer at UGent.be  Thu May  9 17:33:47 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 9 May 2019 23:33:47 +0200
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+ <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+ <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+Message-ID: <5CD49CBB.2040508@UGent.be>
+
+On 2019-05-09 20:30, Petr Viktorin wrote:
+> The underlying C function should not need to know how to extract
+> "self" from the function object, or how to handle the argument
+> offsetting.
+> Those should be implementation details.
+
+Maybe you misunderstood my proposal. I want to allow both for extra 
+flexibility:
+
+- METH_FASTCALL (possibly combined with METH_KEYWORDS) continues to work 
+as before. If you don't want to care about the implementation details of 
+vectorcall, this is the right thing to use.
+
+- METH_VECTORCALL (using exactly the vectorcallfunc signature) is a new 
+calling convention for applications that want the lowest possible 
+overhead at the cost of being slightly harder to use.
+
+Personally, I consider the discussion about who is supposed to check 
+that a function returns NULL if and if an error occurred a tiny detail 
+which shouldn't dictate the design. There are two solutions for this: 
+either we move that check one level up and do it for all vectorcall 
+functions. Or, we keep the existing checks in place but we don't do that 
+check for METH_VECTORCALL (this is already more specialized anyway, so 
+dropping that check doesn't hurt much). We could also decide to enable 
+this check only for debug builds, especially if debug builds are going 
+to be easier to use thank to Victor Stinner's work.
+
+> I see the value in having METH_VECTORCALL equivalent to the existing
+> METH_FASTCALL|METH_KEYWORDS.
+
+But why invent a new name for that? METH_FASTCALL|METH_KEYWORDS already 
+works. The alias METH_VECTORCALL could only make things more confusing 
+(having two ways to specify exactly the same thing). Or am I missing 
+something?
+
+
+Jeroen.
+
+From J.Demeyer at UGent.be  Thu May  9 17:54:14 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Thu, 9 May 2019 23:54:14 +0200
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+ <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+ <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+Message-ID: <5CD4A186.1010105@UGent.be>
+
+On 2019-05-09 20:30, Petr Viktorin wrote:
+> But, if you apply the robustness principle to vectorcallfunc, it
+> should accept empty tuples.
+
+Sure, if the callee wants to accept empty tuples anyway, it can do that. 
+That's the robustness principle. But us *forcing* the callee to accept 
+empty tuples is certainly not.
+
+Basically my point is: with a little bit of effort in CPython we can 
+make things simpler for all users of vectorcall. Why not do that? 
+Seriously, what's the argument for *not* applying this change?
+
+
+Jeroen.
+
+From encukou at gmail.com  Thu May  9 18:07:06 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 9 May 2019 18:07:06 -0400
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <5CD49CBB.2040508@UGent.be>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+ <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+ <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+ <5CD49CBB.2040508@UGent.be>
+Message-ID: <cd6cce51-185e-f983-c209-f8028ecf8966@gmail.com>
+
+On 5/9/19 5:33 PM, Jeroen Demeyer wrote:
+> On 2019-05-09 20:30, Petr Viktorin wrote:
+>> The underlying C function should not need to know how to extract
+>> "self" from the function object, or how to handle the argument
+>> offsetting.
+>> Those should be implementation details.
+> 
+> Maybe you misunderstood my proposal. I want to allow both for extra 
+> flexibility:
+> 
+> - METH_FASTCALL (possibly combined with METH_KEYWORDS) continues to work 
+> as before. If you don't want to care about the implementation details of 
+> vectorcall, this is the right thing to use.
+> 
+> - METH_VECTORCALL (using exactly the vectorcallfunc signature) is a new 
+> calling convention for applications that want the lowest possible 
+> overhead at the cost of being slightly harder to use.
+
+Then we can, in the spirit of minimalism, not add METH_VECTORCALL at all.
+
+
+> Personally, I consider the discussion about who is supposed to check 
+> that a function returns NULL if and if an error occurred a tiny detail 
+> which shouldn't dictate the design. There are two solutions for this: 
+> either we move that check one level up and do it for all vectorcall 
+> functions. Or, we keep the existing checks in place but we don't do that 
+> check for METH_VECTORCALL (this is already more specialized anyway, so 
+> dropping that check doesn't hurt much). We could also decide to enable 
+> this check only for debug builds, especially if debug builds are going 
+> to be easier to use thank to Victor Stinner's work.
+> 
+>> I see the value in having METH_VECTORCALL equivalent to the existing
+>> METH_FASTCALL|METH_KEYWORDS.
+> 
+> But why invent a new name for that? METH_FASTCALL|METH_KEYWORDS already 
+> works. The alias METH_VECTORCALL could only make things more confusing 
+> (having two ways to specify exactly the same thing). Or am I missing 
+> something?
+
+METH_FASTCALL is currently not documented, and it should be renamed 
+before it's documented. Names with "fast" or "new" generally don't age well.
+
+From vstinner at redhat.com  Thu May  9 20:14:56 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 10 May 2019 02:14:56 +0200
+Subject: [Python-Dev] Adding a tzidx cache to datetime
+In-Reply-To: <ab658c54-71e3-f2eb-e94e-24ea671b7755@ganssle.io>
+References: <ab658c54-71e3-f2eb-e94e-24ea671b7755@ganssle.io>
+Message-ID: <CA+3bQGHTziD9zi3W6o_ZrO9BGtxpV6x8WEuDV_8EY-+Q9Lqvag@mail.gmail.com>
+
+Hi Paul,
+
+The change is basically an optimization. I'm uncomfortable to design
+it "only" for dateutil. What if tomorrow someone has to store an
+arbitrary Python object, rather than just an integer (in range [0;
+254]), into a datetime for a different optimization?
+
+Moreover, I dislike adding a *public* method for an *internal* cache.
+
+Right now, it is not possible to create a weak reference to a
+datetime. If we make it possible, it would be possible to have an
+external cache implemented with weakref.WeakSet to clear old entries
+when a datetime object is detroyed.
+
+What do you think of adding a private "_cache" attribute which would
+be an arbitrary Python object? (None by default)
+
+Victor
+
+Le mar. 7 mai 2019 ? 21:46, Paul Ganssle <paul at ganssle.io> a ?crit :
+>
+> Greetings all,
+>
+> I have one last feature request that I'd like added to datetime for Python 3.8, and this one I think could use some more discussion, the addition of a "time zone index cache" to the datetime object. The rationale is laid out in detail in bpo-35723. The general problem is that currently, every invocation of utcoffset, tzname and dst needs to do full, independent calculations of the time zone offsets, even for time zones where the mapping is guaranteed to be stable because datetimes are immutable. I have a proof of concept implementation: PR #11529.
+>
+> I'm envisioning that the `datetime` class will add a private `_tzidx` single-byte member (it seems that this does not increase the size of the datetime object, because it's just using an unused alignment byte). `datetime` will also add a `tzidx()` method, which will return `_tzidx` if it's been set and otherwise it will call `self.tzinfo.tzidx()`.  If `self.tzinfo.tzidx()` returns a number between 0 and 254 (inclusive), it sets `_tzidx` to this value. tzidx() then returns whatever self.tzinfo.tzidx() returned.
+>
+> The value of this is that as far as I can tell, nearly all non-trivial tzinfo implementations construct a list of possible offsets, and implement utcoffset(), tzname() and dst() by calculating an index into that list and returning it. There are almost always less than 255 distinct offsets. By adding this cache on the datetime, we're using a small amount of currently-unused memory to prevent unnecessary calculations about a given datetime. The feature is entirely opt-in, and has no downsides if it goes unused, and it makes it possible to write tzinfo implementations that are both lazy and as fast as the "eager calculation" mode that pytz uses (and that causes many problems for pytz's users).
+>
+> I have explored the idea of using an lru cache of some sort on the tzinfo object itself, but there are two problems with this:
+>
+> 1. Calculating the hash of a datetime calls .utcoffset(), which means that it is necessary to, at minimum, do a `replace` on the datetime (and constructing a new datetime is a pretty considerable speed hit)
+>
+> 2. It will be a much bigger memory cost, since my current proposal uses approximately zero additional memory (not sure if the alignment stuff is platform-dependent or something, but it doesn't use additional memory on my linux computer).
+>
+> I realize this proposal is somewhat difficult to wrap your head around, so if anyone would like to chat with me about it in person, I'll be at PyCon sprints until Thursday morning.
+>
+> Best,
+> Paul
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From paul at ganssle.io  Thu May  9 20:58:58 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Thu, 9 May 2019 20:58:58 -0400
+Subject: [Python-Dev] Adding a tzidx cache to datetime
+In-Reply-To: <CA+3bQGHTziD9zi3W6o_ZrO9BGtxpV6x8WEuDV_8EY-+Q9Lqvag@mail.gmail.com>
+References: <ab658c54-71e3-f2eb-e94e-24ea671b7755@ganssle.io>
+ <CA+3bQGHTziD9zi3W6o_ZrO9BGtxpV6x8WEuDV_8EY-+Q9Lqvag@mail.gmail.com>
+Message-ID: <d8ad71a2-5322-8d28-8d4e-d9b5cb5a9439@ganssle.io>
+
+This is only "only" for dateutil in the sense that no one other than
+dateutil implements tzinfo with the interface provided. If dateutil were
+/not/ already implemented with a list of offsets and their indexes, I
+would still propose this, and just re-write dateutil to take advantage
+of it. From a cursory glance at pendulum, it seems that they could take
+advantage of it as well (though they use their own datetime subclass, so
+they have always had the ability to add this).
+
+> What do you think of adding a private "_cache" attribute which would
+> be an arbitrary Python object? (None by default)
+
+We cannot use a private attribute (other than to do the actual storage,
+since the thing that gets stored is not directly accessible anyway and
+is instead mediated by a layer that manages the cache) because this is a
+feature explicitly being added for use by tzinfo, /not/ by datetime. If
+it's private then it's not safe for implementations of tzinfo to
+actually use it, which defeats the purpose.
+
+Regarding the use of an arbitrary Python object: What I'm proposing is
+that we offer a bit of the "free" storage space in the alignment bits to
+tzinfo objects to use as a cache. In /most/ cases this will be very
+useful to someone implementing a tzinfo, because there are really only
+so many ways to accomplish this task, and most time zones are
+expressible as a very short list of offset/name/dst combinations, plus
+some rule for which applies when, which is why a small integer cache is
+sufficient and more or less universal (i.e. not specific to dateutil's
+implementation).
+
+I will also note that in my design, it is still possible for `tzinfo` to
+return something other than [0, 254], it's just that that information
+will not be cached, so it won't get the benefit of any optimization, but
+the same interface / implementation can be used.
+
+In my test with gcc, adding an additional PyObject* to the end of the
+PyDateTime_DateTime struct increased the size of the `datetime.datetime`
+object from 64 to 72 bytes, whereas adding an `unsigned char` after the
+`fold` leaves it unchanged. Given that the expansion to arbitrary Python
+objects is speculative and doesn't have any particular use case, I would
+prefer to leave the feature as is, and reconsider the possibility of
+storing arbitrary Python objects on the datetime if there's some
+compelling reason to do so (it would be a backwards-compatible change at
+that point anyway).
+
+On 5/9/19 8:14 PM, Victor Stinner wrote:
+> Hi Paul,
+>
+> The change is basically an optimization. I'm uncomfortable to design
+> it "only" for dateutil. What if tomorrow someone has to store an
+> arbitrary Python object, rather than just an integer (in range [0;
+> 254]), into a datetime for a different optimization?
+>
+> Moreover, I dislike adding a *public* method for an *internal* cache.
+>
+> Right now, it is not possible to create a weak reference to a
+> datetime. If we make it possible, it would be possible to have an
+> external cache implemented with weakref.WeakSet to clear old entries
+> when a datetime object is detroyed.
+>
+> What do you think of adding a private "_cache" attribute which would
+> be an arbitrary Python object? (None by default)
+>
+> Victor
+>
+> Le mar. 7 mai 2019 ? 21:46, Paul Ganssle <paul at ganssle.io> a ?crit :
+>> Greetings all,
+>>
+>> I have one last feature request that I'd like added to datetime for Python 3.8, and this one I think could use some more discussion, the addition of a "time zone index cache" to the datetime object. The rationale is laid out in detail in bpo-35723. The general problem is that currently, every invocation of utcoffset, tzname and dst needs to do full, independent calculations of the time zone offsets, even for time zones where the mapping is guaranteed to be stable because datetimes are immutable. I have a proof of concept implementation: PR #11529.
+>>
+>> I'm envisioning that the `datetime` class will add a private `_tzidx` single-byte member (it seems that this does not increase the size of the datetime object, because it's just using an unused alignment byte). `datetime` will also add a `tzidx()` method, which will return `_tzidx` if it's been set and otherwise it will call `self.tzinfo.tzidx()`.  If `self.tzinfo.tzidx()` returns a number between 0 and 254 (inclusive), it sets `_tzidx` to this value. tzidx() then returns whatever self.tzinfo.tzidx() returned.
+>>
+>> The value of this is that as far as I can tell, nearly all non-trivial tzinfo implementations construct a list of possible offsets, and implement utcoffset(), tzname() and dst() by calculating an index into that list and returning it. There are almost always less than 255 distinct offsets. By adding this cache on the datetime, we're using a small amount of currently-unused memory to prevent unnecessary calculations about a given datetime. The feature is entirely opt-in, and has no downsides if it goes unused, and it makes it possible to write tzinfo implementations that are both lazy and as fast as the "eager calculation" mode that pytz uses (and that causes many problems for pytz's users).
+>>
+>> I have explored the idea of using an lru cache of some sort on the tzinfo object itself, but there are two problems with this:
+>>
+>> 1. Calculating the hash of a datetime calls .utcoffset(), which means that it is necessary to, at minimum, do a `replace` on the datetime (and constructing a new datetime is a pretty considerable speed hit)
+>>
+>> 2. It will be a much bigger memory cost, since my current proposal uses approximately zero additional memory (not sure if the alignment stuff is platform-dependent or something, but it doesn't use additional memory on my linux computer).
+>>
+>> I realize this proposal is somewhat difficult to wrap your head around, so if anyone would like to chat with me about it in person, I'll be at PyCon sprints until Thursday morning.
+>>
+>> Best,
+>> Paul
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190509/fca75bb4/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190509/fca75bb4/attachment.sig>
+
+From vstinner at redhat.com  Thu May  9 21:01:41 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 10 May 2019 03:01:41 +0200
+Subject: [Python-Dev] Redoing failed PR checks
+In-Reply-To: <cad84e3d-fc70-b550-0d3b-10d0797facaf@hotpy.org>
+References: <cad84e3d-fc70-b550-0d3b-10d0797facaf@hotpy.org>
+Message-ID: <CA+3bQGFw4QOdcS-A5rGAr8FyRfBSJK8oBMSaO8W2f-zB5BTiYg@mail.gmail.com>
+
+Hi,
+
+Le mer. 8 mai 2019 ? 16:10, Mark Shannon <mark at hotpy.org> a ?crit :
+> How do I redo a failed PR check?
+> The appveyor failure for https://github.com/python/cpython/pull/13181
+> appears to be spurious, but there is no obvious way to redo it.
+
+First, please make sure that a test failure is known in the bug
+tracker. Nobody here checked and no: it wasn't reported, whereas I
+also saw this bug once last week! (but I was too busy to report it,
+sorry!)
+
+I reported the bug:
+"test_asyncio: test_drain_raises() fails randomly on Windows"
+https://bugs.python.org/issue36870
+
+> BTW, this is not the first time I've seen a PR blocked by a spurious
+> appveyor failure.
+
+Please check if every single test failure is known in the bug tracker,
+and if it's not the case: report it!
+
+More info about Python CI:
+https://pythondev.readthedocs.io/ci.html
+
+I'm trying to fix all tests which fail randomly for 5 years now
+(hopefully, with the help of other core devs like Pablo!). It's
+getting better, but sometimes new flaky tests pop up.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Thu May  9 21:04:46 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 10 May 2019 03:04:46 +0200
+Subject: [Python-Dev] Please merge : bpo-34848
+In-Reply-To: <5CCC6107.10900@UGent.be>
+References: <CAEaN0UYdbVxQGidEWibG+mS=AjosZ22oruRDfz2vu9w=7qT+CQ@mail.gmail.com>
+ <CA+3bQGE4_3N2pC=X2raov1ZoJ2KRkAj6aUeea4RhvSSHLzKC=g@mail.gmail.com>
+ <5CCC6107.10900@UGent.be>
+Message-ID: <CA+3bQGFO3j9c_n7s12wCAo9hzz+MuGUwv2OvYSiHULp9Ni8tBw@mail.gmail.com>
+
+Le ven. 3 mai 2019 ? 17:47, Jeroen Demeyer <J.Demeyer at ugent.be> a ?crit :
+> On 2019-05-03 14:24, Victor Stinner wrote:
+> > Hi Srinivas,
+> >
+> > I merged your obvious doc fix, thanks.
+>
+> Can you please do the same for
+>
+> https://github.com/python/cpython/pull/12784
+
+This PR is modying critical change. I don't have the bandwidth right
+now to review it.
+
+Victor
+
+From vstinner at redhat.com  Thu May  9 21:05:30 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 10 May 2019 03:05:30 +0200
+Subject: [Python-Dev] Please merge : bpo-34848
+In-Reply-To: <5CCC6107.10900@UGent.be>
+References: <CAEaN0UYdbVxQGidEWibG+mS=AjosZ22oruRDfz2vu9w=7qT+CQ@mail.gmail.com>
+ <CA+3bQGE4_3N2pC=X2raov1ZoJ2KRkAj6aUeea4RhvSSHLzKC=g@mail.gmail.com>
+ <5CCC6107.10900@UGent.be>
+Message-ID: <CA+3bQGEiapgTAu_d1NGk8M4k5-FbUsJ9v6Wjbvnmk3xDtu_2-w@mail.gmail.com>
+
+Le ven. 3 mai 2019 ? 17:47, Jeroen Demeyer <J.Demeyer at ugent.be> a ?crit :
+>
+> On 2019-05-03 14:24, Victor Stinner wrote:
+> > Hi Srinivas,
+> >
+> > I merged your obvious doc fix, thanks.
+>
+> Can you please do the same for
+> https://github.com/python/cpython/pull/12784
+
+This PR is modying critical code (signal). I don't have the bandwidth
+right now to review it.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From mal at egenix.com  Fri May 10 03:18:43 2019
+From: mal at egenix.com (M.-A. Lemburg)
+Date: Fri, 10 May 2019 09:18:43 +0200
+Subject: [Python-Dev] Adding a tzidx cache to datetime
+In-Reply-To: <d8ad71a2-5322-8d28-8d4e-d9b5cb5a9439@ganssle.io>
+References: <ab658c54-71e3-f2eb-e94e-24ea671b7755@ganssle.io>
+ <CA+3bQGHTziD9zi3W6o_ZrO9BGtxpV6x8WEuDV_8EY-+Q9Lqvag@mail.gmail.com>
+ <d8ad71a2-5322-8d28-8d4e-d9b5cb5a9439@ganssle.io>
+Message-ID: <619825e1-be2e-b8e7-6eef-07921baebc7f@egenix.com>
+
+On 10.05.2019 02:58, Paul Ganssle wrote:
+> This is only "only" for dateutil in the sense that no one other than
+> dateutil implements tzinfo with the interface provided. If dateutil were
+> /not/ already implemented with a list of offsets and their indexes, I
+> would still propose this, and just re-write dateutil to take advantage
+> of it. From a cursory glance at pendulum, it seems that they could take
+> advantage of it as well (though they use their own datetime subclass, so
+> they have always had the ability to add this).
+> 
+>> What do you think of adding a private "_cache" attribute which would
+>> be an arbitrary Python object? (None by default)
+> 
+> We cannot use a private attribute (other than to do the actual storage,
+> since the thing that gets stored is not directly accessible anyway and
+> is instead mediated by a layer that manages the cache) because this is a
+> feature explicitly being added for use by tzinfo, /not/ by datetime. If
+> it's private then it's not safe for implementations of tzinfo to
+> actually use it, which defeats the purpose.
+> 
+> Regarding the use of an arbitrary Python object: What I'm proposing is
+> that we offer a bit of the "free" storage space in the alignment bits to
+> tzinfo objects to use as a cache. In /most/ cases this will be very
+> useful to someone implementing a tzinfo, because there are really only
+> so many ways to accomplish this task, and most time zones are
+> expressible as a very short list of offset/name/dst combinations, plus
+> some rule for which applies when, which is why a small integer cache is
+> sufficient and more or less universal (i.e. not specific to dateutil's
+> implementation).
+> 
+> I will also note that in my design, it is still possible for `tzinfo` to
+> return something other than [0, 254], it's just that that information
+> will not be cached, so it won't get the benefit of any optimization, but
+> the same interface / implementation can be used.
+> 
+> In my test with gcc, adding an additional PyObject* to the end of the
+> PyDateTime_DateTime struct increased the size of the `datetime.datetime`
+> object from 64 to 72 bytes, whereas adding an `unsigned char` after the
+> `fold` leaves it unchanged. Given that the expansion to arbitrary Python
+> objects is speculative and doesn't have any particular use case, I would
+> prefer to leave the feature as is, and reconsider the possibility of
+> storing arbitrary Python objects on the datetime if there's some
+> compelling reason to do so (it would be a backwards-compatible change at
+> that point anyway).
+
+Given that many datetime objects in practice don't use timezones
+(e.g. in large data stores you typically use UTC and naive datetime
+objects), I think that making the object itself larger to accommodate
+for a cache, which will only be used a smaller percentage of the use
+cases, isn't warranted. Going from 64 bytes to 72 bytes also sounds
+like this could have negative effects on cache lines.
+
+If you need a per object cache, you can either use weakref
+objects or maintain a separate dictionary in dateutil or other
+timezone helpers which indexes objects by id(obj).
+
+That said, if you only add a byte field which doesn't make the object
+larger in practice (you merely use space that alignments would
+use anyway), this shouldn't be a problem. The use of that field
+should be documented, though, so that other implementations can
+use/provide it as well.
+
+Thanks,
+-- 
+Marc-Andre Lemburg
+eGenix.com
+
+Professional Python Services directly from the Experts (#1, May 10 2019)
+>>> Python Projects, Coaching and Consulting ...  http://www.egenix.com/
+>>> Python Database Interfaces ...           http://products.egenix.com/
+>>> Plone/Zope Database Interfaces ...           http://zope.egenix.com/
+________________________________________________________________________
+
+::: We implement business ideas - efficiently in both time and costs :::
+
+   eGenix.com Software, Skills and Services GmbH  Pastor-Loeh-Str.48
+    D-40764 Langenfeld, Germany. CEO Dipl.-Math. Marc-Andre Lemburg
+           Registered at Amtsgericht Duesseldorf: HRB 46611
+               http://www.egenix.com/company/contact/
+                      http://www.malemburg.com/
+
+
+> On 5/9/19 8:14 PM, Victor Stinner wrote:
+>> Hi Paul,
+>>
+>> The change is basically an optimization. I'm uncomfortable to design
+>> it "only" for dateutil. What if tomorrow someone has to store an
+>> arbitrary Python object, rather than just an integer (in range [0;
+>> 254]), into a datetime for a different optimization?
+>>
+>> Moreover, I dislike adding a *public* method for an *internal* cache.
+>>
+>> Right now, it is not possible to create a weak reference to a
+>> datetime. If we make it possible, it would be possible to have an
+>> external cache implemented with weakref.WeakSet to clear old entries
+>> when a datetime object is detroyed.
+>>
+>> What do you think of adding a private "_cache" attribute which would
+>> be an arbitrary Python object? (None by default)
+>>
+>> Victor
+>>
+>> Le mar. 7 mai 2019 ? 21:46, Paul Ganssle <paul at ganssle.io> a ?crit :
+>>> Greetings all,
+>>>
+>>> I have one last feature request that I'd like added to datetime for Python 3.8, and this one I think could use some more discussion, the addition of a "time zone index cache" to the datetime object. The rationale is laid out in detail in bpo-35723. The general problem is that currently, every invocation of utcoffset, tzname and dst needs to do full, independent calculations of the time zone offsets, even for time zones where the mapping is guaranteed to be stable because datetimes are immutable. I have a proof of concept implementation: PR #11529.
+>>>
+>>> I'm envisioning that the `datetime` class will add a private `_tzidx` single-byte member (it seems that this does not increase the size of the datetime object, because it's just using an unused alignment byte). `datetime` will also add a `tzidx()` method, which will return `_tzidx` if it's been set and otherwise it will call `self.tzinfo.tzidx()`.  If `self.tzinfo.tzidx()` returns a number between 0 and 254 (inclusive), it sets `_tzidx` to this value. tzidx() then returns whatever self.tzinfo.tzidx() returned.
+>>>
+>>> The value of this is that as far as I can tell, nearly all non-trivial tzinfo implementations construct a list of possible offsets, and implement utcoffset(), tzname() and dst() by calculating an index into that list and returning it. There are almost always less than 255 distinct offsets. By adding this cache on the datetime, we're using a small amount of currently-unused memory to prevent unnecessary calculations about a given datetime. The feature is entirely opt-in, and has no downsides if it goes unused, and it makes it possible to write tzinfo implementations that are both lazy and as fast as the "eager calculation" mode that pytz uses (and that causes many problems for pytz's users).
+>>>
+>>> I have explored the idea of using an lru cache of some sort on the tzinfo object itself, but there are two problems with this:
+>>>
+>>> 1. Calculating the hash of a datetime calls .utcoffset(), which means that it is necessary to, at minimum, do a `replace` on the datetime (and constructing a new datetime is a pretty considerable speed hit)
+>>>
+>>> 2. It will be a much bigger memory cost, since my current proposal uses approximately zero additional memory (not sure if the alignment stuff is platform-dependent or something, but it doesn't use additional memory on my linux computer).
+>>>
+>>> I realize this proposal is somewhat difficult to wrap your head around, so if anyone would like to chat with me about it in person, I'll be at PyCon sprints until Thursday morning.
+>>>
+>>> Best,
+>>> Paul
+>>>
+>>> _______________________________________________
+>>> Python-Dev mailing list
+>>> Python-Dev at python.org
+>>> https://mail.python.org/mailman/listinfo/python-dev
+>>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+>>
+> 
+> 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/mal%40egenix.com
+> 
+
+
