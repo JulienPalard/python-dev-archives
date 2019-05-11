@@ -7585,3 +7585,912 @@ ________________________________________________________________________
 > 
 
 
+From stefan_ml at behnel.de  Fri May 10 03:57:06 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Fri, 10 May 2019 09:57:06 +0200
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <cd6cce51-185e-f983-c209-f8028ecf8966@gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+ <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+ <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+ <5CD49CBB.2040508@UGent.be> <cd6cce51-185e-f983-c209-f8028ecf8966@gmail.com>
+Message-ID: <qb3asi$4qm2$1@blaine.gmane.org>
+
+Petr Viktorin schrieb am 10.05.19 um 00:07:
+> On 5/9/19 5:33 PM, Jeroen Demeyer wrote:
+>> Maybe you misunderstood my proposal. I want to allow both for extra
+>> flexibility:
+>>
+>> - METH_FASTCALL (possibly combined with METH_KEYWORDS) continues to work
+>> as before. If you don't want to care about the implementation details of
+>> vectorcall, this is the right thing to use.
+>>
+>> - METH_VECTORCALL (using exactly the vectorcallfunc signature) is a new
+>> calling convention for applications that want the lowest possible
+>> overhead at the cost of being slightly harder to use.
+> 
+> Then we can, in the spirit of minimalism, not add METH_VECTORCALL at all.
+> [...]
+> METH_FASTCALL is currently not documented, and it should be renamed before
+> it's documented. Names with "fast" or "new" generally don't age well.
+
+I personally don't see an advantage in having both, apart from helping code
+that wants to be fast also on Py3.7, for example. It unnecessarily
+complicates the CPython implementation and C-API.
+
+I'd be ok with removing FASTCALL in favour of VECTORCALL. That's more code
+to generate for Cython in order to adapt to Py<3.6, Py3.6, Py3.7 and then
+Py>=3.[89], but well, seeing the heap of code that we *already* generate,
+it's not going to hurt our users much.
+
+It would, however, be (selfishly) helpful if FASTCALL could still go
+through a deprecation period, because we'd like to keep the current Cython
+0.29.x release series compatible with Python 3.8, and I'd like to avoid
+adding support for VECTORCALL and compiling out FASTCALL in a point
+release. Removing it in Py3.9 seems ok to me.
+
+Stefan
+
+
+From J.Demeyer at UGent.be  Fri May 10 04:20:20 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Fri, 10 May 2019 10:20:20 +0200
+Subject: [Python-Dev] PEP 580/590 discussion
+In-Reply-To: <cd6cce51-185e-f983-c209-f8028ecf8966@gmail.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+ <d1acd3b6-9cc9-abcc-6ccd-5cfeb5b2b7d2@hotpy.org>
+ <b0197d1b-afa5-9681-0783-ed932c8b0a58@redhat.com> <5CC1C765.1020608@UGent.be>
+ <1309c111-359e-1af6-2655-a16ffaad2994@redhat.com>
+ <CA+=+wqDmj99J-n6BKw0MB3ZCKJZ2edoXSsvjq7Ag8LTJjhJMNQ@mail.gmail.com>
+ <CA+=+wqDBmK22-uY4Br77Y-gHB4bZ140UZ=hz=32hkz1=W9j2MA@mail.gmail.com>
+ <5CD49CBB.2040508@UGent.be> <cd6cce51-185e-f983-c209-f8028ecf8966@gmail.com>
+Message-ID: <5CD53444.1050301@UGent.be>
+
+On 2019-05-10 00:07, Petr Viktorin wrote:
+> METH_FASTCALL is currently not documented, and it should be renamed
+> before it's documented. Names with "fast" or "new" generally don't age
+> well.
+
+Just to make sure that we're understanding correctly, is your proposal 
+to do the following:
+- remove the name METH_FASTCALL
+- remove the calling convention METH_FASTCALL without METH_KEYWORDS
+- rename METH_FASTCALL|METH_KEYWORDS -> METH_VECTORCALL
+
+From nad at python.org  Fri May 10 13:52:08 2019
+From: nad at python.org (Ned Deily)
+Date: Fri, 10 May 2019 13:52:08 -0400
+Subject: [Python-Dev] Ignore spurious 3.4 checkin messages!
+Message-ID: <B0B5EDA3-162A-4DE9-A81C-815CC28DF760@python.org>
+
+Eek!  I was just doing a bit of branch cleanup in the cpython repo and managed to trigger a bunch (30-ish) of duplicate checkin messages to bugs.python.org for old commits.  I will remove them from b.p.o.  Please ignore any 3.4 spam email.  Sorry!
+
+--
+  Ned Deily
+  nad at python.org -- []
+
+
+From status at bugs.python.org  Fri May 10 14:08:20 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 10 May 2019 18:08:20 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190510180820.4C70E52B200@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-05-03 - 2019-05-10)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7084 ( +3)
+  closed 41542 (+88)
+  total  48626 (+91)
+
+Open issues with patches: 2851 
+
+
+Issues opened (65)
+==================
+
+#15987: Provide a way to compare AST nodes for equality recursively
+https://bugs.python.org/issue15987  reopened by vstinner
+
+#36785: Implement PEP 574
+https://bugs.python.org/issue36785  opened by pitrou
+
+#36786: "make install" should run compileall in parallel
+https://bugs.python.org/issue36786  opened by pitrou
+
+#36788: Add clamp() function to builtins
+https://bugs.python.org/issue36788  opened by TheComet
+
+#36789: Unicode HOWTO incorrectly states that UTF-8 contains no zero b
+https://bugs.python.org/issue36789  opened by mbiggs
+
+#36790: test_asyncio fails with application verifier!
+https://bugs.python.org/issue36790  opened by Alexander Riccio
+
+#36791: sum() relies on C signed overflow behaviour
+https://bugs.python.org/issue36791  opened by serhiy.storchaka
+
+#36792: [Windows] time: crash on formatting time with de_DE locale
+https://bugs.python.org/issue36792  opened by CharlieClark
+
+#36793: Do not define unneeded __str__ equal to __repr__
+https://bugs.python.org/issue36793  opened by serhiy.storchaka
+
+#36794: asyncio.Lock documentation in Py3.8 lacks parts presented in d
+https://bugs.python.org/issue36794  opened by germn
+
+#36795: "make venv" failed in Docs
+https://bugs.python.org/issue36795  opened by pitrou
+
+#36796: Error handling cleanup in _testcapimodule.c
+https://bugs.python.org/issue36796  opened by ZackerySpytz
+
+#36797: Cull more oudated distutils information
+https://bugs.python.org/issue36797  opened by ncoghlan
+
+#36799: Typo in ctypes documentation
+https://bugs.python.org/issue36799  opened by rrt
+
+#36803: Getting a lot of runtime misaligned address error while buildi
+https://bugs.python.org/issue36803  opened by dibya ranjan mishra
+
+#36804: Python for Windows installer Repair option does not repair PIP
+https://bugs.python.org/issue36804  opened by Mark Green
+
+#36805: Don't close subprocess stream if it's stdin is closed
+https://bugs.python.org/issue36805  opened by asvetlov
+
+#36807: IDLE doesn't call os.fsync()
+https://bugs.python.org/issue36807  opened by gvanrossum
+
+#36809: Crash for test test_importlib
+https://bugs.python.org/issue36809  opened by furzoom
+
+#36810: Recursive type annotations do not work in documentation tests
+https://bugs.python.org/issue36810  opened by lovasoa
+
+#36813: QueueListener not calling task_done upon termination
+https://bugs.python.org/issue36813  opened by bar.harel
+
+#36816: self-signed.pythontest.net TLS certificate key is too weak
+https://bugs.python.org/issue36816  opened by gregory.p.smith
+
+#36818: Add PyInterpreterState.runtime.
+https://bugs.python.org/issue36818  opened by eric.snow
+
+#36819: Crash during encoding using UTF-16/32 and custom error handler
+https://bugs.python.org/issue36819  opened by atalaba
+
+#36820: Captured exceptions are keeping user objects alive unnecessari
+https://bugs.python.org/issue36820  opened by mariocj89
+
+#36821: Termios module largely untested
+https://bugs.python.org/issue36821  opened by anthonypjshaw
+
+#36822: Minor grammatical fix in glossary.rst
+https://bugs.python.org/issue36822  opened by CuriousLearner
+
+#36823: shutil.copytree copies directories and files but fails with th
+https://bugs.python.org/issue36823  opened by rbavery
+
+#36824: Refactor str tests to reflect that str and unicode are merged 
+https://bugs.python.org/issue36824  opened by dfortunov
+
+#36825: Make TestCase aware of the command line arguments given to Tes
+https://bugs.python.org/issue36825  opened by remi.lapeyre
+
+#36826: ast_unparser.c doesn't handle := expressions
+https://bugs.python.org/issue36826  opened by eric.smith
+
+#36827: Overriding __new__ method with itself changes behaviour of the
+https://bugs.python.org/issue36827  opened by alexey-muranov
+
+#36829: CLI option to make PyErr_WriteUnraisable abort the current pro
+https://bugs.python.org/issue36829  opened by graingert
+
+#36833: Add tests for Datetime C API Macros
+https://bugs.python.org/issue36833  opened by p-ganssle
+
+#36834: mock.patch.object does not persist __module__ name for functio
+https://bugs.python.org/issue36834  opened by spark
+
+#36837: Make il8n tools available from `python -m`
+https://bugs.python.org/issue36837  opened by bbkane
+
+#36839: Support the buffer protocol in code objects
+https://bugs.python.org/issue36839  opened by dino.viehland
+
+#36840: Add stream.abort() async method
+https://bugs.python.org/issue36840  opened by asvetlov
+
+#36841: Supporting customization of float encoding in JSON
+https://bugs.python.org/issue36841  opened by mitar
+
+#36842: Implement PEP 578
+https://bugs.python.org/issue36842  opened by steve.dower
+
+#36843: AIX build fails with failure to get random numbers
+https://bugs.python.org/issue36843  opened by Robert Boehne
+
+#36845: ipaddres.IPv4Network and ipaddress.IPv6Network tuple construct
+https://bugs.python.org/issue36845  opened by niconorsk
+
+#36848: autospec fails with AttributeError when mocked class has __sig
+https://bugs.python.org/issue36848  opened by xtreak
+
+#36849: Native libcurses on HP-UX not properly detected
+https://bugs.python.org/issue36849  opened by michael-o
+
+#36850: shutil.copy2 fails with even with source network filesystem no
+https://bugs.python.org/issue36850  opened by hans-meine
+
+#36852: Python3.7.2 fails to cross-compile (yocto / openembedded) when
+https://bugs.python.org/issue36852  opened by mschoepf
+
+#36853: inconsistencies in docs builds (Sphinx 2)
+https://bugs.python.org/issue36853  opened by jaraco
+
+#36854: GC operates out of global runtime state.
+https://bugs.python.org/issue36854  opened by eric.snow
+
+#36855: update tests relying on a copy of a TLS certificate (pem) to s
+https://bugs.python.org/issue36855  opened by gregory.p.smith
+
+#36856: faulthandler._stack_overflow doesn't work on x86-linux with KP
+https://bugs.python.org/issue36856  opened by xry111
+
+#36858: f-string '=' debugging output needs to be documented
+https://bugs.python.org/issue36858  opened by eric.smith
+
+#36859: sqlite3 dml statement detection does not account for CTEs
+https://bugs.python.org/issue36859  opened by coleifer
+
+#36860: Inconsistent/Undocumented behavior with pathlib resolve and ab
+https://bugs.python.org/issue36860  opened by alexjacobson95
+
+#36862: Add Visual Studio 2019 support to PCBuild/env.bat
+https://bugs.python.org/issue36862  opened by anthonypjshaw
+
+#36863: argparse doesn't like options in the middle of arguments
+https://bugs.python.org/issue36863  opened by rhubarbdog x
+
+#36865: FileInput does not allow 'rt' mode, but all its existing deleg
+https://bugs.python.org/issue36865  opened by natgaertner
+
+#36866: Certificate verification errors in urllib.request become URLEr
+https://bugs.python.org/issue36866  opened by sivel
+
+#36867: Make semaphore_tracker track other system resources
+https://bugs.python.org/issue36867  opened by pierreglaser
+
+#36868: New behavior of OpenSSL hostname verification not exposed, inc
+https://bugs.python.org/issue36868  opened by josh.r
+
+#36869: Avoid warning of unused variables
+https://bugs.python.org/issue36869  opened by eamanu
+
+#36870: test_asyncio: test_drain_raises() fails randomly on Windows
+https://bugs.python.org/issue36870  opened by vstinner
+
+#36871: Misleading error from unittest.mock's assert_has_calls
+https://bugs.python.org/issue36871  opened by gregory.p.smith
+
+#36873: http.server: Document explicitly that symbolic links are follo
+https://bugs.python.org/issue36873  opened by vstinner
+
+#36874: Support CDATA by xml.etree.(c)ElementTree
+https://bugs.python.org/issue36874  opened by Pierre van de Laar
+
+#36875: argparse does not ship with translations
+https://bugs.python.org/issue36875  opened by carmenbianca
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36873: http.server: Document explicitly that symbolic links are follo
+https://bugs.python.org/issue36873
+
+#36870: test_asyncio: test_drain_raises() fails randomly on Windows
+https://bugs.python.org/issue36870
+
+#36868: New behavior of OpenSSL hostname verification not exposed, inc
+https://bugs.python.org/issue36868
+
+#36867: Make semaphore_tracker track other system resources
+https://bugs.python.org/issue36867
+
+#36866: Certificate verification errors in urllib.request become URLEr
+https://bugs.python.org/issue36866
+
+#36865: FileInput does not allow 'rt' mode, but all its existing deleg
+https://bugs.python.org/issue36865
+
+#36862: Add Visual Studio 2019 support to PCBuild/env.bat
+https://bugs.python.org/issue36862
+
+#36855: update tests relying on a copy of a TLS certificate (pem) to s
+https://bugs.python.org/issue36855
+
+#36854: GC operates out of global runtime state.
+https://bugs.python.org/issue36854
+
+#36850: shutil.copy2 fails with even with source network filesystem no
+https://bugs.python.org/issue36850
+
+#36849: Native libcurses on HP-UX not properly detected
+https://bugs.python.org/issue36849
+
+#36842: Implement PEP 578
+https://bugs.python.org/issue36842
+
+#36839: Support the buffer protocol in code objects
+https://bugs.python.org/issue36839
+
+#36833: Add tests for Datetime C API Macros
+https://bugs.python.org/issue36833
+
+#36826: ast_unparser.c doesn't handle := expressions
+https://bugs.python.org/issue36826
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36867: Make semaphore_tracker track other system resources
+https://bugs.python.org/issue36867
+
+#36865: FileInput does not allow 'rt' mode, but all its existing deleg
+https://bugs.python.org/issue36865
+
+#36862: Add Visual Studio 2019 support to PCBuild/env.bat
+https://bugs.python.org/issue36862
+
+#36859: sqlite3 dml statement detection does not account for CTEs
+https://bugs.python.org/issue36859
+
+#36856: faulthandler._stack_overflow doesn't work on x86-linux with KP
+https://bugs.python.org/issue36856
+
+#36854: GC operates out of global runtime state.
+https://bugs.python.org/issue36854
+
+#36852: Python3.7.2 fails to cross-compile (yocto / openembedded) when
+https://bugs.python.org/issue36852
+
+#36850: shutil.copy2 fails with even with source network filesystem no
+https://bugs.python.org/issue36850
+
+#36849: Native libcurses on HP-UX not properly detected
+https://bugs.python.org/issue36849
+
+#36842: Implement PEP 578
+https://bugs.python.org/issue36842
+
+#36841: Supporting customization of float encoding in JSON
+https://bugs.python.org/issue36841
+
+#36839: Support the buffer protocol in code objects
+https://bugs.python.org/issue36839
+
+#36829: CLI option to make PyErr_WriteUnraisable abort the current pro
+https://bugs.python.org/issue36829
+
+#36825: Make TestCase aware of the command line arguments given to Tes
+https://bugs.python.org/issue36825
+
+#36824: Refactor str tests to reflect that str and unicode are merged 
+https://bugs.python.org/issue36824
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#36792: [Windows] time: crash on formatting time with de_DE locale
+https://bugs.python.org/issue36792  31 msgs
+
+#27639: UserList.__getitem__ doesn't account for slices
+https://bugs.python.org/issue27639  12 msgs
+
+#36829: CLI option to make PyErr_WriteUnraisable abort the current pro
+https://bugs.python.org/issue36829  11 msgs
+
+#36843: AIX build fails with failure to get random numbers
+https://bugs.python.org/issue36843  11 msgs
+
+#36807: IDLE doesn't call os.fsync()
+https://bugs.python.org/issue36807   9 msgs
+
+#36816: self-signed.pythontest.net TLS certificate key is too weak
+https://bugs.python.org/issue36816   8 msgs
+
+#35925: test_httplib test_nntplib test_ssl fail on ARMv7 Debian buster
+https://bugs.python.org/issue35925   7 msgs
+
+#36395: Add deferred single-threaded/fake executor to concurrent.futur
+https://bugs.python.org/issue36395   7 msgs
+
+#36848: autospec fails with AttributeError when mocked class has __sig
+https://bugs.python.org/issue36848   7 msgs
+
+#25541: Wrong usage of sockaddr_un struct for abstract namespace unix 
+https://bugs.python.org/issue25541   6 msgs
+
+
+
+Issues closed (85)
+==================
+
+#1054: scriptsinstall target fails in alternate build dir
+https://bugs.python.org/issue1054  closed by SilentGhost
+
+#6911: Document changes in asynchat
+https://bugs.python.org/issue6911  closed by CuriousLearner
+
+#11001: Various obvious errors in cookies documentation
+https://bugs.python.org/issue11001  closed by gregory.p.smith
+
+#14440: Close background process if IDLE closes abnormally.
+https://bugs.python.org/issue14440  closed by asvetlov
+
+#16024: Doc cleanup regarding path=fd, dir_fd, follow_symlinks, etc
+https://bugs.python.org/issue16024  closed by larry
+
+#20185: Derby #17: Convert 49 sites to Argument Clinic across 13 files
+https://bugs.python.org/issue20185  closed by mdk
+
+#20709: os.utime(path_to_directory): wrong documentation for Windows.
+https://bugs.python.org/issue20709  closed by mdk
+
+#24339: iso6937 encoding missing
+https://bugs.python.org/issue24339  closed by mdk
+
+#24712: Docs page's sidebar vibrates on mouse wheel scroll on Chrome.
+https://bugs.python.org/issue24712  closed by matrixise
+
+#25251: Unknown MS Compiler version 1900
+https://bugs.python.org/issue25251  closed by anthonypjshaw
+
+#25436: argparse.ArgumentError missing error message in __repr__
+https://bugs.python.org/issue25436  closed by dfortunov
+
+#26374: concurrent_futures Executor.map semantics better specified in 
+https://bugs.python.org/issue26374  closed by bquinlan
+
+#26903: ProcessPoolExecutor(max_workers=64) crashes on Windows
+https://bugs.python.org/issue26903  closed by bquinlan
+
+#26978: Implement pathlib.Path.link (Using os.link)
+https://bugs.python.org/issue26978  closed by pitrou
+
+#27497: csv module: Add return value to DictWriter.writeheader
+https://bugs.python.org/issue27497  closed by vstinner
+
+#28238: In xml.etree.ElementTree findall() can't search all elements i
+https://bugs.python.org/issue28238  closed by scoder
+
+#28729: Exception from sqlite3 adapter masked by sqlite3.InterfaceErro
+https://bugs.python.org/issue28729  closed by mdk
+
+#28795: Misleading stating, that SIGINT handler is installed by defaul
+https://bugs.python.org/issue28795  closed by mdk
+
+#29075: Remove Windows Vista support
+https://bugs.python.org/issue29075  closed by vstinner
+
+#29164: make test always fail at 218/405 ( AssertionError: ',' not fou
+https://bugs.python.org/issue29164  closed by cheryl.sabella
+
+#30262: Don't expose sqlite3 Cache and Statement
+https://bugs.python.org/issue30262  closed by berker.peksag
+
+#30271: Make sqlite3 statement cache optional
+https://bugs.python.org/issue30271  closed by palaviv
+
+#30668: DOC: missing word in license.rst
+https://bugs.python.org/issue30668  closed by matrixise
+
+#30793: Parsing error on f-string-expressions containing strings with 
+https://bugs.python.org/issue30793  closed by eric.smith
+
+#31200: address sanitizer build fails
+https://bugs.python.org/issue31200  closed by mdk
+
+#31589: Links for French documentation PDF is broken: LaTeX issue with
+https://bugs.python.org/issue31589  closed by mdk
+
+#31813: python -m ensurepip hangs
+https://bugs.python.org/issue31813  closed by anthonypjshaw
+
+#31855: mock_open is not compatible with read(n) (and pickle.load)
+https://bugs.python.org/issue31855  closed by xtreak
+
+#31873: Inconsistent capitalization of proper noun - Unicode.
+https://bugs.python.org/issue31873  closed by mdk
+
+#32393: nav menu jitter in old documentation
+https://bugs.python.org/issue32393  closed by mdk
+
+#32971: Docs on unittest.TestCase.assertRaises() should clarify contex
+https://bugs.python.org/issue32971  closed by anthonypjshaw
+
+#33039: int() and math.trunc don't accept objects that only define __i
+https://bugs.python.org/issue33039  closed by serhiy.storchaka
+
+#33530: Implement Happy Eyeball in asyncio
+https://bugs.python.org/issue33530  closed by asvetlov
+
+#33948: doc truncated lines in PDF
+https://bugs.python.org/issue33948  closed by mdk
+
+#34214: Pylint recusion stack overflow abort
+https://bugs.python.org/issue34214  closed by cheryl.sabella
+
+#34600: python3 regression ElementTree.iterparse() unable to capture c
+https://bugs.python.org/issue34600  closed by scoder
+
+#34820: binascii.c:1578:1: error: the control flow of function ???bina
+https://bugs.python.org/issue34820  closed by anthonypjshaw
+
+#34848: range.index only takes one argument when it's documented as ta
+https://bugs.python.org/issue34848  closed by vstinner
+
+#35125: asyncio shield: remove inner callback on outer cancellation
+https://bugs.python.org/issue35125  closed by asvetlov
+
+#35354: Generator functions stack overflow
+https://bugs.python.org/issue35354  closed by Mark.Shannon
+
+#35393: Typo in documentation
+https://bugs.python.org/issue35393  closed by cheryl.sabella
+
+#35900: Add pickler hook for the user to customize the serialization o
+https://bugs.python.org/issue35900  closed by pitrou
+
+#36166: DOC: Fix markup on function parameter on datamodel.rst
+https://bugs.python.org/issue36166  closed by cheryl.sabella
+
+#36189: DOC: Correct word in tutorial introduction
+https://bugs.python.org/issue36189  closed by cheryl.sabella
+
+#36239: gettext: GNUTranslations doesn't parse properly comments in de
+https://bugs.python.org/issue36239  closed by mdk
+
+#36275: DOC: venv.create doesn't include prompt parameter
+https://bugs.python.org/issue36275  closed by cheryl.sabella
+
+#36533: logging regression with threading + fork are mixed in 3.7.1rc2
+https://bugs.python.org/issue36533  closed by gregory.p.smith
+
+#36545: Python 3.5 OOM during test_socket on make
+https://bugs.python.org/issue36545  closed by dekken
+
+#36551: Optimize list comprehensions with preallocate size and protect
+https://bugs.python.org/issue36551  closed by anthonypjshaw
+
+#36552: Replace OverflowError with ValueError when calculating length 
+https://bugs.python.org/issue36552  closed by serhiy.storchaka
+
+#36601: signals can be caught by any thread
+https://bugs.python.org/issue36601  closed by gregory.p.smith
+
+#36737: Warnings operate out of global runtime state.
+https://bugs.python.org/issue36737  closed by eric.snow
+
+#36766: Typos in docs and code comments
+https://bugs.python.org/issue36766  closed by terry.reedy
+
+#36774: f-strings: Add a !d conversion for ease of debugging
+https://bugs.python.org/issue36774  closed by eric.smith
+
+#36778: test_site.StartupImportTests.test_startup_imports fails if def
+https://bugs.python.org/issue36778  closed by vstinner
+
+#36783: No documentation for _FromXandFold C API functions
+https://bugs.python.org/issue36783  closed by cheryl.sabella
+
+#36784: __import__ with empty folder after importlib.invalidate_caches
+https://bugs.python.org/issue36784  closed by mdk
+
+#36787: Python3 regresison: String formatting of None object
+https://bugs.python.org/issue36787  closed by eric.smith
+
+#36798: f-strings do not support top-level :=
+https://bugs.python.org/issue36798  closed by gvanrossum
+
+#36800: Invalid coding error hidden on Windows
+https://bugs.python.org/issue36800  closed by eryksun
+
+#36801: Wait for connection_lost in StreamWriter.drain
+https://bugs.python.org/issue36801  closed by asvetlov
+
+#36802: Revert back StreamWriter awrite/aclose but provide await write
+https://bugs.python.org/issue36802  closed by asvetlov
+
+#36806: Forbid creating of stream objects outside of asyncio
+https://bugs.python.org/issue36806  closed by asvetlov
+
+#36808: Understanding "cannot import name" exception
+https://bugs.python.org/issue36808  closed by eryksun
+
+#36811: Warning when compiling _elementree.c
+https://bugs.python.org/issue36811  closed by scoder
+
+#36812: posix_spawnp returns error when used with file_actions
+https://bugs.python.org/issue36812  closed by vstinner
+
+#36814: posix_spawn explicit file_actions=None throws error
+https://bugs.python.org/issue36814  closed by vstinner
+
+#36815: Test Failure MacOS : test_socket test_host_resolution_bad_addr
+https://bugs.python.org/issue36815  closed by SilentGhost
+
+#36817: Add = to f-strings for easier debugging.
+https://bugs.python.org/issue36817  closed by eric.smith
+
+#36828: Cannot install et-xmlfile
+https://bugs.python.org/issue36828  closed by xtreak
+
+#36830: Typo in collections.deque
+https://bugs.python.org/issue36830  closed by matrixise
+
+#36831: ElementTree.find attribute matching with empty namespace
+https://bugs.python.org/issue36831  closed by scoder
+
+#36832: Port zipp to zipfile
+https://bugs.python.org/issue36832  closed by barry
+
+#36835: Move the warnings runtime state into per-interpreter state.
+https://bugs.python.org/issue36835  closed by eric.snow
+
+#36836: Test Suite not working on 3.4, 3.5 on MacOS Mojave
+https://bugs.python.org/issue36836  closed by CuriousLearner
+
+#36838: running 'make html' from the Doc tree emits an unwelcoming err
+https://bugs.python.org/issue36838  closed by gregory.p.smith
+
+#36844: abiflag `m` is no longer showing when compiled with --enable-s
+https://bugs.python.org/issue36844  closed by Anthony Sottile
+
+#36846: range_iterator does not use __index__
+https://bugs.python.org/issue36846  closed by serhiy.storchaka
+
+#36847: Segmentation fault (core dumped) Found when we import "schedul
+https://bugs.python.org/issue36847  closed by jay.net.in
+
+#36851: Frame stack is not cleaned after execution is finished with re
+https://bugs.python.org/issue36851  closed by pablogsal
+
+#36857: bisect should support descending order
+https://bugs.python.org/issue36857  closed by rhettinger
+
+#36861: Update to Unicode 12.1.0
+https://bugs.python.org/issue36861  closed by benjamin.peterson
+
+#36864: Double Spaces in the documentation
+https://bugs.python.org/issue36864  closed by mdk
+
+#36872: passing negative values through modules
+https://bugs.python.org/issue36872  closed by SilentGhost
+
+#1160328: urllib2 post error when using httpproxy
+https://bugs.python.org/issue1160328  closed by martin.panter
+
+From p.f.moore at gmail.com  Fri May 10 15:32:12 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Fri, 10 May 2019 20:32:12 +0100
+Subject: [Python-Dev] Ignore spurious 3.4 checkin messages!
+In-Reply-To: <B0B5EDA3-162A-4DE9-A81C-815CC28DF760@python.org>
+References: <B0B5EDA3-162A-4DE9-A81C-815CC28DF760@python.org>
+Message-ID: <CACac1F9ajv0gvEnGqj=BEWKd1u5pqHfayvj_Fjz038CbEA2Ctw@mail.gmail.com>
+
+On Fri, 10 May 2019 at 18:54, Ned Deily <nad at python.org> wrote:
+>
+> Eek!  I was just doing a bit of branch cleanup in the cpython repo and managed to trigger a bunch (30-ish) of duplicate checkin messages to bugs.python.org for old commits.  I will remove them from b.p.o.  Please ignore any 3.4 spam email.  Sorry!
+
+It's not dead! See, it just moved!
+
+From vstinner at redhat.com  Fri May 10 21:32:26 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sat, 11 May 2019 03:32:26 +0200
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 2nd version
+In-Reply-To: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+References: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+Message-ID: <CA+3bQGEgBVUL0VE04mJwSDKm46X3U=3cZejLV+9jiGFDwbowSQ@mail.gmail.com>
+
+Hi,
+
+First of all, I just found an old issue that we will solved by my PEP 587 :-)
+
+Add Py_SetFatalErrorAbortFunc: Allow embedding program to handle fatal errors
+https://bugs.python.org/issue30560
+
+I studied code of applications embedding Python. Most of them has to
+decode bytes strings to get wchar_t* to set home, argv, program name,
+etc. I'm not sure that they use the "correct" encoding, especially
+since Python 3.7 got UTF-8 Mode (PEP 540) and C locale coercion (PEP
+538).
+
+I tried to convert the source code of each project into pseudo-code
+which looks like C code used in CPython.
+
+I removed all error handling code: look at each reference, the
+original code is usually way more complex.
+
+Some project has to wrap each function of the Python C API manually,
+which adds even more boilerplate code.
+
+Some project set/unset environment varaibles. Others prefer global
+configuration variables like Py_NoSiteFlag.
+
+It seems like Py_FrozenFlag is commonly used. Maybe I should make the
+flag public and try to find it a better name:
+
+    /* If greater than 0, suppress _PyPathConfig_Calculate() warnings.
+
+       If set to -1 (default), inherit Py_FrozenFlag value. */
+    int _frozen;
+
+About pyinstaller which changes C standard stream buffering:
+Py_Initialize() now also does that when buffered_stdio=0. See
+config_init_stdio() in Python/coreconfig.c. Moreover, this function
+now *always* set standard streams to O_BINARY mode on Windows. I'm not
+sure if it's correct or not.
+
+
+Blender
+-------
+
+Pseudo-code of BPY_python_start::
+
+    BLI_strncpy_wchar_from_utf8(program_path_wchar, BKE_appdir_program_path());
+    Py_SetProgramName(program_path_wchar);
+    PyImport_ExtendInittab(bpy_internal_modules);
+    Py_SetPythonHome(py_path_bundle_wchar);
+    Py_SetStandardStreamEncoding("utf-8", "surrogateescape");
+    Py_NoSiteFlag = 1;
+    Py_FrozenFlag = 1;
+    Py_Initialize();
+
+Ref: https://git.blender.org/gitweb/gitweb.cgi/blender.git/blob/HEAD:/source/blender/python/intern/bpy_interface.c
+
+fontforge
+---------
+
+Pseudo-code of fontforge when Python is used to run a script::
+
+    Py_Initialize()
+    for init_file in init_files:
+       PyRun_SimpleFileEx(init_file)
+    exitcode = Py_Main(arg, argv)
+    Py_Finalize()
+    exit(exitcode)
+
+Ref: https://bugs.python.org/issue36204#msg337256
+
+py2app
+------
+
+Pseudo-code::
+
+    unsetenv("PYTHONOPTIMIZE");
+    unsetenv("PYTHONDEBUG");
+    unsetenv("PYTHONDONTWRITEBYTECODE");
+    unsetenv("PYTHONIOENCODING");
+    unsetenv("PYTHONDUMPREFS");
+    unsetenv("PYTHONMALLOCSTATS");
+    setenv("PYTHONDONTWRITEBYTECODE", "1", 1);
+    setenv("PYTHONUNBUFFERED", "1", 1);
+    setenv("PYTHONPATH", build_python_path(), 1);
+
+    setlocale(LC_ALL, "en_US.UTF-8");
+    mbstowcs(w_program, c_program, PATH_MAX+1);
+    Py_SetProgramName(w_program);
+
+    Py_Initialize()
+
+    argv_new[0] = _Py_DecodeUTF8_surrogateescape(script, strlen(script));
+    ...
+    PySys_SetArgv(argc, argv_new);
+
+    PyRun_SimpleFile(fp, script);
+    Py_Finalize();
+
+Ref: https://bitbucket.org/ronaldoussoren/py2app/src/default/py2app/apptemplate/src/main.c
+
+See also: https://bitbucket.org/ronaldoussoren/py2app/src/default/py2app/bundletemplate/src/main.m
+
+
+OpenOffice
+----------
+
+Pseudo-code of ``PythonInit``::
+
+    mbstowcs(wide, home, PATH_MAX + 1);
+    Py_SetPythonHome(wide);
+    setenv("PYTHONPATH", getenv("PYTHONPATH") + ":" + path_bootstrap);
+    PyImport_AppendInittab("pyuno", PyInit_pyuno);
+    Py_DontWriteBytecodeFlag = 1;
+    Py_Initialize();
+
+Ref: pyuno/source/loader/pyuno_loader.cxx, see:
+https://docs.libreoffice.org/pyuno/html/pyuno__loader_8cxx_source.html
+
+vim
+---
+
+Pseudo-code::
+
+    mbstowcs(py_home_buf, p_py3home);
+    Py_SetPythonHome(py_home_buf);
+    PyImport_AppendInittab("vim", Py3Init_vim);
+    Py_Initialize();
+
+Ref: https://github.com/vim/vim/blob/master/src/if_python3.c
+
+pyinstaller
+-----------
+
+Pseudo-code::
+
+    pyi_locale_char2wchar(progname_w, status->archivename)
+    SetProgramName(progname_w);
+
+    pyi_locale_char2wchar(pyhome_w, status->mainpath)
+    SetPythonHome(pyhome_w);
+
+    pypath_w = build_path();
+    Py_SetPath(pypath_w);
+
+    Py_NoSiteFlag = 1;
+    Py_FrozenFlag = 1;
+    Py_DontWriteBytecodeFlag = 1;
+    Py_NoUserSiteDirectory = 1;
+    Py_IgnoreEnvironmentFlag = 1;
+    Py_VerboseFlag = 0;
+    Py_OptimizeFlag = 1;
+
+    if (unbuffered) {
+    #ifdef _WIN32
+        _setmode(fileno(stdin), _O_BINARY);
+        _setmode(fileno(stdout), _O_BINARY);
+    #endif
+        setbuf(stdin, (char *)NULL);
+        setbuf(stdout, (char *)NULL);
+        setbuf(stderr, (char *)NULL);
+    }
+
+    Py_Initialize();
+
+    PySys_SetPath(pypath_w);
+
+    PySys_SetArgvEx(argc, wargv, 0);
+
+Ref: https://github.com/pyinstaller/pyinstaller/blob/1844d69f5aa1d64d3feca912ed1698664a3faf3e/bootloader/src/pyi_pythonlib.c
+
+Victor
+
