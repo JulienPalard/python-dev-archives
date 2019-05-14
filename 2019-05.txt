@@ -8679,3 +8679,600 @@ Message-ID: <f5cc8b84-60ae-ee19-03cc-31acdae9c7f8@willingconsulting.com>
 
 Sorry for the inconvenience yesterday.
 
+From steve.dower at python.org  Mon May 13 12:28:36 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 13 May 2019 09:28:36 -0700
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 2nd version
+In-Reply-To: <CA+3bQGEgBVUL0VE04mJwSDKm46X3U=3cZejLV+9jiGFDwbowSQ@mail.gmail.com>
+References: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+ <CA+3bQGEgBVUL0VE04mJwSDKm46X3U=3cZejLV+9jiGFDwbowSQ@mail.gmail.com>
+Message-ID: <6246039b-2ae6-5637-2e95-13b166d8d693@python.org>
+
+On 10May2019 1832, Victor Stinner wrote:
+> Hi,
+> 
+> First of all, I just found an old issue that we will solved by my PEP 587 :-)
+> 
+> Add Py_SetFatalErrorAbortFunc: Allow embedding program to handle fatal errors
+> https://bugs.python.org/issue30560
+
+Yes, this should be a feature of any redesigned embedding API.
+
+> I studied code of applications embedding Python. Most of them has to
+> decode bytes strings to get wchar_t* to set home, argv, program name,
+> etc. I'm not sure that they use the "correct" encoding, especially
+> since Python 3.7 got UTF-8 Mode (PEP 540) and C locale coercion (PEP
+> 538).
+
+Unless you studied Windows-only applications embedding Python, _all_ of 
+them will have had to decode strings into Unicode, since that's what our 
+API expects.
+
+All of the Windows-only applications I know of that embed Python are 
+closed source, and none are owned by Red Hat. I'm going to assume you 
+missed that entire segment of the ecosystem :)
+
+But it also seems like perhaps we just need to expose a single API that 
+does "decode this like CPython would" so that they can call it? We don't 
+need a whole PEP or a widely publicised and discussed redesign of 
+embedding to add this, and since it would solve a very real problem then 
+we should just do it.
+
+> I tried to convert the source code of each project into pseudo-code
+> which looks like C code used in CPython.
+
+Thanks, this is helpful!
+
+My take:
+* all the examples are trying to be isolated from the system Python 
+install (except Vim?)
+* all the examples want to import some of their own modules before 
+running user code
+* nobody understands how to configure embedded Python :)
+
+Also from my own work with/on other projects:
+* embedders need to integrate native thread management with Python threads
+* embedders want to use their own files/libraries
+* embedders want to totally override getpath, not augment/configure it
+
+Cheers,
+Steve
+
+From vstinner at redhat.com  Mon May 13 17:52:04 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 13 May 2019 23:52:04 +0200
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 2nd version
+In-Reply-To: <6246039b-2ae6-5637-2e95-13b166d8d693@python.org>
+References: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+ <CA+3bQGEgBVUL0VE04mJwSDKm46X3U=3cZejLV+9jiGFDwbowSQ@mail.gmail.com>
+ <6246039b-2ae6-5637-2e95-13b166d8d693@python.org>
+Message-ID: <CA+3bQGHnoUop=g-Ptw7jexA6Y5eWajXTfPSWtUVXFYmWSo0-pw@mail.gmail.com>
+
+)Le lun. 13 mai 2019 ? 18:28, Steve Dower <steve.dower at python.org> a ?crit :
+> My take:
+> * all the examples are trying to be isolated from the system Python
+> install (except Vim?)
+
+"Isolation" means different things:
+
+* ignore configuration files
+* ignore environment variables
+* custom path configuration (sys.path, sys.executable, etc.)
+
+It seems like the most common need is to have a custom path configuration.
+
+Py_IsolatedFlag isn't used. Only py2app manually ignores a few
+environment variables.
+
+
+> * all the examples want to import some of their own modules before
+> running user code
+
+Well, running code between Py_Initialize() and running the final
+Python code is not new, and my PEP doesn't change anything here: it's
+still possible, as it was previously. You can use PyRun_SimpleFile()
+after Py_Initialize() for example.
+
+Maybe I misunderstood your point.
+
+
+> * nobody understands how to configure embedded Python :)
+
+Well, that's the problem I'm trying to solve by designing an
+homogeneous API, rather than scattered global configuration variables,
+environment variables, function calls, etc.
+
+
+> Also from my own work with/on other projects:
+> * embedders need to integrate native thread management with Python threads
+
+Sorry, I see the relationship with the initialization.
+
+
+> * embedders want to use their own files/libraries
+
+That's the path configuration, no?
+
+
+> * embedders want to totally override getpath, not augment/configure it
+
+On Python 3.7, Py_SetPath() is the closest thing to configure path
+configuration. But I don't see how to override sys.executable
+(Py_GetProgramFullPath), sys.prefix, sys.exec_prefix, nor (internal)
+dll_path.
+
+In the examples that I found, SetProgramName(), SetPythonHome() and
+Py_SetPath() are called.
+
+My PEP 587 allows to completely ignore getpath.c/getpath.c easily by
+setting explicitly:
+
+* use_module_search_path, module_search_paths
+* executable
+* prefix
+* exec_prefix
+* dll_path (Windows only)
+
+If you set these fields, you fully control where Python looks for
+modules. Extract of the C code:
+
+    /* Do we need to calculate the path? */
+    if (!config->use_module_search_paths
+        || (config->executable == NULL)
+        || (config->prefix == NULL)
+#ifdef MS_WINDOWS
+        || (config->dll_path == NULL)
+#endif
+        || (config->exec_prefix == NULL))
+    {
+        _PyInitError err = _PyCoreConfig_CalculatePathConfig(config);
+        if (_Py_INIT_FAILED(err)) {
+            return err;
+        }
+    }
+
+OpenOffice doesn't bother with complex code, it just appends a path to
+PYTHONPATH:
+
+    setenv("PYTHONPATH", getenv("PYTHONPATH") + ":" + path_bootstrap);
+
+It can use PyWideStringList_Append(&config.module_search_paths,
+path_bootstrap), as shown in one example of my PEP.
+
+Victor
+--
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From steve.dower at python.org  Mon May 13 18:52:10 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Mon, 13 May 2019 15:52:10 -0700
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 2nd version
+In-Reply-To: <CA+3bQGHnoUop=g-Ptw7jexA6Y5eWajXTfPSWtUVXFYmWSo0-pw@mail.gmail.com>
+References: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+ <CA+3bQGEgBVUL0VE04mJwSDKm46X3U=3cZejLV+9jiGFDwbowSQ@mail.gmail.com>
+ <6246039b-2ae6-5637-2e95-13b166d8d693@python.org>
+ <CA+3bQGHnoUop=g-Ptw7jexA6Y5eWajXTfPSWtUVXFYmWSo0-pw@mail.gmail.com>
+Message-ID: <f654fe5c-a9b0-d758-98e9-dcf21226caa9@python.org>
+
+In response to all of your responses:
+
+No need to take offense, I was merely summarising the research you 
+posted in a way that looks more like scenarios or requirements. It's a 
+typical software engineering task. Being able to collect snippets and 
+let people draw their own conclusions is one thing, but those of us 
+(including yourself) who are actively working in this area are totally 
+allowed to present our analysis as well.
+
+Given the raw material, the summary, and the recommendations, anyone 
+else can do the same analysis and join the discussion, and that's what 
+we're doing. But you can't simply present raw material and assume that 
+people will naturally end up at the same conclusion - that's how you end 
+up with overly simplistic plans where everyone "agrees" because they 
+projected their own opinions into it, then are surprised when it turns 
+out that other people had different opinions.
+
+Cheers,
+Steve
+
+On 13May2019 1452, Victor Stinner wrote:
+> )Le lun. 13 mai 2019 ? 18:28, Steve Dower <steve.dower at python.org> a ?crit :
+>> My take:
+>> * all the examples are trying to be isolated from the system Python
+>> install (except Vim?)
+> 
+> "Isolation" means different things:
+> 
+> * ignore configuration files
+> * ignore environment variables
+> * custom path configuration (sys.path, sys.executable, etc.)
+> 
+> It seems like the most common need is to have a custom path configuration.
+> 
+> Py_IsolatedFlag isn't used. Only py2app manually ignores a few
+> environment variables.
+> 
+> 
+>> * all the examples want to import some of their own modules before
+>> running user code
+> 
+> Well, running code between Py_Initialize() and running the final
+> Python code is not new, and my PEP doesn't change anything here: it's
+> still possible, as it was previously. You can use PyRun_SimpleFile()
+> after Py_Initialize() for example.
+> 
+> Maybe I misunderstood your point.
+> 
+> 
+>> * nobody understands how to configure embedded Python :)
+> 
+> Well, that's the problem I'm trying to solve by designing an
+> homogeneous API, rather than scattered global configuration variables,
+> environment variables, function calls, etc.
+> 
+> 
+>> Also from my own work with/on other projects:
+>> * embedders need to integrate native thread management with Python threads
+> 
+> Sorry, I see the relationship with the initialization.
+> 
+> 
+>> * embedders want to use their own files/libraries
+> 
+> That's the path configuration, no?
+> 
+> 
+>> * embedders want to totally override getpath, not augment/configure it
+> 
+> On Python 3.7, Py_SetPath() is the closest thing to configure path
+> configuration. But I don't see how to override sys.executable
+> (Py_GetProgramFullPath), sys.prefix, sys.exec_prefix, nor (internal)
+> dll_path.
+> 
+> In the examples that I found, SetProgramName(), SetPythonHome() and
+> Py_SetPath() are called.
+> 
+> My PEP 587 allows to completely ignore getpath.c/getpath.c easily by
+> setting explicitly:
+> 
+> * use_module_search_path, module_search_paths
+> * executable
+> * prefix
+> * exec_prefix
+> * dll_path (Windows only)
+> 
+> If you set these fields, you fully control where Python looks for
+> modules. Extract of the C code:
+> 
+>      /* Do we need to calculate the path? */
+>      if (!config->use_module_search_paths
+>          || (config->executable == NULL)
+>          || (config->prefix == NULL)
+> #ifdef MS_WINDOWS
+>          || (config->dll_path == NULL)
+> #endif
+>          || (config->exec_prefix == NULL))
+>      {
+>          _PyInitError err = _PyCoreConfig_CalculatePathConfig(config);
+>          if (_Py_INIT_FAILED(err)) {
+>              return err;
+>          }
+>      }
+> 
+> OpenOffice doesn't bother with complex code, it just appends a path to
+> PYTHONPATH:
+> 
+>      setenv("PYTHONPATH", getenv("PYTHONPATH") + ":" + path_bootstrap);
+> 
+> It can use PyWideStringList_Append(&config.module_search_paths,
+> path_bootstrap), as shown in one example of my PEP.
+> 
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+> 
+
+
+From vstinner at redhat.com  Mon May 13 19:52:06 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 14 May 2019 01:52:06 +0200
+Subject: [Python-Dev] Adding a tzidx cache to datetime
+In-Reply-To: <619825e1-be2e-b8e7-6eef-07921baebc7f@egenix.com>
+References: <ab658c54-71e3-f2eb-e94e-24ea671b7755@ganssle.io>
+ <CA+3bQGHTziD9zi3W6o_ZrO9BGtxpV6x8WEuDV_8EY-+Q9Lqvag@mail.gmail.com>
+ <d8ad71a2-5322-8d28-8d4e-d9b5cb5a9439@ganssle.io>
+ <619825e1-be2e-b8e7-6eef-07921baebc7f@egenix.com>
+Message-ID: <CA+3bQGHjCJ83TSP4c_H4S7-kPR=BrR2FPa3SJFjXOuUJFJ+Sog@mail.gmail.com>
+
+Le ven. 10 mai 2019 ? 09:22, M.-A. Lemburg <mal at egenix.com> a ?crit :
+> Given that many datetime objects in practice don't use timezones
+> (e.g. in large data stores you typically use UTC and naive datetime
+> objects), I think that making the object itself larger to accommodate
+> for a cache, which will only be used a smaller percentage of the use
+> cases, isn't warranted. Going from 64 bytes to 72 bytes also sounds
+> like this could have negative effects on cache lines.
+>
+> If you need a per object cache, you can either use weakref
+> objects or maintain a separate dictionary in dateutil or other
+> timezone helpers which indexes objects by id(obj).
+>
+> That said, if you only add a byte field which doesn't make the object
+> larger in practice (you merely use space that alignments would
+> use anyway), this shouldn't be a problem. The use of that field
+> should be documented, though, so that other implementations can
+> use/provide it as well.
+
+>From Marc-Andre Lemburg, I understand that Paul's PR is a good
+compromise and that other datetime implementations which cannot use
+tzidx() cache (because it's limited to an integer in [0; 254]) can
+subclass datetime or use a cache outside datetime.
+
+Note: right now, creating a weakref to a datetime fails.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From paul at ganssle.io  Mon May 13 20:01:39 2019
+From: paul at ganssle.io (Paul Ganssle)
+Date: Mon, 13 May 2019 20:01:39 -0400
+Subject: [Python-Dev] Adding a tzidx cache to datetime
+In-Reply-To: <CA+3bQGHjCJ83TSP4c_H4S7-kPR=BrR2FPa3SJFjXOuUJFJ+Sog@mail.gmail.com>
+References: <ab658c54-71e3-f2eb-e94e-24ea671b7755@ganssle.io>
+ <CA+3bQGHTziD9zi3W6o_ZrO9BGtxpV6x8WEuDV_8EY-+Q9Lqvag@mail.gmail.com>
+ <d8ad71a2-5322-8d28-8d4e-d9b5cb5a9439@ganssle.io>
+ <619825e1-be2e-b8e7-6eef-07921baebc7f@egenix.com>
+ <CA+3bQGHjCJ83TSP4c_H4S7-kPR=BrR2FPa3SJFjXOuUJFJ+Sog@mail.gmail.com>
+Message-ID: <89f632ac-de3e-a985-ed92-c314fd16a88f@ganssle.io>
+
+> From Marc-Andre Lemburg, I understand that Paul's PR is a good
+> compromise and that other datetime implementations which cannot use
+> tzidx() cache (because it's limited to an integer in [0; 254]) can
+> subclass datetime or use a cache outside datetime.
+
+One idea that we can put out there (though I'm hesitant to suggest it,
+because generally Python avoids this sort of language lawyering anyway),
+is that I think it's actually fine to allow the situations under which
+`tzidx()` will cache a value could be implementation-dependent, and to
+document that in CPython it's only integers? in [0; 254].
+
+The reason to mention this is that I suspect that PyPy, which has a
+pure-python implementation of datetime, will likely either choose to
+forgo the cache entirely and always fall through to the underlying
+function call or cache /any/ Python object returned, since with a pure
+Python implementation, they do not have the advantage of storing the
+tzidx cache in an unused padding byte.
+
+Other than the speed concerns, because of the fallback nature of
+datetime.tzidx, whether or not the cache is hit will not be visible to
+the end user, so I think it's fair to allow interpreter implementations
+to choose when a value is or is not cached according to what works best
+for their users.
+
+On 5/13/19 7:52 PM, Victor Stinner wrote:
+> Le ven. 10 mai 2019 ? 09:22, M.-A. Lemburg <mal at egenix.com> a ?crit :
+>> Given that many datetime objects in practice don't use timezones
+>> (e.g. in large data stores you typically use UTC and naive datetime
+>> objects), I think that making the object itself larger to accommodate
+>> for a cache, which will only be used a smaller percentage of the use
+>> cases, isn't warranted. Going from 64 bytes to 72 bytes also sounds
+>> like this could have negative effects on cache lines.
+>>
+>> If you need a per object cache, you can either use weakref
+>> objects or maintain a separate dictionary in dateutil or other
+>> timezone helpers which indexes objects by id(obj).
+>>
+>> That said, if you only add a byte field which doesn't make the object
+>> larger in practice (you merely use space that alignments would
+>> use anyway), this shouldn't be a problem. The use of that field
+>> should be documented, though, so that other implementations can
+>> use/provide it as well.
+> From Marc-Andre Lemburg, I understand that Paul's PR is a good
+> compromise and that other datetime implementations which cannot use
+> tzidx() cache (because it's limited to an integer in [0; 254]) can
+> subclass datetime or use a cache outside datetime.
+>
+> Note: right now, creating a weakref to a datetime fails.
+>
+> Victor
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190513/c4ea0d59/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190513/c4ea0d59/attachment.sig>
+
+From brett at python.org  Mon May 13 23:49:15 2019
+From: brett at python.org (Brett Cannon)
+Date: Mon, 13 May 2019 20:49:15 -0700
+Subject: [Python-Dev] Online Devguide mostly not working
+In-Reply-To: <0dd06bd3-3a69-0f49-8f6b-93aa81045767@farowl.co.uk>
+References: <qb7i3f$741n$1@blaine.gmane.org>
+ <CAK256p3rmZv0Vtik1U45WkS8LVy+Hvp8mi=qTXbnJ=V1d+H7RQ@mail.gmail.com>
+ <CACfEFw8=W+MB-TWNVe-AKxd-eeoLWLtXC5UGaC8u_ya8RaeKJw@mail.gmail.com>
+ <0dd06bd3-3a69-0f49-8f6b-93aa81045767@farowl.co.uk>
+Message-ID: <CAP1=2W7MOPP_MDmNTDGLbdhZVM_PPeHogjiwnfjnUvGp51-0jw@mail.gmail.com>
+
+It's working for me, so it was probably just a hiccup.
+
+On Sun, May 12, 2019 at 6:19 AM Jeff Allen <ja.py at farowl.co.uk> wrote:
+
+> Is it suspicious that in the detailed log we see:
+>
+>  'canonical_url': 'http://devguide.python.org/',
+>
+> ? I guess this comes from project admin configuration at RTD, additional
+> to your conf.py.
+>
+> https://docs.readthedocs.io/en/stable/canonical.html
+>
+> (Just guessing really.)
+>
+> Jeff Allen
+>
+> On 12/05/2019 08:10, Wes Turner wrote:
+>
+> https://cpython-devguide.readthedocs.io/ seems to work but
+> https://devguide.python.org/* does not
+>
+> https://readthedocs.org/projects/cpython-devguide/ lists maintainers, who
+> I've cc'd
+>
+> AFAIU, there's no reason that the HTTP STS custom domain CNAME support
+> would've broken this:
+> https://github.com/rtfd/readthedocs.org/issues/4135
+>
+> On Saturday, May 11, 2019, Jonathan Goble <jcgoble3 at gmail.com> wrote:
+>
+>> Confirming that I also cannot access the Getting Started page. I'm in
+>> Ohio, if it matters.
+>>
+>> On Sat, May 11, 2019 at 6:26 PM Terry Reedy <tjreedy at udel.edu> wrote:
+>> >
+>> > https://devguide.python.org gives the intro page with TOC on sidebar
+>> and
+>> > at end.  Clicking anything, such as Getting Started, which tries to
+>> > display https://devguide.python.org/setup/, returns a Read the Docs
+>> page
+>> > "Sorry This page does not exist yet."  'Down for everyone' site also
+>> > cannot access.
+>> >
+>> > --
+>> > Terry Jan Reedy
+>> >
+>> > _______________________________________________
+>> > Python-Dev mailing list
+>> > Python-Dev at python.org
+>> > https://mail.python.org/mailman/listinfo/python-dev
+>> > Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/jcgoble3%40gmail.com
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/wes.turner%40gmail.com
+>>
+>
+> _______________________________________________
+> Python-Dev mailing listPython-Dev at python.orghttps://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/ja.py%40farowl.co.uk
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190513/241378b4/attachment.html>
+
+From ja.py at farowl.co.uk  Tue May 14 02:52:36 2019
+From: ja.py at farowl.co.uk (Jeff Allen)
+Date: Tue, 14 May 2019 07:52:36 +0100
+Subject: [Python-Dev] Online Devguide mostly not working
+In-Reply-To: <CAP1=2W7MOPP_MDmNTDGLbdhZVM_PPeHogjiwnfjnUvGp51-0jw@mail.gmail.com>
+References: <qb7i3f$741n$1@blaine.gmane.org>
+ <CAK256p3rmZv0Vtik1U45WkS8LVy+Hvp8mi=qTXbnJ=V1d+H7RQ@mail.gmail.com>
+ <CACfEFw8=W+MB-TWNVe-AKxd-eeoLWLtXC5UGaC8u_ya8RaeKJw@mail.gmail.com>
+ <0dd06bd3-3a69-0f49-8f6b-93aa81045767@farowl.co.uk>
+ <CAP1=2W7MOPP_MDmNTDGLbdhZVM_PPeHogjiwnfjnUvGp51-0jw@mail.gmail.com>
+Message-ID: <e517bd77-4ccb-08d9-3d74-622ce1525863@farowl.co.uk>
+
+Hiccups cured thanks to Mariatta and Carol 
+https://github.com/python/devguide/pull/484. (And my guess was wrong.)
+
+Jeff Allen
+
+On 14/05/2019 04:49, Brett Cannon wrote:
+> It's working for me, so it was probably just a hiccup.
+>
+> On Sun, May 12, 2019 at 6:19 AM Jeff Allen <ja.py at farowl.co.uk 
+> <mailto:ja.py at farowl.co.uk>> wrote:
+>
+>     Is it suspicious that in the detailed log we see:
+>
+>       'canonical_url': 'http://devguide.python.org/',
+>
+>     ? I guess this comes from project admin configuration at RTD,
+>     additional to your conf.py.
+>
+>     https://docs.readthedocs.io/en/stable/canonical.html
+>
+>     (Just guessing really.)
+>
+>     Jeff Allen
+>
+>     On 12/05/2019 08:10, Wes Turner wrote:
+>>     https://cpython-devguide.readthedocs.io/ seems to work but
+>>     https://devguide.python.org <https://devguide.python.org/>/* does
+>>     not
+>>
+>>     https://readthedocs.org/projects/cpython-devguide/ lists
+>>     maintainers, who I've cc'd
+>>
+>>     AFAIU, there's no reason that the HTTP STS custom domain CNAME
+>>     support would've broken this:
+>>     https://github.com/rtfd/readthedocs.org/issues/4135
+>>
+>>     On Saturday, May 11, 2019, Jonathan Goble <jcgoble3 at gmail.com
+>>     <mailto:jcgoble3 at gmail.com>> wrote:
+>>
+>>         Confirming that I also cannot access the Getting Started
+>>         page. I'm in
+>>         Ohio, if it matters.
+>>
+>>         On Sat, May 11, 2019 at 6:26 PM Terry Reedy <tjreedy at udel.edu
+>>         <mailto:tjreedy at udel.edu>> wrote:
+>>         >
+>>         > https://devguide.python.org gives the intro page with TOC
+>>         on sidebar and
+>>         > at end.? Clicking anything, such as Getting Started, which
+>>         tries to
+>>         > display https://devguide.python.org/setup/, returns a Read
+>>         the Docs page
+>>         > "Sorry This page does not exist yet."? 'Down for everyone'
+>>         site also
+>>         > cannot access.
+>>         >
+>>         > --
+>>         > Terry Jan Reedy
+>>         >
+>>         > _______________________________________________
+>>         > Python-Dev mailing list
+>>         > Python-Dev at python.org <mailto:Python-Dev at python.org>
+>>         > https://mail.python.org/mailman/listinfo/python-dev
+>>         > Unsubscribe:
+>>         https://mail.python.org/mailman/options/python-dev/jcgoble3%40gmail.com
+>>         _______________________________________________
+>>         Python-Dev mailing list
+>>         Python-Dev at python.org <mailto:Python-Dev at python.org>
+>>         https://mail.python.org/mailman/listinfo/python-dev
+>>         Unsubscribe:
+>>         https://mail.python.org/mailman/options/python-dev/wes.turner%40gmail.com
+>>
+>>
+>>     _______________________________________________
+>>     Python-Dev mailing list
+>>     Python-Dev at python.org  <mailto:Python-Dev at python.org>
+>>     https://mail.python.org/mailman/listinfo/python-dev
+>>     Unsubscribe:https://mail.python.org/mailman/options/python-dev/ja.py%40farowl.co.uk
+>     _______________________________________________
+>     Python-Dev mailing list
+>     Python-Dev at python.org <mailto:Python-Dev at python.org>
+>     https://mail.python.org/mailman/listinfo/python-dev
+>     Unsubscribe:
+>     https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190514/202c3d57/attachment-0001.html>
+
