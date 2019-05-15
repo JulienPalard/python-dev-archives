@@ -9276,3 +9276,97 @@ On 14/05/2019 04:49, Brett Cannon wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190514/202c3d57/attachment-0001.html>
 
+From steve.dower at python.org  Tue May 14 13:52:15 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Tue, 14 May 2019 10:52:15 -0700
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 2nd version
+In-Reply-To: <CA+3bQGEgBVUL0VE04mJwSDKm46X3U=3cZejLV+9jiGFDwbowSQ@mail.gmail.com>
+References: <CA+3bQGF7XbUT1WfO3KB+9Xa-si30ozQY6h0J2bBqpi6rj-XG9g@mail.gmail.com>
+ <CA+3bQGEgBVUL0VE04mJwSDKm46X3U=3cZejLV+9jiGFDwbowSQ@mail.gmail.com>
+Message-ID: <46a53765-e3dc-ac8f-bc39-2cc9077b9205@python.org>
+
+On 10May2019 1832, Victor Stinner wrote:
+> I studied code of applications embedding Python. Most of them has to
+> decode bytes strings to get wchar_t* to set home, argv, program name,
+> etc. I'm not sure that they use the "correct" encoding, especially
+> since Python 3.7 got UTF-8 Mode (PEP 540) and C locale coercion (PEP
+> 538).
+
+It looks like Py_DecodeLocale() is available very early on - why 
+wouldn't we recommend using this function? It seems to be nearly a 
+drop-in replacement for mbtowcs in the samples, and if memory allocation 
+is a big deal perhaps we could just add a version that writes to a buffer?
+
+That would provide a supported workaround for the encoding issues and 
+unblock people hitting trouble right now, yes?
+
+Cheers,
+Steve
+
+From barry at python.org  Tue May 14 21:11:14 2019
+From: barry at python.org (Barry Warsaw)
+Date: Tue, 14 May 2019 18:11:14 -0700
+Subject: [Python-Dev] PEP 581 (Using GitHub issues for CPython) is accepted
+Message-ID: <7407D51F-AC46-4423-AF4A-63940F80D629@python.org>
+
+As the BDFL-Delegate for PEP 581, and with the unanimous backing of the rest of the Steering Council, I hereby Accept this PEP.
+
+We would like to thank Mariatta for championing PEP 581, and to all the contributors to the discussion, both pro and con.  We appreciate your candor and respect for your fellow developers.  The SC believes that this migration is in the best interest of the Python community, and we look forward to the elaboration of the detailed migration plan (PEP 588).
+
+We also extend our heartfelt thanks Berker, Ezio, and everyone who has helped develop and maintain Roundup and bugs.python.org over the years.  bpo has been a critical component for Python development for a very long time, and we all greatly appreciate the time, effort, and devotion you have put into this resource.
+
+https://www.python.org/dev/peps/pep-0581/
+
+Onward we go!  The migration will be a large effort, with much planning, development, and testing, and we welcome volunteers who wish to help make it a reality.  I look forward to your contributions on PEP 588 and the actual work of migrating issues to GitHub.
+
+Cheers,
+-Barry (BDFL-Delegate, and on behalf of the Python Steering Council)
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190514/fa2a45d6/attachment.sig>
+
+From vstinner at redhat.com  Tue May 14 21:42:17 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Wed, 15 May 2019 03:42:17 +0200
+Subject: [Python-Dev] PEP 581 (Using GitHub issues for CPython) is
+ accepted
+In-Reply-To: <7407D51F-AC46-4423-AF4A-63940F80D629@python.org>
+References: <7407D51F-AC46-4423-AF4A-63940F80D629@python.org>
+Message-ID: <CA+3bQGFnoWoGVg8pmB8K=bT9u6MCsQsFjY-yir0YSbo+hR7G2g@mail.gmail.com>
+
+Congrats Mariatta :-)
+
+Victor
+
+Le mer. 15 mai 2019 ? 03:14, Barry Warsaw <barry at python.org> a ?crit :
+>
+> As the BDFL-Delegate for PEP 581, and with the unanimous backing of the rest of the Steering Council, I hereby Accept this PEP.
+>
+> We would like to thank Mariatta for championing PEP 581, and to all the contributors to the discussion, both pro and con.  We appreciate your candor and respect for your fellow developers.  The SC believes that this migration is in the best interest of the Python community, and we look forward to the elaboration of the detailed migration plan (PEP 588).
+>
+> We also extend our heartfelt thanks Berker, Ezio, and everyone who has helped develop and maintain Roundup and bugs.python.org over the years.  bpo has been a critical component for Python development for a very long time, and we all greatly appreciate the time, effort, and devotion you have put into this resource.
+>
+> https://www.python.org/dev/peps/pep-0581/
+>
+> Onward we go!  The migration will be a large effort, with much planning, development, and testing, and we welcome volunteers who wish to help make it a reality.  I look forward to your contributions on PEP 588 and the actual work of migrating issues to GitHub.
+>
+> Cheers,
+> -Barry (BDFL-Delegate, and on behalf of the Python Steering Council)
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
