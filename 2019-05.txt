@@ -13852,3 +13852,3004 @@ separate arguments is fine to me, I just think that no more complication
 is necessary.
 
 
+From vstinner at redhat.com  Thu May 16 05:57:24 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 16 May 2019 11:57:24 +0200
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CAPJVwBmrOBe4uBhH1sNdbxUdBJ3US4urBtpTVMHKakgZD9S3cQ@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <CAPJVwBmrOBe4uBhH1sNdbxUdBJ3US4urBtpTVMHKakgZD9S3cQ@mail.gmail.com>
+Message-ID: <CA+3bQGHbWAJSV7Y8hN0qwaya9YD2D_qXtyfkaSkpKoS2KrE1ng@mail.gmail.com>
+
+Le jeu. 16 mai 2019 ? 04:44, Nathaniel Smith <njs at pobox.com> a ?crit :
+> What happens if the hook raises an exception?
+
+Aha, thanks for asking the question!
+
+If there is a custom hook and the hook fails, the default hook logs
+the exception of the custom hook.
+
+Technically, even if the default hook fails, the default hook is
+called again to handle its own exception :-)
+
+The fallback uses a direct access to the C implementation of the
+default hook which reduces the risk of bugs.
+
+My implementation contains an unit test to ensure that if a custom
+hook raises an exception, it's a logged as expected ;-)
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Thu May 16 06:12:20 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 16 May 2019 12:12:20 +0200
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <qbj0cg$24cj$1@blaine.gmane.org>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+Message-ID: <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+
+Le jeu. 16 mai 2019 ? 08:39, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+>
+> 16.05.19 04:23, Victor Stinner ????:
+> > The first implementation of my API used sys.unraisablehook(exc_type,
+> > exc_value, exc_tb, obj). The problem is that Serhiy Storchaka asked me
+> > to add a new error message field which breaks the API: the API is not
+> > future-proof.
+> >
+> > I modified my API to create an object to pack arguments. The new API
+> > becomes sys.unraisablehook(unraisable) where unraisable has 4 fields:
+> > exc_type, exc_value, exc_tb, obj. This API is now future-proof: adding
+> > a new field will not break existing custom hooks!
+>
+> I prefer the former design, when the hook takes 5 arguments: exc_type,
+> exc_value, exc_tb, obj and msg. Any additional human readable
+> information can be encoded in msg, and machine readable information can
+> be encoded in msg or obj. Currently we have no plans for adding more
+> details, and I do not think that we will need to do this in future.
+> Packing arguments into a single extendable object just complicates the
+> code and increases the chance of raising an exception or crashing.
+>
+> Even obj and msg could be merged into a single object, and the hook
+> could check whether it is a string or callable. But passing them as
+> separate arguments is fine to me, I just think that no more complication
+> is necessary.
+
+I came to the UnraisableHookArgs structseq idea because of my bad
+experience with extension warnings "hooks". Let me tell you this story
+:-)
+
+To enhance ResourceWarning messages, I modified Python 3.6 to add a
+new "source" parameter to the warnings module. It's the object which
+caused the ResourceWarning. This object is mostly used to display the
+traceback where the object has been allocated, traceback read using
+tracemalloc.get_object_traceback() and so required tracemalloc to be
+enabled.
+
+   https://bugs.python.org/issue26604
+
+The problem is that the 2 warnings "hooks" use a fixed number of
+positional (and positional-or-keyword) parameters:
+
+def showwarning(message, category, filename, lineno, file=None, line=None): ...
+def formatwarning(message, category, filename, lineno, line=None): ...
+
+Adding a new parameter would simply break *all* custom hooks in the wild...
+
+At the same time, internally, the warnings module uses a
+WarningMessage object to "pack" all parameters into a single object. I
+was able to easily add a new "source" attribute to WarningMessage
+without breaking the code using WarningMessage.
+
+I added new hooks which accept WarningMessage:
+
+def _showwarnmsg(msg): ...
+def _formatwarnmsg(msg): ...
+
+The problem is to keep the backward compatibility: decide which hook
+should be called... How to detect that showwarning or _showwarnmsg has
+been overriden? If both are overriden, which one should be modified?
+
+The implementation is tricky, and it caused a few minor regressions:
+
+https://github.com/python/cpython/commit/be7c460fb50efe3b88a00281025d76acc62ad2fd
+
+All these problems are the consequence of the initial design choice of
+warnings hooks: using a fixed number of parameters. This API simply
+cannot be extended. IMHO it's a bad design,  and we can do better:
+WarningMessage is a better design.
+
+--
+
+I would prefer to not reproduce the same API design mistake with
+sys.unraisablehook.
+
+I modified my PR to only use 4 fields: (exc_type, exc_value, exc_tb, obj).
+
+I plan to add a 5th field "err_msg" ("error_message"?) later to
+enhance the hook (allow to pass a custom error message to give more
+context where the exception comes from). Passing a single
+UnraisableHookArgs parameter to sys.unraisablehook allows to add a 5th
+field without breaking the backward compatibility.
+
+> Any additional human readable
+> information can be encoded in msg, and machine readable information can
+> be encoded in msg or obj.
+
+IMHO it's very risky to declare the current API as "complete". In my
+experience, we always want to enhance an API at some point to pass
+more information. IMHO the warnings module with my new "source"
+parameter is a good example.
+
+For unraisable hook, it's not hard to imagine other useful parameters
+that can be passed to the hook to provide more context about the
+exception. For example, right now we only pass one object. But there
+are cases where a second object would totally makes sense.
+
+--
+
+> Packing arguments into a single extendable object just complicates the
+> code and increases the chance of raising an exception or crashing.
+
+Technically, UnraisableHookArgs is basically a tuple of 4 items. I
+consider that there is a low risk that creating the object can fail.
+
+UnraisableHookArgs creation failure *is* covered by my implementation!
+The default hook is called directly in C without using a temporary
+UnraisableHookArgs object. The exception which caused the failure is
+logged as well.
+
+IMHO the very little risk of UnraisableHookArgs creation failure is
+worth it, compared to the pain to extend an API based on a fixed
+number of parameters.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From andrew.svetlov at gmail.com  Thu May 16 06:39:28 2019
+From: andrew.svetlov at gmail.com (Andrew Svetlov)
+Date: Thu, 16 May 2019 13:39:28 +0300
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+Message-ID: <CAL3CFcWPy8p7Ove3AeTC-Z1=bOX7K+q1oaYe+DE++=zfZnzpaA@mail.gmail.com>
+
+After the detailed explanation, UnraisableHookArgs makes sense.
+Forward-compatibility is important thing
+
+On Thu, May 16, 2019 at 1:12 PM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Le jeu. 16 mai 2019 ? 08:39, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+> >
+> > 16.05.19 04:23, Victor Stinner ????:
+> > > The first implementation of my API used sys.unraisablehook(exc_type,
+> > > exc_value, exc_tb, obj). The problem is that Serhiy Storchaka asked me
+> > > to add a new error message field which breaks the API: the API is not
+> > > future-proof.
+> > >
+> > > I modified my API to create an object to pack arguments. The new API
+> > > becomes sys.unraisablehook(unraisable) where unraisable has 4 fields:
+> > > exc_type, exc_value, exc_tb, obj. This API is now future-proof: adding
+> > > a new field will not break existing custom hooks!
+> >
+> > I prefer the former design, when the hook takes 5 arguments: exc_type,
+> > exc_value, exc_tb, obj and msg. Any additional human readable
+> > information can be encoded in msg, and machine readable information can
+> > be encoded in msg or obj. Currently we have no plans for adding more
+> > details, and I do not think that we will need to do this in future.
+> > Packing arguments into a single extendable object just complicates the
+> > code and increases the chance of raising an exception or crashing.
+> >
+> > Even obj and msg could be merged into a single object, and the hook
+> > could check whether it is a string or callable. But passing them as
+> > separate arguments is fine to me, I just think that no more complication
+> > is necessary.
+>
+> I came to the UnraisableHookArgs structseq idea because of my bad
+> experience with extension warnings "hooks". Let me tell you this story
+> :-)
+>
+> To enhance ResourceWarning messages, I modified Python 3.6 to add a
+> new "source" parameter to the warnings module. It's the object which
+> caused the ResourceWarning. This object is mostly used to display the
+> traceback where the object has been allocated, traceback read using
+> tracemalloc.get_object_traceback() and so required tracemalloc to be
+> enabled.
+>
+>    https://bugs.python.org/issue26604
+>
+> The problem is that the 2 warnings "hooks" use a fixed number of
+> positional (and positional-or-keyword) parameters:
+>
+> def showwarning(message, category, filename, lineno, file=None, line=None): ...
+> def formatwarning(message, category, filename, lineno, line=None): ...
+>
+> Adding a new parameter would simply break *all* custom hooks in the wild...
+>
+> At the same time, internally, the warnings module uses a
+> WarningMessage object to "pack" all parameters into a single object. I
+> was able to easily add a new "source" attribute to WarningMessage
+> without breaking the code using WarningMessage.
+>
+> I added new hooks which accept WarningMessage:
+>
+> def _showwarnmsg(msg): ...
+> def _formatwarnmsg(msg): ...
+>
+> The problem is to keep the backward compatibility: decide which hook
+> should be called... How to detect that showwarning or _showwarnmsg has
+> been overriden? If both are overriden, which one should be modified?
+>
+> The implementation is tricky, and it caused a few minor regressions:
+>
+> https://github.com/python/cpython/commit/be7c460fb50efe3b88a00281025d76acc62ad2fd
+>
+> All these problems are the consequence of the initial design choice of
+> warnings hooks: using a fixed number of parameters. This API simply
+> cannot be extended. IMHO it's a bad design,  and we can do better:
+> WarningMessage is a better design.
+>
+> --
+>
+> I would prefer to not reproduce the same API design mistake with
+> sys.unraisablehook.
+>
+> I modified my PR to only use 4 fields: (exc_type, exc_value, exc_tb, obj).
+>
+> I plan to add a 5th field "err_msg" ("error_message"?) later to
+> enhance the hook (allow to pass a custom error message to give more
+> context where the exception comes from). Passing a single
+> UnraisableHookArgs parameter to sys.unraisablehook allows to add a 5th
+> field without breaking the backward compatibility.
+>
+> > Any additional human readable
+> > information can be encoded in msg, and machine readable information can
+> > be encoded in msg or obj.
+>
+> IMHO it's very risky to declare the current API as "complete". In my
+> experience, we always want to enhance an API at some point to pass
+> more information. IMHO the warnings module with my new "source"
+> parameter is a good example.
+>
+> For unraisable hook, it's not hard to imagine other useful parameters
+> that can be passed to the hook to provide more context about the
+> exception. For example, right now we only pass one object. But there
+> are cases where a second object would totally makes sense.
+>
+> --
+>
+> > Packing arguments into a single extendable object just complicates the
+> > code and increases the chance of raising an exception or crashing.
+>
+> Technically, UnraisableHookArgs is basically a tuple of 4 items. I
+> consider that there is a low risk that creating the object can fail.
+>
+> UnraisableHookArgs creation failure *is* covered by my implementation!
+> The default hook is called directly in C without using a temporary
+> UnraisableHookArgs object. The exception which caused the failure is
+> logged as well.
+>
+> IMHO the very little risk of UnraisableHookArgs creation failure is
+> worth it, compared to the pain to extend an API based on a fixed
+> number of parameters.
+>
+> Victor
+> --
+> Night gathers, and now my watch begins. It shall not end until my death.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/andrew.svetlov%40gmail.com
+
+
+
+-- 
+Thanks,
+Andrew Svetlov
+
+From storchaka at gmail.com  Thu May 16 06:54:04 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Thu, 16 May 2019 13:54:04 +0300
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+Message-ID: <qbjfgd$2qgd$1@blaine.gmane.org>
+
+16.05.19 13:12, Victor Stinner ????:
+> I came to the UnraisableHookArgs structseq idea because of my bad
+> experience with extension warnings "hooks". Let me tell you this story
+> :-)
+
+I know this story, because I followed these issues.
+
+> For unraisable hook, it's not hard to imagine other useful parameters
+> that can be passed to the hook to provide more context about the
+> exception. For example, right now we only pass one object. But there
+> are cases where a second object would totally makes sense.
+
+If you have plans for adding new details in future, I propose to add a 
+6th parameter "context" or "extra" (always None currently). It is as 
+extensible as packing all arguments into a single structure, but you do 
+not need to introduce the structure type and create its instance until 
+you need to pass additional info.
+
+
+From solipsis at pitrou.net  Thu May 16 07:31:00 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 16 May 2019 13:31:00 +0200
+Subject: [Python-Dev] deprecation of abstractstaticmethod and
+ abstractclassmethod
+References: <51c99452-91d3-a479-2666-1af554c433e2@stoneleaf.us>
+ <CAPJVwB=czHqzrfV33LmUd-zrqM8xpizzbKC8PEPos1zOQhmo8w@mail.gmail.com>
+ <571659b9-d63e-4bf9-ba06-56e7555b9aa8@python.org>
+Message-ID: <20190516133100.08acad67@fsol>
+
+On Wed, 15 May 2019 13:00:16 -0700
+Steve Dower <steve.dower at python.org> wrote:
+
+> On 15May2019 1248, Nathaniel Smith wrote:
+> > I don't care about the deprecation either way. But can we fix the 
+> > individual decorators so both orders work? Even if it requires a special 
+> > case in the code, it seems worthwhile to remove a subtle user-visible 
+> > footgun.  
+> 
+> The classmethod and staticmethod objects already have a getter for 
+> __isabstractmethod__ that forwards to the underlying object, so they 
+> should just need a setter as well, right?
+
+Or, alternatively, raise an error if the wrong ordering is applied.
+Failing silently isn't very helpful.
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Thu May 16 08:02:49 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 16 May 2019 14:02:49 +0200
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 3rd version
+In-Reply-To: <7ddebc01-a067-4b52-48b7-e90347ed7cc7@gmail.com>
+References: <CA+3bQGHTqcgayS7YqeO6as3M3_J=KSX_v-cEYOf9UQX=5y+wkw@mail.gmail.com>
+ <7ddebc01-a067-4b52-48b7-e90347ed7cc7@gmail.com>
+Message-ID: <CA+3bQGG8BdtVxh2jDWFKo4mn=n0dxzg4pPnTbsqvFhRMUFcdeg@mail.gmail.com>
+
+(Le jeu. 16 mai 2019 ? 06:34, Gregory Szorc <gregory.szorc at gmail.com> a ?crit :
+> > I know that the PEP is long, but well, it's a complex topic, and I
+> > chose to add many examples to make the API easier to understand.
+>
+> I saw your request for feedback on Twitter a few days back and found
+> this thread.
+>
+> This PEP is of interest to me because I'm the maintainer of PyOxidizer -
+> a project for creating single file executables embedding Python.
+
+Aha, interesting :-)
+
+> As part
+> of hacking on PyOxidizer, I will admit to grumbling about the current
+> state of the configuration and initialization mechanisms. The reliance
+> on global variables and the haphazard way in which you must call certain
+> functions before others was definitely a bit frustrating to deal with.
+
+Yeah, that's what I tried to explain in the PEP 587 Rationale.
+
+
+> My most important piece of feedback is: thank you for tackling this!
+> Your work to shore up the inner workings of interpreter state and
+> management is a big deal on multiple dimensions. I send my sincere
+> gratitude.
+
+You're welcome ;-)
+
+
+> PyPreConfig_INIT and PyConfig_INIT as macros that return a struct feel
+> weird to me. Specifically, the `PyPreConfig preconfig =
+> PyPreConfig_INIT;` pattern doesn't feel right. I'm sort of OK with these
+> being implemented as macros. But I think they should look like function
+> calls so the door is open to converting them to function calls in the
+> future.
+
+Ah yes, I noticed that some projects can only import symbols, not use
+directly the C API. You're right that such macro can be an issue.
+
+Would you be ok with a "PyConfig_Init(PyConfig *config);" function
+which would initialize all fields to theire default values? Maybe
+PyConfig_INIT should be renamed to PyConfig_STATIC_INIT.
+
+You can find a similar API for pthread mutex, there is a init function
+*and* a macro for static initialization:
+
+       int pthread_mutex_init(pthread_mutex_t *restrict mutex,
+           const pthread_mutexattr_t *restrict attr);
+
+       pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+
+> PyPreConfig.allocator being a char* seems a bit weird. Does this imply
+> having to use strcmp() to determine which allocator to use? Perhaps the
+> allocator setting should be an int mapping to a constant instead?
+
+Yes, _PyMem_SetupAllocators() uses strcmp(). There are 6 supported values:
+
+* "default"
+* "debug"
+* "pymalloc"
+* "pymalloc_debug"
+* "malloc"
+* "malloc_debug"
+
+Note: pymalloc and pymalloc_debug are not supported if Python is
+explicitly configure using --without-pymalloc.
+
+I think that I chose to use string because the feature was first
+implemented using an environment variable.
+
+Actually, I *like* the idea of avoiding string in PyPreConfig because
+a string might need memory allocation, whereas the pre-initialization
+is supposed to configure memory allocation :-) I will change the type
+to an enum.
+
+
+> Relatedly, how are custom allocators registered? e.g. from Rust, I want
+> to use Rust's allocator. How would I do that in this API? Do I still
+> need to call PyMem_SetAllocator()?
+
+By default, PyPreConfig.allocator is set to NULL. In that case,
+_PyPreConfig_Write() leaves the memory allocator unmodified.
+
+As PyImport_AppendInittab() and PyImport_ExtendInittab(),
+PyMem_SetAllocator() remains relevant and continue to work as
+previously.
+
+Example to set your custom allocator:
+---
+PyInitError err = Py_PreInitialize(NULL);
+if (Py_INIT_FAILED(err)) {
+    Py_ExitInitError(err);
+}
+PyMem_SetAllocator(PYMEM_DOMAIN_MEM, my_cool_allocator);
+---
+
+Well, it also works in the opposite order, but I prefer to call
+PyMem_SetAllocator() after the pre-initialization to make it more
+explicit :-)
+---
+PyMem_SetAllocator(PYMEM_DOMAIN_MEM, my_cool_allocator);
+PyInitError err = Py_PreInitialize(NULL);
+if (Py_INIT_FAILED(err)) {
+    Py_ExitInitError(err);
+}
+---
+
+
+> I thought a point of this proposal
+> was to consolidate per-interpreter config settings?
+
+Right. But PyMem_SetAllocator() uses PyMemAllocatorDomain enum and
+PyMemAllocatorEx structure which are not really "future-proof". For
+example, I already replaced PyMemAllocator with PyMemAllocatorEx to
+add "calloc". We might extend it later one more time to add allocator
+with a specific memory alignement (even if the issue is now closed):
+
+https://bugs.python.org/issue18835
+
+I consider that PyMem_SetAllocator() is too specific to be added to PyPreConfig.
+
+Are you fine with that?
+
+
+> I'm a little confused about the pre-initialization functions that take
+> command arguments. Is this intended to only be used for parsing the
+> arguments that `python` recognizes? Presumably a custom application
+> embedding Python would never use these APIs unless it wants to emulate
+> the behavior of `python`? (I suppose this can be clarified in the API
+> docs once this is implemented.)
+
+Yes, Py_PreInitializeFromArgs() parses -E, -I, -X dev and -X utf8 options:
+https://www.python.org/dev/peps/pep-0587/#command-line-arguments
+
+Extract of my "Isolate Python" section:
+
+"The default configuration is designed to behave as a regular Python.
+To embed Python into an application, it's possible to tune the
+configuration to better isolated the embedded Python from the system:
+(...)"
+
+https://www.python.org/dev/peps/pep-0587/#isolate-python
+
+I wasn't sure if I should mention parse_argv=0 in this section or not.
+According to what you wrote, I should :-)
+
+*Maybe* rather than documenting how to isolate Python, we might even
+provide a function for that?
+
+void PyConfig_Isolate(PyConfig *config)
+{ config->isolated = 1; config->parse_argv = 0; }
+
+I didn't propose that because so far, I'm not sure that everybody has
+the same opinion on what "isolation" means. Does it only mean ignore
+environment variables? Or also ignore configuration files? What about
+the path configuration?
+
+That's why I propose to start without such opiniated
+PyConfig_Isolate() function :-)
+
+
+> What about PyImport_FrozenModules? This is a global variable related to
+> Python initialization (it contains _frozen_importlib and
+> _frozen_importlib_external) but it is not accounted for in the PEP.
+> I rely on this struct in PyOxidizer to replace the importlib modules with
+> custom versions so we can do 0-copy in-memory import of Python bytecode
+> for the entirety of the standard library. Should the PyConfig have a
+> reference to the _frozen[] to use? Should the _frozen struct be made
+> part of the public API?
+
+
+First of all, PEP 587 is designed to be easily extendable :-) I added
+_config_version field to even provide backward ABI compatibility.
+
+Honestly, I never looked at PyImport_FrozenModules. It seems to fall
+into the same category than "importtab": kind of corner case use case
+which cannot be easily generalized into PyConfig structure.
+
+As I would say the same that what I wrote about
+PyImport_AppendInittab(): PyImport_FrozenModules symbol remains
+relevant and continue to work as expected. I understand that it must
+be set before the initialization, and it seems safe to set it even
+before the pre-initialization since it's a static array.
+
+Note: I renamed PyConfig._frozen to PyConfig.pathconfig_warnings: it's
+an int and it's unrelated to PyImport_FrozenModules.
+
+
+> I rely on this struct in PyOxidizer to replace the importlib modules with
+> custom versions so we can do 0-copy in-memory import of Python bytecode
+> for the entirety of the standard library.
+
+Wait, that sounds like a cool feature! Would it make sense to make
+this feature upstream? If yes, maybe send a separated email to
+python-dev and/or open an issue.
+
+
+> The PEP mentions a private PyConfig._install_importlib member. I'm
+> curious what this is because it may be relevant to PyOxidizer. FWIW I
+> /might/ be interested in a mechanism to better control importlib
+> initialization because PyOxidizer is currently doing dirty things at
+> run-time to register the custom 0-copy meta path importer. I /think/ my
+> desired API would be a mechanism to control the name(s) of the frozen
+> module(s) to use to bootstrap importlib. Or there would be a way to
+> register the names of additional frozen modules to import and run as
+> part of initializing importlib (before any .py-based stdlib modules are
+> imported). Then PyOxidizer wouldn't need to hack up the source code to
+> importlib, compile custom bytecode, and inject it via
+> PyImport_FrozenModules. I concede this may be out of scope for the PEP.
+> But if the API is being reworked, I'd certainly welcome making it easier
+> for tools like PyOxidizer to work their crazy module importing magic :)
+
+PEP 587 is an incomplete implementation of the PEP 432. We are
+discussing with Nick Coghlan, Steve Dower and some others about having
+2 phases for the Python initialization: "core" and "main". The "core"
+phase would provide a bare minimum working Python: builtin exceptions
+and types, maybe builtin imports, and that's basically all. It would
+allow to configure Python using the newly created interpreter, for
+example configure Python by running Python code.
+
+The problem is that these 2 phases are not well defined yet, it's
+still under discussion. Nick and me agreed to start with PEP 587 as a
+first milestone, and see later how to implement "core" and "main"
+phases.
+
+If the private field "_init_main" of the PEP 587 is set to 0,
+Py_InitializeFromConfig() stops at the "core" phase (in fact, it's
+already implemented!). But I didn't implement yet a
+_Py_InitializeMain() function to "finish" the initialization. Let's
+say that it exists, we would get:
+
+---
+PyConfig config = PyConfig_INIT;
+config._init_main = 0;
+PyInitError err = Py_InitializeFromConfig(&config);
+if (Py_INIT_FAILED(err)) {
+    Py_ExitInitError(err);
+}
+
+/* add your code to customize Python here */
+/* calling PyRun_SimpleString() here is safe */
+
+/* finish Python initialization */
+PyInitError err = _Py_InitializeMain(&config);
+if (Py_INIT_FAILED(err)) {
+    Py_ExitInitError(err);
+}
+---
+
+Would it solve your use case?
+
+Sorry, I didn't understand properly what you mean by "controlling the
+names of the frozen modules to use to bootstrap importlib".
+
+
+> I really like the new Py_RunMain() API and associated PyConfig members.
+> I also invented this wheel in PyOxidizer and the new API should result
+> in me deleting some code that I wish I didn't have to write in the first
+> place :)
+
+Great!
+
+
+> I invented a data structure for representing a Python interpreter
+> configuration. And the similarities to PyConfig are striking. I think
+> that's a good sign :)
+
+He he :-)
+
+> It might be useful to read through that file -
+> especially the init function (line with `pub fn init`) to see if
+> anything I'm doing pushes the boundaries of the proposed API. Feel free
+> to file GitHub issues if you see obvious bugs with PyOxidizer's Python
+> initialization logic while you're at it :)
+
+Your link didn't work, but I found:
+https://github.com/indygreg/PyOxidizer/blob/master/pyoxidizer/src/pyembed/pyinterp.rs
+
+"write_modules_directory_env" seems very specific to your needs. Apart
+of that, I confirm that PythonConfig is very close to PEP 587
+PyConfig! I notice that you also avoided double negation, thanks ;-)
+
+
+/* Pre-initialization functions we could support:
+*
+* PyObject_SetArenaAllocator()
+* PySys_AddWarnOption()
+* PySys_AddXOption()
+* PySys_ResetWarnOptions()
+*/
+
+Apart PyObject_SetArenaAllocator(), PyConfig implements the 3 other functions.
+
+Again, ss PyMem_SetAllocator(), PyObject_SetArenaAllocator() remains
+relevant and can be used with the pre-initialization.
+
+PySys_SetObject("argv", obj) is covered by PyConfig.argv.
+
+PySys_SetObject("argvb", obj): I'm not sure why you are doing that,
+it's easy to retrieve sys.argv as bytes, it's now even documented:
+https://docs.python.org/dev/library/sys.html#sys.argv
+
+---
+
+Sorry, I'm not an importlib expert. I'm not sure what could be done in
+PEP 587 for your specific importlib changes.
+
+
+> Also, one thing that tripped me up a few times when writing PyOxidizer
+> was managing the lifetimes of memory that various global variables point
+> to. The short version is I was setting Python globals to point to memory
+> allocated by Rust and I managed to crash Python by freeing memory before
+> it should have been. Since the new API seems to preserve support for
+> global variables, I'm curious if there are changes to how memory must be
+> managed. It would be really nice to get to a state where you only need
+> to ensure the PyConfig instance and all its referenced memory only needs
+> to outlive the interpreter it configures. That would make the memory
+> lifetimes story intuitive and easily compatible with Rust.
+
+For the specific case of PyConfig, you have to call
+PyConfig_Clear(config) after you called Py_InitializeFromConfig().
+Python keeps a copy of your configuration (and it completes the
+missing fields, if needed).
+
+I modified a lot of functions to ensure that Python cleanups more
+globals at exit in Py_Finalize() and at the end of Py_Main() /
+Py_RunMain().
+
+I'm not sure if it replies to your question. If you want a more
+specific, can you please give more concrete examples of globals?
+
+There is also an on-going refactoring to move globals into
+_PyRuntimeState and PyInterpreterState: change needed to support
+subinterpreters, see Eric Snow's PEP 554.
+
+
+> One feature that I think is missing from the proposal (and this is
+> related to the previous paragraph) is the ability to prevent config
+> fallback to things that aren't PyConfig and PyPreConfig. There is
+> `PyConfig.parse_argv` to disable command argument parsing and
+> `PyConfig.use_environment` to disable environment variable fallback. But
+> AFAICT there is no option to disable configuration file fallback nor
+> global variable fallback.
+
+If you embed Python, you control global configuration variables, no? I
+chose to design PyConfig to inherit global configuration variables
+because it allows to support both ways to configure Python using a
+single implementation.
+
+Would you prefer an explicit PyConfig_SetDefaults(config) which would
+completely ignore global configuration variables?
+
+See Lib/test/test_embed.py unit tests which uses Programs/_testembed.c:
+https://github.com/python/cpython/blob/master/Programs/_testembed.c
+
+python._pth (Windows only), pybuilddir.txt (Unix only) and pyvenv.cfg
+configuration files are only used by the function building the "Path
+Configuration".
+
+Using PEP 587, you can now completely ignore this function:
+https://www.python.org/dev/peps/pep-0587/#path-configuration
+
+
+> Again, this proposal is terrific overall and so much better than what we
+> have today. The wall of text I just wrote is disproportionate in size to
+> the quality of the PEP. I almost feel bad writing so much feedback for
+> such a terrific PEP ;)
+>
+> Excellent work, Victor. I can't wait to see these changes materialize!
+
+Thanks :-)
+
+Thanks for your very interesting feedback. It's really helpful to see
+how the API is used "for real" :-)
+
+Victor
+
+From p.f.moore at gmail.com  Thu May 16 09:30:37 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 16 May 2019 14:30:37 +0100
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 3rd version
+In-Reply-To: <CA+3bQGG8BdtVxh2jDWFKo4mn=n0dxzg4pPnTbsqvFhRMUFcdeg@mail.gmail.com>
+References: <CA+3bQGHTqcgayS7YqeO6as3M3_J=KSX_v-cEYOf9UQX=5y+wkw@mail.gmail.com>
+ <7ddebc01-a067-4b52-48b7-e90347ed7cc7@gmail.com>
+ <CA+3bQGG8BdtVxh2jDWFKo4mn=n0dxzg4pPnTbsqvFhRMUFcdeg@mail.gmail.com>
+Message-ID: <CACac1F9+0vtWNXBhONcZ57-uUvPmrAivVvaKe6xkVjNrPT78nA@mail.gmail.com>
+
+On Thu, 16 May 2019 at 13:05, Victor Stinner <vstinner at redhat.com> wrote:
+> > PyPreConfig_INIT and PyConfig_INIT as macros that return a struct feel
+> > weird to me. Specifically, the `PyPreConfig preconfig =
+> > PyPreConfig_INIT;` pattern doesn't feel right. I'm sort of OK with these
+> > being implemented as macros. But I think they should look like function
+> > calls so the door is open to converting them to function calls in the
+> > future.
+>
+> Ah yes, I noticed that some projects can only import symbols, not use
+> directly the C API. You're right that such macro can be an issue.
+
+I've not been following this PEP particularly, but I can confirm that
+the Vim bindings for Python also have this restriction (at least on
+Windows). To allow binding to the Python interpreter at runtime, and
+only on demand, the interface does an explicit
+LoadLibrary/GetProcAddress call for each C API function that's used.
+That means macros are unavailable (short of wholesale copying of the
+Python headers). (It's also a painfully laborious bit of code, and it
+would be nice if there were a better way of doing it, but I've never
+had the time/motivation to try to improve this, so that's just how
+it's stayed).
+
+Paul
+
+From vstinner at redhat.com  Thu May 16 09:47:22 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 16 May 2019 15:47:22 +0200
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <qbjfgd$2qgd$1@blaine.gmane.org>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+Message-ID: <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+
+Le jeu. 16 mai 2019 ? 12:57, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+> > For unraisable hook, it's not hard to imagine other useful parameters
+> > that can be passed to the hook to provide more context about the
+> > exception. For example, right now we only pass one object. But there
+> > are cases where a second object would totally makes sense.
+>
+> If you have plans for adding new details in future, I propose to add a
+> 6th parameter "context" or "extra" (always None currently). It is as
+> extensible as packing all arguments into a single structure, but you do
+> not need to introduce the structure type and create its instance until
+> you need to pass additional info.
+
+In my implementation, UnraisableHookArgs is a C "structseq" type. In
+short, it's a tuple. make_unraisable_hook_args() basically builds a
+tuple of 4 items and uses PyTuple_SET_ITEM() to set the items.
+_PyErr_WriteUnraisableDefaultHook() uses PyStructSequence_GET_ITEM()
+to get items.
+
+The code pack and unpack UnraisableHookArgs is simple and reliable.
+
+An "unraisable exception" doesn't mean that Python is collapsing. It
+only means that the code is unable to report the exception to the
+caller: there is no reason why allocating a 4-tuple or calling a
+simple Python function (sys.unraisablehook) would fail.
+
+--
+
+I dislike the compromise of having an API in 2 parts: positional
+parameters for some parameters, and a structure for some other
+parameters. I prefer to pack all arguments into a single structure.
+
+--
+
+IMHO it's readable to get attributes from an object in a Python hook:
+it doesn't surprised me, OOP is common in Python :-) Simplified
+example of a pure Python reimplementation of the default hook:
+
+def myhook(unraisable):
+    if unraisable.obj is not None:
+        print(f"Exception ignored in: {unraisable.obj!r}")
+
+    if unraisable.exc_tb is not None:
+        traceback.print_tb(unraisable.exc_tb)
+
+    print(f"{unraisable.exc_type.__name__}: {unraisable.exc_value}")
+
+Compared to positional arguments:
+
+def myhook(exc_type, exc_value, exc_tb, obj, extras):
+    if obj is not None:
+        print(f"Exception ignored in: {obj!r}")
+
+    if exc_tb is not None:
+        print_tb(exc_tb, file=file)
+
+    print(f"{exc_type.__name__}: {exc_value}")
+
+Again, the warnings module uses a similar WarningsMsg structure and
+I'm not shocked by the implementation. Simplified code from
+Lib/warnings.py:
+
+def _formatwarnmsg_impl(msg):
+    category = msg.category.__name__
+    s =  f"{msg.filename}:{msg.lineno}: {category}: {msg.message}\n"
+
+    if msg.line is None:
+        line = linecache.getline(msg.filename, msg.lineno)
+    else:
+        line = msg.line
+    if line:
+        s += "  %s\n" % line.strip()
+
+    if msg.source is not None:
+        ...
+    return s
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From thomas at python.org  Thu May 16 10:10:06 2019
+From: thomas at python.org (Thomas Wouters)
+Date: Thu, 16 May 2019 16:10:06 +0200
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 3rd version
+In-Reply-To: <CA+3bQGG8BdtVxh2jDWFKo4mn=n0dxzg4pPnTbsqvFhRMUFcdeg@mail.gmail.com>
+References: <CA+3bQGHTqcgayS7YqeO6as3M3_J=KSX_v-cEYOf9UQX=5y+wkw@mail.gmail.com>
+ <7ddebc01-a067-4b52-48b7-e90347ed7cc7@gmail.com>
+ <CA+3bQGG8BdtVxh2jDWFKo4mn=n0dxzg4pPnTbsqvFhRMUFcdeg@mail.gmail.com>
+Message-ID: <CAPdQG2q-Mo2mMjQOd0oj1yKQXjfXvBvGshxc3kqXHUXRZaKziA@mail.gmail.com>
+
+On Thu, May 16, 2019 at 2:03 PM Victor Stinner <vstinner at redhat.com> wrote:
+
+> (Le jeu. 16 mai 2019 ? 06:34, Gregory Szorc <gregory.szorc at gmail.com> a
+> ?crit :
+> > > I know that the PEP is long, but well, it's a complex topic, and I
+> > > chose to add many examples to make the API easier to understand.
+> >
+> > I saw your request for feedback on Twitter a few days back and found
+> > this thread.
+> >
+> > This PEP is of interest to me because I'm the maintainer of PyOxidizer -
+> > a project for creating single file executables embedding Python.
+>
+> Aha, interesting :-)
+>
+
+Just for some context to everyone: Gregory's PyOxidizer is very similar to
+Hermetic Python, the thing we use at Google for all Python programs in our
+mono-repo. We had a short email discussion facilitated by Augie Fackler,
+who wants to use PyOxidizer for Mercurial, about how Hermetic Python works.
+
+At the PyCon sprints last week, I sat down with Victor, Steve Dower and
+Eric Snow, showing them how Hermetic Python embeds CPython, and what hoops
+it has to jump through and what issues we encountered. I think most of
+those issues would also apply to PyOxidizer, lthough it sounds like Gregory
+solved some of the issues a bit differently. (Hermetic Python was
+originally written for Python 2.7, so it doesn't try to deal with
+importlib's bootstrapping, for example.)
+
+I have some comments and questions about the PEP as well, some of which
+overlap with Gregory's or Victor's answers:
+
+[...]
+
+> > PyPreConfig_INIT and PyConfig_INIT as macros that return a struct feel
+> > weird to me. Specifically, the `PyPreConfig preconfig =
+> > PyPreConfig_INIT;` pattern doesn't feel right. I'm sort of OK with these
+> > being implemented as macros. But I think they should look like function
+> > calls so the door is open to converting them to function calls in the
+> > future.
+>
+> Ah yes, I noticed that some projects can only import symbols, not use
+> directly the C API. You're right that such macro can be an issue.
+>
+> Would you be ok with a "PyConfig_Init(PyConfig *config);" function
+> which would initialize all fields to theire default values? Maybe
+> PyConfig_INIT should be renamed to PyConfig_STATIC_INIT.
+>
+> You can find a similar API for pthread mutex, there is a init function
+> *and* a macro for static initialization:
+>
+>        int pthread_mutex_init(pthread_mutex_t *restrict mutex,
+>            const pthread_mutexattr_t *restrict attr);
+>
+>        pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+>
+
+This was going to be my suggestion as well: for any non-trivial macro, we
+should have a function for it instead. I would also point out that PEP 587
+has a code example that uses PyWideStringList_INIT, but that macro isn't
+mention anywhere else. The PEP is a bit unclear as to the semantics of
+PyWideStringList as a whole: the example uses a static array with length,
+but doesn't explain what would happen with statically allocated data like
+that if you call the Append or Extend functions. It also doesn't cover how
+e.g. argv parsing would remove items from the list. (I would also suggest
+the PEP shouldn't use the term 'list', at least not unqualified, if it
+isn't an actual Python list.)
+
+I understand the desire to make static allocation and initialisation
+possible, but since you only need PyWideStringList for PyConfig, not
+PyPreConfig (which sets the allocator), perhaps having a
+PyWideStringList_Init(), which copies memory, and PyWideStringList_Clear()
+to clear it, would be better?
+
+> What about PyImport_FrozenModules? This is a global variable related to
+> > Python initialization (it contains _frozen_importlib and
+> > _frozen_importlib_external) but it is not accounted for in the PEP.
+> > I rely on this struct in PyOxidizer to replace the importlib modules with
+> > custom versions so we can do 0-copy in-memory import of Python bytecode
+> > for the entirety of the standard library. Should the PyConfig have a
+> > reference to the _frozen[] to use? Should the _frozen struct be made
+> > part of the public API?
+>
+>
+> First of all, PEP 587 is designed to be easily extendable :-) I added
+> _config_version field to even provide backward ABI compatibility.
+>
+> Honestly, I never looked at PyImport_FrozenModules. It seems to fall
+> into the same category than "importtab": kind of corner case use case
+> which cannot be easily generalized into PyConfig structure.
+>
+> As I would say the same that what I wrote about
+> PyImport_AppendInittab(): PyImport_FrozenModules symbol remains
+> relevant and continue to work as expected. I understand that it must
+> be set before the initialization, and it seems safe to set it even
+> before the pre-initialization since it's a static array.
+>
+> Note: I renamed PyConfig._frozen to PyConfig.pathconfig_warnings: it's
+> an int and it's unrelated to PyImport_FrozenModules.
+
+
+>
+> > I rely on this struct in PyOxidizer to replace the importlib modules with
+> > custom versions so we can do 0-copy in-memory import of Python bytecode
+> > for the entirety of the standard library.
+>
+> Wait, that sounds like a cool feature! Would it make sense to make
+> this feature upstream? If yes, maybe send a separated email to
+> python-dev and/or open an issue.
+
+
+> > The PEP mentions a private PyConfig._install_importlib member. I'm
+> > curious what this is because it may be relevant to PyOxidizer. FWIW I
+> > /might/ be interested in a mechanism to better control importlib
+> > initialization because PyOxidizer is currently doing dirty things at
+> > run-time to register the custom 0-copy meta path importer. I /think/ my
+> > desired API would be a mechanism to control the name(s) of the frozen
+> > module(s) to use to bootstrap importlib. Or there would be a way to
+> > register the names of additional frozen modules to import and run as
+> > part of initializing importlib (before any .py-based stdlib modules are
+> > imported). Then PyOxidizer wouldn't need to hack up the source code to
+> > importlib, compile custom bytecode, and inject it via
+> > PyImport_FrozenModules. I concede this may be out of scope for the PEP.
+> > But if the API is being reworked, I'd certainly welcome making it easier
+> > for tools like PyOxidizer to work their crazy module importing magic :)
+>
+> PEP 587 is an incomplete implementation of the PEP 432. We are
+> discussing with Nick Coghlan, Steve Dower and some others about having
+> 2 phases for the Python initialization: "core" and "main". The "core"
+> phase would provide a bare minimum working Python: builtin exceptions
+> and types, maybe builtin imports, and that's basically all. It would
+> allow to configure Python using the newly created interpreter, for
+> example configure Python by running Python code.
+>
+> The problem is that these 2 phases are not well defined yet, it's
+> still under discussion. Nick and me agreed to start with PEP 587 as a
+> first milestone, and see later how to implement "core" and "main"
+> phases.
+>
+> If the private field "_init_main" of the PEP 587 is set to 0,
+> Py_InitializeFromConfig() stops at the "core" phase (in fact, it's
+> already implemented!). But I didn't implement yet a
+> _Py_InitializeMain() function to "finish" the initialization. Let's
+> say that it exists, we would get:
+>
+> ---
+> PyConfig config = PyConfig_INIT;
+> config._init_main = 0;
+> PyInitError err = Py_InitializeFromConfig(&config);
+> if (Py_INIT_FAILED(err)) {
+>     Py_ExitInitError(err);
+> }
+>
+> /* add your code to customize Python here */
+> /* calling PyRun_SimpleString() here is safe */
+>
+> /* finish Python initialization */
+> PyInitError err = _Py_InitializeMain(&config);
+> if (Py_INIT_FAILED(err)) {
+>     Py_ExitInitError(err);
+> }
+> ---
+>
+> Would it solve your use case?
+>
+
+FWIW, I understand the need here: for Hermetic Python, we solved it by
+adding a new API similar to PyImport_AppendInittab, but instead registering
+a generic callback hook to be called *during* the initialisation process:
+after the base runtime and the import mechanism are initialised (at which
+point you can create Python objects), but before *any* modules are
+imported. We use that callback to insert a meta-importer that satisfies all
+stdlib imports from an embedded archive. (Using a meta-importer allows us
+to bypass the fileysystem altogether, even for what would otherwise be
+failed path lookups.)
+
+As I mentioned, Hermetic Python was originally written for Python 2.7, but
+this approach works fine with a frozen importlib as well. The idea of
+'core' and 'main' initialisation will likely work for this, as well.
+
+Other questions/comments about PEP 587:
+
+I really like the PyInitError struct. I would like more functions to use
+it, e.g. the PyRrun_* "very high level" API, which currently calls exit()
+for you on SystemExit, and returns -1 without any other information on
+error. For those, I'm not entirely sure 'Init' makes sense in the name...
+but I can live with it.
+
+A couple of things are documented as performing pre-initialisation
+(PyConfig_SetBytesString, PyConfig_SetBytesArgv). I understand why, but I
+feel like that might be confusing and error-prone. Would it not be better
+to have them fail if pre-initialisation hasn't been performed yet?
+
+The buffered_stdio field of PyConfig mentions stdout and stderr, but not
+stdin. Does it not affect stdin? (Many of the fields could do with a bit
+more explicit documentation, to be honest.)
+
+The configure_c_stdio field of PyConfig sounds like it might not set
+sys.stdin/stdout/stderr. That would be new behaviour, but configure_c_stdio
+doesn't have an existing equivalence, so I'm not sure if that's what you
+meant or not.
+
+The dll_path field of PyConfig says "Windows only". Does that meant the
+struct doesn't have that field except in a Windows build? Or is it ignored,
+instead? If it doesn't have that field at all, what #define can be used to
+determine if the PyConfig struct will have it or not?
+
+It feels a bit weird to have both 'inspect' and 'interactive' in PyConfig.
+Is there a substantive difference between them? Is this just so you can
+easily tell if any of run_module / run_command / run_filename are set?
+
+"module_search_path_env" sounds like an awkward and somewhat misleading
+name for the translation of PYTHONPATH. Can we not just use, say,
+pythonpath_env? I expect the intended audience to know that PYTHONPATH !=
+sys.path.
+
+The module_search_paths field in PyConfig doesn't mention if it's setting
+or adding to the calculated sys.path. As a whole, the path-calculation bits
+are a bit under-documented. Since this is an awkward bit of CPython, it
+wouldn't hurt to mention what "the default path configuration" does (i.e.
+search for python's home starting at program_name, add fixed subdirs to it,
+etc.)
+
+Path configuration is mentioned as being able to issue warnings, but it
+doesn't mention *how*. It can't be the warnings module at this stage. I
+presume it's just printing to stderr.
+
+Regarding Py_RunMain(): does it do the right thing when something calls
+PyErr_Print() with SystemExit set? (I mentioned last week that
+PyErr_Print() will call C's exit() in that case, which is obviously
+terrible for embedders.)
+
+Regarding isolated_mode and the site module, should we make stronger
+guarantees about site.py's behaviour being optional? The problem with site
+is that it does four things that aren't configurable, one of which is
+usually very desirable, one of which probably doesn't matter to embedders,
+and two that are iffy: sys.path deduplication and canonicalisation (and
+fixing up __file__/__cached__ attributes of already-imported modules);
+adding site-packages directories; looking for and importing
+sitecustomize.py; executing .pth files. The site module doesn't easily
+allow doing only some of these. (user-site directories are an exception, as
+they have their own flag, so I'm not listing that here.) With Hermetic
+Python we don't care about any of these (for a variety of different
+reasons), but I'm always a little worried that future Python versions would
+add behaviour to site that we *do* need.
+
+(As a side note, here's an issue I forgot to talk about last week: with
+Hermetic Python's meta-importers we have an ancillary regular import hook
+for correctly dealing with packages with modified __path__, so that for
+example 'xml' from the embedded stdlib zip can still import '_xmlplus' from
+the filesystem or a separate zip, and append its __path__ entries to its
+own. To do that, we use a special prefix to use for the embedded archive
+meta-importers; we don't want to use a file because they are not files on
+disk. The prefixes used to be something like '<embedded archive XXX at
+YYY>'. This works fine, and with correct ordering of import hooks nothing
+will try to find files named '<embedded archive XXX at YYY>'... until user
+code imports site for some reason, which then canonicalises sys.path,
+replacing the magic prefixes with '/path/to/cwd/<embedded archive XXX at
+YYY>'. We've since made the magic prefixes start with /, but I'm not happy
+with it :P)
+
+-- 
+Thomas Wouters <thomas at python.org>
+
+Hi! I'm an email virus! Think twice before sending your email to help me
+spread!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190516/8a8eba0b/attachment.html>
+
+From steve.dower at python.org  Thu May 16 11:23:08 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 16 May 2019 08:23:08 -0700
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 3rd version
+In-Reply-To: <7ddebc01-a067-4b52-48b7-e90347ed7cc7@gmail.com>
+References: <CA+3bQGHTqcgayS7YqeO6as3M3_J=KSX_v-cEYOf9UQX=5y+wkw@mail.gmail.com>
+ <7ddebc01-a067-4b52-48b7-e90347ed7cc7@gmail.com>
+Message-ID: <57ab48b9-fd1a-9300-d28b-8c3164b1d583@python.org>
+
+Thanks for adding your input, Gregory! It's much appreciated.
+
+I'll shuffle your comments around a bit, as I'd rather address the 
+themes than each individual point.
+
+On 15May2019 2134, Gregory Szorc wrote:
+> PyPreConfig_INIT and PyConfig_INIT as macros that return a struct feel
+> weird to me. Specifically, the `PyPreConfig preconfig =
+> PyPreConfig_INIT;` pattern doesn't feel right.
+
+I see Victor agreed here, but I think this is the right pattern for 
+PreConfig. The "_INIT" macro pattern is common throughout as a way to 
+initialize a stack-allocated struct - we really can't change it to be 
+anything than "{ .member = static value }" without breaking users, but 
+if you have another way to initialize it correctly then that is fine. 
+The important factor here is that this struct has to be allocated 
+_without_ any memory management provided by Python.
+
+That said, I don't particularly like this approach for PyConfig. As you 
+said:
+
+> Also, one thing that tripped me up a few times when writing PyOxidizer
+> was managing the lifetimes of memory that various global variables point
+> to.
+
+My preference here is for PreConfig to get far enough that we can 
+construct the full configuration as regular Python objects (e.g. using 
+PyDict_New, PyUnicode_FromString, etc.)[1] rather than a brand new C 
+struct with a new set of functions. That will cost copies/allocations at 
+startup, but it will also ensure that the lifetime of the configuration 
+info is managed by the runtime.
+
+I assume you already have code/helpers for constructing Python strings 
+and basic data structures, so I wonder whether it would be helpful to be 
+able to use them to create the configuration info?
+
+([1]: Yes, this requires implementation changes so they work 
+pre-interpreter and cross-interpreter. This work probably has to happen 
+anyway, so I don't see any harm in assuming it will happen.)
+
+> I'm a little confused about the pre-initialization functions that take
+> command arguments. Is this intended to only be used for parsing the
+> arguments that `python` recognizes? Presumably a custom application
+> embedding Python would never use these APIs unless it wants to emulate
+> the behavior of `python`? (I suppose this can be clarified in the API
+> docs once this is implemented.)
+
+> One feature that I think is missing from the proposal (and this is
+> related to the previous paragraph) is the ability to prevent config
+> fallback to things that aren't PyConfig and PyPreConfig. 
+
+This is certainly my intent, and I *think* Victor is coming around to it 
+too ;)
+
+My preference is that embedding by default does not use any information 
+outside of the configuration provided by the host application. Then our 
+"python" host application can read the environment/argv/etc. and convert 
+it into configuration. Since some embedders also want to do this, we can 
+provide helper functions to replicate the behaviour.
+
+Does this sound like a balance that would suit your needs? Would you 
+expect an embedded Python to be isolated by default? Or would you assume 
+that it's going to pick up configuration from various places and that 
+you (as an embedder) need to explicitly suppress that?
+
+(Some parts of the stdlib and some 3rd-party libraries use their own 
+environment variables at runtime. We may not be able to convert all of 
+those to configuration, but at least they're read lazily, and so Python 
+code can override them by setting the variables.)
+
+> What about PyImport_FrozenModules? 
+
+> FWIW I /might/ be interested in a mechanism to better control importlib
+> initialization because PyOxidizer is currently doing dirty things at
+> run-time to register the custom 0-copy meta path importer.
+
+Controlling imports early in initialization is one of our broader goals 
+here, and one that I would particularly like to figure out before we 
+commit to a new public API. Registering new importers should not have to 
+be "dirty".
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Thu May 16 11:33:19 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 16 May 2019 08:33:19 -0700
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 3rd version
+In-Reply-To: <CA+3bQGHTqcgayS7YqeO6as3M3_J=KSX_v-cEYOf9UQX=5y+wkw@mail.gmail.com>
+References: <CA+3bQGHTqcgayS7YqeO6as3M3_J=KSX_v-cEYOf9UQX=5y+wkw@mail.gmail.com>
+Message-ID: <de2aef25-9836-562b-5d59-6b09205cf7ab@python.org>
+
+On 15May2019 1610, Victor Stinner wrote:
+> Thanks to the constructive discussions, I enhanced my PEP 587. I don't
+> plan any further change, the PEP is now ready to review (and maybe
+> even for pronouncement, hi Thomas! :-)).
+
+My view is that while this is a fantastic PEP and the groundwork that 
+already exists as private API is excellent, it is too early to commit to 
+a new public API and we need to do more analysis work. We should not 
+accept this PEP at this time.
+
+So far, the API being exposed here has not been tested with embedders. 
+We have very little feedback on whether it meets their needs or would 
+help them simplify or make their projects more robust. I have concerns 
+about the number of new functions being added, the new patterns being 
+proposed, and both forward and backwards compatibility as we inevitably 
+make changes. (I have discussed all of these in person with Victor, 
+Nick, and Thomas at PyCon last week, which is why I'm not doing a 
+point-by-point here.)
+
+As soon as we publish a PEP declaring a new embedding API, users will 
+assume that it's here to stay. I don't believe that is true, as there is 
+much more we can and should do to improve embedding. But we don't get to 
+totally revise the public API on each release without alienating users, 
+which is why I would rather hold the public API changes until 3.9, 
+investigate and design them properly. It does our users a disservice to 
+make major changes like this without due process.
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Thu May 16 11:45:11 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 16 May 2019 08:45:11 -0700
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 3rd version
+In-Reply-To: <CAPdQG2q-Mo2mMjQOd0oj1yKQXjfXvBvGshxc3kqXHUXRZaKziA@mail.gmail.com>
+References: <CA+3bQGHTqcgayS7YqeO6as3M3_J=KSX_v-cEYOf9UQX=5y+wkw@mail.gmail.com>
+ <7ddebc01-a067-4b52-48b7-e90347ed7cc7@gmail.com>
+ <CA+3bQGG8BdtVxh2jDWFKo4mn=n0dxzg4pPnTbsqvFhRMUFcdeg@mail.gmail.com>
+ <CAPdQG2q-Mo2mMjQOd0oj1yKQXjfXvBvGshxc3kqXHUXRZaKziA@mail.gmail.com>
+Message-ID: <97a82b7a-0410-be1d-cda4-88fc4f6ec1b3@python.org>
+
+On 16May2019 0710, Thomas Wouters wrote:
+> A couple of things are documented as performing pre-initialisation 
+> (PyConfig_SetBytesString,?PyConfig_SetBytesArgv). I understand why, but 
+> I feel like that might be confusing and error-prone. Would it not be 
+> better to have them fail if pre-initialisation hasn't been performed yet?
+
+I agree. Anything other than setting up the struct for 
+pre-initialization settings doesn't need to work here.
+
+> The dll_path field of PyConfig says "Windows only". Does that meant the 
+> struct doesn't have that field except in a Windows build? Or is it 
+> ignored, instead? If it doesn't have that field at all, what #define can 
+> be used to determine if the PyConfig struct will have it or not?
+
+This field doesn't need to be here. It exists because it was used in 
+getpathp.c, and Victor's internal refactoring has kept it around through 
+all the field movement.
+
+If we properly design initialization instead of just refactoring until 
+it's public, I bet this field will go away.
+
+> "module_search_path_env" sounds like an awkward and somewhat misleading 
+> name for the translation of PYTHONPATH. Can we not just use, say, 
+> pythonpath_env? I expect the intended audience to know that PYTHONPATH 
+> != sys.path.
+
+Again, this doesn't need to be its own configuration field, but because 
+of the refactoring approach taken here it's flowed out to public API.
+
+A "init config from environment" can load this value and put it into the 
+"sys.path-equivalent field" in the config.
+
+> The module_search_paths field in PyConfig doesn't mention if it's 
+> setting or adding to the calculated sys.path. As a whole, the 
+> path-calculation bits are a bit under-documented. Since this is an 
+> awkward bit of CPython, it wouldn't hurt to mention what "the default 
+> path configuration" does (i.e. search for python's home starting at 
+> program_name, add fixed subdirs to it, etc.)
+
+Again, let's design this part properly instead of exposing what we've 
+had for years :)
+
+> Regarding Py_RunMain(): does it do the right thing when something calls 
+> PyErr_Print() with SystemExit set? (I mentioned last week that 
+> PyErr_Print() will call C's exit() in that case, which is obviously 
+> terrible for embedders.)
+
+Can we just fix PyErr_Print() to not exit? Surely we only depend on it 
+in one or two places (sys.excepthook?) and it's almost certainly not 
+helping anyone else.
+
+> Regarding isolated_mode and the site module, should we make stronger 
+> guarantees about site.py's behaviour being optional?
+
+Yes, I've been forgetting about this too. There's a lot of configuration 
+that's split between site.py and initialization, so it's very hard to 
+understand what will be ready when you leave out site.py. Straightening 
+this out would help (everyone except virtualenv, probably ;) )
+
+Cheers,
+Steve
+
+
+From steve.dower at python.org  Thu May 16 11:56:22 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 16 May 2019 08:56:22 -0700
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+Message-ID: <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+
+On 16May2019 0647, Victor Stinner wrote:
+> Le jeu. 16 mai 2019 ? 12:57, Serhiy Storchaka <storchaka at gmail.com> a ?crit :
+>>> For unraisable hook, it's not hard to imagine other useful parameters
+>>> that can be passed to the hook to provide more context about the
+>>> exception. For example, right now we only pass one object. But there
+>>> are cases where a second object would totally makes sense.
+>>
+>> If you have plans for adding new details in future, I propose to add a
+>> 6th parameter "context" or "extra" (always None currently). It is as
+>> extensible as packing all arguments into a single structure, but you do
+>> not need to introduce the structure type and create its instance until
+>> you need to pass additional info.
+> 
+> In my implementation, UnraisableHookArgs is a C "structseq" type. In
+> short, it's a tuple. make_unraisable_hook_args() basically builds a
+> tuple of 4 items and uses PyTuple_SET_ITEM() to set the items.
+> _PyErr_WriteUnraisableDefaultHook() uses PyStructSequence_GET_ITEM()
+> to get items.
+> 
+> The code pack and unpack UnraisableHookArgs is simple and reliable.
+> 
+> An "unraisable exception" doesn't mean that Python is collapsing. It
+> only means that the code is unable to report the exception to the
+> caller: there is no reason why allocating a 4-tuple or calling a
+> simple Python function (sys.unraisablehook) would fail.
+> 
+> --
+> 
+> I dislike the compromise of having an API in 2 parts: positional
+> parameters for some parameters, and a structure for some other
+> parameters. I prefer to pack all arguments into a single structure.
+
+I really like this API, and I agree with Victor that we don't really 
+need more than the exception info. For future expansion, we can pass in 
+a different exception, no?
+
+I'm not even convinced we need the obj argument, or that it's a good 
+idea - this is yet another place where it's likely to be dead/dying 
+already. And what can you do with it? Resurrection seems like a really 
+bad idea, as does diving into a custom __repr__. There's no useful 
+recovery mechanism here that I'm aware of, so I'd be in favor of just 
+passing through the exception and nothing else.
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Thu May 16 12:02:29 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 16 May 2019 09:02:29 -0700
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+Message-ID: <b20d536c-3106-5704-d5db-e6237d3a712d@python.org>
+
+On 16May2019 0856, Steve Dower wrote:
+> On 16May2019 0647, Victor Stinner wrote:
+>> Le jeu. 16 mai 2019 ? 12:57, Serhiy Storchaka <storchaka at gmail.com> a 
+>> ?crit :
+>>>> For unraisable hook, it's not hard to imagine other useful parameters
+>>>> that can be passed to the hook to provide more context about the
+>>>> exception. For example, right now we only pass one object. But there
+>>>> are cases where a second object would totally makes sense.
+>>>
+>>> If you have plans for adding new details in future, I propose to add a
+>>> 6th parameter "context" or "extra" (always None currently). It is as
+>>> extensible as packing all arguments into a single structure, but you do
+>>> not need to introduce the structure type and create its instance until
+>>> you need to pass additional info.
+>>
+>> In my implementation, UnraisableHookArgs is a C "structseq" type. In
+>> short, it's a tuple. make_unraisable_hook_args() basically builds a
+>> tuple of 4 items and uses PyTuple_SET_ITEM() to set the items.
+>> _PyErr_WriteUnraisableDefaultHook() uses PyStructSequence_GET_ITEM()
+>> to get items.
+>>
+>> The code pack and unpack UnraisableHookArgs is simple and reliable.
+>>
+>> An "unraisable exception" doesn't mean that Python is collapsing. It
+>> only means that the code is unable to report the exception to the
+>> caller: there is no reason why allocating a 4-tuple or calling a
+>> simple Python function (sys.unraisablehook) would fail.
+>>
+>> -- 
+>>
+>> I dislike the compromise of having an API in 2 parts: positional
+>> parameters for some parameters, and a structure for some other
+>> parameters. I prefer to pack all arguments into a single structure.
+> 
+> I really like this API, and I agree with Victor that we don't really 
+> need more than the exception info. For future expansion, we can pass in 
+> a different exception, no?
+> 
+> I'm not even convinced we need the obj argument, or that it's a good 
+> idea - this is yet another place where it's likely to be dead/dying 
+> already. And what can you do with it? Resurrection seems like a really 
+> bad idea, as does diving into a custom __repr__. There's no useful 
+> recovery mechanism here that I'm aware of, so I'd be in favor of just 
+> passing through the exception and nothing else.
+
+Actually, if the default implementation prints the exception message, 
+how is this different from sys.excepthook? Specifically, from the point 
+of customizing the hooks.
+
+If I were going to replace unraisablehook to do something on specific 
+exceptions, I'm almost certainly going to replace excepthook as well, 
+no? The only difference is whether there are any try/except blocks in 
+between, and by definition I think the answer is no (in both cases, or 
+we wouldn't have reached the hook).
+
+Do you have scenarios in mind where you would need these to do different 
+things? And would those be just as well served by a flag on the 
+exception object rather than an entirely separate hook?
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Thu May 16 12:12:26 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 16 May 2019 09:12:26 -0700
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <b20d536c-3106-5704-d5db-e6237d3a712d@python.org>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+ <b20d536c-3106-5704-d5db-e6237d3a712d@python.org>
+Message-ID: <b6f317a1-e98d-c11c-a8b7-672d117faa7c@python.org>
+
+On 16May2019 0902, Steve Dower wrote:
+> Actually, if the default implementation prints the exception message, 
+> how is this different from sys.excepthook? Specifically, from the point 
+> of customizing the hooks.
+> 
+> If I were going to replace unraisablehook to do something on specific 
+> exceptions, I'm almost certainly going to replace excepthook as well, 
+> no? The only difference is whether there are any try/except blocks in 
+> between, and by definition I think the answer is no (in both cases, or 
+> we wouldn't have reached the hook).
+> 
+> Do you have scenarios in mind where you would need these to do different 
+> things? And would those be just as well served by a flag on the 
+> exception object rather than an entirely separate hook?
+
+Finally, the changes aren't in yet but PEP 578 is accepted, so perhaps 
+this could also be satisfied by an audit hook for an exception that's 
+about to be ignored?
+
+Cheers,
+Steve
+
+From vstinner at redhat.com  Thu May 16 13:25:06 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 16 May 2019 19:25:06 +0200
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 3rd version
+In-Reply-To: <CAPdQG2q-Mo2mMjQOd0oj1yKQXjfXvBvGshxc3kqXHUXRZaKziA@mail.gmail.com>
+References: <CA+3bQGHTqcgayS7YqeO6as3M3_J=KSX_v-cEYOf9UQX=5y+wkw@mail.gmail.com>
+ <7ddebc01-a067-4b52-48b7-e90347ed7cc7@gmail.com>
+ <CA+3bQGG8BdtVxh2jDWFKo4mn=n0dxzg4pPnTbsqvFhRMUFcdeg@mail.gmail.com>
+ <CAPdQG2q-Mo2mMjQOd0oj1yKQXjfXvBvGshxc3kqXHUXRZaKziA@mail.gmail.com>
+Message-ID: <CA+3bQGF-PQvV8bH-7aWUVwvMTz=ssxiooLRWd_HEQAw-eEUX2A@mail.gmail.com>
+
+Le jeu. 16 mai 2019 ? 16:10, Thomas Wouters <thomas at python.org> a ?crit :
+>> Would you be ok with a "PyConfig_Init(PyConfig *config);" function
+>> which would initialize all fields to theire default values? Maybe
+>> PyConfig_INIT should be renamed to PyConfig_STATIC_INIT.
+>>
+>> You can find a similar API for pthread mutex, there is a init function
+>> *and* a macro for static initialization:
+>>
+>>        int pthread_mutex_init(pthread_mutex_t *restrict mutex,
+>>            const pthread_mutexattr_t *restrict attr);
+>>
+>>        pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+>
+>
+> This was going to be my suggestion as well: for any non-trivial macro, we should have a function for it instead.
+
+Ok, I will do that.
+
+
+> I would also point out that PEP 587 has a code example that uses PyWideStringList_INIT, but that macro isn't mention anywhere else.
+
+Oh, I forgot to better document it. Well, the macro is trivial:
+
+#define _PyWstrList_INIT (_PyWstrList){.length = 0, .items = NULL}
+
+For consistency, I prefer to not initialize manually these fields, but
+use a macro instead.
+
+(Variables are allocated on the stack and so *must* be initialized.)
+
+
+> The PEP is a bit unclear as to the semantics of PyWideStringList as a whole: the example uses a static array with length, but doesn't explain what would happen with statically allocated data like that if you call the Append or Extend functions. It also doesn't cover how e.g. argv parsing would remove items from the list. (I would also suggest the PEP shouldn't use the term 'list', at least not unqualified, if it isn't an actual Python list.)
+
+Calling PyWideStringList_Append() or PyWideStringList_Insert() on a
+"constant" list will crash: don't do that :-)
+
+I tried to explain the subtle details of "constant" vs "dynamic"
+configurations in "Initialization with constant PyConfig" and "Memory
+allocations and Py_DecodeLocale()" functions.
+
+A "constant" PyWideStringList must not be used with a "dynamic"
+PyConfig: otherwise, PyConfig_Clear() will crash as well.
+
+I would prefer to have separated "const PyWideStringList" and "const
+PyConfig" types, but the C language doesn't convert "wchat_*" to
+"const wchar_t*" when you do that. We would need duplicated
+PyConstantWideStringList and PyConstantConfig structures, which would
+require to be "casted" to PyWideStringList and PyConfig internally to
+reuse the same code for constant and dynamic configuration.
+
+If you consider that the specific case of "constant configuration"
+adds too much burden / complexity, we mgiht remove it and always
+require to use dynamic configuration.
+
+Right now, Programs/_testembed.c almost uses only "constant"
+configuration. Using dynamic memory would make the code longer: need
+to handle memory allocation failures.
+
+
+> I understand the desire to make static allocation and initialisation possible, but since you only need PyWideStringList for PyConfig, not PyPreConfig (which sets the allocator), perhaps having a PyWideStringList_Init(), which copies memory, and PyWideStringList_Clear() to clear it, would be better?
+
+Do you mean to always require to build dynamic lists? Said
+differently, not allow to write something like the following code?
+
+    static wchar_t* argv[] = {
+        L"python3",
+        L"-c",
+        L"pass",
+        L"arg2",
+    };
+
+    _PyCoreConfig config = _PyCoreConfig_INIT;
+    config.argv.length = Py_ARRAY_LENGTH(argv);
+    config.argv.items = argv;
+
+
+>> If the private field "_init_main" of the PEP 587 is set to 0,
+>> Py_InitializeFromConfig() stops at the "core" phase (in fact, it's
+>> already implemented!). But I didn't implement yet a
+>> _Py_InitializeMain() function to "finish" the initialization. Let's
+>> say that it exists, we would get:
+>>
+>> ---
+>> PyConfig config = PyConfig_INIT;
+>> config._init_main = 0;
+>> PyInitError err = Py_InitializeFromConfig(&config);
+>> if (Py_INIT_FAILED(err)) {
+>>     Py_ExitInitError(err);
+>> }
+>>
+>> /* add your code to customize Python here */
+>> /* calling PyRun_SimpleString() here is safe */
+>>
+>> /* finish Python initialization */
+>> PyInitError err = _Py_InitializeMain(&config);
+>> if (Py_INIT_FAILED(err)) {
+>>     Py_ExitInitError(err);
+>> }
+>> ---
+>>
+>> Would it solve your use case?
+>
+>
+> FWIW, I understand the need here: for Hermetic Python, we solved it by adding a new API similar to PyImport_AppendInittab, but instead registering a generic callback hook to be called *during* the initialisation process: after the base runtime and the import mechanism are initialised (at which point you can create Python objects), but before *any* modules are imported. We use that callback to insert a meta-importer that satisfies all stdlib imports from an embedded archive. (Using a meta-importer allows us to bypass the fileysystem altogether, even for what would otherwise be failed path lookups.)
+>
+> As I mentioned, Hermetic Python was originally written for Python 2.7, but this approach works fine with a frozen importlib as well. The idea of 'core' and 'main' initialisation will likely work for this, as well.
+
+Well, even if it's not part of the PEP 587, I just implemented it
+anyway while fixing a bug:
+https://github.com/python/cpython/commit/9ef5dcaa0b3c7c7ba28dbb3ec0c9507d9d05e3a9
+
+Example:
+
+static int test_init_main(void)
+{
+    _PyCoreConfig config = _PyCoreConfig_INIT;
+    configure_init_main(&config);
+    config._init_main = 0;
+
+    _PyInitError err = _Py_InitializeFromConfig(&config);
+    if (_Py_INIT_FAILED(err)) {
+        _Py_ExitInitError(err);
+    }
+
+    /* sys.stdout don't exist yet: it is created by _Py_InitializeMain() */
+    int res = PyRun_SimpleString(
+        "import sys; "
+        "print('Run Python code before _Py_InitializeMain', "
+               "file=sys.stderr)");
+    if (res < 0) {
+        exit(1);
+    }
+
+    err = _Py_InitializeMain();
+    if (_Py_INIT_FAILED(err)) {
+        _Py_ExitInitError(err);
+    }
+
+    return _Py_RunMain();
+}
+
+As you can see, it's possible execute Python between "core" and "main"
+initialization phases. Moreover, I even fixed Python to be able to use
+"import sys" before the "main" initialization phase ;-) (Only builtin
+and frozen modules are available at this stage.)
+
+Again, I'm not comfortable to make PyConfig._init_main and
+_Py_InitializeMain() public, because I consider that they are too
+experimental and we don't have enough time to discuss what is the
+"core" initialization phase exactly.
+
+
+> Other questions/comments about PEP 587:
+>
+> I really like the PyInitError struct. I would like more functions to use it, e.g. the PyRrun_* "very high level" API, which currently calls exit() for you on SystemExit, and returns -1 without any other information on error. For those, I'm not entirely sure 'Init' makes sense in the name... but I can live with it.
+
+PyInitError structure can be renamed PyError, but it should only be
+used with functions which can exit Python. In short, are you talking
+"The Very High Level Layer" of the C API?
+https://docs.python.org/dev/c-api/veryhigh.html
+
+One issue is that I dislike adding new functions to the C API, but it
+seems like we should add a few to provide a better API for embedded
+Python. libpython must never exit the process! (or only when you
+explicity asks that :-))
+
+Note: PyRun_SimpleStringFlags() is a wrapper which makes
+PyRun_StringFlags() usage easier. PyRun_StringFlags() doesn't handle
+the exception and so let you decide how to handle it.
+
+
+> A couple of things are documented as performing pre-initialisation (PyConfig_SetBytesString, PyConfig_SetBytesArgv). I understand why, but I feel like that might be confusing and error-prone. Would it not be better to have them fail if pre-initialisation hasn't been performed yet?
+
+It's easier to modify the code to fail with an error if Python is not
+pre-initialized.
+
+I propose to implicitly pre-initialize Python to make the API easier
+to use. In practice, you rarely have to explicitly pre-initialize
+Python. The default PyPreConfig is just fine for almost all use cases,
+especially since Nick Coghlan and me decided to disable C locale
+coercion and UTF-8 Mode by default. You now have to opt-in to enable
+these encoding features.
+
+
+> The buffered_stdio field of PyConfig mentions stdout and stderr, but not stdin. Does it not affect stdin?
+
+Extract of create_stdio():
+
+    /* stdin is always opened in buffered mode, first because it shouldn't
+       make a difference in common use cases, second because TextIOWrapper
+       depends on the presence of a read1() method which only exists on
+       buffered streams.
+    */
+
+Note: Unbuffered stdin doesn't magically make the producer on the
+other side of a pipe flushing its (stdout/stderr) buffer more
+frequently :-)
+
+
+> (Many of the fields could do with a bit more explicit documentation, to be honest.)
+
+Well, 2 years ago, almost no configuration parameter was documented
+:-) I helped to document "Global configuration variables" at:
+https://docs.python.org/dev/c-api/init.html#global-configuration-variables
+
+I had to reverse engineer the code to be able to document it :-D
+
+Right now, my reference documentation lives in
+Include/cpython/coreconfig.h. Some parameters are better documented
+there, than in the PEP. I can try to enhance the documentation in the
+PEP.
+
+
+> The configure_c_stdio field of PyConfig sounds like it might not set sys.stdin/stdout/stderr. That would be new behaviour, but configure_c_stdio doesn't have an existing equivalence, so I'm not sure if that's what you meant or not.
+
+In Python 3.7, only Py_Main() configured C standard streams.
+
+I moved the code into _PyCoreConfig_Write() which is called by
+_Py_InitializeFromConfig() and so by Py_Initialize() as well.
+
+My intent is to be able to get the same behavior using Py_Initialize()
++ Py_RunMain(), than using Py_Main().
+
+Said differently, Python 3.8 now always configures C standard streams.
+Maybe I should modify the configure_c_stdio default value to 0, and
+only enable it by default in Py_Main()?
+
+Honestly, I'm a little bit confused here. I'm not sure what is the
+expected behavior. Usually, in case of doubt, I look at the behavior
+before my refactoring. The old behaviour was that only Py_Main()
+configured C standard streams. Maybe I should restore this behavior.
+
+But to build a customized Python which should behave as the regular
+Python, you would like opt-in for configure_c_stdio=1.
+
+Maybe we need a function to set the configuration to get "regular
+Python" behavior?
+
+Something like: PyConfig_SetRegularPythonBehavior()? (sorry for the silly name!)
+
+
+> The dll_path field of PyConfig says "Windows only". Does that meant the struct doesn't have that field except in a Windows build? Or is it ignored, instead? If it doesn't have that field at all, what #define can be used to determine if the PyConfig struct will have it or not?
+
+The field doesn't exist on non-Windows platforms.
+
+I chose to expose it to let the developer chooses where Python looks for DLL.
+
+But Steve just said (in an email below) that there is no reason to
+make it configurable. In that case, I will make it internal again. It
+seems like I misunderstood the purpose of this parameter.
+
+
+> It feels a bit weird to have both 'inspect' and 'interactive' in PyConfig. Is there a substantive difference between them? Is this just so you can easily tell if any of run_module / run_command / run_filename are set?
+
+In Python 3.7, there are Py_InspectFlag and Py_InteractiveFlag.
+
+If "interactive" parameter is non-zero, C standard streams are
+configured as buffered. It is also used to decide if stdin is
+considered as interactive or not:
+
+/* Return non-zero is stdin is a TTY or if -i command line option is used */
+static int
+stdin_is_interactive(const _PyCoreConfig *config)
+{
+    return (isatty(fileno(stdin)) || config->interactive);
+}
+
+The "inspect" parameter is used to decide if we start a REPL or not.
+
+The "-i" command line option sets inspect (Py_InspectFlag) and
+interactive (Py_InteractiveFlag) to 1.
+
+These flags are exposed at Python level as sys.flags.inspect and
+sys.flags.interactive.
+
+... Honestly, I'm not sure if there is a real difference between these
+two flags, but they are exposed and exist for years... so I decided to
+keep them.
+
+
+> "module_search_path_env" sounds like an awkward and somewhat misleading name for the translation of PYTHONPATH. Can we not just use, say, pythonpath_env? I expect the intended audience to know that PYTHONPATH != sys.path.
+
+Sure, I can rename it.
+
+
+> The module_search_paths field in PyConfig doesn't mention if it's setting or adding to the calculated sys.path. As a whole, the path-calculation bits are a bit under-documented.
+
+Py_InitializeFromConfig() sets sys.path from module_search_paths.
+
+sys.path doesn't exist before Py_InitializeFromConfig() is called.
+
+
+> Since this is an awkward bit of CPython, it wouldn't hurt to mention what "the default path configuration" does (i.e. search for python's home starting at program_name, add fixed subdirs to it, etc.)
+
+Oh, that's a big task :-) Nobody knows what getpath.c and getpathp.c do :-D
+
+
+> Path configuration is mentioned as being able to issue warnings, but it doesn't mention *how*. It can't be the warnings module at this stage. I presume it's just printing to stderr.
+
+First, I didn't know, but I just saw that it's only on Unix
+(getpath.c). On Windows (getpathp.c), no warning is emitted.
+
+The warning is written into C stderr.
+
+The flag isn't new: it's based on Py_FrozenFlag. When I looked at how
+Python is embedded, I was surprised by the number of applications
+setting Py_FrozenFlag to 1 to suppress these warnings.
+
+
+> Regarding Py_RunMain(): does it do the right thing when something calls PyErr_Print() with SystemExit set? (I mentioned last week that PyErr_Print() will call C's exit() in that case, which is obviously terrible for embedders.)
+
+I spent a significant amount of time to ensure that
+Py_InitializeFromConfig() and Py_RunMain() don't exit directly, but
+return a proper failure or exit code. For example, Python 3.6 contains
+around 319 calls to Py_FatalError(). The master branch contains around
+181 calls to Py_FatalError(): still a lot, but I converted 138 calls
+to _Py_INIT_ERR() ;-)
+
+The work is not complete: I just checked, Py_RunMain() still calls
+directly PyErr_Print() at many places. Well, the code can be fixed,
+and it's not directly related to the PEP, is it? The issue already
+existed in Python 3.7 with Py_Main().
+
+
+> Regarding isolated_mode and the site module, should we make stronger guarantees about site.py's behaviour being optional? The problem with site is that it does four things that aren't configurable, one of which is usually very desirable, one of which probably doesn't matter to embedders, and two that are iffy: sys.path deduplication and canonicalisation (and fixing up __file__/__cached__ attributes of already-imported modules); adding site-packages directories; looking for and importing sitecustomize.py; executing .pth files. The site module doesn't easily allow doing only some of these. (user-site directories are an exception, as they have their own flag, so I'm not listing that here.) With Hermetic Python we don't care about any of these (for a variety of different reasons), but I'm always a little worried that future Python versions would add behaviour to site that we *do* need.
+
+Honestly, I would prefer to simply remove the site module, I dislike
+it because it makes Python startup way slower :-) ... But well, it
+does a few important things :-)
+
+About the PEP 587: PyConfig.user_site_directory is exported as
+sys.flags.no_user_site (negative value) which is used by the site
+module.
+
+I'm not sure if you are asking me to modify my PEP, or if it's more a
+general remark. The PEP 587 gives control on how sys.path is
+initialized.
+
+In the "Isolate Python" section, I suggest to set the "isolated"
+parameter to 1 which imply setting user_site_directory to 0. So
+sys.path isn't modified afterwards. What you pass to PyConfig is what
+you get in sys.path in this case.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From matusvalo at gmail.com  Thu May 16 14:04:25 2019
+From: matusvalo at gmail.com (matus valo)
+Date: Thu, 16 May 2019 20:04:25 +0200
+Subject: [Python-Dev] bpo-9584: Added brace expressions to the glob and
+ fnmatch.
+Message-ID: <CAHm8GSiKpCd6Ug4uzHHYtKk21fO_OFKTbpup+FwO51P0HiC0FQ@mail.gmail.com>
+
+Hi All,
+
+I have implemented PR fixing bpo-9584 few months ago. Recently, I was
+encouraged that conversation on DEV mailing list should be started here on
+DEV mailing list. From the conversation in bug report, I understood that
+the main problem is that straightforward implementation can break a
+backward compatibility. E.g.:
+
+* Patched python:
+
+>>> import os
+>>> import glob
+>>> os.makedirs('a{b,c}d/e')
+>>> os.listdir('a{b,c}d')
+['e']
+>>> glob.glob('a{b,c}d/*')
+[]
+>>>
+
+* Unpatched python:
+
+>>> import os, glob
+>>> os.makedirs('a{b,c}d/e')
+>>> os.listdir('a{b,c}d')
+['e']
+>>> glob.glob('a{b,c}d/*')
+['a{b,c}d/e']
+
+
+How can I proceed with the PR? Please advise.
+
+
+Thanks,
+
+Matus Valo
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190516/1d49a960/attachment.html>
+
+From barry at python.org  Thu May 16 14:10:55 2019
+From: barry at python.org (Barry Warsaw)
+Date: Thu, 16 May 2019 11:10:55 -0700
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+Message-ID: <0AB0D675-4CA8-46D2-93A9-2F83E6AF3FA6@python.org>
+
+On May 16, 2019, at 03:12, Victor Stinner <vstinner at redhat.com> wrote:
+
+> I came to the UnraisableHookArgs structseq idea because of my bad
+> experience with extension warnings "hooks". Let me tell you this story
+> :-)
+
+Thanks for that!
+
+> def showwarning(message, category, filename, lineno, file=None, line=None): ...
+> def formatwarning(message, category, filename, lineno, line=None): ?
+
+While I?m fine with the API you propose, you could consider keyword-only arguments to help future proof the call signature.  I don?t like it as much because it?s not as backward compatibility proof, but it?s an option to perhaps consider.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190516/1cb765e9/attachment.sig>
+
+From vstinner at redhat.com  Thu May 16 14:38:17 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 16 May 2019 20:38:17 +0200
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <0AB0D675-4CA8-46D2-93A9-2F83E6AF3FA6@python.org>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <0AB0D675-4CA8-46D2-93A9-2F83E6AF3FA6@python.org>
+Message-ID: <CA+3bQGEd9Ox5e=nK0s-bOdZpL0NcG1vtt_s507Hv=YB5WBNLMg@mail.gmail.com>
+
+> While I?m fine with the API you propose, you could consider keyword-only
+arguments to help future proof the call signature.  I don?t like it as much
+because it?s not as backward compatibility proof, but it?s an option to
+perhaps consider.
+
+Let's say that we have: hook(*, exc_type, exc_value, exc_tb, obj). Now we
+pass a new err_msg keyword argument: the call fails with a TypeError :-(
+
+Or do you mean using **kwargs? I don't think **kwargs is a good API :-(
+Well, the same can be done using *args and positional arguments to ignore
+new unknown arguments, but I also dislike such API.
+
+Victor
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190516/cf786168/attachment.html>
+
+From encukou at gmail.com  Thu May 16 14:58:33 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Thu, 16 May 2019 20:58:33 +0200
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+Message-ID: <314887b2-8fb9-447d-7293-2babb8ba5f00@gmail.com>
+
+On 5/16/19 3:23 AM, Victor Stinner wrote:
+[...]
+> I modified my API to create an object to pack arguments. The new API
+> becomes sys.unraisablehook(unraisable) where unraisable has 4 fields:
+> exc_type, exc_value, exc_tb, obj.
+[...]
+I always thought the classic (exc_type, exc_value, exc_tb) triple is a 
+holdover from older Python versions, and all the information is now in 
+the exception instance.
+Is the triple ever different from (type(exc), exc, exc.__traceback__)?
+(possibly with a getattr for __traceback__)
+Should new APIs use it?
+
+From njs at pobox.com  Thu May 16 15:29:00 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 16 May 2019 12:29:00 -0700
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <b20d536c-3106-5704-d5db-e6237d3a712d@python.org>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+ <b20d536c-3106-5704-d5db-e6237d3a712d@python.org>
+Message-ID: <CAPJVwBmBrpUeq10==ZdoEnvDZ7xZJJjF3svfQxck1OrzN0MgXA@mail.gmail.com>
+
+On Thu, May 16, 2019, 09:07 Steve Dower <steve.dower at python.org> wrote:
+
+>
+> Actually, if the default implementation prints the exception message,
+> how is this different from sys.excepthook? Specifically, from the point
+> of customizing the hooks.
+>
+
+sys.excepthook means the program has fully unwound and is about to exit.
+This is pretty different from an exception inside a __del__ or background
+thread or whatever, where the program definitely hasn't unwound and is
+likely to continue. And I'm pretty sure they have behavioral differences
+already, like if you pass in a SystemExit exception then sys.excepthook
+doesn't print anything, but PyErr_WriteUnraiseable prints a traceback.
+
+So making them two separate hooks seems right to me. Some people will
+override both; that's fine.
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190516/059f443b/attachment-0001.html>
+
+From solipsis at pitrou.net  Thu May 16 15:41:13 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 16 May 2019 21:41:13 +0200
+Subject: [Python-Dev] Need review
+Message-ID: <20190516214113.07623f9a@fsol>
+
+
+Hello,
+
+I need a review on the PEP 574 implementation:
+https://github.com/python/cpython/pull/7076
+
+I would really like it to be in 3.8 and so ideally it should be merged
+within two weeks.
+
+Regards
+
+Antoine.
+
+
+
+From vstinner at redhat.com  Thu May 16 16:22:00 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 16 May 2019 22:22:00 +0200
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <314887b2-8fb9-447d-7293-2babb8ba5f00@gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <314887b2-8fb9-447d-7293-2babb8ba5f00@gmail.com>
+Message-ID: <CA+3bQGFrZDkbaNsjMsXNUKvJbgb3-5qVmoF785x5cYqKS+2aPA@mail.gmail.com>
+
+Le jeu. 16 mai 2019 ? 20:58, Petr Viktorin <encukou at gmail.com> a ?crit :
+> I always thought the classic (exc_type, exc_value, exc_tb) triple is a
+> holdover from older Python versions, and all the information is now in
+> the exception instance.
+> Is the triple ever different from (type(exc), exc, exc.__traceback__)?
+> (possibly with a getattr for __traceback__)
+
+I added assertions in PyErr_WriteTraceback():
+
+    assert(Py_TYPE(v) == t);
+    assert(PyException_GetTraceback(v) == tb);
+
+"Py_TYPE(v) == t" fails in
+test_exceptions.test_memory_error_in_PyErr_PrintEx() for example.
+PyErr_NoMemory() calls PyErr_SetNone(PyExc_MemoryError), it sets
+tstate->curexc_type to PyExc_MemoryError, but tstate->curexc_value is
+set to NULLL.
+
+"PyException_GetTraceback(v) == tb" fails in
+test_exceptions.test_unraisable() for example: "PyTraceBack_Here(f);"
+in the "error:" label of ceval.c creates a traceback object and sets
+it to tstate->curexec_traceback, but it doesn't set the __traceback__
+attribute of the current exception.
+
+> Should new APIs use it?
+
+I tried to add a "PyErr_NormalizeException(&t, &v, &tb);" call in
+PyErr_WriteUnraisable(): it creates an exception object (exc_value)
+for the PyErr_NoMemory() case, but it still doesn't set the
+__traceback__ attribute of the exception for the PyTraceBack_Here()
+case.
+
+It seems like PyErr_WriteUnraisable() cannot avoid having 3 variables
+(exc_type, exc_value, exc_tb), since they are not consistent as you
+may expect.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Thu May 16 17:04:49 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 16 May 2019 23:04:49 +0200
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+Message-ID: <CA+3bQGHaGhsBkS8eEfTXjGxxMwdMqF449pP_pj4vNsEKS96Snw@mail.gmail.com>
+
+Le jeu. 16 mai 2019 ? 17:56, Steve Dower <steve.dower at python.org> a ?crit :
+> I really like this API, and I agree with Victor that we don't really
+> need more than the exception info. For future expansion, we can pass in
+> a different exception, no?
+
+Sorry, I don't understand. I explained that we need more than
+(exc_type, exc_value, exc_tb).
+
+"obj" is part of the C function PyErr_WriteUnraisable(). We have to
+pass it to the hook. Otherwise, how do you want to guess where the
+exception comes from? Without any context, it can be super painful to
+debug such exception :-(
+
+That's why I said that I like Serhiy's idea of extending the API to
+allow to also pass an error message.
+
+Unraisable exceptions are commonly raised during garbage collection or
+in finalizers. So it's commonly happens when you don't "expect" them
+:-)
+
+
+> I'm not even convinced we need the obj argument, or that it's a good
+> idea - this is yet another place where it's likely to be dead/dying
+> already. And what can you do with it? Resurrection seems like a really
+> bad idea, as does diving into a custom __repr__. There's no useful
+> recovery mechanism here that I'm aware of, so I'd be in favor of just
+> passing through the exception and nothing else.
+
+Well, first of all, I would advice to *not* keep "obj" alive after the
+execution of the hook. Keep repr(obj) if you want, but not a reference
+to the object. Same for the exception value, keeping it alive is a
+high risk of creating annoying reference cycles ;-)
+
+--
+
+In a finalizer, "obj" is not always the object being finalized.
+
+Example: when an _asyncio.Future is finalized,
+loop.call_exception_handler() is called if the future wasn't consumed.
+If this call fails, PyErr_WriteUnraisable(func) is called. func isn't
+the future, but the call_exception_handler() method.
+
+Example: on a garbage collection, callbacks of weak references are
+called. If a callback fails, PyErr_WriteUnraisable(callback) is
+called. It's not the collected object nor the weak reference.
+
+It's also common that PyErr_WriteUnraisable(NULL) is called. In this
+case, you have no context where the exception comes from :-( For that,
+I experimented a custom hook which logs also the current Python stack.
+That's useful in many cases!
+
+socket.socket finalizer is a case where the finalized object (the
+socket) is passed to the hook. IMHO it's fine to resurrect a socket in
+that case. Finalization isn't deallocation. The objet remains
+consistent. The finalization protocol ensures that the finalizer is
+only called once.
+
+In practice, I wouldn't advice to resurrect objects :-) I would expect
+that a hook only calls repr(hook) and then forgets the object.
+
+The current PyErr_WriteUnraisable() implementation does exactly that:
+it formats repr(obj) into sys.stderr.
+
+*If* someone finds a case where PyErr_WriteUnraisable() can resurect
+an object that is freed just after the call, I would suggest to fix
+the code to not pass the object to PyErr_WriteUnraisable(). Using PEP
+442 finalizers, I don't think that it should happen.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From pablogsal at gmail.com  Thu May 16 17:12:29 2019
+From: pablogsal at gmail.com (Pablo Galindo Salgado)
+Date: Thu, 16 May 2019 22:12:29 +0100
+Subject: [Python-Dev] Parser module in the stdlib
+Message-ID: <CAFjbc8ExfBnbntfaTgDLk=wkWJzk-3xfG=omN+5nsSDxBQw+4w@mail.gmail.com>
+
+Hi everyone,
+
+TLDR
+=====
+
+I propose to remove the current parser module and expose pgen2 as a
+standard library module.
+
+Some context
+===========
+
+The parser module has been "deprecated" (technically we recommend to prefer
+the ast module instead) since Python2.5 but is still in the standard
+library.
+Is a 1222-line C module that needs to be kept in sync with the grammar and
+the Python parser sometimes by hand. It has also been broken for several
+years:
+I recently fixed a bug that was introduced in Python 3.5 that caused the
+parse module to not being able to parse if-else blocks (
+https://bugs.python.org/issue36256).
+
+The interface it provides is a very raw view of the CST. For instance:
+
+>>> parser.sequence2st(parser.suite("def f(x,y,z): pass").totuple())
+
+provides an object with methods compile, isexpr, issuite, tolist, totuple.
+The last two produce containers with the numerical values of the grammar
+elements (tokens, dfas...etc)
+
+>>> parser.suite("def f(x,y,z): pass").tolist()
+[257, [269, [295, [263, [1, 'def'], [1, 'f'], [264, [7, '('], [265, [266,
+[1, 'x']], [12, ','], [266, [1, 'y']], [12, ','], [266, [1, 'z']]], [8,
+')']], [11, ':'], [304, [270, [271, [277, [1, 'pass']]], [4, '']]]]]], [4,
+''], [0, '']]
+
+This is a very raw interface and is very tied to the particularities of
+CPython without almost any abstraction.
+
+On the other hand, there is a Python implementation of the Python parser
+and parser generator in lib2to3 (pgen2). This module is not documented and
+is usually considered an implementation
+detail of lib2to3 but is extremely useful. Several 3rd party packages
+(black, fissix...) are using it directly or have their own forks due to the
+fact that it can get outdated with respect to the Python3
+grammar as it was originally used only for Python2 to Python3 migration. It
+has the ability to consume LL1 grammars in EBNF form and produces an LL1
+parser for them (by creating parser tables
+that the same module can consume). Many people use the module currently to
+support or parse supersets of Python (like Python2/3 compatible grammars,
+cython-like changes...etc).
+
+Proposition
+========
+
+I propose to remove finally the parser module as it has been "deprecated"
+for a long time, is almost clear that nobody uses it and has very limited
+usability and replace it (maybe with a different name)
+with pgen2 (maybe with a more generic interface that is detached to lib2to3
+particularities). This will not only help a lot current libraries that are
+using forks or similar solutions but also will help to keep
+synchronized the shipped grammar (that is able to parse Python2 and Python3
+code) with the current Python one (as now will be more justified to keep
+them in sync).
+
+What do people think about? Do you have any concerns? Do you think is a
+good/bad idea?
+
+Regards from sunny London,
+Pablo Galindo
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190516/16638ead/attachment.html>
+
+From steve.dower at python.org  Thu May 16 17:16:49 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 16 May 2019 14:16:49 -0700
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CA+3bQGHaGhsBkS8eEfTXjGxxMwdMqF449pP_pj4vNsEKS96Snw@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+ <CA+3bQGHaGhsBkS8eEfTXjGxxMwdMqF449pP_pj4vNsEKS96Snw@mail.gmail.com>
+Message-ID: <cb87728c-4ff3-b1cb-c212-1312e8fea626@python.org>
+
+On 16May2019 1404, Victor Stinner wrote:
+> Le jeu. 16 mai 2019 ? 17:56, Steve Dower <steve.dower at python.org> a ?crit :
+>> I really like this API, and I agree with Victor that we don't really
+>> need more than the exception info. For future expansion, we can pass in
+>> a different exception, no?
+> 
+> Sorry, I don't understand. I explained that we need more than
+> (exc_type, exc_value, exc_tb).
+> 
+> "obj" is part of the C function PyErr_WriteUnraisable(). We have to
+> pass it to the hook. Otherwise, how do you want to guess where the
+> exception comes from? Without any context, it can be super painful to
+> debug such exception :-(
+
+You go on to say "pass an error message" and "keep repr(obj) if you 
+want", but how is this different from creating an exception that 
+contains the custom message, the repr of the object, and chains the 
+exception that triggered it?
+
+If you just have a message and no exception at this point, firstly it's 
+going against what the hook is documented as doing, but secondly why not 
+convert the message into an exception?
+
+Maybe I just missed where you explained how it isn't possible to 
+represent an error message as an exception, but I'm pretty sure I can't 
+be the only one who will have missed it, so maybe you could explain just 
+that one point?
+
+Thanks,
+Steve
+
+From vstinner at redhat.com  Thu May 16 17:41:39 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Thu, 16 May 2019 23:41:39 +0200
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <cb87728c-4ff3-b1cb-c212-1312e8fea626@python.org>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+ <CA+3bQGHaGhsBkS8eEfTXjGxxMwdMqF449pP_pj4vNsEKS96Snw@mail.gmail.com>
+ <cb87728c-4ff3-b1cb-c212-1312e8fea626@python.org>
+Message-ID: <CA+3bQGEMLa1GzwCOZmRhUYht2m3zHCvs60t+ea=mqiKYSRApAg@mail.gmail.com>
+
+Le jeu. 16 mai 2019 ? 23:17, Steve Dower <steve.dower at python.org> a ?crit :
+> You go on to say "pass an error message" and "keep repr(obj) if you
+> want", but how is this different from creating an exception that
+> contains the custom message, the repr of the object, and chains the
+> exception that triggered it?
+
+Well, "unraisable exceptions" are raised when something goes wrong.
+I'm not comfortable with creating a new exception instance and
+chaining it to the previous exception, because it could go wrong and
+raise a 3rd exception. Issue a new error while trying to log an error
+can be annoying :-(
+
+Moreover, when I looked at details of the "unraisable exception" (see
+my reply to Petr Viktorin), I saw that the exception is not well
+defined as you might expect. (exc_type, exc_value, exc_tb) can *not*
+be replaced with (type(exc_value), exc_value,
+exc_value.__traceback__). Sometimes, exc_value is None. Sometimes,
+exc_tb is a traceback object, but exc_value.__traceback__ is None. So
+I'm not comfortable neither to chain such badly shaped exception into
+a new exception.
+
+I prefer to pass "raw" values and let the hook decides how to handle them :-)
+
+Said differently, I prefer to design the hook to restrict the risks of
+creating a new error. At least in the code which calls the hook.
+Inside the hook.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From njs at pobox.com  Thu May 16 17:46:32 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 16 May 2019 14:46:32 -0700
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <cb87728c-4ff3-b1cb-c212-1312e8fea626@python.org>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+ <CA+3bQGHaGhsBkS8eEfTXjGxxMwdMqF449pP_pj4vNsEKS96Snw@mail.gmail.com>
+ <cb87728c-4ff3-b1cb-c212-1312e8fea626@python.org>
+Message-ID: <CAPJVwBnKK+UWtpN4qU34d5UC9rp3sKY4q9-Uo-+HrFRjqKpZnQ@mail.gmail.com>
+
+On Thu, May 16, 2019 at 2:17 PM Steve Dower <steve.dower at python.org> wrote:
+> You go on to say "pass an error message" and "keep repr(obj) if you
+> want", but how is this different from creating an exception that
+> contains the custom message, the repr of the object, and chains the
+> exception that triggered it?
+
+A clever hook might want the actual object, so it can pretty-print it,
+or open an interactive debugger and let it you examine it, or
+something. Morally this is similar to calling repr(obj), but it
+doesn't literally call repr(obj).
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From vstinner at redhat.com  Thu May 16 18:12:51 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 17 May 2019 00:12:51 +0200
+Subject: [Python-Dev] Parser module in the stdlib
+In-Reply-To: <CAFjbc8ExfBnbntfaTgDLk=wkWJzk-3xfG=omN+5nsSDxBQw+4w@mail.gmail.com>
+References: <CAFjbc8ExfBnbntfaTgDLk=wkWJzk-3xfG=omN+5nsSDxBQw+4w@mail.gmail.com>
+Message-ID: <CA+3bQGEXDzc52KjcPzdMk2ePyjQOQUM7GQApCMVnJsUrbcYffg@mail.gmail.com>
+
+Le jeu. 16 mai 2019 ? 23:15, Pablo Galindo Salgado
+<pablogsal at gmail.com> a ?crit :
+> The parser module has been "deprecated" (technically we recommend to prefer the ast module instead) since Python2.5 but is still in the standard library.
+
+Importing it doesn't emit a DeprecationgWarning. It's only deprecated
+in the documentation:
+https://docs.python.org/dev/library/parser.html
+
+I searched for "import parser" in Python on GitHub. I looked at the 10
+pages of results: I cannot find any code which looks to import
+"parser" from the Python standard library. Only "import parser" in a
+test suite of PyPy, something unrelated.
+
+
+> >>> parser.suite("def f(x,y,z): pass").tolist()
+> [257, [269, [295, [263, [1, 'def'], [1, 'f'], [264, [7, '('], [265, [266, [1, 'x']], [12, ','], [266, [1, 'y']], [12, ','], [266, [1, 'z']]], [8, ')']], [11, ':'], [304, [270, [271, [277, [1, 'pass']]], [4, '']]]]]], [4, ''], [0, '']]
+
+I don't understand how anyone can read or use Concrete Syntax Tree
+(CST) directly :-( I would expect that you need another module on top
+of that to use a CST. But I'm not aware of anything in the stdlib, so
+I understand that... nobody uses this "parser" module.
+
+I never heard about the "parser" module in the stdlib before this email :-)
+
+
+> Several 3rd party packages (black, fissix...) are using it directly or have their own forks due to the fact that it can get outdated with respect to the Python3
+> grammar as it was originally used only for Python2 to Python3 migration. It has the ability to consume LL1 grammars in EBNF form and produces an LL1 parser for them (by creating parser tables
+> that the same module can consume). Many people use the module currently to support or parse supersets of Python (like Python2/3 compatible grammars, cython-like changes...etc).
+
+* Did someone review the pgen2 implementation?
+* Does it have a good API?
+* Does it come with documentation?
+* Who is maintaining it? Who will maintain it?
+
+
+> I propose to remove finally the parser module as it has been "deprecated" for a long time, is almost clear that nobody uses it and has very limited usability and replace it (maybe with a different name)
+> with pgen2 (maybe with a more generic interface that is detached to lib2to3 particularities).
+
+I'm not sure that these two things have to be done at the same time.
+Maybe we can start by issuing a DeprecationWarning on "import parser"
+and announce the future removal in What's New in Python 3.8, just in
+case, and wait one more release before removing it.
+
+But I'm also fine with removing it right now. As I wrote, I never
+heard about this module previously...
+
+If your proposal is to reuse "parser" name, I'm not sure that it's a
+good idea, since it existed for years and had a different API. Why not
+keeping "pgen2" name, you said that it's already used under this name
+in the wild.
+
+Note: One thing to consider is that https://pypi.org/project/pgen2/
+name is already used. It might conflict if the "new" pgen2 (pgen3?
+:-D) would have a little bit different API.
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Thu May 16 18:17:00 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 17 May 2019 00:17:00 +0200
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CAPJVwBnKK+UWtpN4qU34d5UC9rp3sKY4q9-Uo-+HrFRjqKpZnQ@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+ <CA+3bQGHaGhsBkS8eEfTXjGxxMwdMqF449pP_pj4vNsEKS96Snw@mail.gmail.com>
+ <cb87728c-4ff3-b1cb-c212-1312e8fea626@python.org>
+ <CAPJVwBnKK+UWtpN4qU34d5UC9rp3sKY4q9-Uo-+HrFRjqKpZnQ@mail.gmail.com>
+Message-ID: <CA+3bQGGvkg+d7zpWBRRJiY=Ke3xjLiPxsGkb_=H7Ow0opY7p7w@mail.gmail.com>
+
+Le jeu. 16 mai 2019 ? 23:46, Nathaniel Smith <njs at pobox.com> a ?crit :
+> A clever hook might want the actual object, so it can pretty-print it,
+> or open an interactive debugger and let it you examine it, or
+> something. Morally this is similar to calling repr(obj), but it
+> doesn't literally call repr(obj).
+
+Good point. By the way, I started to use
+tracemalloc.get_object_traceback(obj) to display where the object
+comes from more and more often :-D It helps me at least in debugging.
+So yeah, I would prefer to pass directly the object to the hook.
+
+For example, I'm using it with the "source" parameter of a ResourceWarning:
+https://pythondev.readthedocs.io/debug_tools.html#resourcewarning
+
+But also when a buffer underflow or overflow is detected by debug
+hooks on Python memory allocators:
+https://pythondev.readthedocs.io/debug_tools.html#pythonmalloc-debug
+
+It might also help me sometimes to be able to call
+tracemalloc.get_object_traceback(obj) from a custom unraisablehook().
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From njs at pobox.com  Thu May 16 18:41:26 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 16 May 2019 15:41:26 -0700
+Subject: [Python-Dev] Parser module in the stdlib
+In-Reply-To: <CAFjbc8ExfBnbntfaTgDLk=wkWJzk-3xfG=omN+5nsSDxBQw+4w@mail.gmail.com>
+References: <CAFjbc8ExfBnbntfaTgDLk=wkWJzk-3xfG=omN+5nsSDxBQw+4w@mail.gmail.com>
+Message-ID: <CAPJVwB=YQdMbMUQFwtT-D2it=UjNv3CquXUgR+pyD42pqZ_-cQ@mail.gmail.com>
+
+On Thu, May 16, 2019 at 2:13 PM Pablo Galindo Salgado
+<pablogsal at gmail.com> wrote:
+> I propose to remove finally the parser module as it has been "deprecated" for a long time, is almost clear that nobody uses it and has very limited usability and replace it (maybe with a different name)
+> with pgen2 (maybe with a more generic interface that is detached to lib2to3 particularities). This will not only help a lot current libraries that are using forks or similar solutions but also will help to keep
+> synchronized the shipped grammar (that is able to parse Python2 and Python3 code) with the current Python one (as now will be more justified to keep them in sync).
+
+Will the folks using forks be happy to switch to the stdlib version?
+For example I can imagine that if black wants to process 3.7 input
+code while running on 3.6, it might prefer a parser on PyPI even if
+the stdlib version were public, since the PyPI version can be updated
+independently of the host Python.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From pablogsal at gmail.com  Thu May 16 18:48:48 2019
+From: pablogsal at gmail.com (Pablo Galindo Salgado)
+Date: Thu, 16 May 2019 23:48:48 +0100
+Subject: [Python-Dev] Parser module in the stdlib
+In-Reply-To: <CAPJVwB=YQdMbMUQFwtT-D2it=UjNv3CquXUgR+pyD42pqZ_-cQ@mail.gmail.com>
+References: <CAFjbc8ExfBnbntfaTgDLk=wkWJzk-3xfG=omN+5nsSDxBQw+4w@mail.gmail.com>
+ <CAPJVwB=YQdMbMUQFwtT-D2it=UjNv3CquXUgR+pyD42pqZ_-cQ@mail.gmail.com>
+Message-ID: <CAFjbc8HFS2+EuG9NbAExgDN5WPFV8X7QyC9pe_3GFtyenz3-5A@mail.gmail.com>
+
+> Will the folks using forks be happy to switch to the stdlib version?
+>For example I can imagine that if black wants to process 3.7 input
+>code while running on 3.6, it might prefer a parser on PyPI even if
+>he stdlib version were public, since the PyPI version can be updated
+>independently of the host Python.
+The tool can parse arbitrary grammars, the one that is packed into is just
+one of them.
+
+I think it would be useful, among other things because the standard library
+lacks currently a proper CST solution. The ast module is heavily leveraged
+for
+things like formatters, static code analyzers...etc but CST can be very
+useful as
+?ukasz describes here:
+
+https://bugs.python.org/issue33337
+
+I think is missing an important gap in the stdlib and the closest thing we
+have
+(the current parser module) is not useful for any of that. Also, the core
+to generating
+the hypothetical new package (with some new API over it may be) is already
+undocumented
+as an implementation detail of lib2to3 (and some people are already using
+it directly).
+
+
+
+On Thu, 16 May 2019 at 23:41, Nathaniel Smith <njs at pobox.com> wrote:
+
+> On Thu, May 16, 2019 at 2:13 PM Pablo Galindo Salgado
+> <pablogsal at gmail.com> wrote:
+> > I propose to remove finally the parser module as it has been
+> "deprecated" for a long time, is almost clear that nobody uses it and has
+> very limited usability and replace it (maybe with a different name)
+> > with pgen2 (maybe with a more generic interface that is detached to
+> lib2to3 particularities). This will not only help a lot current libraries
+> that are using forks or similar solutions but also will help to keep
+> > synchronized the shipped grammar (that is able to parse Python2 and
+> Python3 code) with the current Python one (as now will be more justified to
+> keep them in sync).
+>
+> Will the folks using forks be happy to switch to the stdlib version?
+> For example I can imagine that if black wants to process 3.7 input
+> code while running on 3.6, it might prefer a parser on PyPI even if
+> the stdlib version were public, since the PyPI version can be updated
+> independently of the host Python.
+>
+> -n
+>
+> --
+> Nathaniel J. Smith -- https://vorpus.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190516/ebe52703/attachment.html>
+
+From steve.dower at python.org  Thu May 16 18:55:13 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 16 May 2019 15:55:13 -0700
+Subject: [Python-Dev] Parser module in the stdlib
+In-Reply-To: <CAFjbc8HFS2+EuG9NbAExgDN5WPFV8X7QyC9pe_3GFtyenz3-5A@mail.gmail.com>
+References: <CAFjbc8ExfBnbntfaTgDLk=wkWJzk-3xfG=omN+5nsSDxBQw+4w@mail.gmail.com>
+ <CAPJVwB=YQdMbMUQFwtT-D2it=UjNv3CquXUgR+pyD42pqZ_-cQ@mail.gmail.com>
+ <CAFjbc8HFS2+EuG9NbAExgDN5WPFV8X7QyC9pe_3GFtyenz3-5A@mail.gmail.com>
+Message-ID: <eaa047f9-efac-21f0-b6b4-db4d696d0d65@python.org>
+
+On 16May2019 1548, Pablo Galindo Salgado wrote:
+>  > Will the folks using forks be happy to switch to the stdlib version?
+>>For example I can imagine that if black wants to process 3.7 input
+>>code while running on 3.6, it might prefer a parser on PyPI even if
+>>he stdlib version were public, since the PyPI version can be updated
+>>independently of the host Python.
+> The tool can parse arbitrary grammars, the one that is packed into is 
+> just one of them.
+> 
+> I think it would be useful, among other things because the standard library
+> lacks currently a proper CST solution. The ast module is heavily 
+> leveraged for
+> things like formatters, static code analyzers...etc but CST can be very 
+> useful as
+> ?ukasz describes here:
+> 
+> https://bugs.python.org/issue33337
+> 
+> I think is missing an important gap in the stdlib and the closest thing 
+> we have
+> (the current parser module) is not useful for any of that. Also, the 
+> core to generating
+> the hypothetical new package (with some new API over it may be) is 
+> already undocumented
+> as an implementation detail of lib2to3 (and some people are already 
+> using it directly).
+
+We still have the policy of not removing modules that exist in the 
+Python 2 standard library. But 3.9 won't be covered by that :)
+
+But I'm in favor of having a proper CST module that matches the version 
+of Python it's in. It doesn't help people on earlier versions (yet), but 
+given how closely tied it is to the Python version you're on I think it 
+makes sense in the stdlib.
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Thu May 16 19:00:07 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 16 May 2019 16:00:07 -0700
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CA+3bQGEMLa1GzwCOZmRhUYht2m3zHCvs60t+ea=mqiKYSRApAg@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+ <CA+3bQGHaGhsBkS8eEfTXjGxxMwdMqF449pP_pj4vNsEKS96Snw@mail.gmail.com>
+ <cb87728c-4ff3-b1cb-c212-1312e8fea626@python.org>
+ <CA+3bQGEMLa1GzwCOZmRhUYht2m3zHCvs60t+ea=mqiKYSRApAg@mail.gmail.com>
+Message-ID: <8332cadb-0434-e633-798e-7fe28ed5c09a@python.org>
+
+On 16May2019 1441, Victor Stinner wrote:
+> Le jeu. 16 mai 2019 ? 23:17, Steve Dower <steve.dower at python.org> a ?crit :
+>> You go on to say "pass an error message" and "keep repr(obj) if you
+>> want", but how is this different from creating an exception that
+>> contains the custom message, the repr of the object, and chains the
+>> exception that triggered it?
+> 
+> Well, "unraisable exceptions" are raised when something goes wrong.
+> I'm not comfortable with creating a new exception instance and
+> chaining it to the previous exception, because it could go wrong and
+> raise a 3rd exception. Issue a new error while trying to log an error
+> can be annoying :-(
+
+I mean, aren't they all? :) That's why they're exceptional.
+
+If we're not in a position to raise a new exception, then it's not safe 
+to call into user's Python code. If it's safe to call into their Python 
+code, then we have to be in a position to raise a new exception.
+
+You said earlier that we can safely do this, and now you're saying we 
+can't safely do it. Which is it?
+
+> Moreover, when I looked at details of the "unraisable exception" (see
+> my reply to Petr Viktorin), I saw that the exception is not well
+> defined as you might expect. (exc_type, exc_value, exc_tb) can *not*
+> be replaced with (type(exc_value), exc_value,
+> exc_value.__traceback__). Sometimes, exc_value is None. Sometimes,
+> exc_tb is a traceback object, but exc_value.__traceback__ is None. So
+> I'm not comfortable neither to chain such badly shaped exception into
+> a new exception.
+
+Yeah, this is the normal optimization for raising and handling 
+exceptions that never reach Python code. Exceptions are supposed to be 
+normalized before re-entering the eval loop.
+
+> I prefer to pass "raw" values and let the hook decides how to handle them :-)
+
+This is fine, it's how we handle exceptions in most other places (such 
+as __exit__, logging, sys, traceback and all through the C API), and 
+skipping normalization for a last-chance "the-world-may-be-burning" hook 
+isn't the worst thing ever.
+
+Cheers,
+Steve
+
+From greg at krypto.org  Thu May 16 21:09:51 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Thu, 16 May 2019 18:09:51 -0700
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <8332cadb-0434-e633-798e-7fe28ed5c09a@python.org>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+ <CA+3bQGHaGhsBkS8eEfTXjGxxMwdMqF449pP_pj4vNsEKS96Snw@mail.gmail.com>
+ <cb87728c-4ff3-b1cb-c212-1312e8fea626@python.org>
+ <CA+3bQGEMLa1GzwCOZmRhUYht2m3zHCvs60t+ea=mqiKYSRApAg@mail.gmail.com>
+ <8332cadb-0434-e633-798e-7fe28ed5c09a@python.org>
+Message-ID: <CAGE7PNKGgFjQ1=ONXs=KBoCcBgK2ROrs1Y=B9Qinq=3cyrM5pQ@mail.gmail.com>
+
+I like the feature, we should have it.  It'll be useful for debugging and
+probably more.
+
+Which brings me to the annoying paint color question: These exceptions were
+most definitely raised. Thus the term "unraisable" is wrong. I believe you
+really mean "uncatchable".
+
+-gps
+
+On Thu, May 16, 2019 at 4:00 PM Steve Dower <steve.dower at python.org> wrote:
+
+> On 16May2019 1441, Victor Stinner wrote:
+> > Le jeu. 16 mai 2019 ? 23:17, Steve Dower <steve.dower at python.org> a
+> ?crit :
+> >> You go on to say "pass an error message" and "keep repr(obj) if you
+> >> want", but how is this different from creating an exception that
+> >> contains the custom message, the repr of the object, and chains the
+> >> exception that triggered it?
+> >
+> > Well, "unraisable exceptions" are raised when something goes wrong.
+> > I'm not comfortable with creating a new exception instance and
+> > chaining it to the previous exception, because it could go wrong and
+> > raise a 3rd exception. Issue a new error while trying to log an error
+> > can be annoying :-(
+>
+> I mean, aren't they all? :) That's why they're exceptional.
+>
+> If we're not in a position to raise a new exception, then it's not safe
+> to call into user's Python code. If it's safe to call into their Python
+> code, then we have to be in a position to raise a new exception.
+>
+> You said earlier that we can safely do this, and now you're saying we
+> can't safely do it. Which is it?
+>
+> > Moreover, when I looked at details of the "unraisable exception" (see
+> > my reply to Petr Viktorin), I saw that the exception is not well
+> > defined as you might expect. (exc_type, exc_value, exc_tb) can *not*
+> > be replaced with (type(exc_value), exc_value,
+> > exc_value.__traceback__). Sometimes, exc_value is None. Sometimes,
+> > exc_tb is a traceback object, but exc_value.__traceback__ is None. So
+> > I'm not comfortable neither to chain such badly shaped exception into
+> > a new exception.
+>
+> Yeah, this is the normal optimization for raising and handling
+> exceptions that never reach Python code. Exceptions are supposed to be
+> normalized before re-entering the eval loop.
+>
+> > I prefer to pass "raw" values and let the hook decides how to handle
+> them :-)
+>
+> This is fine, it's how we handle exceptions in most other places (such
+> as __exit__, logging, sys, traceback and all through the C API), and
+> skipping normalization for a last-chance "the-world-may-be-burning" hook
+> isn't the worst thing ever.
+>
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190516/47e31641/attachment.html>
+
+From vstinner at redhat.com  Thu May 16 21:23:34 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 17 May 2019 03:23:34 +0200
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CAGE7PNKGgFjQ1=ONXs=KBoCcBgK2ROrs1Y=B9Qinq=3cyrM5pQ@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <qbj0cg$24cj$1@blaine.gmane.org>
+ <CA+3bQGEBdccO7W-1cy6TV91tMC1ipXc5shac1Byiz5Oueunj5w@mail.gmail.com>
+ <qbjfgd$2qgd$1@blaine.gmane.org>
+ <CA+3bQGHQeNrr_FwGn6Op1VBFZ=CCh_z3_5-ak8M4AL-Q=xvZnA@mail.gmail.com>
+ <8c678174-b68b-3e70-9f82-b4c7e274185c@python.org>
+ <CA+3bQGHaGhsBkS8eEfTXjGxxMwdMqF449pP_pj4vNsEKS96Snw@mail.gmail.com>
+ <cb87728c-4ff3-b1cb-c212-1312e8fea626@python.org>
+ <CA+3bQGEMLa1GzwCOZmRhUYht2m3zHCvs60t+ea=mqiKYSRApAg@mail.gmail.com>
+ <8332cadb-0434-e633-798e-7fe28ed5c09a@python.org>
+ <CAGE7PNKGgFjQ1=ONXs=KBoCcBgK2ROrs1Y=B9Qinq=3cyrM5pQ@mail.gmail.com>
+Message-ID: <CA+3bQGEUBZ2Qz2JPyT61z3CHu71FeTsozjYig4HrL=bt_6Hekw@mail.gmail.com>
+
+Le ven. 17 mai 2019 ? 03:10, Gregory P. Smith <greg at krypto.org> a ?crit :
+> I like the feature, we should have it.  It'll be useful for debugging and probably more.
+>
+> Which brings me to the annoying paint color question: These exceptions were most definitely raised. Thus the term "unraisable" is wrong. I believe you really mean "uncatchable".
+
+"unraisablehook" name comes from the existing PyErr_WriteUnraisable().
+
+I understood that "unraisable" means that the function calling
+PyErr_WriteUnraisable() cannot "raise" the exception to its caller.
+The exception has to be "swallowed" by the function.
+
+--
+
+If you like the feature, please review my PR :-)
+
+https://github.com/python/cpython/pull/13187
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From njs at pobox.com  Thu May 16 21:32:39 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Thu, 16 May 2019 18:32:39 -0700
+Subject: [Python-Dev] bpo-36829: Add sys.unraisablehook()
+In-Reply-To: <CA+3bQGFrZDkbaNsjMsXNUKvJbgb3-5qVmoF785x5cYqKS+2aPA@mail.gmail.com>
+References: <CA+3bQGHmR18+nQ8=oUc3cu2vZJ0riyqqxKmaJ8ykNe9NPnVS8w@mail.gmail.com>
+ <314887b2-8fb9-447d-7293-2babb8ba5f00@gmail.com>
+ <CA+3bQGFrZDkbaNsjMsXNUKvJbgb3-5qVmoF785x5cYqKS+2aPA@mail.gmail.com>
+Message-ID: <CAPJVwB=01zD5PSseXc0c0+ub0TJySG-0tUFcXxKqGr23zYO_KA@mail.gmail.com>
+
+On Thu, May 16, 2019 at 1:23 PM Victor Stinner <vstinner at redhat.com> wrote:
+>
+> Le jeu. 16 mai 2019 ? 20:58, Petr Viktorin <encukou at gmail.com> a ?crit :
+> > I always thought the classic (exc_type, exc_value, exc_tb) triple is a
+> > holdover from older Python versions, and all the information is now in
+> > the exception instance.
+> > Is the triple ever different from (type(exc), exc, exc.__traceback__)?
+> > (possibly with a getattr for __traceback__)
+>
+> I added assertions in PyErr_WriteTraceback():
+>
+>     assert(Py_TYPE(v) == t);
+>     assert(PyException_GetTraceback(v) == tb);
+>
+> "Py_TYPE(v) == t" fails in
+> test_exceptions.test_memory_error_in_PyErr_PrintEx() for example.
+> PyErr_NoMemory() calls PyErr_SetNone(PyExc_MemoryError), it sets
+> tstate->curexc_type to PyExc_MemoryError, but tstate->curexc_value is
+> set to NULLL.
+
+This makes some sense ? if you can't allocate memory, then better not
+allocate an exception instance to report that! So this is legitimately
+a special case.
+
+But... it looks like everywhere else, the way we handle this when
+transitioning into Python code is to create an instance. For example,
+that test does 'except MemoryError as e', so an instance does need to
+be created then. The comments suggest that there's some trick where we
+have pre-allocated MemoryError() instances? But either way, if we can
+afford to call a Python hook (which requires at least allocating a
+frame!), then we can probably also afford to materialize the
+MemoryError instance. So I feel like maybe we shouldn't be passing
+None to the unraisable hook, even if PyErr_NoMemory() did initially
+set that?
+
+Also, in practice, the only time I've ever seen MemoryError is from
+attempting to do a single massively-huge allocation. It's never meant
+that regular allocation of small objects will fail.
+
+> "PyException_GetTraceback(v) == tb" fails in
+> test_exceptions.test_unraisable() for example: "PyTraceBack_Here(f);"
+> in the "error:" label of ceval.c creates a traceback object and sets
+> it to tstate->curexec_traceback, but it doesn't set the __traceback__
+> attribute of the current exception.
+
+Isn't this just a bug that should be fixed?
+
+> > Should new APIs use it?
+>
+> I tried to add a "PyErr_NormalizeException(&t, &v, &tb);" call in
+> PyErr_WriteUnraisable(): it creates an exception object (exc_value)
+> for the PyErr_NoMemory() case, but it still doesn't set the
+> __traceback__ attribute of the exception for the PyTraceBack_Here()
+> case.
+>
+> It seems like PyErr_WriteUnraisable() cannot avoid having 3 variables
+> (exc_type, exc_value, exc_tb), since they are not consistent as you
+> may expect.
+
+I'm actually fine with it having three arguments -- even if it's
+technically unnecessary, it's currently 100% consistent across these
+low-level APIs, and it doesn't hurt anything, so we might as well
+stick with it for consistency.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From bcannon at gmail.com  Thu May 16 22:04:37 2019
+From: bcannon at gmail.com (Brett Cannon)
+Date: Thu, 16 May 2019 19:04:37 -0700
+Subject: [Python-Dev] Parser module in the stdlib
+In-Reply-To: <eaa047f9-efac-21f0-b6b4-db4d696d0d65@python.org>
+References: <CAFjbc8ExfBnbntfaTgDLk=wkWJzk-3xfG=omN+5nsSDxBQw+4w@mail.gmail.com>
+ <CAPJVwB=YQdMbMUQFwtT-D2it=UjNv3CquXUgR+pyD42pqZ_-cQ@mail.gmail.com>
+ <CAFjbc8HFS2+EuG9NbAExgDN5WPFV8X7QyC9pe_3GFtyenz3-5A@mail.gmail.com>
+ <eaa047f9-efac-21f0-b6b4-db4d696d0d65@python.org>
+Message-ID: <CAP1=2W5L-bVLOuLPBFm7rsm1cbRcMshcQ8w6_3zF05NV0xTsWQ@mail.gmail.com>
+
+On Thu., May 16, 2019, 15:56 Steve Dower, <steve.dower at python.org> wrote:
+
+> On 16May2019 1548, Pablo Galindo Salgado wrote:
+> >  > Will the folks using forks be happy to switch to the stdlib version?
+> >>For example I can imagine that if black wants to process 3.7 input
+> >>code while running on 3.6, it might prefer a parser on PyPI even if
+> >>he stdlib version were public, since the PyPI version can be updated
+> >>independently of the host Python.
+> > The tool can parse arbitrary grammars, the one that is packed into is
+> > just one of them.
+> >
+> > I think it would be useful, among other things because the standard
+> library
+> > lacks currently a proper CST solution. The ast module is heavily
+> > leveraged for
+> > things like formatters, static code analyzers...etc but CST can be very
+> > useful as
+> > ?ukasz describes here:
+> >
+> > https://bugs.python.org/issue33337
+> >
+> > I think is missing an important gap in the stdlib and the closest thing
+> > we have
+> > (the current parser module) is not useful for any of that. Also, the
+> > core to generating
+> > the hypothetical new package (with some new API over it may be) is
+> > already undocumented
+> > as an implementation detail of lib2to3 (and some people are already
+> > using it directly).
+>
+> We still have the policy of not removing modules that exist in the
+> Python 2 standard library. But 3.9 won't be covered by that :)
+>
+
+Correct. ? We should deprecate in 3.8 for removal in 3.9.
+
+
+> But I'm in favor of having a proper CST module that matches the version
+> of Python it's in. It doesn't help people on earlier versions (yet), but
+> given how closely tied it is to the Python version you're on I think it
+> makes sense in the stdlib.
+>
+
++1. I think someone brought up the API, and probably talking to projects
+that are using pgen2 out of lib2to3 would be good.
+
+-Brett
+
+
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190516/cd8f75c9/attachment-0001.html>
+
