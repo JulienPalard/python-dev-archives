@@ -16853,3 +16853,1106 @@ that are using pgen2 out of lib2to3 would be good.
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190516/cd8f75c9/attachment-0001.html>
 
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Fri May 17 09:06:34 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Fri, 17 May 2019 22:06:34 +0900
+Subject: [Python-Dev] Consolidating channel of record [was: 581 (Using
+ GitHub issues for CPython) is accepted]
+In-Reply-To: <CALGmxEL8xJUMM2jUMDUOL+3fg=UxPXvz-7ek-Rw3nd9vhqbrPg@mail.gmail.com>
+References: <7407D51F-AC46-4423-AF4A-63940F80D629@python.org>
+ <20190515104830.5b307230@fsol>
+ <CACac1F9h-uvqUNcjFMh2FCPD4+=mbPb5Eo7=a5aZnhJF0KZFNg@mail.gmail.com>
+ <CA+3bQGFh3y6YNz9sWnbFcmFBgsXeaoO92_hFsGr_d=Y4Ee34XA@mail.gmail.com>
+ <CACac1F_9cb2ykL4s-5G+GPvkhu+-EFhR_4C1VKY=A0O=o7+jUg@mail.gmail.com>
+ <23772.29178.404867.929820@turnbull.sk.tsukuba.ac.jp>
+ <CALGmxEL8xJUMM2jUMDUOL+3fg=UxPXvz-7ek-Rw3nd9vhqbrPg@mail.gmail.com>
+Message-ID: <23774.45530.164132.186287@turnbull.sk.tsukuba.ac.jp>
+
+Chris Barker - NOAA Federal writes:
+
+ > Frankly, multiple long meandering threads in s single mailing list
+ > are not s very good archive either.
+
+True, but I have no idea how to address that administratively, except
+to have a *very* strong moderator.
+
+ > Ideally, the PEP is updated with a summary of the issues discussed
+ > as the discussion unfolds.
+
+The point of "channel of record" is not that it would replace the PEPs
+themselves.  It's that PEP authors are people with time limitations,
+too.
+
+For example, there's at least one person currently requesting a review
+on a PEP who has in the past loudly and publicly announced their
+unsubscription from python-ideas and IIRC even python-dev.  I think
+it's a good idea to have *one* place that is the principal source for
+PEP protagonists who don't have time for or simply dislike
+participating in some (or even all) of the channels du jour.  With a
+designated channel of record, if discussions take place elsewhere, the
+PEP protagonist *may*, but would be under *no obligation* to, follow
+them or search for them.  In the current situation, there's an
+implicit obligation for the protagonist to check all the channels,
+maybe even to do a Google search.  Or at least some of the posters
+seem to feel that way.
+
+ > As the community seems to be moving to a wider variety of fora,
+ > this will become all the more critical.
+
+It would also be possible, I suppose, for the PEP protagonist to
+designate a channel in the PEP.  That has its problems too (they can
+choose a channel that is inconvenient for the majority of interested
+participants, for example), but with a designated channel system of
+either kind the problems are predictable and bounded.
+
+Steve
+
+From qiang.fang at zoho.com.cn  Fri May 17 04:00:11 2019
+From: qiang.fang at zoho.com.cn (Q)
+Date: Fri, 17 May 2019 16:00:11 +0800
+Subject: [Python-Dev] Feature request: Change a Dependency Package Version
+ During Package Initiation
+Message-ID: <16ac4ce3e2f.c1af300c4816.5384009389495434427@zoho.com.cn>
+
+A lot of the Python code we use in production are used directly as imports in other python
+
+distributions (such as the python comes with the finite element software Abaqus and MSC Marc), many
+
+packages (such as matplotlib, numpy) that may have varying versioned dependencies.
+
+
+
+I was wondering if this could be expanded to allow a version to be set within a package and have
+
+that propagate to all modules in that package. For example in the root init.py if I set
+
+multiversion(tornado, 2.2.1) then all modules in that package will use tornado 2.2.1 when I import
+
+tornado.
+
+
+
+See a relevant issue on github:
+
+https://github.com/mitsuhiko/multiversion/issues/1
+
+
+
+Thank you!
+
+Qiang
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190517/fbe8ba07/attachment.html>
+
+From qiang.fang at zoho.com.cn  Fri May 17 04:09:45 2019
+From: qiang.fang at zoho.com.cn (Q)
+Date: Fri, 17 May 2019 16:09:45 +0800
+Subject: [Python-Dev] Feature request: Change a Dependency Package Version
+ During Package Initiation
+In-Reply-To: <16ac4ce3e2f.c1af300c4816.5384009389495434427@zoho.com.cn>
+References: <16ac4ce3e2f.c1af300c4816.5384009389495434427@zoho.com.cn>
+Message-ID: <16ac4d7010e.1180c0d4d4832.5644021354870491002@zoho.com.cn>
+
+A lot of the Python code we use in production are used directly as imports in other python
+
+
+
+distributions (such as the python comes with the finite element software Abaqus and MSC Marc), many
+
+packages (such as matplotlib, numpy) that may have varying versioned dependencies, which makes it is
+
+a pain to get all these dependencies met in those close source python distributions.
+
+
+
+The work around is to let a version to be set within a package and have that propagate to all
+
+modules in that package. For example in the root init.py if I set tonado version to be 2.2.1 then
+
+all modules in that package will use tornado 2.2.1 when I import tornado.
+
+
+
+See a relevant issue of a similar package on github:
+
+https://github.com/mitsuhiko/multiversion/issues/1
+
+
+
+Thank you!
+
+Qiang
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190517/6df771b2/attachment.html>
+
+From bcannon at gmail.com  Fri May 17 11:25:15 2019
+From: bcannon at gmail.com (Brett Cannon)
+Date: Fri, 17 May 2019 08:25:15 -0700
+Subject: [Python-Dev] Feature request: Change a Dependency Package
+ Version During Package Initiation
+In-Reply-To: <16ac4ce3e2f.c1af300c4816.5384009389495434427@zoho.com.cn>
+References: <16ac4ce3e2f.c1af300c4816.5384009389495434427@zoho.com.cn>
+Message-ID: <CAP1=2W4+W+2UQpgHMi=hN=2ugkLULjeY81xpLO73FHxx4-0f_w@mail.gmail.com>
+
+Thanks for the idea but there are currently no plans to support such a
+feature. If you would like to see it then you will need to write a PEP with
+a proof-of-concept to demonstrate how you would expect such a feature to
+work.
+
+On Fri., May 17, 2019, 07:55 Q via Python-Dev, <python-dev at python.org>
+wrote:
+
+> A lot of the Python code we use in production are used directly as imports
+> in other python
+> distributions (such as the python comes with the finite element software
+> Abaqus and MSC Marc), many
+> packages (such as matplotlib, numpy) that may have varying versioned
+> dependencies.
+>
+> I was wondering if this could be expanded to allow a version to be set
+> within a package and have
+> that propagate to all modules in that package. For example in the root
+> init.py if I set
+> multiversion(tornado, 2.2.1) then all modules in that package will use
+> tornado 2.2.1 when I import
+> tornado.
+>
+> See a relevant issue on github:
+> https://github.com/mitsuhiko/multiversion/issues/1
+>
+> Thank you!
+> Qiang
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190517/2be36dec/attachment.html>
+
+From dholth at gmail.com  Fri May 17 11:38:55 2019
+From: dholth at gmail.com (Daniel Holth)
+Date: Fri, 17 May 2019 11:38:55 -0400
+Subject: [Python-Dev] Feature request: Change a Dependency Package
+ Version During Package Initiation
+In-Reply-To: <CAP1=2W4+W+2UQpgHMi=hN=2ugkLULjeY81xpLO73FHxx4-0f_w@mail.gmail.com>
+References: <16ac4ce3e2f.c1af300c4816.5384009389495434427@zoho.com.cn>
+ <CAP1=2W4+W+2UQpgHMi=hN=2ugkLULjeY81xpLO73FHxx4-0f_w@mail.gmail.com>
+Message-ID: <CAG8k2+5mbiNWnWmnTf--NfXtEzVLj402ihVdhUye2jxypC3D8w@mail.gmail.com>
+
+This sounds exactly like what people used to do with eggs. You could have
+multiple versions of a package on the path as eggs and then require a
+version at runtime. The approach has problems. Ruby also abandoned a
+strategy where random app code depends on package management code at
+runtime.
+
+One better strategy is to set up a python path in a wrapper script.
+
+On Fri, May 17, 2019, 11:27 Brett Cannon <bcannon at gmail.com> wrote:
+
+> Thanks for the idea but there are currently no plans to support such a
+> feature. If you would like to see it then you will need to write a PEP with
+> a proof-of-concept to demonstrate how you would expect such a feature to
+> work.
+>
+> On Fri., May 17, 2019, 07:55 Q via Python-Dev, <python-dev at python.org>
+> wrote:
+>
+>> A lot of the Python code we use in production are used directly as
+>> imports in other python
+>> distributions (such as the python comes with the finite element software
+>> Abaqus and MSC Marc), many
+>> packages (such as matplotlib, numpy) that may have varying versioned
+>> dependencies.
+>>
+>> I was wondering if this could be expanded to allow a version to be set
+>> within a package and have
+>> that propagate to all modules in that package. For example in the root
+>> init.py if I set
+>> multiversion(tornado, 2.2.1) then all modules in that package will use
+>> tornado 2.2.1 when I import
+>> tornado.
+>>
+>> See a relevant issue on github:
+>> https://github.com/mitsuhiko/multiversion/issues/1
+>>
+>> Thank you!
+>> Qiang
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/dholth%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190517/7e8387a0/attachment.html>
+
+From status at bugs.python.org  Fri May 17 14:08:03 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 17 May 2019 18:08:03 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190517180803.A2F9352B235@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-05-10 - 2019-05-17)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7067 (-17)
+  closed 41633 (+91)
+  total  48700 (+74)
+
+Open issues with patches: 2861 
+
+
+Issues opened (56)
+==================
+
+#36084: Threading: add builtin TID attribute to Thread objects
+https://bugs.python.org/issue36084  reopened by vstinner
+
+#36801: Wait for connection_lost in StreamWriter.drain
+https://bugs.python.org/issue36801  reopened by asvetlov
+
+#36802: Revert back StreamWriter awrite/aclose but provide await write
+https://bugs.python.org/issue36802  reopened by vstinner
+
+#36817: Add = to f-strings for easier debugging.
+https://bugs.python.org/issue36817  reopened by pablogsal
+
+#36876: Global C variables are a problem.
+https://bugs.python.org/issue36876  opened by eric.snow
+
+#36877: [meta] Move fields from _PyRuntimeState to PyInterpreterState.
+https://bugs.python.org/issue36877  opened by eric.snow
+
+#36878: ast.parse with type_comments=True should allow extra text afte
+https://bugs.python.org/issue36878  opened by msullivan
+
+#36879: bug with round() and "numpy floats"
+https://bugs.python.org/issue36879  opened by Scaler
+
+#36880: Returning None from a callback with restype py_object decremen
+https://bugs.python.org/issue36880  opened by dgelessus
+
+#36881: isinstance raises TypeError for metaclass with metaclass=ABCMe
+https://bugs.python.org/issue36881  opened by emanspeaks
+
+#36882: ???ctypes?????????C?????????c_char_p??????????????????
+https://bugs.python.org/issue36882  opened by fy2099
+
+#36885: Make makeunicode.py script more readable
+https://bugs.python.org/issue36885  opened by scoder
+
+#36887: Add integer square root, math.isqrt
+https://bugs.python.org/issue36887  opened by mark.dickinson
+
+#36888: Create a way to check that the parent process is alive for dea
+https://bugs.python.org/issue36888  opened by tomMoral
+
+#36889: Merge StreamWriter and StreamReader into just asyncio.Stream
+https://bugs.python.org/issue36889  opened by asvetlov
+
+#36890: python-3.7.3-macosx10.6.pkg verification error on macOS 10.6 S
+https://bugs.python.org/issue36890  opened by steve_314
+
+#36891: Additional startup plugin for vendors
+https://bugs.python.org/issue36891  opened by vx1920
+
+#36892: "Modules" section in Tutorial contains incorrect description a
+https://bugs.python.org/issue36892  opened by musou1500
+
+#36893: email.headerregistry.Address blocks Unicode local part addr_sp
+https://bugs.python.org/issue36893  opened by dracos
+
+#36894: test_multiprocessing_spawn regression on Windows
+https://bugs.python.org/issue36894  opened by pitrou
+
+#36895: time.clock() marked for removal in 3.8 ?????still there.
+https://bugs.python.org/issue36895  opened by mbussonn
+
+#36896: clarify in types.rst that FunctionTypes & co  constructors don
+https://bugs.python.org/issue36896  opened by mbussonn
+
+#36897: shlex doesn't differentiate escaped characters in output
+https://bugs.python.org/issue36897  opened by Matthew Gamble
+
+#36898: Add parameter @case_sensitive to glob and rglob in pathlib
+https://bugs.python.org/issue36898  opened by Chuang Men
+
+#36901: Fix leaks in /PC/bdist_wininst/install.c
+https://bugs.python.org/issue36901  opened by cheryl.sabella
+
+#36904: Implement _PyStack_UnpackDict() with a single allocation
+https://bugs.python.org/issue36904  opened by jdemeyer
+
+#36905: test_typing.GetTypeHintTests.test_get_type_hints_modules_forwa
+https://bugs.python.org/issue36905  opened by xtreak
+
+#36906: Compile time textwrap.dedent() equivalent for str or bytes lit
+https://bugs.python.org/issue36906  opened by gregory.p.smith
+
+#36907: Crash due to borrowed references in _PyStack_UnpackDict()
+https://bugs.python.org/issue36907  opened by jdemeyer
+
+#36908: "This module is always available" is confusing
+https://bugs.python.org/issue36908  opened by nedbat
+
+#36910: Certain Malformed email causes email.parser to throw Attribute
+https://bugs.python.org/issue36910  opened by msapiro
+
+#36913: Missing documentation for decorators
+https://bugs.python.org/issue36913  opened by tomerv
+
+#36917: ast.NodeVisitor no longer calls visit_Str
+https://bugs.python.org/issue36917  opened by Anthony Sottile
+
+#36918: ValueError warning in test_urllib due to io.IOBase destructor
+https://bugs.python.org/issue36918  opened by xtreak
+
+#36919: Exception from 'compile' reports a newline char not present in
+https://bugs.python.org/issue36919  opened by BCSharp
+
+#36921: Deprecate yield from and @coroutine in asyncio
+https://bugs.python.org/issue36921  opened by asvetlov
+
+#36922: Implement Py_TPFLAGS_METHOD_DESCRIPTOR
+https://bugs.python.org/issue36922  opened by jdemeyer
+
+#36924: Simplify implementation of classmethod_descriptor.__call__
+https://bugs.python.org/issue36924  opened by jdemeyer
+
+#36926: Implement methoddescr_call without _PyMethodDef_RawFastCallDic
+https://bugs.python.org/issue36926  opened by jdemeyer
+
+#36927: traceback docstrings should explicitly state return values ins
+https://bugs.python.org/issue36927  opened by Aaron Hall
+
+#36929: Other Python _io implementations may not expose _io in their t
+https://bugs.python.org/issue36929  opened by tekknolagi
+
+#36932: asyncio-task.rst could use proper deprecated-removed directive
+https://bugs.python.org/issue36932  opened by mbussonn
+
+#36933: sys.set_coroutine_wrapper documented as to be removed in 3.8 (
+https://bugs.python.org/issue36933  opened by mbussonn
+
+#36935: bpo-35813 introduced usage of the deprecated PyErr_SetFromWind
+https://bugs.python.org/issue36935  opened by ZackerySpytz
+
+#36936: CALL_FUNCTION_KW opcode: keyword names must be non-empty
+https://bugs.python.org/issue36936  opened by jdemeyer
+
+#36937: New _PyObject_MakeTpCall() function
+https://bugs.python.org/issue36937  opened by jdemeyer
+
+#36940: Update Py_FrozenMain() for _PyCoreConfig (PEP 587)
+https://bugs.python.org/issue36940  opened by vstinner
+
+#36941: Windows build changes for Windows ARM64
+https://bugs.python.org/issue36941  opened by Paul Monson
+
+#36942: Windows code changes for Windows ARM64
+https://bugs.python.org/issue36942  opened by Paul Monson
+
+#36943: Windows test changes for Windows ARM64
+https://bugs.python.org/issue36943  opened by Paul Monson
+
+#36944: Add support for ARM64 to libffi
+https://bugs.python.org/issue36944  opened by Paul Monson
+
+#36945: Add _PyPreConfig.configure_locale: allow to leave LC_CTYPE unc
+https://bugs.python.org/issue36945  opened by vstinner
+
+#36946: Possible signed integer overflow in slice handling
+https://bugs.python.org/issue36946  opened by ZackerySpytz
+
+#36947: [Good first issue] Fix 3.3.3.1 Metaclasses Documentation
+https://bugs.python.org/issue36947  opened by Nicholas Matthews
+
+#36948: NameError in urllib.request.URLopener.retrieve
+https://bugs.python.org/issue36948  opened by xtreak
+
+#36949: WeakSet.__repr__ and __str__ do not show contents of the set
+https://bugs.python.org/issue36949  opened by steve.dower
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#36949: WeakSet.__repr__ and __str__ do not show contents of the set
+https://bugs.python.org/issue36949
+
+#36948: NameError in urllib.request.URLopener.retrieve
+https://bugs.python.org/issue36948
+
+#36944: Add support for ARM64 to libffi
+https://bugs.python.org/issue36944
+
+#36943: Windows test changes for Windows ARM64
+https://bugs.python.org/issue36943
+
+#36940: Update Py_FrozenMain() for _PyCoreConfig (PEP 587)
+https://bugs.python.org/issue36940
+
+#36933: sys.set_coroutine_wrapper documented as to be removed in 3.8 (
+https://bugs.python.org/issue36933
+
+#36932: asyncio-task.rst could use proper deprecated-removed directive
+https://bugs.python.org/issue36932
+
+#36926: Implement methoddescr_call without _PyMethodDef_RawFastCallDic
+https://bugs.python.org/issue36926
+
+#36924: Simplify implementation of classmethod_descriptor.__call__
+https://bugs.python.org/issue36924
+
+#36922: Implement Py_TPFLAGS_METHOD_DESCRIPTOR
+https://bugs.python.org/issue36922
+
+#36921: Deprecate yield from and @coroutine in asyncio
+https://bugs.python.org/issue36921
+
+#36905: test_typing.GetTypeHintTests.test_get_type_hints_modules_forwa
+https://bugs.python.org/issue36905
+
+#36901: Fix leaks in /PC/bdist_wininst/install.c
+https://bugs.python.org/issue36901
+
+#36896: clarify in types.rst that FunctionTypes & co  constructors don
+https://bugs.python.org/issue36896
+
+#36889: Merge StreamWriter and StreamReader into just asyncio.Stream
+https://bugs.python.org/issue36889
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#36948: NameError in urllib.request.URLopener.retrieve
+https://bugs.python.org/issue36948
+
+#36946: Possible signed integer overflow in slice handling
+https://bugs.python.org/issue36946
+
+#36945: Add _PyPreConfig.configure_locale: allow to leave LC_CTYPE unc
+https://bugs.python.org/issue36945
+
+#36943: Windows test changes for Windows ARM64
+https://bugs.python.org/issue36943
+
+#36942: Windows code changes for Windows ARM64
+https://bugs.python.org/issue36942
+
+#36941: Windows build changes for Windows ARM64
+https://bugs.python.org/issue36941
+
+#36937: New _PyObject_MakeTpCall() function
+https://bugs.python.org/issue36937
+
+#36936: CALL_FUNCTION_KW opcode: keyword names must be non-empty
+https://bugs.python.org/issue36936
+
+#36935: bpo-35813 introduced usage of the deprecated PyErr_SetFromWind
+https://bugs.python.org/issue36935
+
+#36932: asyncio-task.rst could use proper deprecated-removed directive
+https://bugs.python.org/issue36932
+
+#36929: Other Python _io implementations may not expose _io in their t
+https://bugs.python.org/issue36929
+
+#36927: traceback docstrings should explicitly state return values ins
+https://bugs.python.org/issue36927
+
+#36926: Implement methoddescr_call without _PyMethodDef_RawFastCallDic
+https://bugs.python.org/issue36926
+
+#36924: Simplify implementation of classmethod_descriptor.__call__
+https://bugs.python.org/issue36924
+
+#36922: Implement Py_TPFLAGS_METHOD_DESCRIPTOR
+https://bugs.python.org/issue36922
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#36867: Make semaphore_tracker track other system resources
+https://bugs.python.org/issue36867  11 msgs
+
+#36887: Add integer square root, math.isqrt
+https://bugs.python.org/issue36887  11 msgs
+
+#36763: PEP 587: Rework initialization API to prepare second version o
+https://bugs.python.org/issue36763  10 msgs
+
+#36917: ast.NodeVisitor no longer calls visit_Str
+https://bugs.python.org/issue36917  10 msgs
+
+#36870: test_asyncio: test_drain_raises() fails randomly on Windows
+https://bugs.python.org/issue36870   9 msgs
+
+#36880: Returning None from a callback with restype py_object decremen
+https://bugs.python.org/issue36880   9 msgs
+
+#36895: time.clock() marked for removal in 3.8 ?????still there.
+https://bugs.python.org/issue36895   9 msgs
+
+#36908: "This module is always available" is confusing
+https://bugs.python.org/issue36908   8 msgs
+
+#36945: Add _PyPreConfig.configure_locale: allow to leave LC_CTYPE unc
+https://bugs.python.org/issue36945   8 msgs
+
+#35495: argparse does not honor default argument for nargs=argparse.RE
+https://bugs.python.org/issue35495   7 msgs
+
+
+
+Issues closed (89)
+==================
+
+#1257: atexit errors should result in nonzero exit code
+https://bugs.python.org/issue1257  closed by vstinner
+
+#2921: enable embedding: declare/#define only py* symbols in #include
+https://bugs.python.org/issue2921  closed by vstinner
+
+#3020: doctest should have lib2to3 integration
+https://bugs.python.org/issue3020  closed by scoder
+
+#3620: test_smtplib is flaky
+https://bugs.python.org/issue3620  closed by SilentGhost
+
+#6584: gzip module has no custom exception
+https://bugs.python.org/issue6584  closed by serhiy.storchaka
+
+#10991: trace fails when test imported a temporary file
+https://bugs.python.org/issue10991  closed by brett.cannon
+
+#13320: _remove_visual_c_ref in distutils.msvc9compiler causes DLL loa
+https://bugs.python.org/issue13320  closed by vstinner
+
+#13493: Import error with embedded python on AIX 6.1
+https://bugs.python.org/issue13493  closed by vstinner
+
+#14228: Don't display traceback when import site is interrupted by CTR
+https://bugs.python.org/issue14228  closed by vstinner
+
+#14353: Proper gettext support in locale module
+https://bugs.python.org/issue14353  closed by benjamin.peterson
+
+#16100: Compiling vim with Python 3.3 support fails
+https://bugs.python.org/issue16100  closed by zach.ware
+
+#16961: No regression tests for -E and individual environment vars
+https://bugs.python.org/issue16961  closed by vstinner
+
+#17679: sysconfig generation uses some env variables multiple times
+https://bugs.python.org/issue17679  closed by vstinner
+
+#19175: Erroneous reference to "integer" in format string grammar
+https://bugs.python.org/issue19175  closed by cheryl.sabella
+
+#19216: stat cache for import bootstrap
+https://bugs.python.org/issue19216  closed by vstinner
+
+#21202: Naming a file` io.py` causes cryptic error message
+https://bugs.python.org/issue21202  closed by vstinner
+
+#21563: Segv during call to builtin_execfile in application embedding 
+https://bugs.python.org/issue21563  closed by vstinner
+
+#22747: Interpreter fails in initialize on systems where HAVE_LANGINFO
+https://bugs.python.org/issue22747  closed by vstinner
+
+#23603: Embedding Python3.4 - PyUnicode_Check fails (MinGW-W64)
+https://bugs.python.org/issue23603  closed by vstinner
+
+#24280: Unable to install Python
+https://bugs.python.org/issue24280  closed by vstinner
+
+#24758: unittest.mock.Mock's new "unsafe" feature needs a better error
+https://bugs.python.org/issue24758  closed by xtreak
+
+#26122: Isolated mode doesn't ignore PYTHONHASHSEED
+https://bugs.python.org/issue26122  closed by vstinner
+
+#26480: add a flag that will not give the set a sys.stdin
+https://bugs.python.org/issue26480  closed by vstinner
+
+#26707: plistlib fails to parse bplist with 0x80 UID values
+https://bugs.python.org/issue26707  closed by serhiy.storchaka
+
+#26891: CPython doesn't work when you disable refcounting
+https://bugs.python.org/issue26891  closed by vstinner
+
+#29818: Py_SetStandardStreamEncoding leads to a memory error in debug 
+https://bugs.python.org/issue29818  closed by vstinner
+
+#30464: gammavariate has a wrong comment
+https://bugs.python.org/issue30464  closed by mark.dickinson
+
+#30633: Python 3.6.1 installation issues on OpenSuse 42.1: ModuleNotFo
+https://bugs.python.org/issue30633  closed by vstinner
+
+#31473: Debug hooks on memory allocators are not thread safe (serialno
+https://bugs.python.org/issue31473  closed by vstinner
+
+#32177: spammers mine emails from bugs.python.org
+https://bugs.python.org/issue32177  closed by SilentGhost
+
+#32231: -bb option should override -W options
+https://bugs.python.org/issue32231  closed by vstinner
+
+#32832: doctest should support custom ps1/ps2 prompts
+https://bugs.python.org/issue32832  closed by cheryl.sabella
+
+#32995: Add a glossary entry for context variables
+https://bugs.python.org/issue32995  closed by cheryl.sabella
+
+#33123: Path.unlink should have a missing_ok parameter
+https://bugs.python.org/issue33123  closed by pitrou
+
+#33303: ElementTree Comment text isn't escaped
+https://bugs.python.org/issue33303  closed by scoder
+
+#33882: doc Mention breakpoint() in debugger-related FAQ
+https://bugs.python.org/issue33882  closed by matrixise
+
+#34152: performance of some list slice assignment margin cases can be 
+https://bugs.python.org/issue34152  closed by pablogsal
+
+#34408: possible null pointer dereference in pystate.c
+https://bugs.python.org/issue34408  closed by pablogsal
+
+#34424: Unicode names break email header
+https://bugs.python.org/issue34424  closed by cheryl.sabella
+
+#34484: Unicode HOWTO incorrectly refers to Private Use Area for surro
+https://bugs.python.org/issue34484  closed by akuchling
+
+#34509: Starting to use gcc-8 on CI
+https://bugs.python.org/issue34509  closed by zach.ware
+
+#34579: test_embed.InitConfigTests fail on AIX
+https://bugs.python.org/issue34579  closed by vstinner
+
+#34682: Typo reports on docs@
+https://bugs.python.org/issue34682  closed by cheryl.sabella
+
+#35138: timeit documentation should have example with function argumen
+https://bugs.python.org/issue35138  closed by vstinner
+
+#35589: BaseSelectorEventLoop.sock_sendall() performance regression: e
+https://bugs.python.org/issue35589  closed by asvetlov
+
+#36008: [good first issue] Update documentation for 3.8
+https://bugs.python.org/issue36008  closed by cheryl.sabella
+
+#36471: PEP 432, PEP 587: Add _Py_RunMain()
+https://bugs.python.org/issue36471  closed by vstinner
+
+#36474: RecursionError resets trace function set via sys.settrace
+https://bugs.python.org/issue36474  closed by blueyed
+
+#36594: Undefined behavior due to incorrect usage of %p in format stri
+https://bugs.python.org/issue36594  closed by brett.cannon
+
+#36618: clang expects memory aligned on 16 bytes, but pymalloc aligns 
+https://bugs.python.org/issue36618  closed by vstinner
+
+#36620: Documentation missing parameter for Itertools.zip_longest
+https://bugs.python.org/issue36620  closed by rhettinger
+
+#36684: codecov.io code coverage has not updated since 2019-04-13
+https://bugs.python.org/issue36684  closed by inada.naoki
+
+#36725: Reference leak regression with Python3.8a3
+https://bugs.python.org/issue36725  closed by vstinner
+
+#36728: Remove PyEval_ReInitThreads() from the public C API
+https://bugs.python.org/issue36728  closed by vstinner
+
+#36748: Optimize textio write buffering
+https://bugs.python.org/issue36748  closed by inada.naoki
+
+#36749: PPC64 AIX 3.x: compilation issue, linker fails to locate symbo
+https://bugs.python.org/issue36749  closed by vstinner
+
+#36751: Changes in the inspect module for PEP 570
+https://bugs.python.org/issue36751  closed by pablogsal
+
+#36760: subprocess.run fails with capture_output=True and stderr=STDOU
+https://bugs.python.org/issue36760  closed by gregory.p.smith
+
+#36789: Unicode HOWTO incorrectly states that UTF-8 contains no zero b
+https://bugs.python.org/issue36789  closed by cheryl.sabella
+
+#36791: sum() relies on C signed overflow behaviour
+https://bugs.python.org/issue36791  closed by serhiy.storchaka
+
+#36799: Typo in ctypes documentation
+https://bugs.python.org/issue36799  closed by matrixise
+
+#36807: IDLE doesn't call os.fsync()
+https://bugs.python.org/issue36807  closed by terry.reedy
+
+#36818: Add PyInterpreterState.runtime.
+https://bugs.python.org/issue36818  closed by vstinner
+
+#36822: Minor grammatical fix in glossary.rst
+https://bugs.python.org/issue36822  closed by pablogsal
+
+#36845: ipaddres.IPv4Network and ipaddress.IPv6Network tuple construct
+https://bugs.python.org/issue36845  closed by inada.naoki
+
+#36875: argparse does not ship with translations
+https://bugs.python.org/issue36875  closed by terry.reedy
+
+#36883: ???ctypes?????????C?????????c_char_p??????????????????
+https://bugs.python.org/issue36883  closed by anthonypjshaw
+
+#36884: DeprecationWarning in test_asyncio.test_pep492.StreamReaderTes
+https://bugs.python.org/issue36884  closed by asvetlov
+
+#36886: Failed to construct CodeType on Python-3.8.0a4
+https://bugs.python.org/issue36886  closed by SilentGhost
+
+#36899: datetime utcfromtimestamp ignores astimezone
+https://bugs.python.org/issue36899  closed by SilentGhost
+
+#36900: Use _PyCoreConfig rather than global configuration variables
+https://bugs.python.org/issue36900  closed by vstinner
+
+#36902: spam
+https://bugs.python.org/issue36902  closed by SilentGhost
+
+#36903: ResourceWarning in test_logging.HandlerTest.test_post_fork_chi
+https://bugs.python.org/issue36903  closed by xtreak
+
+#36909: LastUpdatedOrderedDict recipe uses super() unnecessarily
+https://bugs.python.org/issue36909  closed by rhettinger
+
+#36911: ast.parse outputs ast.Strs which do not differentiate between 
+https://bugs.python.org/issue36911  closed by eric.smith
+
+#36912: Can't left-align strings using f-strings or format()
+https://bugs.python.org/issue36912  closed by gvanrossum
+
+#36914: zipimport does not load ZIP files produced by GitHub
+https://bugs.python.org/issue36914  closed by SilentGhost
+
+#36915: regrtest: when interrupted, temporary directory is not removed
+https://bugs.python.org/issue36915  closed by vstinner
+
+#36916: Swallow unhandled exception report introduced by 36802
+https://bugs.python.org/issue36916  closed by asvetlov
+
+#36920: inspect.getcallargs sees optional arg to builtin as required
+https://bugs.python.org/issue36920  closed by brett.cannon
+
+#36923: Implemented __str__ for zip and map objects
+https://bugs.python.org/issue36923  closed by SilentGhost
+
+#36925: python3.7.3 can't work after MacOS upgrade from v10.14.4 to v1
+https://bugs.python.org/issue36925  closed by ned.deily
+
+#36928: linkt threading.settrace to sys.settrace
+https://bugs.python.org/issue36928  closed by SilentGhost
+
+#36930: Windows proxy settings automatically used ... partly
+https://bugs.python.org/issue36930  closed by iwetzel
+
+#36931: json lib doesnt want to load from file
+https://bugs.python.org/issue36931  closed by zach.ware
+
+#36934: C API Function PyLong_AsDouble Returning Wrong Value
+https://bugs.python.org/issue36934  closed by sajjadfx
+
+#36938: Py_XDECREF on PyUnicodeobject raises SIGSEGV signal
+https://bugs.python.org/issue36938  closed by serhiy.storchaka
+
+#36939: Allow to use shutil.copytree for existing destination director
+https://bugs.python.org/issue36939  closed by jack1142
+
+#1465646: test_grp & test_pwd fail
+https://bugs.python.org/issue1465646  closed by matrixise
+
+From qiang.fang at zoho.com.cn  Fri May 17 22:26:04 2019
+From: qiang.fang at zoho.com.cn (Q)
+Date: Sat, 18 May 2019 10:26:04 +0800
+Subject: [Python-Dev] Feature request: Change a Dependency Package
+ Version During Package Initiation
+In-Reply-To: <CAG8k2+5mbiNWnWmnTf--NfXtEzVLj402ihVdhUye2jxypC3D8w@mail.gmail.com>
+References: <16ac4ce3e2f.c1af300c4816.5384009389495434427@zoho.com.cn>
+ <CAP1=2W4+W+2UQpgHMi=hN=2ugkLULjeY81xpLO73FHxx4-0f_w@mail.gmail.com>
+ <CAG8k2+5mbiNWnWmnTf--NfXtEzVLj402ihVdhUye2jxypC3D8w@mail.gmail.com>
+Message-ID: <16ac8c2b2b4.ffb0004b5281.6365385802178906075@zoho.com.cn>
+
+>From the viewpoint of the package user, people don't want to change every import to "require a version at runtime". If "set up a python path in a wrapper script" is a better strategy, can you please give an example for the following use case:
+
+
+The abaqus python distribution has libA 1.0, the external package to be installed is LibB, which requires libA2.0, and we don't want to change every import in LibB to be import libA 1.0, because the source code may have not been provided.
+
+In emacs, you can always advice a command to change its behaviour, which makes it very user friendly, and that what all the following suggestion is about. I have no idea at all how it could be implemented though.
+
+https://github.com/mitsuhiko/multiversion/issues/1
+
+"The work around is to let a version to be set within a package and have that propagate to all modules in that package. For example in the root init.py if I set tonado version to be 2.2.1 then all modules in that package will use tornado 2.2.1 when I import tornado."
+
+
+
+---- ? ???, 2019-05-17 23:38:55 Daniel Holth <dholth at gmail.com> ?? ----
+
+
+
+This sounds exactly like what people used to do with eggs. You could have multiple versions of a package on the path as eggs and then require a version at runtime. The approach has problems. Ruby also abandoned a strategy where random app code depends on package management code at runtime.
+
+
+
+One better strategy is to set up a python path in a wrapper script.
+
+
+
+
+On Fri, May 17, 2019, 11:27 Brett Cannon <mailto:bcannon at gmail.com> wrote:
+
+
+
+
+
+Thanks for the idea but there are currently no plans to support such a feature. If you would like to see it then you will need to write a PEP with a proof-of-concept to demonstrate how you would expect such a feature to work.
+
+
+
+On Fri., May 17, 2019, 07:55 Q via Python-Dev, <mailto:python-dev at python.org> wrote:
+
+
+
+A lot of the Python code we use in production are used directly as imports in other python
+
+distributions (such as the python comes with the finite element software Abaqus and MSC Marc), many
+
+packages (such as matplotlib, numpy) that may have varying versioned dependencies.
+
+
+
+I was wondering if this could be expanded to allow a version to be set within a package and have
+
+that propagate to all modules in that package. For example in the root init.py if I set
+
+multiversion(tornado, 2.2.1) then all modules in that package will use tornado 2.2.1 when I import
+
+tornado.
+
+
+
+See a relevant issue on github:
+
+https://github.com/mitsuhiko/multiversion/issues/1
+
+
+
+Thank you!
+
+Qiang
+
+
+
+
+
+_______________________________________________
+
+ Python-Dev mailing list
+
+ mailto:Python-Dev at python.org
+
+ https://mail.python.org/mailman/listinfo/python-dev
+
+ Unsubscribe: https://mail.python.org/mailman/options/python-dev/brett%40python.org
+
+
+
+_______________________________________________
+
+ Python-Dev mailing list
+
+ mailto:Python-Dev at python.org
+
+ https://mail.python.org/mailman/listinfo/python-dev
+
+ Unsubscribe: https://mail.python.org/mailman/options/python-dev/dholth%40gmail.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190518/f7e3a65e/attachment.html>
+
+From qiang.fang at zoho.com.cn  Fri May 17 22:32:14 2019
+From: qiang.fang at zoho.com.cn (Q)
+Date: Sat, 18 May 2019 10:32:14 +0800
+Subject: [Python-Dev] Feature request: Change a Dependency Package
+ Version During Package Initiation
+In-Reply-To: <16ac8c2b2b4.ffb0004b5281.6365385802178906075@zoho.com.cn>
+References: <16ac4ce3e2f.c1af300c4816.5384009389495434427@zoho.com.cn>
+ <CAP1=2W4+W+2UQpgHMi=hN=2ugkLULjeY81xpLO73FHxx4-0f_w@mail.gmail.com>
+ <CAG8k2+5mbiNWnWmnTf--NfXtEzVLj402ihVdhUye2jxypC3D8w@mail.gmail.com>
+ <16ac8c2b2b4.ffb0004b5281.6365385802178906075@zoho.com.cn>
+Message-ID: <16ac8c85883.1228864315288.5365657524062277459@zoho.com.cn>
+
+Sorry, there is an error in my last post. It's corrected as:
+
+The abaqus python distribution has libA 1.0, the external package to be installed is LibB, which requires libA2.0, and we don't want to change every import in LibB to be import /somewhere/libA2.0, because the source code may have not been provided.
+
+
+
+
+
+---- ? ???, 2019-05-18 10:26:04 Q <qiang.fang at zoho.com.cn> ?? ----
+
+
+
+>From the viewpoint of the package user, people don't want to change every import to "require a version at runtime". If "set up a python path in a wrapper script" is a better strategy, can you please give an example for the following use case:
+
+
+The abaqus python distribution has libA 1.0, the external package to be installed is LibB, which requires libA2.0, and we don't want to change every import in LibB to be import libA 1.0, because the source code may have not been provided.
+
+In emacs, you can always advice a command to change its behaviour, which makes it very user friendly, and that what all the following suggestion is about. I have no idea at all how it could be implemented though.
+
+https://github.com/mitsuhiko/multiversion/issues/1
+
+"The work around is to let a version to be set within a package and have that propagate to all modules in that package. For example in the root init.py if I set tonado version to be 2.2.1 then all modules in that package will use tornado 2.2.1 when I import tornado."
+
+
+
+---- ? ???, 2019-05-17 23:38:55 Daniel Holth <dholth at gmail.com> ?? ----
+
+
+
+
+
+
+
+
+
+
+This sounds exactly like what people used to do with eggs. You could have multiple versions of a package on the path as eggs and then require a version at runtime. The approach has problems. Ruby also abandoned a strategy where random app code depends on package management code at runtime.
+
+
+
+One better strategy is to set up a python path in a wrapper script.
+
+
+
+
+On Fri, May 17, 2019, 11:27 Brett Cannon <mailto:bcannon at gmail.com> wrote:
+
+
+
+
+
+Thanks for the idea but there are currently no plans to support such a feature. If you would like to see it then you will need to write a PEP with a proof-of-concept to demonstrate how you would expect such a feature to work.
+
+
+
+On Fri., May 17, 2019, 07:55 Q via Python-Dev, <mailto:python-dev at python.org> wrote:
+
+
+
+A lot of the Python code we use in production are used directly as imports in other python
+
+distributions (such as the python comes with the finite element software Abaqus and MSC Marc), many
+
+packages (such as matplotlib, numpy) that may have varying versioned dependencies.
+
+
+
+I was wondering if this could be expanded to allow a version to be set within a package and have
+
+that propagate to all modules in that package. For example in the root init.py if I set
+
+multiversion(tornado, 2.2.1) then all modules in that package will use tornado 2.2.1 when I import
+
+tornado.
+
+
+
+See a relevant issue on github:
+
+https://github.com/mitsuhiko/multiversion/issues/1
+
+
+
+Thank you!
+
+Qiang
+
+
+
+
+
+_______________________________________________
+
+Python-Dev mailing list
+
+mailto:Python-Dev at python.org
+
+https://mail.python.org/mailman/listinfo/python-dev
+
+Unsubscribe: https://mail.python.org/mailman/options/python-dev/brett%40python.org
+
+
+
+_______________________________________________
+
+Python-Dev mailing list
+
+mailto:Python-Dev at python.org
+
+https://mail.python.org/mailman/listinfo/python-dev
+
+Unsubscribe: https://mail.python.org/mailman/options/python-dev/dholth%40gmail.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190518/225782dc/attachment.html>
+
+From thatiparthysreenivas at gmail.com  Sat May 18 02:38:41 2019
+From: thatiparthysreenivas at gmail.com (Srinivas Reddy Thatiparthy)
+Date: Sat, 18 May 2019 12:08:41 +0530
+Subject: [Python-Dev] Merge ?
+Message-ID: <CAEaN0UYaZr5W7_yLQw0nn+oJKu5MHLEwtJUNqz9N+gV9DQ4N2A@mail.gmail.com>
+
+Pls take a look here  https://github.com/python/cpython/pull/9882
+
+If it not okay to document that   >>> mock.assert_has_calls([])
+does not raise an exception; then i will go ahead and close the pr.
+
+
+Best Regards,
+Srinivas Reddy Thatiparthy.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190518/5b415a59/attachment-0001.html>
+
