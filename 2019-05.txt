@@ -17956,3 +17956,109 @@ Srinivas Reddy Thatiparthy.
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190518/5b415a59/attachment-0001.html>
 
+From senthil at uthcode.com  Sat May 18 05:12:51 2019
+From: senthil at uthcode.com (Senthil Kumaran)
+Date: Sat, 18 May 2019 10:12:51 +0100
+Subject: [Python-Dev] [python-committers] PEP 581 (Using GitHub issues
+ for CPython) is accepted
+In-Reply-To: <CACBhJdG0Ocv+QwFLk4AJGt-uWUAazrCfQK2B+UF6sUgZNAXKAA@mail.gmail.com>
+References: <7407D51F-AC46-4423-AF4A-63940F80D629@python.org>
+ <20190515104830.5b307230@fsol>
+ <CACac1F9h-uvqUNcjFMh2FCPD4+=mbPb5Eo7=a5aZnhJF0KZFNg@mail.gmail.com>
+ <CA+3bQGFh3y6YNz9sWnbFcmFBgsXeaoO92_hFsGr_d=Y4Ee34XA@mail.gmail.com>
+ <CACac1F_9cb2ykL4s-5G+GPvkhu+-EFhR_4C1VKY=A0O=o7+jUg@mail.gmail.com>
+ <CACBhJdG0Ocv+QwFLk4AJGt-uWUAazrCfQK2B+UF6sUgZNAXKAA@mail.gmail.com>
+Message-ID: <CAPOVWOQ+KJ5G+QPQBVdCRRB7WmN33A5dPR0ztxhP6k=Dg=Pbdg@mail.gmail.com>
+
+On Wed, May 15, 2019 at 6:44 PM Ezio Melotti <ezio.melotti at gmail.com> wrote:
+
+>
+> I share the same concerns:
+
+1) the PEP contains several factual errors.  I pointed this out during
+> the core-sprints last year and more recently Berker pointed out some
+> on GitHub: https://github.com/python/peps/pull/1013 ;
+> 4) Berker is/was writing a competing PEP, in order to address the
+> problems of PEP 581 more effectively since his comments on GitHub
+> haven't been addressed;
+>
+
+This concerns me a bit. The PEP/announcement acknowledges the work Ezio and
+Berker. However, it does not express if the PEP had addressed their review
+comments or had the current maintainers on-board with the proposal. I was
+of the assumption that if the current maintainers (/domain experts) were
+on-board, then it will be easier for the rest of us to adopt the new
+changes.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190518/9d91635f/attachment.html>
+
+From dan at danryan.co  Sat May 18 03:18:22 2019
+From: dan at danryan.co (Dan Ryan)
+Date: Sat, 18 May 2019 03:18:22 -0400
+Subject: [Python-Dev] Feature request: Change a Dependency Package
+ Version During Package Initiation
+In-Reply-To: <16ac8c85883.1228864315288.5365657524062277459@zoho.com.cn>
+References: <16ac4ce3e2f.c1af300c4816.5384009389495434427@zoho.com.cn>
+ <CAP1=2W4+W+2UQpgHMi=hN=2ugkLULjeY81xpLO73FHxx4-0f_w@mail.gmail.com>
+ <CAG8k2+5mbiNWnWmnTf--NfXtEzVLj402ihVdhUye2jxypC3D8w@mail.gmail.com>
+ <16ac8c2b2b4.ffb0004b5281.6365385802178906075@zoho.com.cn>
+ <16ac8c85883.1228864315288.5365657524062277459@zoho.com.cn>
+Message-ID: <002301d50d49$e36ddf60$aa499e20$@danryan.co>
+
+It probably makes the most sense to formally outline all of the behavioral changes, expectations, and constraints you are asking for as Brett said because dependency and package management are tricky and it's not clear (to me at least) what the request is, what problem is being encountered, and how it is proposed that it be resolved.
+
+First glance makes it sound a bit like the a prerequisite for this request would be allowing multiple versions of the same package to be installed in a given python environment to begin with, or else some runtime hacking of paths would be necessary.  I may be misunderstanding, but that's why a formal approach for something like this might make some sense
+
+Dan Ryan
+gh: @techalchemy // e: dan at danryan.co
+
+From: Q [mailto:qiang.fang at zoho.com.cn] 
+Sent: Friday, May 17, 2019 10:32 PM
+To: Daniel Holth
+Cc: Brett Cannon; Python-Dev
+Subject: Re: [Python-Dev] Feature request: Change a Dependency Package Version During Package Initiation
+
+Sorry, there is an error in my last post. It's corrected as:
+The abaqus python distribution has libA 1.0, the external package to be installed is LibB, which requires libA2.0, and we don't want to change every import in LibB to be import /somewhere/libA2.0, because the source code may have not been provided.
+
+
+---- ? ???, 2019-05-18 10:26:04 Q <qiang.fang at zoho.com.cn> ?? ----
+
+>From the viewpoint of the package user, people don't want to change every import to "require a version at runtime". If "set up a python path in a wrapper script" is a better strategy, can you please give an example for the following use case:
+The abaqus python distribution has libA 1.0, the external package to be installed is LibB, which requires libA2.0, and we don't want to change every import in LibB to be import libA 1.0, because the source code may have not been provided.
+In emacs, you can always advice a command to change its behaviour, which makes it very user friendly, and that what all the following suggestion is about. I have no idea at all how it could be implemented though.
+https://github.com/mitsuhiko/multiversion/issues/1
+"The work around is to let a version to be set within a package and have that propagate to all modules in that package. For example in the root init.py if I set tonado version to be 2.2.1 then all modules in that package will use tornado 2.2.1 when I import tornado."
+
+---- ? ???, 2019-05-17 23:38:55 Daniel Holth <dholth at gmail.com> ?? ----
+
+
+
+This sounds exactly like what people used to do with eggs. You could have multiple versions of a package on the path as eggs and then require a version at runtime. The approach has problems. Ruby also abandoned a strategy where random app code depends on package management code at runtime.
+
+One better strategy is to set up a python path in a wrapper script.
+
+On Fri, May 17, 2019, 11:27 Brett Cannon <bcannon at gmail.com> wrote:
+
+Thanks for the idea but there are currently no plans to support such a feature. If you would like to see it then you will need to write a PEP with a proof-of-concept to demonstrate how you would expect such a feature to work.
+
+On Fri., May 17, 2019, 07:55 Q via Python-Dev, <python-dev at python.org> wrote:
+
+A lot of the Python code we use in production are used directly as imports in other python
+distributions (such as the python comes with the finite element software Abaqus and MSC Marc), many
+packages (such as matplotlib, numpy) that may have varying versioned dependencies.
+
+I was wondering if this could be expanded to allow a version to be set within a package and have
+that propagate to all modules in that package. For example in the root init.py if I set
+multiversion(tornado, 2.2.1) then all modules in that package will use tornado 2.2.1 when I import
+tornado.
+
+See a relevant issue on github:
+https://github.com/mitsuhiko/multiversion/issues/1
+
+Thank you!
+Qiang
+
+
+
