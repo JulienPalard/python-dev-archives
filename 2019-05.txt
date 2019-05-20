@@ -18062,3 +18062,481 @@ Qiang
 
 
 
+From gregory.szorc at gmail.com  Sun May 19 14:58:31 2019
+From: gregory.szorc at gmail.com (Gregory Szorc)
+Date: Sun, 19 May 2019 11:58:31 -0700
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 3rd version
+In-Reply-To: <CA+3bQGF-PQvV8bH-7aWUVwvMTz=ssxiooLRWd_HEQAw-eEUX2A@mail.gmail.com>
+References: <CA+3bQGHTqcgayS7YqeO6as3M3_J=KSX_v-cEYOf9UQX=5y+wkw@mail.gmail.com>
+ <7ddebc01-a067-4b52-48b7-e90347ed7cc7@gmail.com>
+ <CA+3bQGG8BdtVxh2jDWFKo4mn=n0dxzg4pPnTbsqvFhRMUFcdeg@mail.gmail.com>
+ <CAPdQG2q-Mo2mMjQOd0oj1yKQXjfXvBvGshxc3kqXHUXRZaKziA@mail.gmail.com>
+ <CA+3bQGF-PQvV8bH-7aWUVwvMTz=ssxiooLRWd_HEQAw-eEUX2A@mail.gmail.com>
+Message-ID: <3a18be48-c63f-c70b-2f84-3a657a482df5@gmail.com>
+
+On 5/16/2019 10:25 AM, Victor Stinner wrote:
+> Le jeu. 16 mai 2019 ? 16:10, Thomas Wouters <thomas at python.org> a ?crit :
+>>> Would you be ok with a "PyConfig_Init(PyConfig *config);" function
+>>> which would initialize all fields to theire default values? Maybe
+>>> PyConfig_INIT should be renamed to PyConfig_STATIC_INIT.
+>>>
+>>> You can find a similar API for pthread mutex, there is a init function
+>>> *and* a macro for static initialization:
+>>>
+>>>        int pthread_mutex_init(pthread_mutex_t *restrict mutex,
+>>>            const pthread_mutexattr_t *restrict attr);
+>>>
+>>>        pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+>>
+>>
+>> This was going to be my suggestion as well: for any non-trivial macro, we should have a function for it instead.
+> 
+> Ok, I will do that.
+> 
+> 
+>> I would also point out that PEP 587 has a code example that uses PyWideStringList_INIT, but that macro isn't mention anywhere else.
+> 
+> Oh, I forgot to better document it. Well, the macro is trivial:
+> 
+> #define _PyWstrList_INIT (_PyWstrList){.length = 0, .items = NULL}
+> 
+> For consistency, I prefer to not initialize manually these fields, but
+> use a macro instead.
+> 
+> (Variables are allocated on the stack and so *must* be initialized.)
+> 
+> 
+>> The PEP is a bit unclear as to the semantics of PyWideStringList as a whole: the example uses a static array with length, but doesn't explain what would happen with statically allocated data like that if you call the Append or Extend functions. It also doesn't cover how e.g. argv parsing would remove items from the list. (I would also suggest the PEP shouldn't use the term 'list', at least not unqualified, if it isn't an actual Python list.)
+> 
+> Calling PyWideStringList_Append() or PyWideStringList_Insert() on a
+> "constant" list will crash: don't do that :-)
+> 
+> I tried to explain the subtle details of "constant" vs "dynamic"
+> configurations in "Initialization with constant PyConfig" and "Memory
+> allocations and Py_DecodeLocale()" functions.
+> 
+> A "constant" PyWideStringList must not be used with a "dynamic"
+> PyConfig: otherwise, PyConfig_Clear() will crash as well.
+> 
+> I would prefer to have separated "const PyWideStringList" and "const
+> PyConfig" types, but the C language doesn't convert "wchat_*" to
+> "const wchar_t*" when you do that. We would need duplicated
+> PyConstantWideStringList and PyConstantConfig structures, which would
+> require to be "casted" to PyWideStringList and PyConfig internally to
+> reuse the same code for constant and dynamic configuration.
+> 
+> If you consider that the specific case of "constant configuration"
+> adds too much burden / complexity, we mgiht remove it and always
+> require to use dynamic configuration.
+> 
+> Right now, Programs/_testembed.c almost uses only "constant"
+> configuration. Using dynamic memory would make the code longer: need
+> to handle memory allocation failures.
+> 
+> 
+>> I understand the desire to make static allocation and initialisation possible, but since you only need PyWideStringList for PyConfig, not PyPreConfig (which sets the allocator), perhaps having a PyWideStringList_Init(), which copies memory, and PyWideStringList_Clear() to clear it, would be better?
+> 
+> Do you mean to always require to build dynamic lists? Said
+> differently, not allow to write something like the following code?
+> 
+>     static wchar_t* argv[] = {
+>         L"python3",
+>         L"-c",
+>         L"pass",
+>         L"arg2",
+>     };
+> 
+>     _PyCoreConfig config = _PyCoreConfig_INIT;
+>     config.argv.length = Py_ARRAY_LENGTH(argv);
+>     config.argv.items = argv;
+> 
+> 
+>>> If the private field "_init_main" of the PEP 587 is set to 0,
+>>> Py_InitializeFromConfig() stops at the "core" phase (in fact, it's
+>>> already implemented!). But I didn't implement yet a
+>>> _Py_InitializeMain() function to "finish" the initialization. Let's
+>>> say that it exists, we would get:
+>>>
+>>> ---
+>>> PyConfig config = PyConfig_INIT;
+>>> config._init_main = 0;
+>>> PyInitError err = Py_InitializeFromConfig(&config);
+>>> if (Py_INIT_FAILED(err)) {
+>>>     Py_ExitInitError(err);
+>>> }
+>>>
+>>> /* add your code to customize Python here */
+>>> /* calling PyRun_SimpleString() here is safe */
+>>>
+>>> /* finish Python initialization */
+>>> PyInitError err = _Py_InitializeMain(&config);
+>>> if (Py_INIT_FAILED(err)) {
+>>>     Py_ExitInitError(err);
+>>> }
+>>> ---
+>>>
+>>> Would it solve your use case?
+>>
+>>
+>> FWIW, I understand the need here: for Hermetic Python, we solved it by adding a new API similar to PyImport_AppendInittab, but instead registering a generic callback hook to be called *during* the initialisation process: after the base runtime and the import mechanism are initialised (at which point you can create Python objects), but before *any* modules are imported. We use that callback to insert a meta-importer that satisfies all stdlib imports from an embedded archive. (Using a meta-importer allows us to bypass the fileysystem altogether, even for what would otherwise be failed path lookups.)
+>>
+>> As I mentioned, Hermetic Python was originally written for Python 2.7, but this approach works fine with a frozen importlib as well. The idea of 'core' and 'main' initialisation will likely work for this, as well.
+> 
+> Well, even if it's not part of the PEP 587, I just implemented it
+> anyway while fixing a bug:
+> https://github.com/python/cpython/commit/9ef5dcaa0b3c7c7ba28dbb3ec0c9507d9d05e3a9
+> 
+> Example:
+> 
+> static int test_init_main(void)
+> {
+>     _PyCoreConfig config = _PyCoreConfig_INIT;
+>     configure_init_main(&config);
+>     config._init_main = 0;
+> 
+>     _PyInitError err = _Py_InitializeFromConfig(&config);
+>     if (_Py_INIT_FAILED(err)) {
+>         _Py_ExitInitError(err);
+>     }
+> 
+>     /* sys.stdout don't exist yet: it is created by _Py_InitializeMain() */
+>     int res = PyRun_SimpleString(
+>         "import sys; "
+>         "print('Run Python code before _Py_InitializeMain', "
+>                "file=sys.stderr)");
+>     if (res < 0) {
+>         exit(1);
+>     }
+> 
+>     err = _Py_InitializeMain();
+>     if (_Py_INIT_FAILED(err)) {
+>         _Py_ExitInitError(err);
+>     }
+> 
+>     return _Py_RunMain();
+> }
+> 
+> As you can see, it's possible execute Python between "core" and "main"
+> initialization phases. Moreover, I even fixed Python to be able to use
+> "import sys" before the "main" initialization phase ;-) (Only builtin
+> and frozen modules are available at this stage.)
+> 
+> Again, I'm not comfortable to make PyConfig._init_main and
+> _Py_InitializeMain() public, because I consider that they are too
+> experimental and we don't have enough time to discuss what is the
+> "core" initialization phase exactly.
+
+It sounds like PyOxidizer and Hermetic Python are on the same page and
+we're working towards a more official solution. But I want to make sure
+by explicitly stating what PyOxidizer is doing.
+
+Essentially, to facilitate in-memory import, we need to register a
+custom sys.meta_path importer *before* any file-based imports are
+attempted. In other words, we don't want the PathFinder registered on
+sys.meta_path to be used. Since we don't have a clear "hook point" to
+run custom code between init_importlib() (which is where the base
+importlib system is initialized) and _PyCodecRegistry_Init() (which has
+the first import of a .py-backed module - "encodings"), my current hack
+in PyOxidizer is to compile a modified version of the
+importlib._bootstrap_external module which contains my custom
+MemoryImporter. I inject this custom version at run-time by updating the
+global frozen modules table and the Python initialization mechanism
+executes my custom code when the _frozen_importlib_external module is
+imported/executed as part of init_importlib_external().
+
+The CPython API can facilitate making this less hacky by enabling
+embedders to run custom code between importlib initialization but before
+any path-based modules are imported. I /think/ providing a 2-phase
+initialization that stops between _Py_InitializeCore() and
+_Py_InitializeMainInterpreter() would get the job done for PyOxidizer
+today. But it may be a bit more complicated than that for others (or
+possibly me in the future) since importlib is initialized in both these
+phases. The "external" importlib bits providing the path-based importer
+are initialized later during _Py_InitializeMainInterpreter. It's quite
+possible we would want to muck around with the state of external
+importers in our initialization "hook" and if they aren't loaded yet...
+Furthermore, new_interpreter() makes both importlib initialization
+function calls at the same time. We would need to inject a custom meta
+path importer for sub-interpreters, so we would need a code injection
+point in new_interpreter() as well. Installing a custom
+importlib._bootstrap_external/_frozen_importlib_external module and
+globally changing the code that runs during importlib init gets the job.
+But it is hacky.
+
+FWIW my notes on how this all works (in Python 3.7) are at
+https://github.com/indygreg/PyOxidizer/blob/57c823d6ca2321d12067bf36603a9a0ad2320c75/docs/technotes.rst,
+https://github.com/indygreg/PyOxidizer/blob/57c823d6ca2321d12067bf36603a9a0ad2320c75/README.rst#how-it-works,
+and
+https://gregoryszorc.com/blog/2018/12/18/distributing-standalone-python-applications/.
+
+Again, it sounds like we're working towards a robust solution. I just
+wanted to brain dump to make sure we are.
+
+>> Other questions/comments about PEP 587:
+>>
+>> I really like the PyInitError struct. I would like more functions to use it, e.g. the PyRrun_* "very high level" API, which currently calls exit() for you on SystemExit, and returns -1 without any other information on error. For those, I'm not entirely sure 'Init' makes sense in the name... but I can live with it.
+> 
+> PyInitError structure can be renamed PyError, but it should only be
+> used with functions which can exit Python. In short, are you talking
+> "The Very High Level Layer" of the C API?
+> https://docs.python.org/dev/c-api/veryhigh.html
+> 
+> One issue is that I dislike adding new functions to the C API, but it
+> seems like we should add a few to provide a better API for embedded
+> Python. libpython must never exit the process! (or only when you
+> explicity asks that :-))
+> 
+> Note: PyRun_SimpleStringFlags() is a wrapper which makes
+> PyRun_StringFlags() usage easier. PyRun_StringFlags() doesn't handle
+> the exception and so let you decide how to handle it.
+> 
+> 
+>> A couple of things are documented as performing pre-initialisation (PyConfig_SetBytesString, PyConfig_SetBytesArgv). I understand why, but I feel like that might be confusing and error-prone. Would it not be better to have them fail if pre-initialisation hasn't been performed yet?
+> 
+> It's easier to modify the code to fail with an error if Python is not
+> pre-initialized.
+> 
+> I propose to implicitly pre-initialize Python to make the API easier
+> to use. In practice, you rarely have to explicitly pre-initialize
+> Python. The default PyPreConfig is just fine for almost all use cases,
+> especially since Nick Coghlan and me decided to disable C locale
+> coercion and UTF-8 Mode by default. You now have to opt-in to enable
+> these encoding features.
+> 
+> 
+>> The buffered_stdio field of PyConfig mentions stdout and stderr, but not stdin. Does it not affect stdin?
+> 
+> Extract of create_stdio():
+> 
+>     /* stdin is always opened in buffered mode, first because it shouldn't
+>        make a difference in common use cases, second because TextIOWrapper
+>        depends on the presence of a read1() method which only exists on
+>        buffered streams.
+>     */
+> 
+> Note: Unbuffered stdin doesn't magically make the producer on the
+> other side of a pipe flushing its (stdout/stderr) buffer more
+> frequently :-)
+> 
+> 
+>> (Many of the fields could do with a bit more explicit documentation, to be honest.)
+> 
+> Well, 2 years ago, almost no configuration parameter was documented
+> :-) I helped to document "Global configuration variables" at:
+> https://docs.python.org/dev/c-api/init.html#global-configuration-variables
+> 
+> I had to reverse engineer the code to be able to document it :-D
+> 
+> Right now, my reference documentation lives in
+> Include/cpython/coreconfig.h. Some parameters are better documented
+> there, than in the PEP. I can try to enhance the documentation in the
+> PEP.
+> 
+> 
+>> The configure_c_stdio field of PyConfig sounds like it might not set sys.stdin/stdout/stderr. That would be new behaviour, but configure_c_stdio doesn't have an existing equivalence, so I'm not sure if that's what you meant or not.
+> 
+> In Python 3.7, only Py_Main() configured C standard streams.
+> 
+> I moved the code into _PyCoreConfig_Write() which is called by
+> _Py_InitializeFromConfig() and so by Py_Initialize() as well.
+> 
+> My intent is to be able to get the same behavior using Py_Initialize()
+> + Py_RunMain(), than using Py_Main().
+> 
+> Said differently, Python 3.8 now always configures C standard streams.
+> Maybe I should modify the configure_c_stdio default value to 0, and
+> only enable it by default in Py_Main()?
+> 
+> Honestly, I'm a little bit confused here. I'm not sure what is the
+> expected behavior. Usually, in case of doubt, I look at the behavior
+> before my refactoring. The old behaviour was that only Py_Main()
+> configured C standard streams. Maybe I should restore this behavior.
+> 
+> But to build a customized Python which should behave as the regular
+> Python, you would like opt-in for configure_c_stdio=1.
+> 
+> Maybe we need a function to set the configuration to get "regular
+> Python" behavior?
+> 
+> Something like: PyConfig_SetRegularPythonBehavior()? (sorry for the silly name!)
+> 
+> 
+>> The dll_path field of PyConfig says "Windows only". Does that meant the struct doesn't have that field except in a Windows build? Or is it ignored, instead? If it doesn't have that field at all, what #define can be used to determine if the PyConfig struct will have it or not?
+> 
+> The field doesn't exist on non-Windows platforms.
+> 
+> I chose to expose it to let the developer chooses where Python looks for DLL.
+> 
+> But Steve just said (in an email below) that there is no reason to
+> make it configurable. In that case, I will make it internal again. It
+> seems like I misunderstood the purpose of this parameter.
+> 
+> 
+>> It feels a bit weird to have both 'inspect' and 'interactive' in PyConfig. Is there a substantive difference between them? Is this just so you can easily tell if any of run_module / run_command / run_filename are set?
+> 
+> In Python 3.7, there are Py_InspectFlag and Py_InteractiveFlag.
+> 
+> If "interactive" parameter is non-zero, C standard streams are
+> configured as buffered. It is also used to decide if stdin is
+> considered as interactive or not:
+> 
+> /* Return non-zero is stdin is a TTY or if -i command line option is used */
+> static int
+> stdin_is_interactive(const _PyCoreConfig *config)
+> {
+>     return (isatty(fileno(stdin)) || config->interactive);
+> }
+> 
+> The "inspect" parameter is used to decide if we start a REPL or not.
+> 
+> The "-i" command line option sets inspect (Py_InspectFlag) and
+> interactive (Py_InteractiveFlag) to 1.
+> 
+> These flags are exposed at Python level as sys.flags.inspect and
+> sys.flags.interactive.
+> 
+> ... Honestly, I'm not sure if there is a real difference between these
+> two flags, but they are exposed and exist for years... so I decided to
+> keep them.
+> 
+> 
+>> "module_search_path_env" sounds like an awkward and somewhat misleading name for the translation of PYTHONPATH. Can we not just use, say, pythonpath_env? I expect the intended audience to know that PYTHONPATH != sys.path.
+> 
+> Sure, I can rename it.
+> 
+> 
+>> The module_search_paths field in PyConfig doesn't mention if it's setting or adding to the calculated sys.path. As a whole, the path-calculation bits are a bit under-documented.
+> 
+> Py_InitializeFromConfig() sets sys.path from module_search_paths.
+> 
+> sys.path doesn't exist before Py_InitializeFromConfig() is called.
+> 
+> 
+>> Since this is an awkward bit of CPython, it wouldn't hurt to mention what "the default path configuration" does (i.e. search for python's home starting at program_name, add fixed subdirs to it, etc.)
+> 
+> Oh, that's a big task :-) Nobody knows what getpath.c and getpathp.c do :-D
+> 
+> 
+>> Path configuration is mentioned as being able to issue warnings, but it doesn't mention *how*. It can't be the warnings module at this stage. I presume it's just printing to stderr.
+> 
+> First, I didn't know, but I just saw that it's only on Unix
+> (getpath.c). On Windows (getpathp.c), no warning is emitted.
+> 
+> The warning is written into C stderr.
+> 
+> The flag isn't new: it's based on Py_FrozenFlag. When I looked at how
+> Python is embedded, I was surprised by the number of applications
+> setting Py_FrozenFlag to 1 to suppress these warnings.
+> 
+> 
+>> Regarding Py_RunMain(): does it do the right thing when something calls PyErr_Print() with SystemExit set? (I mentioned last week that PyErr_Print() will call C's exit() in that case, which is obviously terrible for embedders.)
+> 
+> I spent a significant amount of time to ensure that
+> Py_InitializeFromConfig() and Py_RunMain() don't exit directly, but
+> return a proper failure or exit code. For example, Python 3.6 contains
+> around 319 calls to Py_FatalError(). The master branch contains around
+> 181 calls to Py_FatalError(): still a lot, but I converted 138 calls
+> to _Py_INIT_ERR() ;-)
+> 
+> The work is not complete: I just checked, Py_RunMain() still calls
+> directly PyErr_Print() at many places. Well, the code can be fixed,
+> and it's not directly related to the PEP, is it? The issue already
+> existed in Python 3.7 with Py_Main().
+> 
+> 
+>> Regarding isolated_mode and the site module, should we make stronger guarantees about site.py's behaviour being optional? The problem with site is that it does four things that aren't configurable, one of which is usually very desirable, one of which probably doesn't matter to embedders, and two that are iffy: sys.path deduplication and canonicalisation (and fixing up __file__/__cached__ attributes of already-imported modules); adding site-packages directories; looking for and importing sitecustomize.py; executing .pth files. The site module doesn't easily allow doing only some of these. (user-site directories are an exception, as they have their own flag, so I'm not listing that here.) With Hermetic Python we don't care about any of these (for a variety of different reasons), but I'm always a little worried that future Python versions would add behaviour to site that we *do* need.
+> 
+> Honestly, I would prefer to simply remove the site module, I dislike
+> it because it makes Python startup way slower :-) ... But well, it
+> does a few important things :-)
+> 
+> About the PEP 587: PyConfig.user_site_directory is exported as
+> sys.flags.no_user_site (negative value) which is used by the site
+> module.
+> 
+> I'm not sure if you are asking me to modify my PEP, or if it's more a
+> general remark. The PEP 587 gives control on how sys.path is
+> initialized.
+> 
+> In the "Isolate Python" section, I suggest to set the "isolated"
+> parameter to 1 which imply setting user_site_directory to 0. So
+> sys.path isn't modified afterwards. What you pass to PyConfig is what
+> you get in sys.path in this case.
+
+Regarding site.py, I agree it is problematic for embedding scenarios.
+Some features of site.py can be useful. Others aren't. It would be
+useful to have more granular control over which bits of site.run are
+run. My naive suggestion would be to add individual flags to control
+which functions site.py:main() runs. That way embedders can cherry-pick
+site.py features without having to manually import the module and call
+functions within. That feels much more robust for long-term maintainability.
+
+While I was reading replies on this thread, a few other points regarding
+embedding crept to my mind. I apologize in advance for the feature creep...
+
+Regarding Python calling exit(), this is problematic for embedding
+scenarios. This thread called attention to exit() during interpreter
+initialization. But it is also a problem elsewhere. For example,
+PyErr_PrintEx() will call Py_Exit() if the exception is a SystemExit.
+There's definitely room to improve the exception handling mechanism to
+give embedders better control when SystemExit is raised. As it stands,
+we need to check for SystemExit manually and reimplement
+_Py_HandleSystemExit() to emulate its behavior for e.g. exception value
+handling (fun fact: you can pass non-None, non-integer values to
+sys.exit/SystemExit).
+
+Regarding builtin and frozen modules, they both are backed by global
+arrays (PyImport_Inittab and PyImport_FrozenModules, respectively). In
+my initial reply I mentioned that this seemed problematic because I
+think a goal of initialization configuration overhaul should be to
+remove dependence on global variables. In addition to that concern, I'd
+like to point out that the way things work today is the BuiltinImporter
+and FrozenImporter meta path importers test for module availability by
+iterating these global arrays and calling
+_PyUnicode_EqualToASCIIString() on each member. This is done via
+import.c:is_builtin() and import.c:find_frozen(), respectively (both C
+functions are exported to Python and called as part of their respective
+find_spec() implementations). BuiltinImporter and FrozenImporter are
+always registered as the first two sys.meta_path importers.
+
+This behavior means every "import" results in an array walk + string
+compare over these two arrays. Yes, this is done from C and should be
+reasonably fast. But it feels inefficient to me. Slow import performance
+is a common complaint against Python and anything that can be done to
+minimize overhead could be useful.
+
+Having a more efficient member lookup for BuiltinImporter and
+FrozenImporter might shave off a millisecond or two from startup. This
+would require some kind of derived data structure. Unfortunately, as
+long as there is a global data structure that can be mutated any time
+(the API contract doesn't prohibit modifying these global arrays after
+initialization), you would need to check for "cache invalidation" on
+every lookup, undermining performance benefits. But if the interpreter
+config contained references to the builtin and frozen module arrays and
+refused to allow them to be modified after initialization,
+initialization could build a derived data structure used for efficient
+lookups and all the problems go away!
+
+What I'm trying to say is that moving the builtin and frozen modules
+arrays to the initialization config data structure is not only the right
+thing to do from an architectural perspective, but it can also open the
+door to optimizing import performance.
+
+FWIW PyOxidizer uses a Rust HashMap to index modules data, so testing
+for module presence is O(1)~. It's on my laundry list of TODOs to create
+an UberImporter that indexes every known module at startup and proxies
+to BuiltinImporter and FrozenImporter as necessary. The cost to
+satisfying a find_spec() or similar MetaPathFinder interface request
+would then be a Rust HashMap lookup, avoiding the O(n) traversal of
+sys.meta_path entries (which is Python heavy and relatively slow
+compared to compiled code) and further avoiding the O(n) lookups in
+BuiltinImporter and FrozenImporter. I don't expect this to yield the
+performance wins that doing away with filesystem-based module importing
+did (importing the entire standard library completed in ~70% of the
+time). But startup overhead is a problem and every little improvement
+can help. Perhaps there is room to add importlib APIs to facilitate
+indexing. Then MetaPathFinders which are immutable could contribute to a
+global lookup dict, facilitating much faster import operations. It
+wouldn't work for PathFinder. But it opens some interesting possibilities...
+
