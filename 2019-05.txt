@@ -33912,3 +33912,2324 @@ the small "core" Python installer and then run:
 
 or something like that.
 
+From christian at python.org  Wed May 22 04:07:31 2019
+From: christian at python.org (Christian Heimes)
+Date: Wed, 22 May 2019 10:07:31 +0200
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <CALaCa4xWd7_X_bDRmzw-rFU_YDvoobi6O=iSDPTpLMkrMjNCgw@mail.gmail.com>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190520232749.442c45c7@fsol>
+ <11d2680b-3def-08c0-0767-5edd227e9d98@python.org>
+ <CALaCa4xWd7_X_bDRmzw-rFU_YDvoobi6O=iSDPTpLMkrMjNCgw@mail.gmail.com>
+Message-ID: <d3b84383-67d3-733b-d30c-bc7b6c79e950@python.org>
+
+On 22/05/2019 06.20, Arfrever Frehtes Taifersar Arahesis wrote:
+> 2019-05-21 00:06 UTC+02:00, Christian Heimes <christian at python.org> wrote:
+>> On 20/05/2019 23.27, Antoine Pitrou wrote:
+>>> Removing the crypt module would remove support for system-standard
+>>> password files.  I don't understand the rationale.
+>>
+>> Applications *must* not access system-standard password files directly. On
+>> any sanely and securely configured systems, application cannot even access
+>> system password files like /etc/shadow. Access restrictions and system
+>> security policies will prevent read access. Also applications cannot assume
+>> that users are present in any user file. They may come from LDAP, SSSD,
+>> ActiveDirectory, or other sources.
+>>
+>> The correct way to interact with system users is to use the proper APIs,
+>> that are NSS (name service switch) and PAM (pluggable authentication
+>> modules). NSS looks up and enumerate users and groups. PAM performs password
+>> validation and much, much, much more. The pwd and grp modules use the
+>> correct APIs to interact with NSS. If you need to check or change passwords,
+>> you must go through PAM.
+> 
+> It is possible to have a modern Linux desktop system with PAM not
+> installed at all, and therefore not used.
+> 
+> Examples of packages in Gentoo Linux which have OPTIONAL dependency on PAM:
+> shadow, sudo, openssh, libcap, systemd, util-linux, screen, cronie,
+> polkit, cups, sddm, kscreenlocker, xscreensaver
+> (So a KDE Plasma desktop environment and its direct and indirect
+> dependencies can be installed without PAM.)
+> 
+> The suggested substitutes for spwd module, i.e. python-pam and
+> simpleplam, look like they would not work on a PAM-free system.
+ 
+Thanks for bringing this up. I don't think we need to care about this care.
+
+A PAM-free Linux system is an IMHO very special and exotic case. It's certainly not a setup anybody should run on a server. There are a lot of good reasons to use PAM. I'll update the BPO with reasons soonish.
+
+By the way, the /etc/shadow shadow(5) format is trivial and can be parsed with a few lines of code. There is no need to use spwd.
+
+Christian
+
+From christian at python.org  Wed May 22 05:14:41 2019
+From: christian at python.org (Christian Heimes)
+Date: Wed, 22 May 2019 11:14:41 +0200
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <CAFYqXL-GWMmoZXB4VdwWEgFxKWBY===U9DRKPYm28XmHx9APTg@mail.gmail.com>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190520232749.442c45c7@fsol>
+ <CAFYqXL-GWMmoZXB4VdwWEgFxKWBY===U9DRKPYm28XmHx9APTg@mail.gmail.com>
+Message-ID: <qc33u1$4t8b$1@blaine.gmane.org>
+
+On 22/05/2019 08.30, Giampaolo Rodola' wrote:
+> 
+> 
+> On Tue, 21 May 2019 at 04:30, Antoine Pitrou <solipsis at pitrou.net <mailto:solipsis at pitrou.net>> wrote:
+> 
+> 
+>     NNTP is still quite used (often through GMane, but probably not only) so
+>     I'd question the removal of nntplib.
+> 
+> 
+> I concur nntplib should be left alone. There are possibly even less used network protocols such as telnet (tenetlib) which are not targeted by this PEP but could have been by following the same logic. FTP is another one that despite no longer popular, still has a constant user base (you?d be surprised by the amount of traffic we got over FTP in the last company I worked for). Overall, I think the bar for a module removal should be set very high, especially for ?standard? things such as these network protocols, that despite being old are not likely to change. That means that also the maintenance burden for python-dev will be low or close to none after all. 
+
+* To be honest, I missed telnetlib. https://github.com/python/peps/pull/1073
+* The maintenance burden for nntplib is actually high, because tests are flaky.
+* nntplib has no maintainer and is missing features like COMPRESS extension.
+
+> It seems to me also spwd/crypt modules fall into this category (all UNIX platforms have the shadow password db, which is nice to have in python out of the box). In that case the removal appears to be more justified by the security implications than them being not widely used though, so I would use more caution and treat them differently (eg. opt for doc warning + investigate a possible replacement). Also note that spwd could be used to parse /etc/passwd, despite I admit its primary use case is password checking. Certain users may even not care about the additional security provided by PAM (eg. internal devop scripts).
+
+spwd and crypt are dead batteries, because their usefulness has been surpassed about two decades (!) ago. They are also very dangerous batteries because they leak hydrofluoric acid at scale. It's as least as bad as the acid + bathtub scene from the first season of Breaking Bad [1]. HF is nasty [2].
+
+I can reveal more details in a week or two.
+
+Christian
+
+[1] https://breakingbad.fandom.com/wiki/Hydrofluoric_acid
+[2] https://en.wikipedia.org/wiki/Hydrofluoric_acid#Health_and_safety
+
+
+From turnbull.stephen.fw at u.tsukuba.ac.jp  Wed May 22 05:26:24 2019
+From: turnbull.stephen.fw at u.tsukuba.ac.jp (Stephen J. Turnbull)
+Date: Wed, 22 May 2019 18:26:24 +0900
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <20190521195948.b4cklbgdzomyfpza@python.ca>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190521130111.GJ4221@ando.pearwood.info>
+ <qc1eat$7d7q$1@blaine.gmane.org>
+ <20190521195948.b4cklbgdzomyfpza@python.ca>
+Message-ID: <23781.5568.183871.73668@turnbull.sk.tsukuba.ac.jp>
+
+Neil Schemenauer writes:
+
+ > Here is an alternative, straw man, proposal.  Split the CPython repo
+ > into two parts:
+ > 
+ >     - core Python: minimal possible stdlib
+ >     - everything else
+
+I take issue with the characterization of "straw man," it's a
+practical idea that turns out to be not so easy to implement.
+
+We tried to do this with XEmacs, and found it just didn't work for us.
+It requires a lot of effort to pare a distribution down to a minimal
+core.  (In fact, we never got close.)  We gave up on that idea after
+only a year, and this was an age and an environment that did not have
+pip-like support for installation of 3rd-party packages (which you
+deprecate as "not really a great solution"), and a lot of people were
+still downloading at ISDN speeds or worse.  The demand for a minimal
+core was correspondingly greater than today, I think.
+
+We did bundle most applications such as MUAs and even C/C++
+development support into sumo packages (one for general use, one for
+packages that didn't function at all without the "MULE" multilingual
+environment which was optional in XEmacs).  But we still ended up with
+many packages staying in the core distribution, because other parts of
+the core or the installation process used them, and as you say "If I
+have a script that uses one of these modules and it gets removed, my
+script breaks."  That annoyed core developers as much as anyone, and
+they generally had priorities that did not emphasize minimalism (to
+say the least).
+
+ > When Python is released, provide installers for a Python that only
+ > includes the "core" part and a second installer that includes
+ > everything else.  I realize this is more work for the release team.
+ > Hopefully with some scripting, it will not be too labour intensive.
+
+Creating the distributions (core and sumo) was not particularly
+labor-intensive for us because we mostly didn't distribute binaries.
+A few moderately baroque scripts did the trick.  Automation has
+advanced, but due to the amount of it it's still fragile, especially
+when you're producing turn-key binary installers.
+
+As I mentioned above, it wasn't the release process that was the
+bottleneck, it was other factors that made it hard to reduce the
+core.  We had an "xemacs-base" package that provided a set of "extra
+tools" that some packages required, and libraries moved in and out of
+it pretty much every release as some developer got tired of telling
+people to install xemacs-base (back to core) or working around missing
+features (move it to xemacs-base where it could be updated easily).
+
+These are the same things that Python maintainers mention as pros and
+cons of having things in stdlib or out on PyPI.  We learned there is a
+sweet spot.  I know we didn't hit it most of the time, but it's very
+clear that both extremes are hard, if not infeasible, to maintain.
+(At the maximalist extreme, even GNU Emacs doesn't really try to
+include everything written in Emacs Lisp any more.)
+
+ > To help the people who need 100s or 1000s of extra PyPI packages,
+ > we could develop a tool that creates a "sumo" Python installer,
+ > grabbing packages from PyPI and building a installer package.
+
+This could be done by any third party (it wouldn't even need to be a
+public distribution, it could easily be an enterprise that open
+sources an internal tool or a GSoC project).  And it could be hosted
+on PyPI itself, since it's not the kind of thing that enterprises need
+to install on 100,000 workstations.
+
+ > To install that package, you would not need network access.
+
+AIUI, it's not the network access that is usually the problem these
+days, although it can be annoying if net access is flaky or if you
+have to sneakernet USBs around.  Still, "sneakernet" is basically a
+one-off cost.  The problem is that collections of random software from
+untrusted sources are verboten in the enterprise.  (Ah, those Walnut
+Creek CDs were wonderful!  I wonder what a modern AV tool would find
+in them?!)  I suppose that in those situations people already have the
+necessary tooling to roll the sumo or provide an intranet repository;
+the problem is navigating the red tape.
+
+ > That doesn't need to happen right away.  Also, maybe other Python
+ > distributions can fill that need if core Python devs don't want to
+ > build it.
+
+I don't think this is about what core devs do or don't want to build.
+I also don't feel a strong sense among the core developers that they
+don't want to maintain a "batteries included" standard library.  Sure,
+there's Christian's PEP, but there's also deliberate activity to
+promote more participation at the core (ie, committer) level.  AIUI,
+Christian's PEP is about transparency of what is already happening
+(WONTFIX-ing or long periods of inactivity on issues with modules of
+"low importance" to the active core developers), and a first step
+toward making a managed process for the deprecation of modules we
+can't afford to maintain given others we have committed to maintain.
+
+Steve
+
+From J.Demeyer at UGent.be  Wed May 22 05:41:49 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 22 May 2019 11:41:49 +0200
+Subject: [Python-Dev] Missing testcase for bpo-34125
+Message-ID: <5CE5195D.9030903@UGent.be>
+
+Could somebody please merge https://github.com/python/cpython/pull/13461
+
+It adds a missing testcase for bpo-34125. This is testing code which is 
+affected by PEP 590, so missing this test might accidentally break 
+CPython if we screw up with implementing PEP 590.
+
+Thanks,
+Jeroen.
+
+From steve at pearwood.info  Wed May 22 05:56:55 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 22 May 2019 19:56:55 +1000
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+Message-ID: <20190522095653.GK4221@ando.pearwood.info>
+
+Let me be clear: I do not oppose the removal of modules where necessary, 
+but I do not like this PEP as it stands. But full credit to Christian 
+for graciously accepting feedback; I also acknowledge that if this PEP 
+is accepted, we still have at least two releases to change our minds 
+about individual modules.
+
+My largest issue with the PEP as a whole is that I don't like lumping a 
+whole lot of unrelated modules together in one PEP. I believe it 
+encourages a risky sense of "we ought to clean house and throw out all 
+this junk!" rather than a measured consideration of pros and cons of 
+each module individually.
+
+I would rather see a serious of much smaller mini-PEPs, one per module. 
+They need not be large: we can take as a given that we can and should 
+remove "dead batteries" (but not merely unloved batteries in good 
+working order, or slightly leaking batteries that just need a bit of 
+care.) Each mini-PEP need only lay out the case for and against removal 
+of one module (or perhaps a small number of closely related modules, not 
+defend the principle in the abstract.
+
+As I see it, there is a problem with this approach of a single omnibus 
+PEP. A single PEP has reduced visibility for users of any specific 
+module. This can easily lead to users of a module being under- 
+represented in the discussion even if they are subscribed to Python-Dev.
+
+Let's say Alice is a heavy user of the "aardvark" module. If Alice sees 
+a PEP "Deprecate and remove aardvark", she is likely to speak up and air 
+her objections.
+
+But if Alice sees a single PEP "Remove dead batteries", she's likely to 
+think "of course the aardvark library is not a dead battery, people like 
+me us it all the time" and not realise she needs to make her objection 
+known. Especially if the discussion thread is large. This thread has 
+already reached 70 messages.
+
+    "To meaningfully contribute, I will need to read all 70 messages
+    in the Dead Battery thread, most of which are about modules I 
+    don't care about."
+
+versus:
+
+    "I need to read 5 messages in the Remove Aardvark thread."
+
+So I think that, relative to having one mini-PEP per module, a single 
+PEP may be unintentionally biased towards the "Yes remove the lot" case 
+and under-representing those who use some of these unloved batteries.
+
+The problem is compounded by the prejudicial language used: nobody 
+thinks of the modules they use as "dead batteries". How can they be dead 
+when they work fine?
+
+E.g. the binhex module *just works* -- if there are any bugs in it, I 
+haven't come across them. binhex is not an obsolete file format for 
+people like me who sometimes needs to read and write old Mac files.
+It might be an old and unloved battery, but its not dead.
+
+
+> On the other hand, Python's standard library is piling up cruft, unnecessary
+> duplication of functionality, and dispensable features. This is undesirable
+> for several reasons.
+
+What you are calling cruft and dispensable, others call useful and 
+indispensable. We've already seen at least three modules removed from 
+the list of "cruft": colorsys, nttplib, fileinput. There may have been 
+more by now -- I haven't caught up on all 70 posts yet.
+
+I also think the PEP doesn't make the case for some of the things being 
+asserted. For example:
+
+> * Any additional module increases the maintenance cost for the Python core
+>   development team. The team has limited resources, reduced maintenance cost
+>   frees development time for other improvements.
+
+This may often be the case, but not always.
+
+If a module is stable, there's little maintenance cost to speak of. It 
+works, there are (hopefully!) no known bugs, or at least no *serious* 
+bugs, so why touch it? A module that isn't being changed could mean two 
+things:
+
+1. It is essentially complete. It does what it does, more or less 
+correctly, and doesn't need new features or bug fixes.
+
+2. It is suffering from bitrot.
+
+I think the PEP fails to make the case for 2 over 1.
+
+
+> * Modules in the standard library are generally favored and seen as the
+>   de-facto solution for a problem. A majority of users only pick 3rd party
+>   modules to replace a stdlib module, when they have a compelling reason, e.g.
+>   lxml instead of `xml`.
+
+Is this a problem that we need to fix?
+
+
+>   The removal of an unmaintained stdlib module
+>   increases the chances of a community contributed module to become widely
+>   used.
+
+I don't think the conclusion is justified. It could just as easily lead 
+to a lack of any such library (the would-be users lack the ability or 
+time to maintain one), or a plethora of alternatives:
+
+"Should I use binhex 1.2, or MacBinHex 0.5, or BinnyMacHexFace 5.7, or 
+xehnib 0.8?, or ... "
+
+
+
+> * A lean and mean standard library benefits platforms with limited resources
+>   like devices with just a few hundred kilobyte of storage (e.g. BBC
+>   Micro:bit). Python on mobile platforms like BeeWare or WebAssembly
+>   (e.g. pyodide) also benefit from reduced download size.
+
+And I think this argument needs to be strongly challenged. I don't think 
+the CPython stdlib should be cut down to be "lean and mean" for the sake 
+of people using Python on micro-platforms. Let the tiny Pythons choose 
+their own standard library.
+
+
+Some more comments:
+
+> All deprecated modules will also undergo a feature freeze. No additional
+> features should be added. Bug should still be fixed.
+
+I disagree with this. If people are requesting or contributing features 
+to a module, that's a good sign that it *is* in use and isn't dead 
+and we shouldn't remove it.
+
+It seems perverse to say "we ought to remove this module because nobody 
+is maintaining it" and then reject attempts to maintain it!
+
+You'll notice that so far, apart from the example of binhex above, I 
+haven't come out in favour or against removing any specific library. 
+That's intentional: I would like to seperate criticism of the PEP as a 
+document from arguments about which modules should stay.
+
+Thank you,
+
+
+
+-- 
+Steven
+
+From steve at pearwood.info  Wed May 22 06:03:55 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 22 May 2019 20:03:55 +1000
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <005401d50ff8$839e66c0$8adb3440$@211mainstreet.net>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <CAL3CFcV3++xh8vWcwPq3PuJF4jJocvio5iSQ+T+N7TucOeDyQw@mail.gmail.com>
+ <04b145f0-e402-9ded-0844-9a0acaca9b44@python.org>
+ <7ab85a2e-d99f-f2c5-6aef-bb8a0b61ab3f@g.nevcal.com>
+ <005401d50ff8$839e66c0$8adb3440$@211mainstreet.net>
+Message-ID: <20190522100355.GL4221@ando.pearwood.info>
+
+On Tue, May 21, 2019 at 01:13:30PM -0400, Edwin Zimmerman wrote:
+[...]
+[-- Attachment #2: winmail.dat --]
+[-- Type: application/ms-tnef, Encoding: base64, Size: 8.4K --]
+
+
+Wow! I haven't see one of those for *years* -- I haven't noticed one for 
+about 15 years, and I thought it was an obsolete format that even 
+Windows email stopped using.
+
+I think the presence of that is somewhat ironic on a thread arguing that 
+we ought to remove working modules for obsolete formats.
+
+
+-- 
+Steven
+
+From solipsis at pitrou.net  Wed May 22 06:12:37 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Wed, 22 May 2019 12:12:37 +0200
+Subject: [Python-Dev] PEP 594: update 1
+References: <0acd0f02-ecff-8ea0-757b-30884b4ea8b0@python.org>
+ <20190521173112.503f4c91@fsol>
+ <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+ <CAP1=2W7T7n+y_zdJCF5OG0H55X0q+Jjq223UEv41CnNLRq+qHQ@mail.gmail.com>
+ <27ba695b-3219-a628-acef-4e0af649e2de@python.org>
+ <CAP1=2W4QX73S64LvbhP2UmymnLye2C93RGHhbgm+MZhMTp+00Q@mail.gmail.com>
+Message-ID: <20190522121237.021cbec4@fsol>
+
+On Tue, 21 May 2019 17:44:16 -0700
+Brett Cannon <bcannon at gmail.com> wrote:
+> >
+> > So I should never have added those tests and then we wouldn't be talking
+> > about removing nntplib.
+> >  
+> 
+> Not necessarily. I suspect it still would have been listed, you would have
+> objected, and someone may have looked at the tests to point out it was only
+> unit tests with no integration tests against a live service like e.g. the
+> pythontest.net-related tests and so it was already neglected.
+
+But that's moving the goalposts.  The PEP talks about "cruft,
+unnecessary duplication of functionality, and dispensable features". Not
+modules which have an insufficient test suite.
+
+> It also doesn't help that no one is listed in the experts index for the
+> module either.
+
+Right, but that's the case for many modules.
+
+Regards
+
+Antoine.
+
+
+
+From songofacandy at gmail.com  Wed May 22 06:16:29 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Wed, 22 May 2019 19:16:29 +0900
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <20190522095653.GK4221@ando.pearwood.info>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190522095653.GK4221@ando.pearwood.info>
+Message-ID: <CAEfz+TwH-ve_p5qM7e8EDq6pFYRc4LfbVa6FgSSFLaHvR=rQxg@mail.gmail.com>
+
+2019?5?22?(?) 18:57 Steven D'Aprano <steve at pearwood.info>:
+>
+> > All deprecated modules will also undergo a feature freeze. No additional
+> > features should be added. Bug should still be fixed.
+>
+> I disagree with this. If people are requesting or contributing features
+> to a module, that's a good sign that it *is* in use and isn't dead
+> and we shouldn't remove it.
+>
+
+If people are requesting or contributing for a module but we can not
+handle them for long time, I think it's sign we can not maintain the
+module well.
+It is not dead, but leaking battery.
+
+Maybe, the module requires some domain specific knowledge and
+it is very far from Python core development.
+Domain expert will maintain it well than Python core developers.
+
+So I don't think "it is still used" is not always equal to "Python
+core developers
+should maintain it" or "it should be shipped with Python".
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From steve at pearwood.info  Wed May 22 06:19:21 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 22 May 2019 20:19:21 +1000
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <d3b84383-67d3-733b-d30c-bc7b6c79e950@python.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190520232749.442c45c7@fsol>
+ <11d2680b-3def-08c0-0767-5edd227e9d98@python.org>
+ <CALaCa4xWd7_X_bDRmzw-rFU_YDvoobi6O=iSDPTpLMkrMjNCgw@mail.gmail.com>
+ <d3b84383-67d3-733b-d30c-bc7b6c79e950@python.org>
+Message-ID: <20190522101921.GM4221@ando.pearwood.info>
+
+On Wed, May 22, 2019 at 10:07:31AM +0200, Christian Heimes wrote:
+> On 22/05/2019 06.20, Arfrever Frehtes Taifersar Arahesis wrote:
+
+> > It is possible to have a modern Linux desktop system with PAM not
+> > installed at all, and therefore not used.
+[...]
+
+Christian wrote:
+
+> Thanks for bringing this up. I don't think we need to care about this care.
+> 
+> A PAM-free Linux system is an IMHO very special and exotic case. It's 
+> certainly not a setup anybody should run on a server. 
+
+I've heard of rare cases of people running Python on Linux desktops... 
+*wink*
+
+
+> There are a lot 
+> of good reasons to use PAM. I'll update the BPO with reasons soonish.
+
+I don't think this PEP should become a document about "Why you should 
+use PAM". I appreciate that from your perspective as a Red Hat security 
+guy, you want everyone to use best practices as you see them, but it 
+isn't Python's position to convince Linux distros or users to use PAM.
+
+To put it another way... I think that if you want to make the case for 
+PAM, put it on the web (a blog?) and link to it.
+
+As far as the spwd module is concerned, on the one hand you're saying 
+"we should remove it because nobody should ever read from /etc/shadow", 
+and then on the other hand you're all "but go ahead and read /etc/shadow 
+if you like, it is perfectly trivial to do":
+
+> By the way, the /etc/shadow shadow(5) format is trivial and can be 
+> parsed with a few lines of code. There is no need to use spwd.
+
+so I think you're undercutting your own argument. If reading from 
+/etc/shadow is such a bad thing that we must remove it, why tell people 
+that they can parse it themselves?
+
+Not that we could stop them, even if we wanted to.
+
+-- 
+Steven
+
+From steve at pearwood.info  Wed May 22 06:37:28 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 22 May 2019 20:37:28 +1000
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <23780.55119.651028.7615@turnbull.sk.tsukuba.ac.jp>
+References: <HE1PR05MB3211B603117CC9F4ACA65254B4070@HE1PR05MB3211.eurprd05.prod.outlook.com>
+ <58e5c9ff-3e5f-5146-3bd9-7feeacdb0aea@python.org>
+ <23780.55119.651028.7615@turnbull.sk.tsukuba.ac.jp>
+Message-ID: <20190522103726.GN4221@ando.pearwood.info>
+
+On Wed, May 22, 2019 at 01:59:59PM +0900, Stephen J. Turnbull wrote:
+
+> This looks to me like an opening to a special class of supply chain
+> attacks.
+[...]
+
+> One thing we *could* do that would require moderate effort would be to
+> put them up on PyPI ourselves, and require that would-be maintainers
+> be given a (light) vetting before handing over the keys.  (Maybe just
+> require that they be subscribers to the Dead Parrot SIG? :-)
+
+Because black hat hackers don't know how to subscribe to a SIG? *wink*
+
+I'm just gonna leave this here... 
+
+https://www.ietf.org/rfc/rfc3514.txt
+
+Python is open source, anyone can fork any module from the std lib for
+any purposes. We can't stop that. But your earlier point about supply 
+chain attacks is very valid. Modules we shift out of the stdlib become 
+more vulnerable to supply chain attacks, because more people will have 
+to download them, giving more opportunity for typo-squatter attacks.
+
+
+-- 
+Steven
+
+From steve at pearwood.info  Wed May 22 06:48:23 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 22 May 2019 20:48:23 +1000
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <qc1eat$7d7q$1@blaine.gmane.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190521130111.GJ4221@ando.pearwood.info> <qc1eat$7d7q$1@blaine.gmane.org>
+Message-ID: <20190522104822.GO4221@ando.pearwood.info>
+
+On Tue, May 21, 2019 at 01:59:56PM -0400, Terry Reedy wrote:
+> On 5/21/2019 9:01 AM, Steven D'Aprano wrote:
+> ...
+> >Many Python users don't have the privilege of being able to install
+> >arbitrary, unvetted packages from PyPI. They get to use only packages
+> >from approved vendors, including the stdlib, what they write themselves,
+> >and nothing else. Please don't dismiss this part of the Python community
+> >just because they don't typically hang around in the same forums we do.
+> ...
+> 
+> The problem with this argument, taken by itself, it that it would argue 
+> for adding to the stdlib 100s or 1000s of modules or packages that would 
+> be useful to many more people than the modules proposed to be dropped. 
+
+No -- taken *by itself* it is only an argument against removing what 
+already exists (or at least to be conservative in what we remove). That 
+is all I'm saying.
+
+It requires an *additional* argument that we add anything new, and I'm 
+not making that argument here.
+
+The additional argument is valid as a counter to "just put it on PyPI". 
+The argument goes like this:
+
+- if we agree that the aardvark module is useful and appropriate for 
+  the std lib (not every useful module is, for many reasons!) we could 
+  still decide not to add it;
+
+- if we add it to the std lib, it will be available to 100% of users
+  of the std lib;
+
+- but if we say "put it on PyPI", it will only be available to (let's
+  say) 85% of users.
+
+But I'm not making that argument here because I'm not asking to add 
+anything.
+
+
+
+-- 
+Steven
+
+From christian at python.org  Wed May 22 07:09:34 2019
+From: christian at python.org (Christian Heimes)
+Date: Wed, 22 May 2019 13:09:34 +0200
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <ef50b259-e9fc-ddff-c8db-771d7af69219@g.nevcal.com>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <CAL3CFcV3++xh8vWcwPq3PuJF4jJocvio5iSQ+T+N7TucOeDyQw@mail.gmail.com>
+ <04b145f0-e402-9ded-0844-9a0acaca9b44@python.org>
+ <7ab85a2e-d99f-f2c5-6aef-bb8a0b61ab3f@g.nevcal.com>
+ <CAP7+vJK7BoE2fwZeB4Zs4GHGopgeJ-iUG2X4Yj+aUhwtOw1L0w@mail.gmail.com>
+ <303943c0-0c48-ec35-cbd9-cbc357dd3e7e@g.nevcal.com>
+ <CAPJVwBmePVXN45sv=2dH9n=omPa1R1oL+dThRLHB1C8ngU5pDg@mail.gmail.com>
+ <ef50b259-e9fc-ddff-c8db-771d7af69219@g.nevcal.com>
+Message-ID: <8eba9ec6-5f24-ccad-1218-999173f9f252@python.org>
+
+On 22/05/2019 01.11, Glenn Linderman wrote:
+> On 5/21/2019 2:00 PM, Nathaniel Smith wrote:
+>> On Tue, May 21, 2019 at 10:43 AM Glenn Linderman <v+python at g.nevcal.com> wrote:
+>>> After maintaining my own version of http.server to fix or workaround some of its deficiencies for some years, I discovered bottle.py. It has far more capability, is far better documented, and is just as quick to deploy. While I haven't yet converted all past projects to use bottle.py, it will likely happen in time, unless something even simpler to use is discovered, although I can hardly imagine that happening.
+>> bottle.py uses http.server for its local development mode (the one you
+>> see in their quickstart example at the top of their README). Same with
+>> flask, django, and probably a bunch of other frameworks. It's *very*
+>> widely used.
+>>
+>> -n
+>>
+> The source for bottle.py version 0.13-dev has an import for http.client, but not http.server. I hadn't tracked down every indirect dependency in the bottle.py source code, but it seems that if one uses the "default server" for bottle, that it is "wsgiref", imported from wsgiref.simple_server, and that in turn does import BaseHTTPRequestHandler and HTTPServer from http.server.
+> 
+> It is the higher-level code in http.server that has significant deficiencies that have caused me problems over the years... a "SimpleHTTPRequestHandler" that is so simple it doesn't do POST, PUT or PASTE, a "CGIHTTPRequestHandler" that only implements part of the CGI protocol, only CGI support in POST, no support for PUT or PASTE, and no support for https, and not much bug fix activity in those areas.
+> 
+> Maybe http.server should be split into the "basic parts" (used by bottle.py, and other frameworks), and the "higher-level parts", which could then be discarded by this PEP! At this point, though, I'd have to agree that the whole should not be discarded. Thanks for making me dig deeper.
+
+The idea has merrit. However I feel its out of scope for the PEP. The http.server module and socketserver module are still widely used for debug and toy examples.
+
+Could you please open a bug to track your proposal? We may pursue it in a couple of years from now.
+
+From christian at python.org  Wed May 22 07:31:18 2019
+From: christian at python.org (Christian Heimes)
+Date: Wed, 22 May 2019 13:31:18 +0200
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <20190522101921.GM4221@ando.pearwood.info>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190520232749.442c45c7@fsol>
+ <11d2680b-3def-08c0-0767-5edd227e9d98@python.org>
+ <CALaCa4xWd7_X_bDRmzw-rFU_YDvoobi6O=iSDPTpLMkrMjNCgw@mail.gmail.com>
+ <d3b84383-67d3-733b-d30c-bc7b6c79e950@python.org>
+ <20190522101921.GM4221@ando.pearwood.info>
+Message-ID: <a344e826-8c79-7671-0959-03f7b50da408@python.org>
+
+On 22/05/2019 12.19, Steven D'Aprano wrote:
+> I don't think this PEP should become a document about "Why you should 
+> use PAM". I appreciate that from your perspective as a Red Hat security 
+> guy, you want everyone to use best practices as you see them, but it 
+> isn't Python's position to convince Linux distros or users to use PAM.
+
+I think the PEP should make clear why spwd is bad and pining for The Fjords. The document should point users to correct alternatives. There is no correct and secure way to use the spwd module to verify user accounts. Any use of spwd for logins introduces critical security bugs.
+
+By the way, all relevant BSD, Linux, and Darwin (macOS) distributions come with PAM support. Almost all use PAM by default. AFAIK only the minimal Alpine container does not have PAM installed by default. This is not Red Hat trying to evangelize the world. PAM is *the* industry standards on Unix-like OS.
+
+> To put it another way... I think that if you want to make the case for 
+> PAM, put it on the web (a blog?) and link to it.
+> 
+> As far as the spwd module is concerned, on the one hand you're saying 
+> "we should remove it because nobody should ever read from /etc/shadow", 
+> and then on the other hand you're all "but go ahead and read /etc/shadow 
+> if you like, it is perfectly trivial to do":
+> 
+>> By the way, the /etc/shadow shadow(5) format is trivial and can be 
+>> parsed with a few lines of code. There is no need to use spwd.
+> 
+> so I think you're undercutting your own argument. If reading from 
+> /etc/shadow is such a bad thing that we must remove it, why tell people 
+> that they can parse it themselves?
+> 
+> Not that we could stop them, even if we wanted to.
+
+Steven, I feel like you are turning my own words and arguments against me.
+
+
+From christian at python.org  Wed May 22 08:19:02 2019
+From: christian at python.org (Christian Heimes)
+Date: Wed, 22 May 2019 14:19:02 +0200
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <23780.55119.651028.7615@turnbull.sk.tsukuba.ac.jp>
+References: <HE1PR05MB3211B603117CC9F4ACA65254B4070@HE1PR05MB3211.eurprd05.prod.outlook.com>
+ <58e5c9ff-3e5f-5146-3bd9-7feeacdb0aea@python.org>
+ <23780.55119.651028.7615@turnbull.sk.tsukuba.ac.jp>
+Message-ID: <54787dcb-559c-ed45-1ec4-7535480d2b60@python.org>
+
+On 22/05/2019 06.59, Stephen J. Turnbull wrote:
+> Christian Heimes writes:
+> 
+>  > It's all open source. It's up to the Python community to adopt
+>  > packages and provide them on PyPI.
+>  > 
+>  > Python core will not maintain and distribute the packages. I'll
+>  > merely provide a repository with packages to help kick-starting the
+>  > process.
+> 
+> This looks to me like an opening to a special class of supply chain
+> attacks.  I realize that PyPI is not yet particularly robust to such
+> attacks, and we have seen "similar name" attacks (malware uploaded
+> under a name similar to a popular package).  ISTM that this approach
+> to implementing the PEP will enable "identical name" attacks.  (By
+> download count, stdlib packages are as popular as Python. :-)
+
+I don't consider this an argument against my proposal, but an argument in favor of improving PyPI.
+
+<sarcasm>
+I propose a deal: If you get PEP 453 (ensurepip) revoked, ensurepip removed from the standard library, and the recommendation for the requests package on urllib.request replaced with a big, fat security warning, then I'll reconsider my proposal to recommend PyPI.
+</sarcasm>
+
+:)
+
+My PEP acts in good faith. As long as CPython's stdlib ships pip and embraces PyPI, I don't see any reason to distrust PyPI. Yes, PyPI is not Fort Knox. In my humble opinion it's more than secure enough for my proposal.
+
+Christian
+
+From christian at python.org  Wed May 22 08:26:05 2019
+From: christian at python.org (Christian Heimes)
+Date: Wed, 22 May 2019 14:26:05 +0200
+Subject: [Python-Dev] PEP 594: discussion-to discuss.python.org
+Message-ID: <20f8aa2b-0941-be11-39ba-1b4c626aadc6@python.org>
+
+Please use https://discuss.python.org/t/pep-594-removing-dead-batteries-from-the-standard-library/1704 for feedback and discussion.
+
+Thank you,
+Christian
+
+From christian at python.org  Wed May 22 08:27:39 2019
+From: christian at python.org (Christian Heimes)
+Date: Wed, 22 May 2019 14:27:39 +0200
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <CAP1=2W4QX73S64LvbhP2UmymnLye2C93RGHhbgm+MZhMTp+00Q@mail.gmail.com>
+References: <0acd0f02-ecff-8ea0-757b-30884b4ea8b0@python.org>
+ <20190521173112.503f4c91@fsol>
+ <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+ <CAP1=2W7T7n+y_zdJCF5OG0H55X0q+Jjq223UEv41CnNLRq+qHQ@mail.gmail.com>
+ <27ba695b-3219-a628-acef-4e0af649e2de@python.org>
+ <CAP1=2W4QX73S64LvbhP2UmymnLye2C93RGHhbgm+MZhMTp+00Q@mail.gmail.com>
+Message-ID: <qc3f7r$69ib$1@blaine.gmane.org>
+
+On 22/05/2019 02.44, Brett Cannon wrote:
+> It also doesn't help that no one is listed in the experts index for the module either..
+
+Excellent point! The PEP now lists the presence / absence of experts.
+
+Christian
+
+
+From berker.peksag at gmail.com  Wed May 22 08:42:27 2019
+From: berker.peksag at gmail.com (=?UTF-8?Q?Berker_Peksa=C4=9F?=)
+Date: Wed, 22 May 2019 15:42:27 +0300
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+References: <0acd0f02-ecff-8ea0-757b-30884b4ea8b0@python.org>
+ <20190521173112.503f4c91@fsol>
+ <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+Message-ID: <CAF4280Lp+KQP-Hi0JmXDnWkFyB-hsRtWmTGazNGVudDC0caMbw@mail.gmail.com>
+
+On Tue, May 21, 2019 at 7:11 PM Christian Heimes <christian at python.org> wrote:
+>
+> On 21/05/2019 17.31, Antoine Pitrou wrote:
+> >
+> > As I said, if the main annoyance with nntplib is the sporadic test
+> > failures, then the relevant tests can be disabled on CI.
+> >
+> > NNTP itself is still used, even if less and less.
+>
+> I don't like the idea to drop a third of the test cases for nntplib -- and the 30% that actually test that Python's NNTP library can talk to an actual NNTP server. IMHO it's more beneficial for core development and for nntplib to have it maintained by somebody that cares about the library.
+
+https://github.com/python/cpython/pull/9461 should fix most of the
+annoyances with test_nntplib. It uses a local server instead of an
+external one.
+
+--Berker
+
+From p.f.moore at gmail.com  Wed May 22 09:39:02 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Wed, 22 May 2019 14:39:02 +0100
+Subject: [Python-Dev] PEP 594: discussion-to discuss.python.org
+In-Reply-To: <20f8aa2b-0941-be11-39ba-1b4c626aadc6@python.org>
+References: <20f8aa2b-0941-be11-39ba-1b4c626aadc6@python.org>
+Message-ID: <CACac1F8QSwARdZkBC+=b4ED9-LnbXTWVk0JjNL1mZDg4iC1f+w@mail.gmail.com>
+
+On Wed, 22 May 2019 at 13:28, Christian Heimes <christian at python.org> wrote:
+>
+> Please use https://discuss.python.org/t/pep-594-removing-dead-batteries-from-the-standard-library/1704 for feedback and discussion.
+>
+> Thank you,
+> Christian
+
+Out of curiosity, why? There's been a lot of useful discussion here -
+why now split the discussion, risk rehashing points already made over
+here, and making it harder for people to locate the history of the PEP
+in future?
+
+I'd see no problem directing the discussions to Discourse when the PEP
+was first announced, but why change part way through the process?
+Paul
+
+From encukou at gmail.com  Wed May 22 09:51:02 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Wed, 22 May 2019 15:51:02 +0200
+Subject: [Python-Dev] PEP 590 (Vectorcall) discussion
+In-Reply-To: <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+References: <CADiSq7f7GRJjZmoLAxpN5hovMT5=M73aJUi14HHFDNG=hssV7w@mail.gmail.com>
+ <6c8356e3-f9b2-c39e-63c4-17f146d326b7@hotpy.org>
+ <CA+=+wqBsUKWHRqjhRFShmY77vaxDPTFaafWtOB8dnyXQSthiZw@mail.gmail.com>
+ <15b8a3d7-00ed-a5eb-475c-a3adee671b5f@hotpy.org> <5C9FEF82.50207@UGent.be>
+ <d28319ff-a8aa-f218-b8ed-1d489ff9e324@redhat.com>
+ <421f8182-4bc8-b8cf-82d6-ca4a4fbd2013@hotpy.org>
+ <50d675b4-839c-6502-ad1a-a33ea9330000@redhat.com>
+Message-ID: <06b65b36-dbb0-2d43-9845-80c08154afa1@gmail.com>
+
+Discussion on PEP 590 (Vectorcall) has been split over several PRs, 
+issues and e-mails, so let me post an update.
+
+I am planning to approve PEP 590 with the following changes, if Mark 
+doesn't object to them:
+
+* https://github.com/python/peps/pull/1064 (Mark the main API as private 
+to allow changes in Python 3.9)
+* https://github.com/python/peps/pull/1066 (Use size_t for "number of 
+arguments + flag")
+
+
+The resulting text, for reference:
+
+PEP: 590
+Title: Vectorcall: a fast calling protocol for CPython
+Author: Mark Shannon <mark at hotpy.org>, Jeroen Demeyer <J.Demeyer at UGent.be>
+BDFL-Delegate: Petr Viktorin <encukou at gmail.com>
+Status: Draft
+Type: Standards Track
+Content-Type: text/x-rst
+Created: 29-Mar-2019
+Python-Version: 3.8
+Post-History:
+
+Abstract
+========
+
+This PEP introduces a new C API to optimize calls of objects.
+It introduces a new "vectorcall" protocol and calling convention.
+This is based on the "fastcall" convention, which is already used 
+internally by CPython.
+The new features can be used by any user-defined extension class.
+
+Most of the new API is private in CPython 3.8.
+The plan is to finalize semantics and make it public in Python 3.9.
+
+**NOTE**: This PEP deals only with the Python/C API,
+it does not affect the Python language or standard library.
+
+
+Motivation
+==========
+
+The choice of a calling convention impacts the performance and 
+flexibility of code on either side of the call.
+Often there is tension between performance and flexibility.
+
+The current ``tp_call`` [2]_ calling convention is sufficiently flexible 
+to cover all cases, but its performance is poor.
+The poor performance is largely a result of having to create 
+intermediate tuples, and possibly intermediate dicts, during the call.
+This is mitigated in CPython by including special-case code to speed up 
+calls to Python and builtin functions.
+Unfortunately, this means that other callables such as classes and third 
+party extension objects are called using the
+slower, more general ``tp_call`` calling convention.
+
+This PEP proposes that the calling convention used internally for Python 
+and builtin functions is generalized and published
+so that all calls can benefit from better performance.
+The new proposed calling convention is not fully general, but covers the 
+large majority of calls.
+It is designed to remove the overhead of temporary object creation and 
+multiple indirections.
+
+Another source of inefficiency in the ``tp_call`` convention is that it 
+has one function pointer per class,
+rather than per object.
+This is inefficient for calls to classes as several intermediate objects 
+need to be created.
+For a class ``cls``, at least one intermediate object is created for 
+each call in the sequence
+``type.__call__``, ``cls.__new__``, ``cls.__init__``.
+
+This PEP proposes an interface for use by extension modules.
+Such interfaces cannot effectively be tested, or designed, without 
+having the
+consumers in the loop.
+For that reason, we provide private (underscore-prefixed) names.
+The API may change (based on consumer feedback) in Python 3.9, where we 
+expect
+it to be finalized, and the underscores removed.
+
+
+Specification
+=============
+
+The function pointer type
+-------------------------
+
+Calls are made through a function pointer taking the following parameters:
+
+* ``PyObject *callable``: The called object
+* ``PyObject *const *args``: A vector of arguments
+* ``size_t nargs``: The number of arguments plus the optional flag 
+``PY_VECTORCALL_ARGUMENTS_OFFSET`` (see below)
+* ``PyObject *kwnames``: Either ``NULL`` or a tuple with the names of 
+the keyword arguments
+
+This is implemented by the function pointer type:
+``typedef PyObject *(*vectorcallfunc)(PyObject *callable, PyObject 
+*const *args, size_t nargs, PyObject *kwnames);``
+
+Changes to the ``PyTypeObject`` struct
+--------------------------------------
+
+The unused slot ``printfunc tp_print`` is replaced with 
+``tp_vectorcall_offset``. It has the type ``Py_ssize_t``.
+A new ``tp_flags`` flag is added, ``_Py_TPFLAGS_HAVE_VECTORCALL``,
+which must be set for any class that uses the vectorcall protocol.
+
+If ``_Py_TPFLAGS_HAVE_VECTORCALL`` is set, then ``tp_vectorcall_offset`` 
+must be a positive integer.
+It is the offset into the object of the vectorcall function pointer of 
+type ``vectorcallfunc``.
+This pointer may be ``NULL``, in which case the behavior is the same as 
+if ``_Py_TPFLAGS_HAVE_VECTORCALL`` was not set.
+
+The ``tp_print`` slot is reused as the ``tp_vectorcall_offset`` slot to 
+make it easier for for external projects to backport the vectorcall 
+protocol to earlier Python versions.
+In particular, the Cython project has shown interest in doing that (see 
+https://mail.python.org/pipermail/python-dev/2018-June/153927.html).
+
+Descriptor behavior
+-------------------
+
+One additional type flag is specified: ``Py_TPFLAGS_METHOD_DESCRIPTOR``.
+
+``Py_TPFLAGS_METHOD_DESCRIPTOR`` should be set if the callable uses the 
+descriptor protocol to create a bound method-like object.
+This is used by the interpreter to avoid creating temporary objects when 
+calling methods
+(see ``_PyObject_GetMethod`` and the ``LOAD_METHOD``/``CALL_METHOD`` 
+opcodes).
+
+Concretely, if ``Py_TPFLAGS_METHOD_DESCRIPTOR`` is set for 
+``type(func)``, then:
+
+- ``func.__get__(obj, cls)(*args, **kwds)`` (with ``obj`` not None)
+   must be equivalent to ``func(obj, *args, **kwds)``.
+
+- ``func.__get__(None, cls)(*args, **kwds)`` must be equivalent to 
+``func(*args, **kwds)``.
+
+There are no restrictions on the object ``func.__get__(obj, cls)``.
+The latter is not required to implement the vectorcall protocol.
+
+The call
+--------
+
+The call takes the form ``((vectorcallfunc)(((char *)o)+offset))(o, 
+args, n, kwnames)`` where
+``offset`` is ``Py_TYPE(o)->tp_vectorcall_offset``.
+The caller is responsible for creating the ``kwnames`` tuple and 
+ensuring that there are no duplicates in it.
+
+``n`` is the number of postional arguments plus possibly the 
+``PY_VECTORCALL_ARGUMENTS_OFFSET`` flag.
+
+PY_VECTORCALL_ARGUMENTS_OFFSET
+------------------------------
+
+The flag ``PY_VECTORCALL_ARGUMENTS_OFFSET`` should be added to ``n``
+if the callee is allowed to temporarily change ``args[-1]``.
+In other words, this can be used if ``args`` points to argument 1 in the 
+allocated vector.
+The callee must restore the value of ``args[-1]`` before returning.
+
+Whenever they can do so cheaply (without allocation), callers are 
+encouraged to use ``PY_VECTORCALL_ARGUMENTS_OFFSET``.
+Doing so will allow callables such as bound methods to make their onward 
+calls cheaply.
+The bytecode interpreter already allocates space on the stack for the 
+callable,
+so it can use this trick at no additional cost.
+
+See [3]_ for an example of how ``PY_VECTORCALL_ARGUMENTS_OFFSET`` is 
+used by a callee to avoid allocation.
+
+For getting the actual number of arguments from the parameter ``n``,
+the macro ``PyVectorcall_NARGS(n)`` must be used.
+This allows for future changes or extensions.
+
+
+New C API and changes to CPython
+================================
+
+The following functions or macros are added to the C API:
+
+- ``PyObject *_PyObject_Vectorcall(PyObject *obj, PyObject *const *args, 
+size_t nargs, PyObject *keywords)``:
+   Calls ``obj`` with the given arguments.
+   Note that ``nargs`` may include the flag 
+``PY_VECTORCALL_ARGUMENTS_OFFSET``.
+   The actual number of positional arguments is given by 
+``PyVectorcall_NARGS(nargs)``.
+   The argument ``keywords`` is a tuple of keyword names or ``NULL``.
+   An empty tuple has the same effect as passing ``NULL``.
+   This uses either the vectorcall protocol or ``tp_call`` internally;
+   if neither is supported, an exception is raised.
+
+- ``PyObject *PyVectorcall_Call(PyObject *obj, PyObject *tuple, PyObject 
+*dict)``:
+   Call the object (which must support vectorcall) with the old
+   ``*args`` and ``**kwargs`` calling convention.
+   This is mostly meant to put in the ``tp_call`` slot.
+
+- ``Py_ssize_t PyVectorcall_NARGS(size_t nargs)``: Given a vectorcall 
+``nargs`` argument,
+   return the actual number of arguments.
+   Currently equivalent to ``nargs & ~PY_VECTORCALL_ARGUMENTS_OFFSET``.
+
+Subclassing
+-----------
+
+Extension types inherit the type flag ``_Py_TPFLAGS_HAVE_VECTORCALL``
+and the value ``tp_vectorcall_offset`` from the base class,
+provided that they implement ``tp_call`` the same way as the base class.
+Additionally, the flag ``Py_TPFLAGS_METHOD_DESCRIPTOR``
+is inherited if ``tp_descr_get`` is implemented the same way as the base 
+class.
+
+Heap types never inherit the vectorcall protocol because
+that would not be safe (heap types can be changed dynamically).
+This restriction may be lifted in the future, but that would require
+special-casing ``__call__`` in ``type.__setattribute__``.
+
+
+Finalizing the API
+==================
+
+The underscore in the names ``_PyObject_Vectorcall`` and
+``_Py_TPFLAGS_HAVE_VECTORCALL`` indicates that this API may change in minor
+Python versions.
+When finalized (which is planned for Python 3.9), they will be renamed to
+``PyObject_Vectorcall`` and ``Py_TPFLAGS_HAVE_VECTORCALL``.
+The old underscore-prefixed names will remain available as aliases.
+
+The new API will be documented as normal, but will warn of the above.
+
+Semantics for the other names introduced in this PEP 
+(``PyVectorcall_NARGS``,
+``PyVectorcall_Call``, ``Py_TPFLAGS_METHOD_DESCRIPTOR``,
+``PY_VECTORCALL_ARGUMENTS_OFFSET``) are final.
+
+
+Internal CPython changes
+========================
+
+Changes to existing classes
+---------------------------
+
+The ``function``, ``builtin_function_or_method``, ``method_descriptor``, 
+``method``, ``wrapper_descriptor``, ``method-wrapper``
+classes will use the vectorcall protocol
+(not all of these will be changed in the initial implementation).
+
+For ``builtin_function_or_method`` and ``method_descriptor``
+(which use the ``PyMethodDef`` data structure),
+one could implement a specific vectorcall wrapper for every existing 
+calling convention.
+Whether or not it is worth doing that remains to be seen.
+
+Using the vectorcall protocol for classes
+-----------------------------------------
+
+For a class ``cls``, creating a new instance using ``cls(xxx)``
+requires multiple calls.
+At least one intermediate object is created for each call in the sequence
+``type.__call__``, ``cls.__new__``, ``cls.__init__``.
+So it makes a lot of sense to use vectorcall for calling classes.
+This really means implementing the vectorcall protocol for ``type``.
+Some of the most commonly used classes will use this protocol,
+probably ``range``, ``list``, ``str``, and ``type``.
+
+The ``PyMethodDef`` protocol and Argument Clinic
+------------------------------------------------
+
+Argument Clinic [4]_ automatically generates wrapper functions around 
+lower-level callables, providing safe unboxing of primitive types and
+other safety checks.
+Argument Clinic could be extended to generate wrapper objects conforming 
+to the new ``vectorcall`` protocol.
+This will allow execution to flow from the caller to the Argument Clinic 
+generated wrapper and
+thence to the hand-written code with only a single indirection.
+
+
+Third-party extension classes using vectorcall
+==============================================
+
+To enable call performance on a par with Python functions and built-in 
+functions,
+third-party callables should include a ``vectorcallfunc`` function pointer,
+set ``tp_vectorcall_offset`` to the correct value and add the 
+``_Py_TPFLAGS_HAVE_VECTORCALL`` flag.
+Any class that does this must implement the ``tp_call`` function and 
+make sure its behaviour is consistent with the ``vectorcallfunc`` function.
+Setting ``tp_call`` to ``PyVectorcall_Call`` is sufficient.
+
+
+Performance implications of these changes
+=========================================
+
+This PEP should not have much impact on the performance of existing code
+(neither in the positive nor the negative sense).
+It is mainly meant to allow efficient new code to be written,
+not to make existing code faster.
+
+Nevertheless, this PEP optimizes for ``METH_FASTCALL`` functions.
+Performance of functions using ``METH_VARARGS`` will become slightly worse.
+
+
+Stable ABI
+==========
+
+Nothing from this PEP is added to the stable ABI (PEP 384).
+
+
+Alternative Suggestions
+=======================
+
+bpo-29259
+---------
+
+PEP 590 is close to what was proposed in bpo-29259 [#bpo29259]_.
+The main difference is that this PEP stores the function pointer
+in the instance rather than in the class.
+This makes more sense for implementing functions in C,
+where every instance corresponds to a different C function.
+It also allows optimizing ``type.__call__``, which is not possible with 
+bpo-29259.
+
+PEP 576 and PEP 580
+-------------------
+
+Both PEP 576 and PEP 580 are designed to enable 3rd party objects to be 
+both expressive and performant (on a par with
+CPython objects). The purpose of this PEP is provide a uniform way to 
+call objects in the CPython ecosystem that is
+both expressive and as performant as possible.
+
+This PEP is broader in scope than PEP 576 and uses variable rather than 
+fixed offset function-pointers.
+The underlying calling convention is similar. Because PEP 576 only 
+allows a fixed offset for the function pointer,
+it would not allow the improvements to any objects with constraints on 
+their layout.
+
+PEP 580 proposes a major change to the ``PyMethodDef`` protocol used to 
+define builtin functions.
+This PEP provides a more general and simpler mechanism in the form of a 
+new calling convention.
+This PEP also extends the ``PyMethodDef`` protocol, but merely to 
+formalise existing conventions.
+
+Other rejected approaches
+-------------------------
+
+A longer, 6 argument, form combining both the vector and optional tuple 
+and dictionary arguments was considered.
+However, it was found that the code to convert between it and the old 
+``tp_call`` form was overly cumbersome and inefficient.
+Also, since only 4 arguments are passed in registers on x64 Windows, the 
+two extra arguments would have non-neglible costs.
+
+Removing any special cases and making all calls use the ``tp_call`` form 
+was also considered.
+However, unless a much more efficient way was found to create and 
+destroy tuples, and to a lesser extent dictionaries,
+then it would be too slow.
+
+
+Acknowledgements
+================
+
+Victor Stinner for developing the original "fastcall" calling convention 
+internally to CPython.
+This PEP codifies and extends his work.
+
+
+References
+==========
+
+.. [#bpo29259] Add tp_fastcall to PyTypeObject: support FASTCALL calling 
+convention for all callable objects,
+                https://bugs.python.org/issue29259
+.. [2] tp_call/PyObject_Call calling convention
+    https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_call
+.. [3] Using PY_VECTORCALL_ARGUMENTS_OFFSET in callee
+ 
+https://github.com/markshannon/cpython/blob/vectorcall-minimal/Objects/classobject.c#L53
+.. [4] Argument Clinic
+    https://docs.python.org/3/howto/clinic.html
+
+
+Reference implementation
+========================
+
+A minimal implementation can be found at 
+https://github.com/markshannon/cpython/tree/vectorcall-minimal
+
+
+Copyright
+=========
+
+This document has been placed in the public domain.
+
+
+
+..
+    Local Variables:
+    mode: indented-text
+    indent-tabs-mode: nil
+    sentence-end-double-space: t
+    fill-column: 70
+    coding: utf-8
+    End:
+
+
+From guido at python.org  Wed May 22 10:07:21 2019
+From: guido at python.org (Guido van Rossum)
+Date: Wed, 22 May 2019 07:07:21 -0700
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <CAF4280Lp+KQP-Hi0JmXDnWkFyB-hsRtWmTGazNGVudDC0caMbw@mail.gmail.com>
+References: <0acd0f02-ecff-8ea0-757b-30884b4ea8b0@python.org>
+ <20190521173112.503f4c91@fsol>
+ <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+ <CAF4280Lp+KQP-Hi0JmXDnWkFyB-hsRtWmTGazNGVudDC0caMbw@mail.gmail.com>
+Message-ID: <CAP7+vJL2cM6i9dRjB3Ejk3pikgKExRw0aZHAq-XER_S5whMC4w@mail.gmail.com>
+
+Christian,
+
+Please don't touch nntplib.
+
+Also I think telnetlib should stay.
+
+On Wed, May 22, 2019 at 5:44 AM Berker Peksa? <berker.peksag at gmail.com>
+wrote:
+
+> On Tue, May 21, 2019 at 7:11 PM Christian Heimes <christian at python.org>
+> wrote:
+> >
+> > On 21/05/2019 17.31, Antoine Pitrou wrote:
+> > >
+> > > As I said, if the main annoyance with nntplib is the sporadic test
+> > > failures, then the relevant tests can be disabled on CI.
+> > >
+> > > NNTP itself is still used, even if less and less.
+> >
+> > I don't like the idea to drop a third of the test cases for nntplib --
+> and the 30% that actually test that Python's NNTP library can talk to an
+> actual NNTP server. IMHO it's more beneficial for core development and for
+> nntplib to have it maintained by somebody that cares about the library.
+>
+> https://github.com/python/cpython/pull/9461 should fix most of the
+> annoyances with test_nntplib. It uses a local server instead of an
+> external one.
+>
+> --Berker
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190522/945b9f88/attachment.html>
+
+From brett at python.org  Wed May 22 11:19:48 2019
+From: brett at python.org (Brett Cannon)
+Date: Wed, 22 May 2019 08:19:48 -0700
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <20190522121237.021cbec4@fsol>
+References: <0acd0f02-ecff-8ea0-757b-30884b4ea8b0@python.org>
+ <20190521173112.503f4c91@fsol>
+ <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+ <CAP1=2W7T7n+y_zdJCF5OG0H55X0q+Jjq223UEv41CnNLRq+qHQ@mail.gmail.com>
+ <27ba695b-3219-a628-acef-4e0af649e2de@python.org>
+ <CAP1=2W4QX73S64LvbhP2UmymnLye2C93RGHhbgm+MZhMTp+00Q@mail.gmail.com>
+ <20190522121237.021cbec4@fsol>
+Message-ID: <CAP1=2W53GAkoKp_3j3vT4uuuBsOmhRYeDwjR3n5Vss5b4n0tGg@mail.gmail.com>
+
+On Wed., May 22, 2019, 03:13 Antoine Pitrou, <solipsis at pitrou.net> wrote:
+
+> On Tue, 21 May 2019 17:44:16 -0700
+> Brett Cannon <bcannon at gmail.com> wrote:
+> > >
+> > > So I should never have added those tests and then we wouldn't be
+> talking
+> > > about removing nntplib.
+> > >
+> >
+> > Not necessarily. I suspect it still would have been listed, you would
+> have
+> > objected, and someone may have looked at the tests to point out it was
+> only
+> > unit tests with no integration tests against a live service like e.g. the
+> > pythontest.net-related tests and so it was already neglected.
+>
+> But that's moving the goalposts.
+
+
+I was just replying to your hypothetical with another hypothetical.
+
+  The PEP talks about "cruft,
+> unnecessary duplication of functionality, and dispensable features". Not
+> modules which have an insufficient test suite.
+>
+
+To me, untested code is a potential signal of cruft.
+
+
+> > It also doesn't help that no one is listed in the experts index for the
+> > module either.
+>
+> Right, but that's the case for many modules.
+>
+
+I never said I didn't view this PEP as conservative. ?
+
+Anyway, my support of dropping nntplib is +0 so I personally support
+Christian if he wants to keep on the list but I'm also not that bothered if
+he wants to take it off the list.
+
+-Brett
+
+
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190522/ea5d4e00/attachment.html>
+
+From tjreedy at udel.edu  Wed May 22 12:16:28 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 22 May 2019 12:16:28 -0400
+Subject: [Python-Dev] Missing testcase for bpo-34125
+In-Reply-To: <5CE5195D.9030903@UGent.be>
+References: <5CE5195D.9030903@UGent.be>
+Message-ID: <qc3skt$6aie$1@blaine.gmane.org>
+
+On 5/22/2019 5:41 AM, Jeroen Demeyer wrote:
+> Could somebody please merge https://github.com/python/cpython/pull/13461
+> 
+> It adds a missing testcase for bpo-34125. This is testing code which is 
+> affected by PEP 590, so missing this test might accidentally break 
+> CPython if we screw up with implementing PEP 590.
+
+Merged by Robert Collins.
+
+-- 
+Terry Jan Reedy
+
+
+From v+python at g.nevcal.com  Wed May 22 14:56:55 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Wed, 22 May 2019 11:56:55 -0700
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <23781.5568.183871.73668@turnbull.sk.tsukuba.ac.jp>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190521130111.GJ4221@ando.pearwood.info> <qc1eat$7d7q$1@blaine.gmane.org>
+ <20190521195948.b4cklbgdzomyfpza@python.ca>
+ <23781.5568.183871.73668@turnbull.sk.tsukuba.ac.jp>
+Message-ID: <f0309fd3-347a-db08-02bf-0e751064191b@g.nevcal.com>
+
+Between this discussion and Steve Dower's recently referenced blog post 
+at 
+https://devblogs.microsoft.com/python/python-in-the-windows-10-may-2019-update/from 
+which I quote below:
+
+> It?s been widely known for many years that Windows is the only 
+> mainstream operating system that does not include a Python interpreter 
+> out of the box.
+
+and Victor's and Eric's work to make embedding Python easier, it makes 
+me wonder when emacs will include a Python interpreter as an extension 
+language.
+
+
+On 5/22/2019 2:26 AM, Stephen J. Turnbull wrote:
+> Neil Schemenauer writes:
+>
+>   > Here is an alternative, straw man, proposal.  Split the CPython repo
+>   > into two parts:
+>   >
+>   >     - core Python: minimal possible stdlib
+>   >     - everything else
+>
+> I take issue with the characterization of "straw man," it's a
+> practical idea that turns out to be not so easy to implement.
+>
+> We tried to do this with XEmacs, and found it just didn't work for us.
+> It requires a lot of effort to pare a distribution down to a minimal
+> core.  (In fact, we never got close.)  We gave up on that idea after
+> only a year, and this was an age and an environment that did not have
+> pip-like support for installation of 3rd-party packages (which you
+> deprecate as "not really a great solution"), and a lot of people were
+> still downloading at ISDN speeds or worse.  The demand for a minimal
+> core was correspondingly greater than today, I think.
+>
+> We did bundle most applications such as MUAs and even C/C++
+> development support into sumo packages (one for general use, one for
+> packages that didn't function at all without the "MULE" multilingual
+> environment which was optional in XEmacs).  But we still ended up with
+> many packages staying in the core distribution, because other parts of
+> the core or the installation process used them, and as you say "If I
+> have a script that uses one of these modules and it gets removed, my
+> script breaks."  That annoyed core developers as much as anyone, and
+> they generally had priorities that did not emphasize minimalism (to
+> say the least).
+>
+>   > When Python is released, provide installers for a Python that only
+>   > includes the "core" part and a second installer that includes
+>   > everything else.  I realize this is more work for the release team.
+>   > Hopefully with some scripting, it will not be too labour intensive.
+>
+> Creating the distributions (core and sumo) was not particularly
+> labor-intensive for us because we mostly didn't distribute binaries.
+> A few moderately baroque scripts did the trick.  Automation has
+> advanced, but due to the amount of it it's still fragile, especially
+> when you're producing turn-key binary installers.
+>
+> As I mentioned above, it wasn't the release process that was the
+> bottleneck, it was other factors that made it hard to reduce the
+> core.  We had an "xemacs-base" package that provided a set of "extra
+> tools" that some packages required, and libraries moved in and out of
+> it pretty much every release as some developer got tired of telling
+> people to install xemacs-base (back to core) or working around missing
+> features (move it to xemacs-base where it could be updated easily).
+>
+> These are the same things that Python maintainers mention as pros and
+> cons of having things in stdlib or out on PyPI.  We learned there is a
+> sweet spot.  I know we didn't hit it most of the time, but it's very
+> clear that both extremes are hard, if not infeasible, to maintain.
+> (At the maximalist extreme, even GNU Emacs doesn't really try to
+> include everything written in Emacs Lisp any more.)
+>
+>   > To help the people who need 100s or 1000s of extra PyPI packages,
+>   > we could develop a tool that creates a "sumo" Python installer,
+>   > grabbing packages from PyPI and building a installer package.
+>
+> This could be done by any third party (it wouldn't even need to be a
+> public distribution, it could easily be an enterprise that open
+> sources an internal tool or a GSoC project).  And it could be hosted
+> on PyPI itself, since it's not the kind of thing that enterprises need
+> to install on 100,000 workstations.
+>
+>   > To install that package, you would not need network access.
+>
+> AIUI, it's not the network access that is usually the problem these
+> days, although it can be annoying if net access is flaky or if you
+> have to sneakernet USBs around.  Still, "sneakernet" is basically a
+> one-off cost.  The problem is that collections of random software from
+> untrusted sources are verboten in the enterprise.  (Ah, those Walnut
+> Creek CDs were wonderful!  I wonder what a modern AV tool would find
+> in them?!)  I suppose that in those situations people already have the
+> necessary tooling to roll the sumo or provide an intranet repository;
+> the problem is navigating the red tape.
+>
+>   > That doesn't need to happen right away.  Also, maybe other Python
+>   > distributions can fill that need if core Python devs don't want to
+>   > build it.
+>
+> I don't think this is about what core devs do or don't want to build.
+> I also don't feel a strong sense among the core developers that they
+> don't want to maintain a "batteries included" standard library.  Sure,
+> there's Christian's PEP, but there's also deliberate activity to
+> promote more participation at the core (ie, committer) level.  AIUI,
+> Christian's PEP is about transparency of what is already happening
+> (WONTFIX-ing or long periods of inactivity on issues with modules of
+> "low importance" to the active core developers), and a first step
+> toward making a managed process for the deprecation of modules we
+> can't afford to maintain given others we have committed to maintain.
+>
+> Steve
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190522/b3190044/attachment.html>
+
+From sean.wallitsch at dreamworks.com  Wed May 22 14:49:27 2019
+From: sean.wallitsch at dreamworks.com (Sean Wallitsch)
+Date: Wed, 22 May 2019 11:49:27 -0700
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <CAP1=2W53GAkoKp_3j3vT4uuuBsOmhRYeDwjR3n5Vss5b4n0tGg@mail.gmail.com>
+References: <0acd0f02-ecff-8ea0-757b-30884b4ea8b0@python.org>
+ <20190521173112.503f4c91@fsol>
+ <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+ <CAP1=2W7T7n+y_zdJCF5OG0H55X0q+Jjq223UEv41CnNLRq+qHQ@mail.gmail.com>
+ <27ba695b-3219-a628-acef-4e0af649e2de@python.org>
+ <CAP1=2W4QX73S64LvbhP2UmymnLye2C93RGHhbgm+MZhMTp+00Q@mail.gmail.com>
+ <20190522121237.021cbec4@fsol>
+ <CAP1=2W53GAkoKp_3j3vT4uuuBsOmhRYeDwjR3n5Vss5b4n0tGg@mail.gmail.com>
+Message-ID: <CAD3kds2wYjTpOB0rty4Lxf46t_oMd4phXaOUTjW_WDEJrv7i3Q@mail.gmail.com>
+
+Dear python-dev,
+
+I'm writing to provide some feedback on PEP-594, primarily the proposed
+deprecation and reason for the removal of the aifc and audioop libraries.
+
+The post production film industry continues to make heavy use of AIFFs, as
+completely uncompressed audio is preferred. Support for the consumer
+alternatives (ALAC, FLAC) is virtually non-existent, with no movement
+towards adoption of those formats. Even Apple's own professional editing
+tool Final Cut Pro does not support ALAC. Many of the applications also
+support WAV, but not all.
+
+Removal of this module from the standard library is complicated by the fact
+that a large number of film industry facilities have extremely limited
+internet access for security reasons. This does not make it impossible to
+get a library from pypi, but speaking to those devs has made me aware of
+what a painful process that is for them. They have benefited greatly from
+aifc's inclusion in the standard library.
+
+While development of the aifc and audioop libraries has slowed, this looks
+consistent with mature projects and file formats that are not undergoing
+constant change. Checking the bug tracker for aifc and audioop does not
+paint a picture of these being broken or leaky modules requiring a lot of
+dev time, and there are 2 community sourced pull requests in progress right
+now.
+
+The film industry may not make up a large chunk of python devs, but it is
+python that makes tent pole films like Avengers possible. Without the
+python digital asset management pipelines, films of that scale wouldn't be
+possible.
+
+Thank you for your time and consideration,
+
+Sean Wallitsch
+Lead Technical Director, DreamWorks Animation
+
+On Wed, May 22, 2019 at 8:21 AM Brett Cannon <brett at python.org> wrote:
+
+>
+>
+> On Wed., May 22, 2019, 03:13 Antoine Pitrou, <solipsis at pitrou.net> wrote:
+>
+>> On Tue, 21 May 2019 17:44:16 -0700
+>> Brett Cannon <bcannon at gmail.com> wrote:
+>> > >
+>> > > So I should never have added those tests and then we wouldn't be
+>> talking
+>> > > about removing nntplib.
+>> > >
+>> >
+>> > Not necessarily. I suspect it still would have been listed, you would
+>> have
+>> > objected, and someone may have looked at the tests to point out it was
+>> only
+>> > unit tests with no integration tests against a live service like e.g.
+>> the
+>> > pythontest.net-related tests and so it was already neglected.
+>>
+>> But that's moving the goalposts.
+>
+>
+> I was just replying to your hypothetical with another hypothetical.
+>
+>   The PEP talks about "cruft,
+>> unnecessary duplication of functionality, and dispensable features". Not
+>> modules which have an insufficient test suite.
+>>
+>
+> To me, untested code is a potential signal of cruft.
+>
+>
+>> > It also doesn't help that no one is listed in the experts index for the
+>> > module either.
+>>
+>> Right, but that's the case for many modules.
+>>
+>
+> I never said I didn't view this PEP as conservative. ?
+>
+> Anyway, my support of dropping nntplib is +0 so I personally support
+> Christian if he wants to keep on the list but I'm also not that bothered if
+> he wants to take it off the list.
+>
+> -Brett
+>
+>
+>> Regards
+>>
+>> Antoine.
+>>
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe:
+>> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/sean.wallitsch%40dreamworks.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190522/794c205f/attachment.html>
+
+From tim.peters at gmail.com  Wed May 22 15:15:20 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Wed, 22 May 2019 14:15:20 -0500
+Subject: [Python-Dev] Have a big machine and spare time? Here's a possible
+ Python bug.
+Message-ID: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+
+There's a Stackoverflow report[1] I suspect is worth looking into, but
+it requires far more RAM (over 80GB) than I have).  The OP whittled it
+down to a reasonably brief & straightforward pure Python 3 program.
+It builds a ternary search tree, with perhaps a billion nodes.  The
+problem is that it "takes forever" for Python to reclaim the tree
+storage when it goes out of scope (the author waited at least hours).
+
+Alas, the OP said it takes about 45 minutes to build the tree, and the
+problem goes away if the tree is materially smaller.  So it takes a
+long time just to try once.  With a tree about 10x smaller, for me it
+takes about 45 seconds for Python to reclaim the tree storage.
+
+The tree is deep enough that the "trashcan" may be implicated, and the
+node objects are small enough that obmalloc carves them out of a
+(relatively) great many arenas.  Those are two ways in which Python
+_may_ be to blame.  The sheer number of objects involved may be
+provoking edge cases we normally never see.
+
+But, for a start, it would be good to know if anyone else can actually
+reproduce the problem.
+
+[1] https://stackoverflow.com/questions/56228799/python-hangs-indefinitely-trying-to-delete-deeply-recursive-object
+
+From njs at pobox.com  Wed May 22 15:34:58 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Wed, 22 May 2019 12:34:58 -0700
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <CAD3kds2wYjTpOB0rty4Lxf46t_oMd4phXaOUTjW_WDEJrv7i3Q@mail.gmail.com>
+References: <0acd0f02-ecff-8ea0-757b-30884b4ea8b0@python.org>
+ <20190521173112.503f4c91@fsol>
+ <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+ <CAP1=2W7T7n+y_zdJCF5OG0H55X0q+Jjq223UEv41CnNLRq+qHQ@mail.gmail.com>
+ <27ba695b-3219-a628-acef-4e0af649e2de@python.org>
+ <CAP1=2W4QX73S64LvbhP2UmymnLye2C93RGHhbgm+MZhMTp+00Q@mail.gmail.com>
+ <20190522121237.021cbec4@fsol>
+ <CAP1=2W53GAkoKp_3j3vT4uuuBsOmhRYeDwjR3n5Vss5b4n0tGg@mail.gmail.com>
+ <CAD3kds2wYjTpOB0rty4Lxf46t_oMd4phXaOUTjW_WDEJrv7i3Q@mail.gmail.com>
+Message-ID: <CAPJVwBm8agWYEnXBu74ZEzv6W52PzRv3QFWPEwXa55MifY5cNw@mail.gmail.com>
+
+On Wed, May 22, 2019, 12:14 Sean Wallitsch <sean.wallitsch at dreamworks.com>
+wrote:
+
+> Dear python-dev,
+>
+> I'm writing to provide some feedback on PEP-594, primarily the proposed
+> deprecation and reason for the removal of the aifc and audioop libraries.
+>
+> The post production film industry continues to make heavy use of AIFFs, as
+> completely uncompressed audio is preferred. Support for the consumer
+> alternatives (ALAC, FLAC) is virtually non-existent, with no movement
+> towards adoption of those formats. Even Apple's own professional editing
+> tool Final Cut Pro does not support ALAC. Many of the applications also
+> support WAV, but not all.
+>
+> Removal of this module from the standard library is complicated by the
+> fact that a large number of film industry facilities have extremely limited
+> internet access for security reasons. This does not make it impossible to
+> get a library from pypi, but speaking to those devs has made me aware of
+> what a painful process that is for them. They have benefited greatly from
+> aifc's inclusion in the standard library.
+>
+
+That's really helpful data, thank you!
+
+Is audioop also used? You mention both aifc and audioop at the beginning
+and end of your message, but all the details in the middle focus on just
+aifc.
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190522/856fd5df/attachment.html>
+
+From oscar.j.benjamin at gmail.com  Wed May 22 15:37:32 2019
+From: oscar.j.benjamin at gmail.com (Oscar Benjamin)
+Date: Wed, 22 May 2019 20:37:32 +0100
+Subject: [Python-Dev] Python in next Windows 10 update
+In-Reply-To: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+References: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+Message-ID: <CAHVvXxRDE8iOHdKoqjZo4hk+KES3kkzXnsXpNpT8TO1A7j9_Mg@mail.gmail.com>
+
+On Tue, 21 May 2019 at 21:32, Steve Dower <steve.dower at python.org> wrote:
+>
+> In the next Windows 10 update that starts rolling out today, we
+> (Microsoft) have added "python.exe" and "python3.exe" commands that are
+> installed on PATH *by default* and will open the Microsoft Store at the
+> page where we (Python core team) publish our build.
+>
+> This makes it a 1-2 click process to get from a clean machine to having
+> a usable Python install ("python.exe" -> opens Store -> "Get it Free" ->
+> "python.exe" now works!)
+
+This is great. Thanks for this Steve. A lot of novices struggle to get
+Python installed and running on Windows. Not being on PATH is a
+particular problem for them so this looks very useful. Of course it
+doesn't take long before a novice programmer needs some other
+libraries (numpy, matploblib etc for my students) so I wonder how that
+part works.
+
+Is this doing a single-user or system wide install?
+
+After install is IDLE available via start menu?
+
+How does pip fit into this? Will pip be on PATH after install?
+
+--
+Oscar
+
+From njs at pobox.com  Wed May 22 15:42:04 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Wed, 22 May 2019 12:42:04 -0700
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <a344e826-8c79-7671-0959-03f7b50da408@python.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190520232749.442c45c7@fsol>
+ <11d2680b-3def-08c0-0767-5edd227e9d98@python.org>
+ <CALaCa4xWd7_X_bDRmzw-rFU_YDvoobi6O=iSDPTpLMkrMjNCgw@mail.gmail.com>
+ <d3b84383-67d3-733b-d30c-bc7b6c79e950@python.org>
+ <20190522101921.GM4221@ando.pearwood.info>
+ <a344e826-8c79-7671-0959-03f7b50da408@python.org>
+Message-ID: <CAPJVwBngSbW6huzzE6qnxXqwPro2mFDBCPDJfZC7WEr_mDnZVg@mail.gmail.com>
+
+On Wed, May 22, 2019, 04:32 Christian Heimes <christian at python.org> wrote:
+
+> On 22/05/2019 12.19, Steven D'Aprano wrote:
+> > I don't think this PEP should become a document about "Why you should
+> > use PAM". I appreciate that from your perspective as a Red Hat security
+> > guy, you want everyone to use best practices as you see them, but it
+> > isn't Python's position to convince Linux distros or users to use PAM.
+>
+> I think the PEP should make clear why spwd is bad and pining for The
+> Fjords. The document should point users to correct alternatives. There is
+> no correct and secure way to use the spwd module to verify user accounts.
+> Any use of spwd for logins introduces critical security bugs.
+>
+> By the way, all relevant BSD, Linux, and Darwin (macOS) distributions come
+> with PAM support. Almost all use PAM by default. AFAIK only the minimal
+> Alpine container does not have PAM installed by default. This is not Red
+> Hat trying to evangelize the world. PAM is *the* industry standards on
+> Unix-like OS.
+>
+
+The removal of spwd seems reasonable to me, and I don't think you need to
+write 20 seperate PEPs for each module, but I do think you should split the
+spwd/crypt modules off into their own PEP. The discussion about these
+modules is qualitatively different than some of the others (the security
+implications etc.), and trying to mix qualitatively different discussions
+always makes people frustrated.
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190522/489dad23/attachment-0001.html>
+
+From vano at mail.mipt.ru  Wed May 22 16:09:39 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Wed, 22 May 2019 23:09:39 +0300
+Subject: [Python-Dev] Python in next Windows 10 update
+In-Reply-To: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+References: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+Message-ID: <e5cac987-32ed-63a1-b9aa-c3e14cd5754d@mail.mipt.ru>
+
+
+On 21.05.2019 23:30, Steve Dower wrote:
+> Hi all
+>
+> Just sharing this here because I think it's important for us to be aware of it - I'm not trying to promote or sell anything here :) (Those 
+> who were at the language summit have seen this already.)
+>
+> In the next Windows 10 update that starts rolling out today, we (Microsoft) have added "python.exe" and "python3.exe" commands that are 
+> installed on PATH *by default* and will open the Microsoft Store at the page where we (Python core team) publish our build.
+>
+> This makes it a 1-2 click process to get from a clean machine to having a usable Python install ("python.exe" -> opens Store -> "Get it 
+> Free" -> "python.exe" now works!)
+>
+> The associated blog post:
+>
+> https://devblogs.microsoft.com/python/python-in-the-windows-10-may-2019-update/
+>
+> Here are answers to a few questions that I assume will come up, at least from this audience that understands the issues better than most:
+>
+> * if someone had installed Python and put it on PATH with our installer, this new command *does not* interfere
+> * if someone had manually modified their own PATH, they *may* see some interference (but we [Microsoft] decided this was an acceptable risk)
+> * the Python 3.7 installed from the store will not auto-update to 3.8, but when 3.8 is released we (Microsoft) will update the redirect to 
+> point at it
+> * if you pass arguments to the redirect command, it just exits with an error code - you only get the Store page if you run it without 
+> arguments
+> * once the Store package is installed, the redirect command is replaced (this required a new feature in the OS). If you install with the 
+> regular installer and update PATH, or active a venv, it will add it *before* the redirect. So these scenarios should be all good.
+>
+> I'm happy to answer other questions here. The long-term contact for this integration is python (at) microsoft.com, which right now will 
+> come to me.
+>
+As someone whose job is to diagnose and fix problems with running software:
+Are there patches in your release? Do you provide corresponding sources and debug symbols for it?
+
+
+> And on a personal note, I'm very excited that we (Microsoft) got the approval to do this. Getting *anything* added to Windows is a big 
+> task, so it's a reflection of the popularity and support for Python that's growing within Microsoft that we were able to make this happen. 
+> That's due to every contributor, both to the core runtime and the ecosystem. I hope this will only help us improve the availability of 
+> Python for users and make it an easier choice for dev tasks in the future.
+>
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vano%40mail.mipt.ru
+
+-- 
+Regards,
+Ivan
+
+
+From sean.wallitsch at dreamworks.com  Wed May 22 16:21:39 2019
+From: sean.wallitsch at dreamworks.com (Sean Wallitsch)
+Date: Wed, 22 May 2019 13:21:39 -0700
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <CAPJVwBm8agWYEnXBu74ZEzv6W52PzRv3QFWPEwXa55MifY5cNw@mail.gmail.com>
+References: <0acd0f02-ecff-8ea0-757b-30884b4ea8b0@python.org>
+ <20190521173112.503f4c91@fsol>
+ <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+ <CAP1=2W7T7n+y_zdJCF5OG0H55X0q+Jjq223UEv41CnNLRq+qHQ@mail.gmail.com>
+ <27ba695b-3219-a628-acef-4e0af649e2de@python.org>
+ <CAP1=2W4QX73S64LvbhP2UmymnLye2C93RGHhbgm+MZhMTp+00Q@mail.gmail.com>
+ <20190522121237.021cbec4@fsol>
+ <CAP1=2W53GAkoKp_3j3vT4uuuBsOmhRYeDwjR3n5Vss5b4n0tGg@mail.gmail.com>
+ <CAD3kds2wYjTpOB0rty4Lxf46t_oMd4phXaOUTjW_WDEJrv7i3Q@mail.gmail.com>
+ <CAPJVwBm8agWYEnXBu74ZEzv6W52PzRv3QFWPEwXa55MifY5cNw@mail.gmail.com>
+Message-ID: <CAD3kds25fvFa-0DridAwyHxyUpMxECZMNNK+=WnG3q8gQ=mOdA@mail.gmail.com>
+
+My apologies for that oversight. My understanding is that many of the
+methods present in aifc depend heavily on audioop for reading and writing.
+
+On Wed, May 22, 2019 at 12:35 PM Nathaniel Smith <njs at pobox.com> wrote:
+
+> On Wed, May 22, 2019, 12:14 Sean Wallitsch <sean.wallitsch at dreamworks.com>
+> wrote:
+>
+>> Dear python-dev,
+>>
+>> I'm writing to provide some feedback on PEP-594, primarily the proposed
+>> deprecation and reason for the removal of the aifc and audioop libraries.
+>>
+>> The post production film industry continues to make heavy use of AIFFs,
+>> as completely uncompressed audio is preferred. Support for the consumer
+>> alternatives (ALAC, FLAC) is virtually non-existent, with no movement
+>> towards adoption of those formats. Even Apple's own professional editing
+>> tool Final Cut Pro does not support ALAC. Many of the applications also
+>> support WAV, but not all.
+>>
+>> Removal of this module from the standard library is complicated by the
+>> fact that a large number of film industry facilities have extremely limited
+>> internet access for security reasons. This does not make it impossible to
+>> get a library from pypi, but speaking to those devs has made me aware of
+>> what a painful process that is for them. They have benefited greatly from
+>> aifc's inclusion in the standard library.
+>>
+>
+> That's really helpful data, thank you!
+>
+> Is audioop also used? You mention both aifc and audioop at the beginning
+> and end of your message, but all the details in the middle focus on just
+> aifc.
+>
+> -n
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190522/2d504c5d/attachment.html>
+
+From steve.dower at python.org  Wed May 22 16:48:40 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 22 May 2019 13:48:40 -0700
+Subject: [Python-Dev] Python in next Windows 10 update
+In-Reply-To: <CAHVvXxRDE8iOHdKoqjZo4hk+KES3kkzXnsXpNpT8TO1A7j9_Mg@mail.gmail.com>
+References: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+ <CAHVvXxRDE8iOHdKoqjZo4hk+KES3kkzXnsXpNpT8TO1A7j9_Mg@mail.gmail.com>
+Message-ID: <8eafa528-62e6-6fd0-0114-0743205e124a@python.org>
+
+On 22May2019 1237, Oscar Benjamin wrote:
+> On Tue, 21 May 2019 at 21:32, Steve Dower <steve.dower at python.org> wrote:
+>>
+>> In the next Windows 10 update that starts rolling out today, we
+>> (Microsoft) have added "python.exe" and "python3.exe" commands that are
+>> installed on PATH *by default* and will open the Microsoft Store at the
+>> page where we (Python core team) publish our build.
+>>
+>> This makes it a 1-2 click process to get from a clean machine to having
+>> a usable Python install ("python.exe" -> opens Store -> "Get it Free" ->
+>> "python.exe" now works!)
+> 
+> This is great. Thanks for this Steve. A lot of novices struggle to get
+> Python installed and running on Windows. Not being on PATH is a
+> particular problem for them so this looks very useful. Of course it
+> doesn't take long before a novice programmer needs some other
+> libraries (numpy, matploblib etc for my students) so I wonder how that
+> part works.
+
+pip/pip3/pip3.7 all work as expected (python -m pip has a bug that will 
+be fixed once we get a new version of pip bundled - I've already made 
+the fix on their side to correct it, but the workaround is to pass --user).
+
+python -m venv also works as expected (now... after some bug fixes from 
+the initial release).
+
+> Is this doing a single-user or system wide install?
+
+It's an interesting hybrid. The files are installed once per system, and 
+are locked down even from being changed by administrators. But each user 
+has to install it themselves (which is very quick if another user has 
+already got it) and they will have their own packages/settings/etc.
+
+> After install is IDLE available via start menu?
+
+Yes. Also at the command line as idle/idle3/idle3.7
+
+> How does pip fit into this? Will pip be on PATH after install?
+
+Yes, as pip/pip3/pip3.7.
+
+Currently, installing a tool with its own entry point will not put it on 
+PATH but will prompt you to put your Scripts directory there yourself. 
+There's no good workaround for this, other than using -m or pipx.
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Wed May 22 16:52:37 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Wed, 22 May 2019 13:52:37 -0700
+Subject: [Python-Dev] Python in next Windows 10 update
+In-Reply-To: <e5cac987-32ed-63a1-b9aa-c3e14cd5754d@mail.mipt.ru>
+References: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+ <e5cac987-32ed-63a1-b9aa-c3e14cd5754d@mail.mipt.ru>
+Message-ID: <b0c9f5e4-2931-b99c-e9d6-09b2be2b24a5@python.org>
+
+On 22May2019 1309, Ivan Pozdeev via Python-Dev wrote:
+> As someone whose job is to diagnose and fix problems with running software:
+> Are there patches in your release? Do you provide corresponding sources 
+> and debug symbols for it?
+
+You can find the sources at https://github.com/python/cpython :)
+
+I'm working on getting debug symbols packaged for the next release, but 
+once I do that they'll be exactly the same binaries as in the 
+traditional installer on python.org. (Right now they are two separate 
+builds of the same source.)
+
+The package on the Store is not a Microsoft build or release of Python - 
+it's published by whoever the Windows build manager is at the time. Just 
+to be confusing, it's me right now, but the actual install is not owned 
+or managed by Microsoft - just endorsed and linked.
+
+Cheers,
+Steve
+
+From vano at mail.mipt.ru  Wed May 22 18:14:23 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Thu, 23 May 2019 01:14:23 +0300
+Subject: [Python-Dev] Python in next Windows 10 update
+In-Reply-To: <b0c9f5e4-2931-b99c-e9d6-09b2be2b24a5@python.org>
+References: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+ <e5cac987-32ed-63a1-b9aa-c3e14cd5754d@mail.mipt.ru>
+ <b0c9f5e4-2931-b99c-e9d6-09b2be2b24a5@python.org>
+Message-ID: <1adf8a66-d325-5f5d-9fca-5f50d232243b@mail.mipt.ru>
+
+On 22.05.2019 23:52, Steve Dower wrote:
+> On 22May2019 1309, Ivan Pozdeev via Python-Dev wrote:
+>> As someone whose job is to diagnose and fix problems with running software:
+>> Are there patches in your release? Do you provide corresponding sources and debug symbols for it?
+>
+> You can find the sources at https://github.com/python/cpython :)
+>
+For Anaconda, this is not so, they apply private patches. So I had to make sure.
+
+
+> I'm working on getting debug symbols packaged for the next release, but once I do that they'll be exactly the same binaries as in the 
+> traditional installer on python.org. (Right now they are two separate builds of the same source.)
+>
+> The package on the Store is not a Microsoft build or release of Python - it's published by whoever the Windows build manager is at the 
+> time. Just to be confusing, it's me right now, but the actual install is not owned or managed by Microsoft - just endorsed and linked.
+>
+> Cheers,
+> Steve
+
+-- 
+Regards,
+Ivan
+
+
+From mingw.android at gmail.com  Wed May 22 18:23:39 2019
+From: mingw.android at gmail.com (Ray Donnelly)
+Date: Thu, 23 May 2019 00:23:39 +0200
+Subject: [Python-Dev] Python in next Windows 10 update
+In-Reply-To: <1adf8a66-d325-5f5d-9fca-5f50d232243b@mail.mipt.ru>
+References: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+ <e5cac987-32ed-63a1-b9aa-c3e14cd5754d@mail.mipt.ru>
+ <b0c9f5e4-2931-b99c-e9d6-09b2be2b24a5@python.org>
+ <1adf8a66-d325-5f5d-9fca-5f50d232243b@mail.mipt.ru>
+Message-ID: <CAOYw7dtacFQ+a0mt5AuGbCD2JCfNe_DNVCFKRdv4vtUYBRv63Q@mail.gmail.com>
+
+On Thu, May 23, 2019, 12:17 AM Ivan Pozdeev via Python-Dev <
+python-dev at python.org> wrote:
+
+> On 22.05.2019 23:52, Steve Dower wrote:
+> > On 22May2019 1309, Ivan Pozdeev via Python-Dev wrote:
+> >> As someone whose job is to diagnose and fix problems with running
+> software:
+> >> Are there patches in your release? Do you provide corresponding sources
+> and debug symbols for it?
+> >
+> > You can find the sources at https://github.com/python/cpython :)
+> >
+> For Anaconda, this is not so, they apply private patches. So I had to make
+> sure.
+>
+
+There's nothing 'private' about them.
+https://github.com/AnacondaRecipes/python-feedstock/tree/master/recipe
+
+>
+>
+> > I'm working on getting debug symbols packaged for the next release, but
+> once I do that they'll be exactly the same binaries as in the
+> > traditional installer on python.org. (Right now they are two separate
+> builds of the same source.)
+> >
+> > The package on the Store is not a Microsoft build or release of Python -
+> it's published by whoever the Windows build manager is at the
+> > time. Just to be confusing, it's me right now, but the actual install is
+> not owned or managed by Microsoft - just endorsed and linked.
+> >
+> > Cheers,
+> > Steve
+>
+> --
+> Regards,
+> Ivan
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/mingw.android%40gmail.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/98e64f4a/attachment.html>
+
+From steve at pearwood.info  Wed May 22 20:58:31 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Thu, 23 May 2019 10:58:31 +1000
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <a344e826-8c79-7671-0959-03f7b50da408@python.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190520232749.442c45c7@fsol>
+ <11d2680b-3def-08c0-0767-5edd227e9d98@python.org>
+ <CALaCa4xWd7_X_bDRmzw-rFU_YDvoobi6O=iSDPTpLMkrMjNCgw@mail.gmail.com>
+ <d3b84383-67d3-733b-d30c-bc7b6c79e950@python.org>
+ <20190522101921.GM4221@ando.pearwood.info>
+ <a344e826-8c79-7671-0959-03f7b50da408@python.org>
+Message-ID: <20190523005831.GP4221@ando.pearwood.info>
+
+On Wed, May 22, 2019 at 01:31:18PM +0200, Christian Heimes wrote:
+> On 22/05/2019 12.19, Steven D'Aprano wrote:
+> > I don't think this PEP should become a document about "Why you should 
+> > use PAM". I appreciate that from your perspective as a Red Hat security 
+> > guy, you want everyone to use best practices as you see them, but it 
+> > isn't Python's position to convince Linux distros or users to use PAM.
+> 
+
+> I think the PEP should make clear why spwd is bad and pining for The 
+> Fjords. The document should point users to correct alternatives. There 
+> is no correct and secure way to use the spwd module to verify user 
+> accounts. Any use of spwd for logins introduces critical security 
+> bugs.
+
+When you use absolute language about security without considering 
+threat models, like "there is no ... way" and "Any use", you lose 
+credibility in my eyes.
+
+I have a Linux desktop where I am the only user but not the only user 
+account. If I use spwd, what vulnerabilty am I introducing? That's not a 
+rhetorical question. If spwd does introduce a threat that isn't already 
+there, then please educate me, I genuinely want to know.
+
+But if it doesn't, then you ought to tone down the absolutist language 
+about "no way" and "any use" because that is factually untrue.
+
+
+Later, you wrote:
+
+> Steven, I feel like you are turning my own words and arguments against me.
+
+Yes? Is that supposed to be a bad thing?
+
+If you make an argument which is intended to support the PEP, but it 
+actually undercuts the PEP, then you should fix the argument or 
+acknowledge that the case for the PEP is not as strong as you hoped.
+
+We do you no favours by ignoring weak or incoherent arguments.
+
+PEPs are supposed to be fair, not partisan. Of course you have a 
+position on this matter: you want to see spwd removed, and you want to 
+put the best possible case for it. But to be a fair PEP, you also need 
+to acknowledge counter-arguments and weaknesses in the argument, not 
+just hope people won't notice them and then protest when they do.
+
+
+> By the way, all relevant BSD, Linux, and Darwin (macOS) distributions 
+> come with PAM support. Almost all use PAM by default. AFAIK only the 
+> minimal Alpine container does not have PAM installed by default. This 
+> is not Red Hat trying to evangelize the world. PAM is *the* industry 
+> standards on Unix-like OS.
+
+I appreciate that PAM is the standard, but Unix-like users are often an 
+individualistic lot and "PAM is the default" doesn't mean "everyone uses 
+PAM". See, for example, Arfrever's earlier post.
+
+This PEP isn't about using PAM. It's about removing spwd and crypt. It's 
+okay to say that PAM is the industry standard, you don't have to justify 
+that in depth on the PEP. Nor do you need to justify why most people 
+should be using PAM, but you ought to acknowledge that there may be some 
+people who aren't.
+
+For those who (rightly or wrongly) won't, can't or simply don't know how 
+to use PAM, removing spwd is a functional regression. As PEP author, 
+your job is to justify that functional regression and offer an 
+alternative. We have a number of options:
+
+- tell them to re-implement spwd (but that undercuts your argument 
+  for removal);
+
+- tell them to use a third party module (but which?);
+
+- add a replacement module that Does The Right Thing;
+
+- or at least a recipe somewhere (but once the spwd module is 
+  removed, where will the recipe live?);
+
+- anything else?
+
+
+As PEP author, you get to choose which option the PEP suggests, but if 
+you pick the one that undercuts the argument for removal, don't be 
+surprised if people notice and consider the case for removal to be weak.
+
+
+
+-- 
+Steven
+
+From v+python at g.nevcal.com  Thu May 23 01:23:34 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Wed, 22 May 2019 22:23:34 -0700
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <8eba9ec6-5f24-ccad-1218-999173f9f252@python.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <CAL3CFcV3++xh8vWcwPq3PuJF4jJocvio5iSQ+T+N7TucOeDyQw@mail.gmail.com>
+ <04b145f0-e402-9ded-0844-9a0acaca9b44@python.org>
+ <7ab85a2e-d99f-f2c5-6aef-bb8a0b61ab3f@g.nevcal.com>
+ <CAP7+vJK7BoE2fwZeB4Zs4GHGopgeJ-iUG2X4Yj+aUhwtOw1L0w@mail.gmail.com>
+ <303943c0-0c48-ec35-cbd9-cbc357dd3e7e@g.nevcal.com>
+ <CAPJVwBmePVXN45sv=2dH9n=omPa1R1oL+dThRLHB1C8ngU5pDg@mail.gmail.com>
+ <ef50b259-e9fc-ddff-c8db-771d7af69219@g.nevcal.com>
+ <8eba9ec6-5f24-ccad-1218-999173f9f252@python.org>
+Message-ID: <300940ca-cc63-5c78-bcba-0bbd37dbdb26@g.nevcal.com>
+
+On 5/22/2019 4:09 AM, Christian Heimes wrote:
+> On 22/05/2019 01.11, Glenn Linderman wrote:
+>> On 5/21/2019 2:00 PM, Nathaniel Smith wrote:
+>>> On Tue, May 21, 2019 at 10:43 AM Glenn Linderman <v+python at g.nevcal.com> wrote:
+>>>> After maintaining my own version of http.server to fix or workaround some of its deficiencies for some years, I discovered bottle.py. It has far more capability, is far better documented, and is just as quick to deploy. While I haven't yet converted all past projects to use bottle.py, it will likely happen in time, unless something even simpler to use is discovered, although I can hardly imagine that happening.
+>>> bottle.py uses http.server for its local development mode (the one you
+>>> see in their quickstart example at the top of their README). Same with
+>>> flask, django, and probably a bunch of other frameworks. It's *very*
+>>> widely used.
+>>>
+>>> -n
+>>>
+>> The source for bottle.py version 0.13-dev has an import for http.client, but not http.server. I hadn't tracked down every indirect dependency in the bottle.py source code, but it seems that if one uses the "default server" for bottle, that it is "wsgiref", imported from wsgiref.simple_server, and that in turn does import BaseHTTPRequestHandler and HTTPServer from http.server.
+>>
+>> It is the higher-level code in http.server that has significant deficiencies that have caused me problems over the years... a "SimpleHTTPRequestHandler" that is so simple it doesn't do POST, PUT or PASTE, a "CGIHTTPRequestHandler" that only implements part of the CGI protocol, only CGI support in POST, no support for PUT or PASTE, and no support for https, and not much bug fix activity in those areas.
+>>
+>> Maybe http.server should be split into the "basic parts" (used by bottle.py, and other frameworks), and the "higher-level parts", which could then be discarded by this PEP! At this point, though, I'd have to agree that the whole should not be discarded. Thanks for making me dig deeper.
+> The idea has merrit. However I feel its out of scope for the PEP. The http.server module and socketserver module are still widely used for debug and toy examples.
+>
+> Could you please open a bug to track your proposal? We may pursue it in a couple of years from now.
+issue 37018
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190522/5dcb7f2d/attachment.html>
+
+From christian at python.org  Thu May 23 01:44:24 2019
+From: christian at python.org (Christian Heimes)
+Date: Thu, 23 May 2019 07:44:24 +0200
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <20190523005831.GP4221@ando.pearwood.info>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <20190520232749.442c45c7@fsol>
+ <11d2680b-3def-08c0-0767-5edd227e9d98@python.org>
+ <CALaCa4xWd7_X_bDRmzw-rFU_YDvoobi6O=iSDPTpLMkrMjNCgw@mail.gmail.com>
+ <d3b84383-67d3-733b-d30c-bc7b6c79e950@python.org>
+ <20190522101921.GM4221@ando.pearwood.info>
+ <a344e826-8c79-7671-0959-03f7b50da408@python.org>
+ <20190523005831.GP4221@ando.pearwood.info>
+Message-ID: <4971aab5-2391-9c8b-579d-b716dd7b0527@python.org>
+
+On 23/05/2019 02.58, Steven D'Aprano wrote:
+> On Wed, May 22, 2019 at 01:31:18PM +0200, Christian Heimes wrote:
+>> On 22/05/2019 12.19, Steven D'Aprano wrote:
+>>> I don't think this PEP should become a document about "Why you should 
+>>> use PAM". I appreciate that from your perspective as a Red Hat security 
+>>> guy, you want everyone to use best practices as you see them, but it 
+>>> isn't Python's position to convince Linux distros or users to use PAM.
+>>
+> 
+>> I think the PEP should make clear why spwd is bad and pining for The 
+>> Fjords. The document should point users to correct alternatives. There 
+>> is no correct and secure way to use the spwd module to verify user 
+>> accounts. Any use of spwd for logins introduces critical security 
+>> bugs.
+> 
+> When you use absolute language about security without considering 
+> threat models, like "there is no ... way" and "Any use", you lose 
+> credibility in my eyes.
+> 
+> I have a Linux desktop where I am the only user but not the only user 
+> account. If I use spwd, what vulnerabilty am I introducing? That's not a 
+> rhetorical question. If spwd does introduce a threat that isn't already 
+> there, then please educate me, I genuinely want to know.
+
+I can give you more details once I have resolved some CVEs. The problem
+can result into full system compromise by a local or remote attacker
+without any trace in the system audit and security logs. Depending on
+other circumstances, the issue is CVSS HIGH to CRITICAL, perhaps up to
+CVSS score 9.9.
+
+Christian
+
