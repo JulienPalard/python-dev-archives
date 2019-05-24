@@ -36233,3 +36233,4503 @@ CVSS score 9.9.
 
 Christian
 
+From tritium-list at sdamon.com  Thu May 23 04:00:03 2019
+From: tritium-list at sdamon.com (Alex Walters)
+Date: Thu, 23 May 2019 04:00:03 -0400
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+Message-ID: <016601d5113d$87bd8740$973895c0$@sdamon.com>
+
+I've watched the entire thread and its taken me a few days to put a finger
+on what bothers me about it.
+
+In my opinion, this shouldn't be a pep describing the list of modules that
+need to go as "dead batteries", but should be a process pep describing how
+dead batteries should be removed, and the individual modules should be given
+their own pep.  I think reactions to individual module peps will give a
+better indication of if it's a used module or not.
+
+> -----Original Message-----
+> From: Python-Dev <python-dev-bounces+tritium-
+> list=sdamon.com at python.org> On Behalf Of Christian Heimes
+> Sent: Monday, May 20, 2019 4:15 PM
+> To: Python Dev <Python-Dev at python.org>
+> Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+> library
+> 
+> Hi,
+> 
+> here is the first version of my PEP 594 to deprecate and eventually remove
+> modules from the standard library. The PEP started last year with talk
+during
+> the Python Language Summit 2018, https://lwn.net/Articles/755229/.
+> 
+> The PEP can be confirmed in two stages. I'm not planning any code changes
+> for 3.8. Instead I only like to document a bunch of modules as deprecated.
+> Active deprecation is planned for 3.9 and removal for 3.10. The long
+> deprecation phase gives us 3 years to change our minds or handle edge
+> cases, too.
+> 
+> Regards,
+> Christian
+> 
+> 
+>
+----------------------------------------------------------------------------
+> PEP: 594
+> Title: Removing dead batteries from the standard library
+> Author: Christian Heimes <christian at python.org>
+> Status: Active
+> Type: Process
+> Content-Type: text/x-rst
+> Created: 20-May-2019
+> Post-History:
+> 
+> 
+> Abstract
+> ========
+> 
+> This PEP proposed a list of standard library modules to be removed from
+the
+> standard library. The modules are mostly historic data formats and APIs
+that
+> have been superseded a long time ago, e.g. Mac OS 9 and Commodore.
+> 
+> 
+> Rationale
+> =========
+> 
+> Back in the early days of Python, the interpreter came with a large set of
+> useful modules. This was often refrained to as "batteries included"
+> philosophy and was one of the corner stones to Python's success story.
+> Users didn't have to figure out how to download and install separate
+> packages in order to write a simple web server or parse email.
+> 
+> Times have changed. The introduction of the cheese shop (PyPI),
+setuptools,
+> and later pip, it became simple and straight forward to download and
+install
+> packages. Nowadays Python has a rich and vibrant ecosystem of third party
+> packages. It's pretty much standard to either install packages from PyPI
+or
+> use one of the many Python or Linux distributions.
+> 
+> On the other hand, Python's standard library is piling up cruft,
+unnecessary
+> duplication of functionality, and dispensable features. This is
+undesirable
+> for several reasons.
+> 
+> * Any additional module increases the maintenance cost for the Python core
+>   development team. The team has limited resources, reduced maintenance
+> cost
+>   frees development time for other improvements.
+> * Modules in the standard library are generally favored and seen as the
+>   de-facto solution for a problem. A majority of users only pick 3rd party
+>   modules to replace a stdlib module, when they have a compelling reason,
+> e.g.
+>   lxml instead of `xml`. The removal of an unmaintained stdlib module
+>   increases the chances of a community contributed module to become
+> widely
+>   used.
+> * A lean and mean standard library benefits platforms with limited
+resources
+>   like devices with just a few hundred kilobyte of storage (e.g. BBC
+>   Micro:bit). Python on mobile platforms like BeeWare or WebAssembly
+>   (e.g. pyodide) also benefit from reduced download size.
+> 
+> The modules in the PEP have been selected for deprecation because their
+> removal is either least controversial or most beneficial. For example
+> least controversial are 30 years old multimedia formats like ``sunau``
+> audio format, which was used on SPARC and NeXT workstations in the late
+> 1980ties. The ``crypt`` module has fundamental flaws that are better
+solved
+> outside the standard library.
+> 
+> This PEP also designates some modules as not scheduled for removal. Some
+> modules have been deprecated for several releases or seem unnecessary at
+> first glance. However it is beneficial to keep the modules in the standard
+> library, mostly for environments where installing a package from PyPI is
+not
+> an option. This can be cooperate environments or class rooms where
+> external
+> code is not permitted without legal approval.
+> 
+> * The usage of FTP is declining, but some files are still provided over
+>   the FTP protocol or hosters offer FTP to upload content. Therefore
+>   ``ftplib`` is going to stay.
+> * The ``optparse`` and ``getopt`` module are widely used. They are mature
+>   modules with very low maintenance overhead.
+> * According to David Beazley [5]_ the ``wave`` module is easy to teach to
+>   kids and can make crazy sounds. Making a computer generate crazy sounds
+> is
+>   powerful and highly motivating exercise for a 9yo aspiring developer.
+It's
+>   a fun battery to keep.
+> 
+> 
+> Deprecation schedule
+> ====================
+> 
+> 3.8
+> ---
+> 
+> This PEP targets Python 3.8. Version 3.8.0 final is scheduled to be
+released
+> a few months before Python 2.7 will reach its end of lifetime. We expect
+that
+> Python 3.8 will be targeted by users that migrate to Python 3 in 2019 and
+> 2020. To reduce churn and to allow a smooth transition from Python 2,
+> Python 3.8 will neither raise `DeprecationWarning` nor remove any
+> modules that have been scheduled for removal. Instead deprecated
+> modules will
+> just be *documented* as deprecated. Optionally modules may emit a
+> `PendingDeprecationWarning`.
+> 
+> All deprecated modules will also undergo a feature freeze. No additional
+> features should be added. Bug should still be fixed.
+> 
+> 3.9
+> ---
+> 
+> Starting with Python 3.9, deprecated modules will start issuing
+> `DeprecationWarning`.
+> 
+> 
+> 3.10
+> ----
+> 
+> In 3.10 all deprecated modules will be removed from the CPython repository
+> together with tests, documentation, and autoconf rules.
+> 
+> 
+> PEP acceptance process
+> ======================
+> 
+> 3.8.0b1 is scheduled to be release shortly after the PEP is officially
+> submitted. Since it's improbable that the PEP will pass all stages of the
+> PEP process in time, I propose a two step acceptance process that is
+> analogous Python's two release deprecation process.
+> 
+> The first *provisionally accepted* phase targets Python 3.8.0b1. In the
+first
+> phase no code is changes or removed. Modules are only documented as
+> deprecated.
+> 
+> The final decision, which modules will be removed and how the removed
+> code
+> is preserved, can be delayed for another year.
+> 
+> 
+> Deprecated modules
+> ==================
+> 
+> The modules are grouped as data encoding, multimedia, network, OS
+> interface,
+> and misc modules. The majority of modules are for old data formats or
+> old APIs. Some others are rarely useful and have better replacements on
+> PyPI, e.g. Pillow for image processing or NumPy-based projects to deal
+with
+> audio processing.
+> 
+> .. csv-table:: Table 1: Proposed modules deprecations
+>    :header: "Module", "Deprecated in", "To be removed", "Replacement"
+> 
+>     aifc,3.8,3.10,\-
+>     asynchat,3.8,3.10,asyncio
+>     asyncore,3.8,3.10,asyncio
+>     audioop,3.8,3.10,\-
+>     binhex,3.8,3.10,\-
+>     cgi,3.8,3.10,\-
+>     cgitb,3.8,3.10,\-
+>     chunk,3.8,3.10,\-
+>     colorsys,**3.8?**,**3.10?**,\-
+>     crypt,3.8,3.10,\-
+>     fileinput,3.8,3.10,argparse
+>     formatter,3.4,3.10,\-
+>     fpectl,**3.7**,**3.7**,\-
+>     getopt,**3.2**,**keep**,"argparse, optparse"
+>     imghdr,3.8,3.10,\-
+>     imp,**3.4**,3.10,importlib
+>     lib2to3,\-,**keep**,
+>     macpath,**3.7**,**3.8**,\-
+>     msilib,3.8,3.10,\-
+>     nntplib,3.8,3.10,\-
+>     nis,3.8,3.10,\-
+>     optparse,\-,**keep**,argparse
+>     ossaudiodev,3.8,3.10,\-
+>     pipes,3.8,3.10,subprocess
+>     smtpd,**3.7**,3.10,aiosmtpd
+>     sndhdr,3.8,3.10,\-
+>     spwd,3.8,3.10,\-
+>     sunau,3.8,3.10,\-
+>     uu,3.8,3.10,\-
+>     wave,\-,**keep**,
+>     xdrlib,3.8,3.10,\-
+> 
+> 
+> Data encoding modules
+> ---------------------
+> 
+> binhex
+> ~~~~~~
+> 
+> The `binhex <https://docs.python.org/3/library/binhex.html>`_ module
+> encodes
+> and decodes Apple Macintosh binhex4 data. It was originally developed for
+> TSR-80. In the 1980s and early 1990s it was used on classic Mac OS 9 to
+> encode binary email attachments.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> uu
+> ~~
+> 
+> The `uu <https://docs.python.org/3/library/uu.html>`_ module provides
+> uuencode format, an old binary encoding format for email from 1980. The uu
+> format has been replaced by MIME. The uu codec is provided by the binascii
+> module.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> xdrlib
+> ~~~~~~
+> 
+> The `xdrlib <https://docs.python.org/3/library/xdrlib.html>`_ module
+> supports
+> the Sun External Data Representation Standard. XDR is an old binary
+> serialization format from 1987. These days it's rarely used outside
+> specialized domains like NFS.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> 
+> Multimedia modules
+> ------------------
+> 
+> aifc
+> ~~~~
+> 
+> The `aifc <https://docs.python.org/3/library/aifc.html>`_ module provides
+> support for reading and writing AIFF and AIFF-C files. The Audio
+Interchange
+> File Format is an old audio format from 1988 based on Amiga IFF. It was
+most
+> commonly used on the Apple Macintosh. These days only few specialized
+> application use AIFF.
+> 
+> Module type
+>   pure Python (depends on `audioop`_ C extension)
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> audioop
+> ~~~~~~~
+> 
+> The `audioop <https://docs.python.org/3/library/audioop.html>`_ module
+> contains helper functions to manipulate raw audio data and adaptive
+> differential pulse-code modulated audio data. The module is implemented in
+> C without any additional dependencies. The `aifc`_, `sunau`_, and `wave`_
+> module depend on `audioop`_ for some operations.
+> 
+> Module type
+>   C extension
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> colorsys
+> ~~~~~~~~
+> 
+> The `colorsys <https://docs.python.org/3/library/colorsys.html>`_ module
+> defines color conversion functions between RGB, YIQ, HSL, and HSV
+> coordinate
+> systems. The Pillow library provides much faster conversation between
+> color systems.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   `Pillow <https://pypi.org/project/Pillow/>`_,
+>   `colorspacious <https://pypi.org/project/colorspacious/>`_
+> 
+> chunk
+> ~~~~~
+> 
+> The `chunk <https://docs.python.org/3/library/chunk.html>`_ module
+> provides
+> support for reading and writing Electronic Arts' Interchange File Format.
+> IFF is an old audio file format originally introduced for Commodore and
+> Amiga. The format is no longer relevant.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> imghdr
+> ~~~~~~
+> 
+> The `imghdr <https://docs.python.org/3/library/imghdr.html>`_ module is a
+> simple tool to guess the image file format from the first 32 bytes
+> of a file or buffer. It supports only a limited amount of formats and
+> neither returns resolution nor color depth.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   *n/a*
+> 
+> ossaudiodev
+> ~~~~~~~~~~~
+> 
+> The `ossaudiodev <https://docs.python.org/3/library/ossaudiodev.html>`_
+> module provides support for Open Sound System, an interface to sound
+> playback and capture devices. OSS was initially free software, but later
+> support for newer sound devices and improvements were proprietary. Linux
+> community abandoned OSS in favor of ALSA [1]_. Some operation systems
+> like
+> OpenBSD and NetBSD provide an incomplete [2]_ emulation of OSS.
+> 
+> Module type
+>   C extension
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> sndhdr
+> ~~~~~~
+> 
+> The `sndhdr <https://docs.python.org/3/library/sndhdr.html>`_ module is
+> similar to the `imghdr`_ module but for audio formats. It guesses file
+> format, channels, frame rate, and sample widths from the first 512 bytes
+of
+> a file or buffer. The module only supports AU, AIFF, HCOM, VOC, WAV, and
+> other ancient formats.
+> 
+> Module type
+>   pure Python (depends on `audioop`_ C extension for some operations)
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   *n/a*
+> 
+> sunau
+> ~~~~~
+> 
+> The `sunau <https://docs.python.org/3/library/sunhdr.html>`_ module
+> provides
+> support for Sun AU sound format. It's yet another old, obsolete file
+format.
+> 
+> Module type
+>   pure Python (depends on `audioop`_ C extension for some operations)
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> 
+> Networking modules
+> ------------------
+> 
+> asynchat
+> ~~~~~~~~
+> 
+> The `asynchat <https://docs.python.org/3/library/asynchat.html>`_ module
+> is build on top of `asyncore`_ and has been deprecated since Python 3.6.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.6
+> Removed in
+>   3.10
+> Substitute
+>   asyncio
+> 
+> asyncore
+> ~~~~~~~~
+> 
+> The `asyncore <https://docs.python.org/3/library/asyncore.html>`_ module
+> was
+> the first module for asynchronous socket service clients and servers. It
+> has been replaced by asyncio and is deprecated since Python 3.6.
+> 
+> The ``asyncore`` module is also used in stdlib tests. The tests for
+> ``ftplib``, ``logging``, ``smptd``, ``smtplib``, and ``ssl`` are partly
+> based on ``asyncore``. These tests must be updated to use asyncio or
+> threading.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.6
+> Removed in
+>   3.10
+> Substitute
+>   asyncio
+> 
+> 
+> cgi
+> ~~~
+> 
+> The `cgi <https://docs.python.org/3/library/cgi.html>`_ module is a
+support
+> module for Common Gateway Interface (CGI) scripts. CGI is deemed as
+> inefficient because every incoming request is handled in a new process.
+PEP
+> 206 considers the module as *designed poorly and are now near-impossible
+> to fix*.
+> 
+> Several people proposed to either keep the cgi module for features like
+> `cgi.parse_qs()` or move `cgi.escape()` to a different module. The
+> functions `cgi.parse_qs` and `cgi.parse_qsl` have been
+> deprecated for a while and are actually aliases for
+> `urllib.parse.parse_qs` and `urllib.parse.parse_qsl`. The
+> function `cgi.quote` has been deprecated in favor of `html.quote`
+> with secure default values.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> 
+> cgitb
+> ~~~~~
+> 
+> The `cgitb <https://docs.python.org/3/library/cgitb.html>`_ module is a
+> helper for the cgi module for configurable tracebacks.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> smtpd
+> ~~~~~
+> 
+> The `smtpd <https://docs.python.org/3/library/smtpd.html>`_ module
+> provides
+> a simple implementation of a SMTP mail server. The module documentation
+> recommends ``aiosmtpd``.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   **3.7**
+> To be removed in
+>   3.10
+> Substitute
+>   aiosmtpd
+> 
+> nntplib
+> ~~~~~~~
+> 
+> The `nntplib <https://docs.python.org/3/library/nntplib.html>`_ module
+> implements the client side of the Network News Transfer Protocol (nntp).
+> News
+> groups used to be a dominant platform for online discussions. Over the
+last
+> two decades, news has been slowly but steadily replaced with mailing lists
+> and web-based discussion platforms.
+> 
+> The ``nntplib`` tests have been the cause of additional work in the recent
+> past. Python only contains client side of NNTP. The test cases depend on
+> external news server. These servers were unstable in the past.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> 
+> Operating system interface
+> --------------------------
+> 
+> crypt
+> ~~~~~
+> 
+> The `crypt <https://docs.python.org/3/library/crypt.html>`_ module
+> implements
+> password hashing based on ``crypt(3)`` function from ``libcrypt`` or
+> ``libxcrypt`` on Unix-like platform. The algorithms are mostly old, of
+poor
+> quality and insecure. Users are discouraged to use them.
+> 
+> * The module is not available on Windows. Cross-platform application need
+>   an alternative implementation any way.
+> * Only DES encryption is guarenteed to be available. DES has an extremely
+>   limited key space of 2**56.
+> * MD5, salted SHA256, salted SHA512, and Blowfish are optional extension.
+>   SSHA256 and SSHA512 are glibc extensions. Blowfish (bcrypt) is the only
+>   algorithm that is still secure. However it's in glibc and therefore not
+>   commonly available on Linux.
+> * Depending on the platform, the ``crypt`` module is not thread safe. Only
+>   implementations with ``crypt_r(3)`` are thread safe.
+> 
+> Module type
+>   C extension + Python module
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   `bcrypt <https://pypi.org/project/bcrypt/>`_,
+>   `passlib <https://pypi.org/project/passlib/>`_,
+>   `argon2cffi <https://pypi.org/project/argon2-cffi/>`_,
+>   hashlib module (PBKDF2, scrypt)
+> 
+> macpath
+> ~~~~~~~
+> 
+> The `macpath <https://docs.python.org/3/library/macpath.html>`_ module
+> provides Mac OS 9 implementation of os.path routines. Mac OS 9 is no
+longer
+> supported
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.7
+> Removed in
+>   3.8
+> Substitute
+>   **none**
+> 
+> nis
+> ~~~
+> 
+> The `nis <https://docs.python.org/3/library/nis.html>`_ module provides
+> NIS/YP support. Network Information Service / Yellow Pages is an old and
+> deprecated directory service protocol developed by Sun Microsystems. It's
+> designed successor NIS+ from 1992 never took off. For a long time, libc's
+> Name Service Switch, LDAP, and Kerberos/GSSAPI are considered a more
+> powerful
+> and more secure replacement of NIS.
+> 
+> Module type
+>   C extension
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> spwd
+> ~~~~
+> 
+> The `spwd <https://docs.python.org/3/library/spwd.html>`_ module
+> provides
+> direct access to Unix shadow password database using non-standard APIs.
+> In general it's a bad idea to use the spwd. The spwd circumvents system
+> security policies, it does not use the PAM stack, and is
+> only compatible with local user accounts.
+> 
+> Module type
+>   C extension
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> Misc modules
+> ------------
+> 
+> fileinput
+> ~~~~~~~~~
+> 
+> The `fileinput <https://docs.python.org/3/library/fileinput.html>`_ module
+> implements a helpers to iterate over a list of files from ``sys.argv``.
+The
+> module predates the optparser and argparser module. The same
+> functionality
+> can be implemented with the argparser module.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   argparse
+> 
+> formatter
+> ~~~~~~~~~
+> 
+> The `formatter <https://docs.python.org/3/library/formatter.html>`_
+> module
+> is an old text formatting module which has been deprecated since Python
+> 3.4.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.4
+> To be removed in
+>   3.10
+> Substitute
+>   *n/a*
+> 
+> imp
+> ~~~
+> 
+> The `imp <https://docs.python.org/3/library/imp.html>`_ module is the
+> predecessor of the
+> `importlib <https://docs.python.org/3/library/importlib.html>`_ module.
+> Most
+> functions have been deprecated since Python 3.3 and the module since
+> Python 3.4.
+> 
+> Module type
+>   C extension
+> Deprecated in
+>   3.4
+> To be removed in
+>   3.10
+> Substitute
+>   importlib
+> 
+> msilib
+> ~~~~~~
+> 
+> The `msilib <https://docs.python.org/3/library/msilib.html>`_ package is a
+> Windows-only package. It supports the creation of Microsoft Installers
+(MSI).
+> The package also exposes additional APIs to create cabinet files (CAB).
+The
+> module is used to facilitate distutils to create MSI installers with
+> ``bdist_msi`` command. In the past it was used to create CPython's
+official
+> Windows installer, too.
+> 
+> Microsoft is slowly moving away from MSI in favor of Windows 10 Apps
+> (AppX)
+> as new deployment model [3]_.
+> 
+> Module type
+>   C extension + Python code
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   **none**
+> 
+> pipes
+> ~~~~~
+> 
+> The `pipes <https://docs.python.org/3/library/pipes.html>`_ module
+> provides
+> helpers to pipe the input of one command into the output of another
+> command.
+> The module is built on top of ``os.popen``. Users are encouraged to use
+> the subprocess module instead.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   subprocess module
+> 
+> Removed modules
+> ===============
+> 
+> fpectl
+> ------
+> 
+> The `fpectl <https://docs.python.org/3.6/library/fpectl.html>`_ module was
+> never built by default, its usage was discouraged and considered
+dangerous.
+> It also required a configure flag that caused an ABI incompatibility. The
+> module was removed in 3.7 by Nathaniel J. Smith in
+> `bpo-29137 <https://bugs.python.org/issue29137>`_.
+> 
+> Module type
+>   C extension + CAPI
+> Deprecated in
+>   3.7
+> Removed in
+>   3.7
+> Substitute
+>   **none**
+> 
+> 
+> Modules to keep
+> ===============
+> 
+> Some modules were originally proposed for deprecation.
+> 
+> lib2to3
+> -------
+> 
+> The `lib2to3 <https://docs.python.org/3/library/2to3.html>`_ package
+> provides
+> the ``2to3`` command to transpile Python 2 code to Python 3 code.
+> 
+> The package is useful for other tasks besides porting code from Python 2
+to
+> 3. For example `black`_ uses it for code reformatting.
+> 
+> Module type
+>   pure Python
+> 
+> getopt
+> ------
+> 
+> The `getopt <https://docs.python.org/3/library/getopt.html>`_ module
+> mimics
+> C's getopt() option parser. Although users are encouraged to use argparse
+> instead, the getopt module is still widely used.
+> 
+> Module type
+>   pure Python
+> 
+> optparse
+> --------
+> 
+> The `optparse <https://docs.python.org/3/library/optparse.html>`_ module
+> is
+> the predecessor of the argparse module. Although it has been deprecated
+> for
+> many years, it's still widely used.
+> 
+> Module type
+>   pure Python
+> Deprecated in
+>   3.2
+> Substitute
+>   argparse
+> 
+> wave
+> ~~~~
+> 
+> The `wave <https://docs.python.org/3/library/wave.html>`_ module
+> provides
+> support for the WAV sound format. The module uses one simple function
+> from the `audioop`_ module to perform byte swapping between little and
+> big
+> endian formats. Before 24 bit WAV support was added, byte swap used to be
+> implemented with the ``array`` module. To remove ``wave``'s dependency on
+> the
+> ``audioop``, the byte swap function could be either be moved to another
+> module (e.g. ``operator``) or the ``array`` module could gain support for
+> 24 bit (3 byte) arrays.
+> 
+> Module type
+>   pure Python (depends on *byteswap* from `audioop`_ C extension)
+> Deprecated in
+>   3.8
+> To be removed in
+>   3.10
+> Substitute
+>   *n/a*
+> 
+> 
+> Future maintenance of removed modules
+> =====================================
+> 
+> The main goal of the PEP is to reduce the burden and workload on the
+> Python
+> core developer team. Therefore removed modules will not be maintained by
+> the core team as separate PyPI packages. However the removed code, tests
+> and
+> documentation may be moved into a new git repository, so community
+> members
+> have a place from which they can pick up and fork code.
+> 
+> A first draft of a `legacylib <https://github.com/tiran/legacylib>`_
+> repository is available on my private Github account.
+> 
+> It's my hope that some of the deprecated modules will be picked up and
+> adopted by users that actually care about them. For example ``colorsys``
+and
+> ``imghdr`` are useful modules, but have limited feature set. A fork of
+> ``imghdr`` can add new features and support for more image formats,
+> without
+> being constrained by Python's release cycle.
+> 
+> Most of the modules are in pure Python and can be easily packaged. Some
+> depend on a simple C module, e.g. `audioop`_ and `crypt`_. Since
+`audioop`_
+> does not depend on any external libraries, it can be shipped in as binary
+> wheels with some effort. Other C modules can be replaced with ctypes or
+> cffi.
+> For example I created `legacycrypt
+<https://github.com/tiran/legacycrypt>`_
+> with ``_crypt`` extension reimplemented with a few lines of ctypes code.
+> 
+> 
+> Discussions
+> ===========
+> 
+> * Elana Hashman and Nick Coghlan suggested to keep the *getopt* module.
+> * Berker Peksag proposed to deprecate and removed *msilib*.
+> * Brett Cannon recommended to delay active deprecation warnings and
+> removal
+>   of modules like *imp* until Python 3.10. Version 3.8 will be released
+>   shortly before Python 2 reaches end of lifetime. A delay reduced churn
+for
+>   users that migrate from Python 2 to 3.8.
+> * Brett also came up with the idea to keep lib2to3. The package is useful
+>   for other purposes, e.g. `black <https://pypi.org/project/black/>`_ uses
+>   it to reformat Python code.
+> * At one point, distutils was mentioned in the same sentence as this PEP.
+>   To avoid lengthy discussion and delay of the PEP, I decided against
+dealing
+>   with distutils. Deprecation of the distutils package will be handled by
+>   another PEP.
+> * Multiple people (Gregory P. Smith, David Beazley, Nick Coghlan, ...)
+>   convinced me to keep the `wave`_ module. [4]_
+> * Gregory P. Smith proposed to deprecate `nntplib`_. [4]_
+> 
+> 
+> References
+> ==========
+> 
+> .. [1]
+> https://en.wikipedia.org/wiki/Open_Sound_System#Free,_proprietary,_fre
+> e
+> .. [2] https://man.openbsd.org/ossaudio
+> .. [3] https://blogs.msmvps.com/installsite/blog/2015/05/03/the-future-of-
+> windows-installer-msi-in-the-light-of-windows-10-and-the-universal-
+> windows-platform/
+> .. [4] https://twitter.com/ChristianHeimes/status/1130257799475335169
+> .. [5] https://twitter.com/dabeaz/status/1130278844479545351
+> 
+> 
+> Copyright
+> =========
+> 
+> This document has been placed in the public domain.
+> 
+> 
+> 
+> 
+> ..
+>    Local Variables:
+>    mode: indented-text
+>    indent-tabs-mode: nil
+>    sentence-end-double-space: t
+>    fill-column: 70
+>    coding: utf-8
+>    End:
+> 
+> 
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/tritium-
+> list%40sdamon.com
+
+
+From solipsis at pitrou.net  Thu May 23 04:36:29 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 23 May 2019 10:36:29 +0200
+Subject: [Python-Dev] Python in next Windows 10 update
+References: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+ <e5cac987-32ed-63a1-b9aa-c3e14cd5754d@mail.mipt.ru>
+ <b0c9f5e4-2931-b99c-e9d6-09b2be2b24a5@python.org>
+ <1adf8a66-d325-5f5d-9fca-5f50d232243b@mail.mipt.ru>
+ <CAOYw7dtacFQ+a0mt5AuGbCD2JCfNe_DNVCFKRdv4vtUYBRv63Q@mail.gmail.com>
+Message-ID: <20190523103629.5e1dc8de@fsol>
+
+On Thu, 23 May 2019 00:23:39 +0200
+Ray Donnelly <mingw.android at gmail.com> wrote:
+> On Thu, May 23, 2019, 12:17 AM Ivan Pozdeev via Python-Dev <
+> python-dev at python.org> wrote:
+> 
+> > On 22.05.2019 23:52, Steve Dower wrote:  
+> > > On 22May2019 1309, Ivan Pozdeev via Python-Dev wrote:  
+> > >> As someone whose job is to diagnose and fix problems with running  
+> > software:  
+> > >> Are there patches in your release? Do you provide corresponding sources  
+> > and debug symbols for it?  
+> > >
+> > > You can find the sources at https://github.com/python/cpython :)
+> > >  
+> > For Anaconda, this is not so, they apply private patches. So I had to make
+> > sure.
+> >  
+> 
+> There's nothing 'private' about them.
+> https://github.com/AnacondaRecipes/python-feedstock/tree/master/recipe
+
+Note that some of those patches could probably be contributed back.
+
+Regards
+
+Antoine.
+
+
+
+From songofacandy at gmail.com  Thu May 23 05:49:23 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Thu, 23 May 2019 18:49:23 +0900
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+Message-ID: <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+
+I have only 32GB mem, but AWS has larger memory machine!
+
+Linux perf shows here is bottleneck:
+https://github.com/python/cpython/blob/master/Objects/obmalloc.c#L1784-L1819
+
+obmalloc sorts arenas by number of free pools.
+If there are many arenas, and memory block is freed by random order,
+this sorting become O(N^2).  That's too bad.
+
+I'm trying address order instead.
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From j.orponen at 4teamwork.ch  Thu May 23 08:35:21 2019
+From: j.orponen at 4teamwork.ch (Joni Orponen)
+Date: Thu, 23 May 2019 14:35:21 +0200
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+Message-ID: <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+
+On Thu, May 23, 2019 at 11:52 AM Inada Naoki <songofacandy at gmail.com> wrote:
+
+> I have only 32GB mem, but AWS has larger memory machine!
+>
+
+Be aware that on larger cloud vendor instances, the backing vCPUs and
+memory you get allocated might or might not be spread opaquely across
+multiple sockets and/or NUMA nodes of the backing hardware. Some of them
+have options where you can allocate raw hardware as well so you can opt to
+lock your process to run within just one NUMA node and ensure hardware
+locality for your performance debugging.
+
+I'm pointing this out in case you experience any mystery jitters in your
+benchmark results.
+
+-- 
+Joni Orponen
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/3e130fe3/attachment.html>
+
+From songofacandy at gmail.com  Thu May 23 08:42:38 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Thu, 23 May 2019 21:42:38 +0900
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+Message-ID: <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+
+1. perf shows 95% of CPU time is eaten by _PyObject_Free, not kernel space.
+2. This loop is cleary hot:
+https://github.com/python/cpython/blob/51aa35e9e17eef60d04add9619fe2a7eb938358c/Objects/obmalloc.c#L1816-L1819
+
+I can attach the process by gdb and I confirmed many arenas have
+same nfreepools.
+
+I believe this is not jitter caused from NUMA or something else in cloud.
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From ajm at flonidan.dk  Thu May 23 09:22:58 2019
+From: ajm at flonidan.dk (Anders Munch)
+Date: Thu, 23 May 2019 13:22:58 +0000
+Subject: [Python-Dev] PEP 594: update 1
+Message-ID: <HE1PR05MB321101524A4F1E04263CDD9EB4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+
+Fra: Python-Dev [mailto:python-dev-bounces+ajm=flonidan.dk at python.org] P? vegne af Terry Reedy:
+>> Deprecation schedule
+>> ====================
+>
+> I think it worth adding that some modules were deprecated years ago but kept until after 2.7 end-of-life to ease 3.x transition.  Removing modules is not a sudden new idea.
+>
+> Also, the proposed schedule (with one exception) is a slower alternative than proposals to add a deprecation warning (if not one already) in 3.8 and remove in 3.9.
+
+About that schedule: I think the removal version should be called 4.0.
+
+These are working modules that to varying degrees are still in use that are being removed.  It's perfectly legitimate for python-dev to decide to stop maintaining them, but it's a breaking change none the less.
+
+For me, it's a couple of CGI scripts that will break.  If I hadn't read this thread, I would at some point be confronted with a ModuleNotFoundError exception, with no guidance on how to fix that.  That's not a very good user experience, even if a fix can be found after some googling. A major version change serves as a heads up that something is going on and you need to check the consequences before upgrading.
+
+regards, Anders
+
+
+From p.f.moore at gmail.com  Thu May 23 09:33:36 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Thu, 23 May 2019 14:33:36 +0100
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <HE1PR05MB321101524A4F1E04263CDD9EB4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+References: <HE1PR05MB321101524A4F1E04263CDD9EB4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+Message-ID: <CACac1F-ghVFYU6gNrERYOiyUtOp5CnLE42espTA5SkrgeYgHEg@mail.gmail.com>
+
+On Thu, 23 May 2019 at 14:25, Anders Munch <ajm at flonidan.dk> wrote:
+> A major version change serves as a heads up that something is going on and you need to check the consequences before upgrading.
+
+Python's backward compatibility policy allows breaking changes between
+versions X.Y and X.Y+1 (with a suitable deprecation period). This
+proposal is no different.
+Paul
+
+From ncoghlan at gmail.com  Thu May 23 09:36:22 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 23 May 2019 23:36:22 +1000
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+Message-ID: <CADiSq7dbyS8R3UQUA815cMPnqSE9b-JzkxjKTO6EH7EgL_qPoQ@mail.gmail.com>
+
+On Wed, 22 May 2019 at 00:51, Nick Coghlan <ncoghlan at gmail.com> wrote:
+> P.S. I'm away this weekend, so I expect the reference implementation
+> to be done late next week, and I'd be submitting the PEP to Nathaniel
+> for formal pronouncement at that point. However, I'm posting this
+> thread now so that there's more time for discussion prior to the 3.8b1
+> deadline.
+
+I found some time the other day to finish up the core of the reference
+implementation and resolve some bugs in the new test cases, so the
+essential changes can now be seen in
+https://github.com/python/cpython/pull/3640/files
+
+There are still some code level TODO items to cover off a few minor
+points in the PEP, as well as to make the fast locals proxy a better
+behaved mutable mapping. The proposed documentation changes also still
+need to be brought over from the PEP, and at least a quick scan done
+through the code comments and the rest of the documentation for now
+outdated references to the legacy trace function namespace handling.
+
+However, I think the PR does show that the proposed technique can be
+implemented without too much additional code complexity, and will
+hopefully be adaptable for all implementations that emulate the frame
+API at all.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From steve.dower at python.org  Thu May 23 11:15:41 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 23 May 2019 08:15:41 -0700
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+Message-ID: <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+
+On 23May2019 0542, Inada Naoki wrote:
+> 1. perf shows 95% of CPU time is eaten by _PyObject_Free, not kernel space.
+> 2. This loop is cleary hot:
+> https://github.com/python/cpython/blob/51aa35e9e17eef60d04add9619fe2a7eb938358c/Objects/obmalloc.c#L1816-L1819
+> 
+> I can attach the process by gdb and I confirmed many arenas have
+> same nfreepools.
+
+It's relatively easy to test replacing our custom allocators with the 
+system ones, yes? Can we try those to see whether they have the same 
+characteristic?
+
+Given the relative amount of investment over the last 19 years [1], I 
+wouldn't be surprised if most system ones are at least as good for our 
+needs now. Certainly Windows HeapAlloc has had serious improvements in 
+that time to help with fragmentation and small allocations.
+
+Cheers,
+Steve
+
+[1]: 
+https://github.com/python/cpython/blob/51aa35e9e17eef60d04add9619fe2a7eb938358c/Objects/obmalloc.c#L769
+
+From steve.dower at python.org  Thu May 23 11:26:56 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 23 May 2019 08:26:56 -0700
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <CADiSq7dbyS8R3UQUA815cMPnqSE9b-JzkxjKTO6EH7EgL_qPoQ@mail.gmail.com>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CADiSq7dbyS8R3UQUA815cMPnqSE9b-JzkxjKTO6EH7EgL_qPoQ@mail.gmail.com>
+Message-ID: <ab4fbcae-a5e5-999c-be54-fa0b6b3df31c@python.org>
+
+On 23May2019 0636, Nick Coghlan wrote:
+> However, I think the PR does show that the proposed technique can be
+> implemented without too much additional code complexity, and will
+> hopefully be adaptable for all implementations that emulate the frame
+> API at all.
+
+Much excitement!
+
+One of the things I like best about this change is that it actually 
+makes it *easier* for alternative implementations to use a simpler frame 
+object without having to emulate CPython semantics (I'd love to get to a 
+place where bug-for-bug compatibility wasn't required, but this is where 
+we are right now so *shrug*).
+
+Cheers,
+Steve
+
+From songofacandy at gmail.com  Thu May 23 11:59:08 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 24 May 2019 00:59:08 +0900
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+Message-ID: <CAEfz+TxVG5VvxdEfG5wV1gvFWCMQuP-u=pTQ1L-GVEpB3D=9eQ@mail.gmail.com>
+
+>
+> It's relatively easy to test replacing our custom allocators with the
+> system ones, yes? Can we try those to see whether they have the same
+> characteristic?
+>
+
+Yes.
+
+PYTHONMALLOC=malloc LD_PRELOAD=/path/to/jemalloc.so python script.py
+
+I will try it tomorrow.
+
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/7839ff79/attachment.html>
+
+From jeff at kintscher.cc  Thu May 23 04:41:16 2019
+From: jeff at kintscher.cc (Jeff Kintscher)
+Date: Thu, 23 May 2019 01:41:16 -0700
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <016601d5113d$87bd8740$973895c0$@sdamon.com>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <016601d5113d$87bd8740$973895c0$@sdamon.com>
+Message-ID: <a2287ff4-53e7-4f0f-3d7f-fee9d38056cb@kintscher.cc>
+
++1
+
+On 5/23/19 1:00 AM, Alex Walters wrote:
+> I've watched the entire thread and its taken me a few days to put a finger
+> on what bothers me about it.
+>
+> In my opinion, this shouldn't be a pep describing the list of modules that
+> need to go as "dead batteries", but should be a process pep describing how
+> dead batteries should be removed, and the individual modules should be given
+> their own pep.  I think reactions to individual module peps will give a
+> better indication of if it's a used module or not.
+>
+>> -----Original Message-----
+>> From: Python-Dev <python-dev-bounces+tritium-
+>> list=sdamon.com at python.org> On Behalf Of Christian Heimes
+>> Sent: Monday, May 20, 2019 4:15 PM
+>> To: Python Dev <Python-Dev at python.org>
+>> Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+>> library
+>>
+>> Hi,
+>>
+>> here is the first version of my PEP 594 to deprecate and eventually remove
+>> modules from the standard library. The PEP started last year with talk
+> during
+>> the Python Language Summit 2018, https://lwn.net/Articles/755229/.
+>>
+>> The PEP can be confirmed in two stages. I'm not planning any code changes
+>> for 3.8. Instead I only like to document a bunch of modules as deprecated.
+>> Active deprecation is planned for 3.9 and removal for 3.10. The long
+>> deprecation phase gives us 3 years to change our minds or handle edge
+>> cases, too.
+>>
+>> Regards,
+>> Christian
+>>
+>>
+>>
+> ----------------------------------------------------------------------------
+>> PEP: 594
+>> Title: Removing dead batteries from the standard library
+>> Author: Christian Heimes <christian at python.org>
+>> Status: Active
+>> Type: Process
+>> Content-Type: text/x-rst
+>> Created: 20-May-2019
+>> Post-History:
+>>
+>>
+>> Abstract
+>> ========
+>>
+>> This PEP proposed a list of standard library modules to be removed from
+> the
+>> standard library. The modules are mostly historic data formats and APIs
+> that
+>> have been superseded a long time ago, e.g. Mac OS 9 and Commodore.
+>>
+>>
+>> Rationale
+>> =========
+>>
+>> Back in the early days of Python, the interpreter came with a large set of
+>> useful modules. This was often refrained to as "batteries included"
+>> philosophy and was one of the corner stones to Python's success story.
+>> Users didn't have to figure out how to download and install separate
+>> packages in order to write a simple web server or parse email.
+>>
+>> Times have changed. The introduction of the cheese shop (PyPI),
+> setuptools,
+>> and later pip, it became simple and straight forward to download and
+> install
+>> packages. Nowadays Python has a rich and vibrant ecosystem of third party
+>> packages. It's pretty much standard to either install packages from PyPI
+> or
+>> use one of the many Python or Linux distributions.
+>>
+>> On the other hand, Python's standard library is piling up cruft,
+> unnecessary
+>> duplication of functionality, and dispensable features. This is
+> undesirable
+>> for several reasons.
+>>
+>> * Any additional module increases the maintenance cost for the Python core
+>>    development team. The team has limited resources, reduced maintenance
+>> cost
+>>    frees development time for other improvements.
+>> * Modules in the standard library are generally favored and seen as the
+>>    de-facto solution for a problem. A majority of users only pick 3rd party
+>>    modules to replace a stdlib module, when they have a compelling reason,
+>> e.g.
+>>    lxml instead of `xml`. The removal of an unmaintained stdlib module
+>>    increases the chances of a community contributed module to become
+>> widely
+>>    used.
+>> * A lean and mean standard library benefits platforms with limited
+> resources
+>>    like devices with just a few hundred kilobyte of storage (e.g. BBC
+>>    Micro:bit). Python on mobile platforms like BeeWare or WebAssembly
+>>    (e.g. pyodide) also benefit from reduced download size.
+>>
+>> The modules in the PEP have been selected for deprecation because their
+>> removal is either least controversial or most beneficial. For example
+>> least controversial are 30 years old multimedia formats like ``sunau``
+>> audio format, which was used on SPARC and NeXT workstations in the late
+>> 1980ties. The ``crypt`` module has fundamental flaws that are better
+> solved
+>> outside the standard library.
+>>
+>> This PEP also designates some modules as not scheduled for removal. Some
+>> modules have been deprecated for several releases or seem unnecessary at
+>> first glance. However it is beneficial to keep the modules in the standard
+>> library, mostly for environments where installing a package from PyPI is
+> not
+>> an option. This can be cooperate environments or class rooms where
+>> external
+>> code is not permitted without legal approval.
+>>
+>> * The usage of FTP is declining, but some files are still provided over
+>>    the FTP protocol or hosters offer FTP to upload content. Therefore
+>>    ``ftplib`` is going to stay.
+>> * The ``optparse`` and ``getopt`` module are widely used. They are mature
+>>    modules with very low maintenance overhead.
+>> * According to David Beazley [5]_ the ``wave`` module is easy to teach to
+>>    kids and can make crazy sounds. Making a computer generate crazy sounds
+>> is
+>>    powerful and highly motivating exercise for a 9yo aspiring developer.
+> It's
+>>    a fun battery to keep.
+>>
+>>
+>> Deprecation schedule
+>> ====================
+>>
+>> 3.8
+>> ---
+>>
+>> This PEP targets Python 3.8. Version 3.8.0 final is scheduled to be
+> released
+>> a few months before Python 2.7 will reach its end of lifetime. We expect
+> that
+>> Python 3.8 will be targeted by users that migrate to Python 3 in 2019 and
+>> 2020. To reduce churn and to allow a smooth transition from Python 2,
+>> Python 3.8 will neither raise `DeprecationWarning` nor remove any
+>> modules that have been scheduled for removal. Instead deprecated
+>> modules will
+>> just be *documented* as deprecated. Optionally modules may emit a
+>> `PendingDeprecationWarning`.
+>>
+>> All deprecated modules will also undergo a feature freeze. No additional
+>> features should be added. Bug should still be fixed.
+>>
+>> 3.9
+>> ---
+>>
+>> Starting with Python 3.9, deprecated modules will start issuing
+>> `DeprecationWarning`.
+>>
+>>
+>> 3.10
+>> ----
+>>
+>> In 3.10 all deprecated modules will be removed from the CPython repository
+>> together with tests, documentation, and autoconf rules.
+>>
+>>
+>> PEP acceptance process
+>> ======================
+>>
+>> 3.8.0b1 is scheduled to be release shortly after the PEP is officially
+>> submitted. Since it's improbable that the PEP will pass all stages of the
+>> PEP process in time, I propose a two step acceptance process that is
+>> analogous Python's two release deprecation process.
+>>
+>> The first *provisionally accepted* phase targets Python 3.8.0b1. In the
+> first
+>> phase no code is changes or removed. Modules are only documented as
+>> deprecated.
+>>
+>> The final decision, which modules will be removed and how the removed
+>> code
+>> is preserved, can be delayed for another year.
+>>
+>>
+>> Deprecated modules
+>> ==================
+>>
+>> The modules are grouped as data encoding, multimedia, network, OS
+>> interface,
+>> and misc modules. The majority of modules are for old data formats or
+>> old APIs. Some others are rarely useful and have better replacements on
+>> PyPI, e.g. Pillow for image processing or NumPy-based projects to deal
+> with
+>> audio processing.
+>>
+>> .. csv-table:: Table 1: Proposed modules deprecations
+>>     :header: "Module", "Deprecated in", "To be removed", "Replacement"
+>>
+>>      aifc,3.8,3.10,\-
+>>      asynchat,3.8,3.10,asyncio
+>>      asyncore,3.8,3.10,asyncio
+>>      audioop,3.8,3.10,\-
+>>      binhex,3.8,3.10,\-
+>>      cgi,3.8,3.10,\-
+>>      cgitb,3.8,3.10,\-
+>>      chunk,3.8,3.10,\-
+>>      colorsys,**3.8?**,**3.10?**,\-
+>>      crypt,3.8,3.10,\-
+>>      fileinput,3.8,3.10,argparse
+>>      formatter,3.4,3.10,\-
+>>      fpectl,**3.7**,**3.7**,\-
+>>      getopt,**3.2**,**keep**,"argparse, optparse"
+>>      imghdr,3.8,3.10,\-
+>>      imp,**3.4**,3.10,importlib
+>>      lib2to3,\-,**keep**,
+>>      macpath,**3.7**,**3.8**,\-
+>>      msilib,3.8,3.10,\-
+>>      nntplib,3.8,3.10,\-
+>>      nis,3.8,3.10,\-
+>>      optparse,\-,**keep**,argparse
+>>      ossaudiodev,3.8,3.10,\-
+>>      pipes,3.8,3.10,subprocess
+>>      smtpd,**3.7**,3.10,aiosmtpd
+>>      sndhdr,3.8,3.10,\-
+>>      spwd,3.8,3.10,\-
+>>      sunau,3.8,3.10,\-
+>>      uu,3.8,3.10,\-
+>>      wave,\-,**keep**,
+>>      xdrlib,3.8,3.10,\-
+>>
+>>
+>> Data encoding modules
+>> ---------------------
+>>
+>> binhex
+>> ~~~~~~
+>>
+>> The `binhex <https://docs.python.org/3/library/binhex.html>`_ module
+>> encodes
+>> and decodes Apple Macintosh binhex4 data. It was originally developed for
+>> TSR-80. In the 1980s and early 1990s it was used on classic Mac OS 9 to
+>> encode binary email attachments.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>> uu
+>> ~~
+>>
+>> The `uu <https://docs.python.org/3/library/uu.html>`_ module provides
+>> uuencode format, an old binary encoding format for email from 1980. The uu
+>> format has been replaced by MIME. The uu codec is provided by the binascii
+>> module.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>> xdrlib
+>> ~~~~~~
+>>
+>> The `xdrlib <https://docs.python.org/3/library/xdrlib.html>`_ module
+>> supports
+>> the Sun External Data Representation Standard. XDR is an old binary
+>> serialization format from 1987. These days it's rarely used outside
+>> specialized domains like NFS.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>>
+>> Multimedia modules
+>> ------------------
+>>
+>> aifc
+>> ~~~~
+>>
+>> The `aifc <https://docs.python.org/3/library/aifc.html>`_ module provides
+>> support for reading and writing AIFF and AIFF-C files. The Audio
+> Interchange
+>> File Format is an old audio format from 1988 based on Amiga IFF. It was
+> most
+>> commonly used on the Apple Macintosh. These days only few specialized
+>> application use AIFF.
+>>
+>> Module type
+>>    pure Python (depends on `audioop`_ C extension)
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>> audioop
+>> ~~~~~~~
+>>
+>> The `audioop <https://docs.python.org/3/library/audioop.html>`_ module
+>> contains helper functions to manipulate raw audio data and adaptive
+>> differential pulse-code modulated audio data. The module is implemented in
+>> C without any additional dependencies. The `aifc`_, `sunau`_, and `wave`_
+>> module depend on `audioop`_ for some operations.
+>>
+>> Module type
+>>    C extension
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>> colorsys
+>> ~~~~~~~~
+>>
+>> The `colorsys <https://docs.python.org/3/library/colorsys.html>`_ module
+>> defines color conversion functions between RGB, YIQ, HSL, and HSV
+>> coordinate
+>> systems. The Pillow library provides much faster conversation between
+>> color systems.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    `Pillow <https://pypi.org/project/Pillow/>`_,
+>>    `colorspacious <https://pypi.org/project/colorspacious/>`_
+>>
+>> chunk
+>> ~~~~~
+>>
+>> The `chunk <https://docs.python.org/3/library/chunk.html>`_ module
+>> provides
+>> support for reading and writing Electronic Arts' Interchange File Format.
+>> IFF is an old audio file format originally introduced for Commodore and
+>> Amiga. The format is no longer relevant.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>> imghdr
+>> ~~~~~~
+>>
+>> The `imghdr <https://docs.python.org/3/library/imghdr.html>`_ module is a
+>> simple tool to guess the image file format from the first 32 bytes
+>> of a file or buffer. It supports only a limited amount of formats and
+>> neither returns resolution nor color depth.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    *n/a*
+>>
+>> ossaudiodev
+>> ~~~~~~~~~~~
+>>
+>> The `ossaudiodev <https://docs.python.org/3/library/ossaudiodev.html>`_
+>> module provides support for Open Sound System, an interface to sound
+>> playback and capture devices. OSS was initially free software, but later
+>> support for newer sound devices and improvements were proprietary. Linux
+>> community abandoned OSS in favor of ALSA [1]_. Some operation systems
+>> like
+>> OpenBSD and NetBSD provide an incomplete [2]_ emulation of OSS.
+>>
+>> Module type
+>>    C extension
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>> sndhdr
+>> ~~~~~~
+>>
+>> The `sndhdr <https://docs.python.org/3/library/sndhdr.html>`_ module is
+>> similar to the `imghdr`_ module but for audio formats. It guesses file
+>> format, channels, frame rate, and sample widths from the first 512 bytes
+> of
+>> a file or buffer. The module only supports AU, AIFF, HCOM, VOC, WAV, and
+>> other ancient formats.
+>>
+>> Module type
+>>    pure Python (depends on `audioop`_ C extension for some operations)
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    *n/a*
+>>
+>> sunau
+>> ~~~~~
+>>
+>> The `sunau <https://docs.python.org/3/library/sunhdr.html>`_ module
+>> provides
+>> support for Sun AU sound format. It's yet another old, obsolete file
+> format.
+>> Module type
+>>    pure Python (depends on `audioop`_ C extension for some operations)
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>>
+>> Networking modules
+>> ------------------
+>>
+>> asynchat
+>> ~~~~~~~~
+>>
+>> The `asynchat <https://docs.python.org/3/library/asynchat.html>`_ module
+>> is build on top of `asyncore`_ and has been deprecated since Python 3.6.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.6
+>> Removed in
+>>    3.10
+>> Substitute
+>>    asyncio
+>>
+>> asyncore
+>> ~~~~~~~~
+>>
+>> The `asyncore <https://docs.python.org/3/library/asyncore.html>`_ module
+>> was
+>> the first module for asynchronous socket service clients and servers. It
+>> has been replaced by asyncio and is deprecated since Python 3.6.
+>>
+>> The ``asyncore`` module is also used in stdlib tests. The tests for
+>> ``ftplib``, ``logging``, ``smptd``, ``smtplib``, and ``ssl`` are partly
+>> based on ``asyncore``. These tests must be updated to use asyncio or
+>> threading.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.6
+>> Removed in
+>>    3.10
+>> Substitute
+>>    asyncio
+>>
+>>
+>> cgi
+>> ~~~
+>>
+>> The `cgi <https://docs.python.org/3/library/cgi.html>`_ module is a
+> support
+>> module for Common Gateway Interface (CGI) scripts. CGI is deemed as
+>> inefficient because every incoming request is handled in a new process.
+> PEP
+>> 206 considers the module as *designed poorly and are now near-impossible
+>> to fix*.
+>>
+>> Several people proposed to either keep the cgi module for features like
+>> `cgi.parse_qs()` or move `cgi.escape()` to a different module. The
+>> functions `cgi.parse_qs` and `cgi.parse_qsl` have been
+>> deprecated for a while and are actually aliases for
+>> `urllib.parse.parse_qs` and `urllib.parse.parse_qsl`. The
+>> function `cgi.quote` has been deprecated in favor of `html.quote`
+>> with secure default values.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>>
+>> cgitb
+>> ~~~~~
+>>
+>> The `cgitb <https://docs.python.org/3/library/cgitb.html>`_ module is a
+>> helper for the cgi module for configurable tracebacks.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>> smtpd
+>> ~~~~~
+>>
+>> The `smtpd <https://docs.python.org/3/library/smtpd.html>`_ module
+>> provides
+>> a simple implementation of a SMTP mail server. The module documentation
+>> recommends ``aiosmtpd``.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    **3.7**
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    aiosmtpd
+>>
+>> nntplib
+>> ~~~~~~~
+>>
+>> The `nntplib <https://docs.python.org/3/library/nntplib.html>`_ module
+>> implements the client side of the Network News Transfer Protocol (nntp).
+>> News
+>> groups used to be a dominant platform for online discussions. Over the
+> last
+>> two decades, news has been slowly but steadily replaced with mailing lists
+>> and web-based discussion platforms.
+>>
+>> The ``nntplib`` tests have been the cause of additional work in the recent
+>> past. Python only contains client side of NNTP. The test cases depend on
+>> external news server. These servers were unstable in the past.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>>
+>> Operating system interface
+>> --------------------------
+>>
+>> crypt
+>> ~~~~~
+>>
+>> The `crypt <https://docs.python.org/3/library/crypt.html>`_ module
+>> implements
+>> password hashing based on ``crypt(3)`` function from ``libcrypt`` or
+>> ``libxcrypt`` on Unix-like platform. The algorithms are mostly old, of
+> poor
+>> quality and insecure. Users are discouraged to use them.
+>>
+>> * The module is not available on Windows. Cross-platform application need
+>>    an alternative implementation any way.
+>> * Only DES encryption is guarenteed to be available. DES has an extremely
+>>    limited key space of 2**56.
+>> * MD5, salted SHA256, salted SHA512, and Blowfish are optional extension.
+>>    SSHA256 and SSHA512 are glibc extensions. Blowfish (bcrypt) is the only
+>>    algorithm that is still secure. However it's in glibc and therefore not
+>>    commonly available on Linux.
+>> * Depending on the platform, the ``crypt`` module is not thread safe. Only
+>>    implementations with ``crypt_r(3)`` are thread safe.
+>>
+>> Module type
+>>    C extension + Python module
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    `bcrypt <https://pypi.org/project/bcrypt/>`_,
+>>    `passlib <https://pypi.org/project/passlib/>`_,
+>>    `argon2cffi <https://pypi.org/project/argon2-cffi/>`_,
+>>    hashlib module (PBKDF2, scrypt)
+>>
+>> macpath
+>> ~~~~~~~
+>>
+>> The `macpath <https://docs.python.org/3/library/macpath.html>`_ module
+>> provides Mac OS 9 implementation of os.path routines. Mac OS 9 is no
+> longer
+>> supported
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.7
+>> Removed in
+>>    3.8
+>> Substitute
+>>    **none**
+>>
+>> nis
+>> ~~~
+>>
+>> The `nis <https://docs.python.org/3/library/nis.html>`_ module provides
+>> NIS/YP support. Network Information Service / Yellow Pages is an old and
+>> deprecated directory service protocol developed by Sun Microsystems. It's
+>> designed successor NIS+ from 1992 never took off. For a long time, libc's
+>> Name Service Switch, LDAP, and Kerberos/GSSAPI are considered a more
+>> powerful
+>> and more secure replacement of NIS.
+>>
+>> Module type
+>>    C extension
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>> spwd
+>> ~~~~
+>>
+>> The `spwd <https://docs.python.org/3/library/spwd.html>`_ module
+>> provides
+>> direct access to Unix shadow password database using non-standard APIs.
+>> In general it's a bad idea to use the spwd. The spwd circumvents system
+>> security policies, it does not use the PAM stack, and is
+>> only compatible with local user accounts.
+>>
+>> Module type
+>>    C extension
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>> Misc modules
+>> ------------
+>>
+>> fileinput
+>> ~~~~~~~~~
+>>
+>> The `fileinput <https://docs.python.org/3/library/fileinput.html>`_ module
+>> implements a helpers to iterate over a list of files from ``sys.argv``.
+> The
+>> module predates the optparser and argparser module. The same
+>> functionality
+>> can be implemented with the argparser module.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    argparse
+>>
+>> formatter
+>> ~~~~~~~~~
+>>
+>> The `formatter <https://docs.python.org/3/library/formatter.html>`_
+>> module
+>> is an old text formatting module which has been deprecated since Python
+>> 3.4.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.4
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    *n/a*
+>>
+>> imp
+>> ~~~
+>>
+>> The `imp <https://docs.python.org/3/library/imp.html>`_ module is the
+>> predecessor of the
+>> `importlib <https://docs.python.org/3/library/importlib.html>`_ module.
+>> Most
+>> functions have been deprecated since Python 3.3 and the module since
+>> Python 3.4.
+>>
+>> Module type
+>>    C extension
+>> Deprecated in
+>>    3.4
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    importlib
+>>
+>> msilib
+>> ~~~~~~
+>>
+>> The `msilib <https://docs.python.org/3/library/msilib.html>`_ package is a
+>> Windows-only package. It supports the creation of Microsoft Installers
+> (MSI).
+>> The package also exposes additional APIs to create cabinet files (CAB).
+> The
+>> module is used to facilitate distutils to create MSI installers with
+>> ``bdist_msi`` command. In the past it was used to create CPython's
+> official
+>> Windows installer, too.
+>>
+>> Microsoft is slowly moving away from MSI in favor of Windows 10 Apps
+>> (AppX)
+>> as new deployment model [3]_.
+>>
+>> Module type
+>>    C extension + Python code
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    **none**
+>>
+>> pipes
+>> ~~~~~
+>>
+>> The `pipes <https://docs.python.org/3/library/pipes.html>`_ module
+>> provides
+>> helpers to pipe the input of one command into the output of another
+>> command.
+>> The module is built on top of ``os.popen``. Users are encouraged to use
+>> the subprocess module instead.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    subprocess module
+>>
+>> Removed modules
+>> ===============
+>>
+>> fpectl
+>> ------
+>>
+>> The `fpectl <https://docs.python.org/3.6/library/fpectl.html>`_ module was
+>> never built by default, its usage was discouraged and considered
+> dangerous.
+>> It also required a configure flag that caused an ABI incompatibility. The
+>> module was removed in 3.7 by Nathaniel J. Smith in
+>> `bpo-29137 <https://bugs.python.org/issue29137>`_.
+>>
+>> Module type
+>>    C extension + CAPI
+>> Deprecated in
+>>    3.7
+>> Removed in
+>>    3.7
+>> Substitute
+>>    **none**
+>>
+>>
+>> Modules to keep
+>> ===============
+>>
+>> Some modules were originally proposed for deprecation.
+>>
+>> lib2to3
+>> -------
+>>
+>> The `lib2to3 <https://docs.python.org/3/library/2to3.html>`_ package
+>> provides
+>> the ``2to3`` command to transpile Python 2 code to Python 3 code.
+>>
+>> The package is useful for other tasks besides porting code from Python 2
+> to
+>> 3. For example `black`_ uses it for code reformatting.
+>>
+>> Module type
+>>    pure Python
+>>
+>> getopt
+>> ------
+>>
+>> The `getopt <https://docs.python.org/3/library/getopt.html>`_ module
+>> mimics
+>> C's getopt() option parser. Although users are encouraged to use argparse
+>> instead, the getopt module is still widely used.
+>>
+>> Module type
+>>    pure Python
+>>
+>> optparse
+>> --------
+>>
+>> The `optparse <https://docs.python.org/3/library/optparse.html>`_ module
+>> is
+>> the predecessor of the argparse module. Although it has been deprecated
+>> for
+>> many years, it's still widely used.
+>>
+>> Module type
+>>    pure Python
+>> Deprecated in
+>>    3.2
+>> Substitute
+>>    argparse
+>>
+>> wave
+>> ~~~~
+>>
+>> The `wave <https://docs.python.org/3/library/wave.html>`_ module
+>> provides
+>> support for the WAV sound format. The module uses one simple function
+>> from the `audioop`_ module to perform byte swapping between little and
+>> big
+>> endian formats. Before 24 bit WAV support was added, byte swap used to be
+>> implemented with the ``array`` module. To remove ``wave``'s dependency on
+>> the
+>> ``audioop``, the byte swap function could be either be moved to another
+>> module (e.g. ``operator``) or the ``array`` module could gain support for
+>> 24 bit (3 byte) arrays.
+>>
+>> Module type
+>>    pure Python (depends on *byteswap* from `audioop`_ C extension)
+>> Deprecated in
+>>    3.8
+>> To be removed in
+>>    3.10
+>> Substitute
+>>    *n/a*
+>>
+>>
+>> Future maintenance of removed modules
+>> =====================================
+>>
+>> The main goal of the PEP is to reduce the burden and workload on the
+>> Python
+>> core developer team. Therefore removed modules will not be maintained by
+>> the core team as separate PyPI packages. However the removed code, tests
+>> and
+>> documentation may be moved into a new git repository, so community
+>> members
+>> have a place from which they can pick up and fork code.
+>>
+>> A first draft of a `legacylib <https://github.com/tiran/legacylib>`_
+>> repository is available on my private Github account.
+>>
+>> It's my hope that some of the deprecated modules will be picked up and
+>> adopted by users that actually care about them. For example ``colorsys``
+> and
+>> ``imghdr`` are useful modules, but have limited feature set. A fork of
+>> ``imghdr`` can add new features and support for more image formats,
+>> without
+>> being constrained by Python's release cycle.
+>>
+>> Most of the modules are in pure Python and can be easily packaged. Some
+>> depend on a simple C module, e.g. `audioop`_ and `crypt`_. Since
+> `audioop`_
+>> does not depend on any external libraries, it can be shipped in as binary
+>> wheels with some effort. Other C modules can be replaced with ctypes or
+>> cffi.
+>> For example I created `legacycrypt
+> <https://github.com/tiran/legacycrypt>`_
+>> with ``_crypt`` extension reimplemented with a few lines of ctypes code.
+>>
+>>
+>> Discussions
+>> ===========
+>>
+>> * Elana Hashman and Nick Coghlan suggested to keep the *getopt* module.
+>> * Berker Peksag proposed to deprecate and removed *msilib*.
+>> * Brett Cannon recommended to delay active deprecation warnings and
+>> removal
+>>    of modules like *imp* until Python 3.10. Version 3.8 will be released
+>>    shortly before Python 2 reaches end of lifetime. A delay reduced churn
+> for
+>>    users that migrate from Python 2 to 3.8.
+>> * Brett also came up with the idea to keep lib2to3. The package is useful
+>>    for other purposes, e.g. `black <https://pypi.org/project/black/>`_ uses
+>>    it to reformat Python code.
+>> * At one point, distutils was mentioned in the same sentence as this PEP.
+>>    To avoid lengthy discussion and delay of the PEP, I decided against
+> dealing
+>>    with distutils. Deprecation of the distutils package will be handled by
+>>    another PEP.
+>> * Multiple people (Gregory P. Smith, David Beazley, Nick Coghlan, ...)
+>>    convinced me to keep the `wave`_ module. [4]_
+>> * Gregory P. Smith proposed to deprecate `nntplib`_. [4]_
+>>
+>>
+>> References
+>> ==========
+>>
+>> .. [1]
+>> https://en.wikipedia.org/wiki/Open_Sound_System#Free,_proprietary,_fre
+>> e
+>> .. [2] https://man.openbsd.org/ossaudio
+>> .. [3] https://blogs.msmvps.com/installsite/blog/2015/05/03/the-future-of-
+>> windows-installer-msi-in-the-light-of-windows-10-and-the-universal-
+>> windows-platform/
+>> .. [4] https://twitter.com/ChristianHeimes/status/1130257799475335169
+>> .. [5] https://twitter.com/dabeaz/status/1130278844479545351
+>>
+>>
+>> Copyright
+>> =========
+>>
+>> This document has been placed in the public domain.
+>>
+>>
+>>
+>>
+>> ..
+>>     Local Variables:
+>>     mode: indented-text
+>>     indent-tabs-mode: nil
+>>     sentence-end-double-space: t
+>>     fill-column: 70
+>>     coding: utf-8
+>>     End:
+>>
+>>
+>> _______________________________________________
+>> Python-Dev mailing list
+>> Python-Dev at python.org
+>> https://mail.python.org/mailman/listinfo/python-dev
+>> Unsubscribe: https://mail.python.org/mailman/options/python-dev/tritium-
+>> list%40sdamon.com
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/websurfer%40surf2c.net
+
+-- 
+-----------------------------------------
+ From there to here, from here to there,
+funny things are everywhere.
+            -- Theodore Geisel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/53abeb1d/attachment-0001.html>
+
+From ajm at flonidan.dk  Thu May 23 12:47:58 2019
+From: ajm at flonidan.dk (Anders Munch)
+Date: Thu, 23 May 2019 16:47:58 +0000
+Subject: [Python-Dev] PEP 594: update 1
+Message-ID: <HE1PR05MB32111928324AFAE7076D2366B4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+
+Fra: Paul Moore [mailto:p.f.moore at gmail.com]:
+> > A major version change serves as a heads up that something is going on and you need to check the consequences before upgrading.
+> Python's backward compatibility policy allows breaking changes between versions X.Y and X.Y+1 (with a suitable deprecation period). This proposal is no different.
+
+Except perhaps in scale.  The same people that upgrade from 3.x to 3.x+1 without giving it a second thought, just to be on the latest version, will hesitate to go from 3.x to 4.y, because the major version change is a hint that they should be more careful.  That means they're ready for it when they get the ModuleNotFoundError exception, instead of feeling ambushed.
+
+OK, it may be that this is not enough to warrant a 4.0 release, but I do think python-dev should get over its fear of major versions sometime.  And that transitioning to a leaner standard library with some things moved to PyPI would not be a bad program statement for a Python 4.0.
+
+regards, Anders
+ 
+
+From solipsis at pitrou.net  Thu May 23 12:33:31 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Thu, 23 May 2019 18:33:31 +0200
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+ <CAEfz+TxVG5VvxdEfG5wV1gvFWCMQuP-u=pTQ1L-GVEpB3D=9eQ@mail.gmail.com>
+Message-ID: <20190523183331.2163dd60@fsol>
+
+On Fri, 24 May 2019 00:59:08 +0900
+Inada Naoki <songofacandy at gmail.com> wrote:
+
+> >
+> > It's relatively easy to test replacing our custom allocators with the
+> > system ones, yes? Can we try those to see whether they have the same
+> > characteristic?
+> >  
+> 
+> Yes.
+> 
+> PYTHONMALLOC=malloc LD_PRELOAD=/path/to/jemalloc.so python script.py
+> 
+> I will try it tomorrow.
+
+Can you simply test with the system allocator rather than jemalloc?
+
+Regards
+
+Antoine.
+
+
+
+From steve.dower at python.org  Thu May 23 12:57:57 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Thu, 23 May 2019 09:57:57 -0700
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <HE1PR05MB32111928324AFAE7076D2366B4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+References: <HE1PR05MB32111928324AFAE7076D2366B4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+Message-ID: <f4ce2bc8-5379-f192-7375-3e59ab7b81d3@python.org>
+
+On 23May2019 0947, Anders Munch wrote:
+> Fra: Paul Moore [mailto:p.f.moore at gmail.com]:
+>>> A major version change serves as a heads up that something is going on and you need to check the consequences before upgrading.
+>> Python's backward compatibility policy allows breaking changes between versions X.Y and X.Y+1 (with a suitable deprecation period). This proposal is no different.
+> 
+> Except perhaps in scale.  The same people that upgrade from 3.x to 3.x+1 without giving it a second thought, just to be on the latest version, will hesitate to go from 3.x to 4.y, because the major version change is a hint that they should be more careful.  That means they're ready for it when they get the ModuleNotFoundError exception, instead of feeling ambushed.
+> 
+> OK, it may be that this is not enough to warrant a 4.0 release, but I do think python-dev should get over its fear of major versions sometime.  And that transitioning to a leaner standard library with some things moved to PyPI would not be a bad program statement for a Python 4.0.
+
+We need to make it more clear somehow that Python uses 
+series.major.minor.micro versioning, not SemVer. I see this confusion 
+happen all the time.
+
+Think of it as Python3 7.x moving to Python3 8.x, and evaluate how much 
+effort you should put into migration :)
+
+That said, I'm totally in favour of Python 4.0 being the point where we 
+change expectations about what will be in the standard library (and also 
+C API, language/implementation semantics, etc.).
+
+But until we have a clear vision statement that everyone (or enough) is 
+behind, there's nothing gained by prematurely causing that much disruption.
+
+Cheers,
+Steve
+
+From tim.peters at gmail.com  Thu May 23 13:13:11 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Thu, 23 May 2019 12:13:11 -0500
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+Message-ID: <CAExdVNnunjcbPSJ7XQHykcqghmq=j2deF711kdmL1Z_Fc29tdQ@mail.gmail.com>
+
+[Inada Naoki <songofacandy at gmail.com>]
+> ...
+> 2. This loop is cleary hot:
+> https://github.com/python/cpython/blob/51aa35e9e17eef60d04add9619fe2a7eb938358c/Objects/obmalloc.c#L1816-L1819
+
+Which is 3 lines of code plus a closing brace.  The OP didn't build
+their own Python, and the source from which it was compiled wasn't
+available to them.  But they did say that when they got into gdb and
+single-stepped, it was looping through the same three lines of code,
+in obmalloc.c, over & over.  Which is 100% consistent with the loop
+you identified as being "the hot spot".
+
+From barry at python.org  Thu May 23 14:02:01 2019
+From: barry at python.org (Barry Warsaw)
+Date: Thu, 23 May 2019 11:02:01 -0700
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+Message-ID: <BFB09280-A295-40BF-A6D0-14D495B527A4@python.org>
+
+On May 20, 2019, at 13:15, Christian Heimes <christian at python.org> wrote:
+> 
+> here is the first version of my PEP 594 to deprecate and eventually remove modules from the standard library. The PEP started last year with talk during the Python Language Summit 2018, https://lwn.net/Articles/755229/.
+> 
+> The PEP can be confirmed in two stages. I'm not planning any code changes for 3.8. Instead I only like to document a bunch of modules as deprecated. Active deprecation is planned for 3.9 and removal for 3.10. The long deprecation phase gives us 3 years to change our minds or handle edge cases, too.
+
+Hi Christian,
+
+First, I appreciate the work you?ve done on this, and the general sentiment.  But I do feel like this is a partial solution to a problem the Python distribution has had for a very long time.  Maybe it?s a good step forward, but in a sense it is incomplete and only chips away at the problem.
+
+We have two competing pressures, one to provide a rich standard library with lots of useful features that come right out of the box.  Let?s not underestimate the value that this has for our users, and the contribution such a stdlib has made to making Python as popular as it is.
+
+But it?s also true that lots of the stdlib don?t get the love they need to stay relevant, and a curated path to keeping only the most useful and modern libraries.  I wonder how much the long development cycle and relatively big overhead for contributing to stdlib maintenance causes a big part of our headaches with the stdlib.  Current stdlib development processes also incur burden for alternative implementations.
+
+We?ve had many ideas over the years, such as stripping the CPython repo stdlib to its bare minimum and providing some way of *distributing* a sumo tarball.  But none have made it far enough to be adopted.  I don?t have any new bright ideas for how to make this work, but I think finding a holistic approach to these competing pressures is in the best long term interest of Python.
+
+That all said, if PEP 594 can be viewed as part of the bigger picture, then maybe it?s a good idea.  Perhaps the approaches for maintaining such deprecated libraries can be used as an experiment for finding a more modern, useful, and vibrant approach to stdlib maintenance.
+
+Cheers,
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/cd2a158f/attachment.sig>
+
+From greg at krypto.org  Thu May 23 14:49:43 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Thu, 23 May 2019 11:49:43 -0700
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAExdVNnunjcbPSJ7XQHykcqghmq=j2deF711kdmL1Z_Fc29tdQ@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <CAExdVNnunjcbPSJ7XQHykcqghmq=j2deF711kdmL1Z_Fc29tdQ@mail.gmail.com>
+Message-ID: <CAGE7PNL07HgQg2K6xdR9=0rEpYhHJNsnzv14YK_Um11R2Ryrmg@mail.gmail.com>
+
+I suggest filing a bug to track this...
+
+On Thu, May 23, 2019 at 10:13 AM Tim Peters <tim.peters at gmail.com> wrote:
+
+> [Inada Naoki <songofacandy at gmail.com>]
+> > ...
+> > 2. This loop is cleary hot:
+> >
+> https://github.com/python/cpython/blob/51aa35e9e17eef60d04add9619fe2a7eb938358c/Objects/obmalloc.c#L1816-L1819
+>
+> Which is 3 lines of code plus a closing brace.  The OP didn't build
+> their own Python, and the source from which it was compiled wasn't
+> available to them.  But they did say that when they got into gdb and
+> single-stepped, it was looping through the same three lines of code,
+> in obmalloc.c, over & over.  Which is 100% consistent with the loop
+> you identified as being "the hot spot".
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/greg%40krypto.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/aea31729/attachment.html>
+
+From steve at holdenweb.com  Thu May 23 15:25:13 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Thu, 23 May 2019 20:25:13 +0100
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <HE1PR05MB32111928324AFAE7076D2366B4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+References: <HE1PR05MB32111928324AFAE7076D2366B4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+Message-ID: <CAMofdRDaeS_uiT4_z8Upr1JLK8A2HAGK2W=yL1ckVU4JQoenLg@mail.gmail.com>
+
+Besides which, it would be lovely to have a major release that didn't
+involve any pain at all for the majority of users!
+
+Our erstwhile BDFL always eschewed two-digit version identifiers-  due to
+the possibility for confusion about collating sequence, I beleive.. We
+should honour his preferences by going from 3.9 to 4.0.
+
+
+On Thu, May 23, 2019 at 5:49 PM Anders Munch <ajm at flonidan.dk> wrote:
+
+> Fra: Paul Moore [mailto:p.f.moore at gmail.com]:
+> > > A major version change serves as a heads up that something is going on
+> and you need to check the consequences before upgrading.
+> > Python's backward compatibility policy allows breaking changes between
+> versions X.Y and X.Y+1 (with a suitable deprecation period). This proposal
+> is no different.
+>
+> Except perhaps in scale.  The same people that upgrade from 3.x to 3.x+1
+> without giving it a second thought, just to be on the latest version, will
+> hesitate to go from 3.x to 4.y, because the major version change is a hint
+> that they should be more careful.  That means they're ready for it when
+> they get the ModuleNotFoundError exception, instead of feeling ambushed.
+>
+> OK, it may be that this is not enough to warrant a 4.0 release, but I do
+> think python-dev should get over its fear of major versions sometime.  And
+> that transitioning to a leaner standard library with some things moved to
+> PyPI would not be a bad program statement for a Python 4.0.
+>
+> regards, Anders
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/9088eb8a/attachment.html>
+
+From steve at holdenweb.com  Thu May 23 15:28:54 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Thu, 23 May 2019 20:28:54 +0100
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <016601d5113d$87bd8740$973895c0$@sdamon.com>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <016601d5113d$87bd8740$973895c0$@sdamon.com>
+Message-ID: <CAMofdRCsn2H6P7PziV-oWcqDr-LuenPQ+tRgOBXf6ky5LVf_CQ@mail.gmail.com>
+
+It might also serve to identify those with an interest in maintaining the
+non-core packages, which might even be given some special status on PyPI.
+
+
+On Thu, May 23, 2019 at 9:01 AM Alex Walters <tritium-list at sdamon.com>
+wrote:
+
+> I've watched the entire thread and its taken me a few days to put a finger
+> on what bothers me about it.
+>
+> In my opinion, this shouldn't be a pep describing the list of modules that
+> need to go as "dead batteries", but should be a process pep describing how
+> dead batteries should be removed, and the individual modules should be
+> given
+> their own pep.  I think reactions to individual module peps will give a
+> better indication of if it's a used module or not.
+>
+> > -----Original Message-----
+> > From: Python-Dev <python-dev-bounces+tritium-
+> > list=sdamon.com at python.org> On Behalf Of Christian Heimes
+> > Sent: Monday, May 20, 2019 4:15 PM
+> > To: Python Dev <Python-Dev at python.org>
+> > Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+> > library
+> >
+> > Hi,
+> >
+> > here is the first version of my PEP 594 to deprecate and eventually
+> remove
+> > modules from the standard library. The PEP started last year with talk
+> during
+> > the Python Language Summit 2018, https://lwn.net/Articles/755229/.
+> >
+> > The PEP can be confirmed in two stages. I'm not planning any code changes
+> > for 3.8. Instead I only like to document a bunch of modules as
+> deprecated.
+> > Active deprecation is planned for 3.9 and removal for 3.10. The long
+> > deprecation phase gives us 3 years to change our minds or handle edge
+> > cases, too.
+> >
+> > Regards,
+> > Christian
+> >
+> >
+> >
+>
+> ----------------------------------------------------------------------------
+> > PEP: 594
+> > Title: Removing dead batteries from the standard library
+> > Author: Christian Heimes <christian at python.org>
+> > Status: Active
+> > Type: Process
+> > Content-Type: text/x-rst
+> > Created: 20-May-2019
+> > Post-History:
+> >
+> >
+> > Abstract
+> > ========
+> >
+> > This PEP proposed a list of standard library modules to be removed from
+> the
+> > standard library. The modules are mostly historic data formats and APIs
+> that
+> > have been superseded a long time ago, e.g. Mac OS 9 and Commodore.
+> >
+> >
+> > Rationale
+> > =========
+> >
+> > Back in the early days of Python, the interpreter came with a large set
+> of
+> > useful modules. This was often refrained to as "batteries included"
+> > philosophy and was one of the corner stones to Python's success story.
+> > Users didn't have to figure out how to download and install separate
+> > packages in order to write a simple web server or parse email.
+> >
+> > Times have changed. The introduction of the cheese shop (PyPI),
+> setuptools,
+> > and later pip, it became simple and straight forward to download and
+> install
+> > packages. Nowadays Python has a rich and vibrant ecosystem of third party
+> > packages. It's pretty much standard to either install packages from PyPI
+> or
+> > use one of the many Python or Linux distributions.
+> >
+> > On the other hand, Python's standard library is piling up cruft,
+> unnecessary
+> > duplication of functionality, and dispensable features. This is
+> undesirable
+> > for several reasons.
+> >
+> > * Any additional module increases the maintenance cost for the Python
+> core
+> >   development team. The team has limited resources, reduced maintenance
+> > cost
+> >   frees development time for other improvements.
+> > * Modules in the standard library are generally favored and seen as the
+> >   de-facto solution for a problem. A majority of users only pick 3rd
+> party
+> >   modules to replace a stdlib module, when they have a compelling reason,
+> > e.g.
+> >   lxml instead of `xml`. The removal of an unmaintained stdlib module
+> >   increases the chances of a community contributed module to become
+> > widely
+> >   used.
+> > * A lean and mean standard library benefits platforms with limited
+> resources
+> >   like devices with just a few hundred kilobyte of storage (e.g. BBC
+> >   Micro:bit). Python on mobile platforms like BeeWare or WebAssembly
+> >   (e.g. pyodide) also benefit from reduced download size.
+> >
+> > The modules in the PEP have been selected for deprecation because their
+> > removal is either least controversial or most beneficial. For example
+> > least controversial are 30 years old multimedia formats like ``sunau``
+> > audio format, which was used on SPARC and NeXT workstations in the late
+> > 1980ties. The ``crypt`` module has fundamental flaws that are better
+> solved
+> > outside the standard library.
+> >
+> > This PEP also designates some modules as not scheduled for removal. Some
+> > modules have been deprecated for several releases or seem unnecessary at
+> > first glance. However it is beneficial to keep the modules in the
+> standard
+> > library, mostly for environments where installing a package from PyPI is
+> not
+> > an option. This can be cooperate environments or class rooms where
+> > external
+> > code is not permitted without legal approval.
+> >
+> > * The usage of FTP is declining, but some files are still provided over
+> >   the FTP protocol or hosters offer FTP to upload content. Therefore
+> >   ``ftplib`` is going to stay.
+> > * The ``optparse`` and ``getopt`` module are widely used. They are mature
+> >   modules with very low maintenance overhead.
+> > * According to David Beazley [5]_ the ``wave`` module is easy to teach to
+> >   kids and can make crazy sounds. Making a computer generate crazy sounds
+> > is
+> >   powerful and highly motivating exercise for a 9yo aspiring developer.
+> It's
+> >   a fun battery to keep.
+> >
+> >
+> > Deprecation schedule
+> > ====================
+> >
+> > 3.8
+> > ---
+> >
+> > This PEP targets Python 3.8. Version 3.8.0 final is scheduled to be
+> released
+> > a few months before Python 2.7 will reach its end of lifetime. We expect
+> that
+> > Python 3.8 will be targeted by users that migrate to Python 3 in 2019 and
+> > 2020. To reduce churn and to allow a smooth transition from Python 2,
+> > Python 3.8 will neither raise `DeprecationWarning` nor remove any
+> > modules that have been scheduled for removal. Instead deprecated
+> > modules will
+> > just be *documented* as deprecated. Optionally modules may emit a
+> > `PendingDeprecationWarning`.
+> >
+> > All deprecated modules will also undergo a feature freeze. No additional
+> > features should be added. Bug should still be fixed.
+> >
+> > 3.9
+> > ---
+> >
+> > Starting with Python 3.9, deprecated modules will start issuing
+> > `DeprecationWarning`.
+> >
+> >
+> > 3.10
+> > ----
+> >
+> > In 3.10 all deprecated modules will be removed from the CPython
+> repository
+> > together with tests, documentation, and autoconf rules.
+> >
+> >
+> > PEP acceptance process
+> > ======================
+> >
+> > 3.8.0b1 is scheduled to be release shortly after the PEP is officially
+> > submitted. Since it's improbable that the PEP will pass all stages of the
+> > PEP process in time, I propose a two step acceptance process that is
+> > analogous Python's two release deprecation process.
+> >
+> > The first *provisionally accepted* phase targets Python 3.8.0b1. In the
+> first
+> > phase no code is changes or removed. Modules are only documented as
+> > deprecated.
+> >
+> > The final decision, which modules will be removed and how the removed
+> > code
+> > is preserved, can be delayed for another year.
+> >
+> >
+> > Deprecated modules
+> > ==================
+> >
+> > The modules are grouped as data encoding, multimedia, network, OS
+> > interface,
+> > and misc modules. The majority of modules are for old data formats or
+> > old APIs. Some others are rarely useful and have better replacements on
+> > PyPI, e.g. Pillow for image processing or NumPy-based projects to deal
+> with
+> > audio processing.
+> >
+> > .. csv-table:: Table 1: Proposed modules deprecations
+> >    :header: "Module", "Deprecated in", "To be removed", "Replacement"
+> >
+> >     aifc,3.8,3.10,\-
+> >     asynchat,3.8,3.10,asyncio
+> >     asyncore,3.8,3.10,asyncio
+> >     audioop,3.8,3.10,\-
+> >     binhex,3.8,3.10,\-
+> >     cgi,3.8,3.10,\-
+> >     cgitb,3.8,3.10,\-
+> >     chunk,3.8,3.10,\-
+> >     colorsys,**3.8?**,**3.10?**,\-
+> >     crypt,3.8,3.10,\-
+> >     fileinput,3.8,3.10,argparse
+> >     formatter,3.4,3.10,\-
+> >     fpectl,**3.7**,**3.7**,\-
+> >     getopt,**3.2**,**keep**,"argparse, optparse"
+> >     imghdr,3.8,3.10,\-
+> >     imp,**3.4**,3.10,importlib
+> >     lib2to3,\-,**keep**,
+> >     macpath,**3.7**,**3.8**,\-
+> >     msilib,3.8,3.10,\-
+> >     nntplib,3.8,3.10,\-
+> >     nis,3.8,3.10,\-
+> >     optparse,\-,**keep**,argparse
+> >     ossaudiodev,3.8,3.10,\-
+> >     pipes,3.8,3.10,subprocess
+> >     smtpd,**3.7**,3.10,aiosmtpd
+> >     sndhdr,3.8,3.10,\-
+> >     spwd,3.8,3.10,\-
+> >     sunau,3.8,3.10,\-
+> >     uu,3.8,3.10,\-
+> >     wave,\-,**keep**,
+> >     xdrlib,3.8,3.10,\-
+> >
+> >
+> > Data encoding modules
+> > ---------------------
+> >
+> > binhex
+> > ~~~~~~
+> >
+> > The `binhex <https://docs.python.org/3/library/binhex.html>`_ module
+> > encodes
+> > and decodes Apple Macintosh binhex4 data. It was originally developed for
+> > TSR-80. In the 1980s and early 1990s it was used on classic Mac OS 9 to
+> > encode binary email attachments.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> > uu
+> > ~~
+> >
+> > The `uu <https://docs.python.org/3/library/uu.html>`_ module provides
+> > uuencode format, an old binary encoding format for email from 1980. The
+> uu
+> > format has been replaced by MIME. The uu codec is provided by the
+> binascii
+> > module.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> > xdrlib
+> > ~~~~~~
+> >
+> > The `xdrlib <https://docs.python.org/3/library/xdrlib.html>`_ module
+> > supports
+> > the Sun External Data Representation Standard. XDR is an old binary
+> > serialization format from 1987. These days it's rarely used outside
+> > specialized domains like NFS.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> >
+> > Multimedia modules
+> > ------------------
+> >
+> > aifc
+> > ~~~~
+> >
+> > The `aifc <https://docs.python.org/3/library/aifc.html>`_ module
+> provides
+> > support for reading and writing AIFF and AIFF-C files. The Audio
+> Interchange
+> > File Format is an old audio format from 1988 based on Amiga IFF. It was
+> most
+> > commonly used on the Apple Macintosh. These days only few specialized
+> > application use AIFF.
+> >
+> > Module type
+> >   pure Python (depends on `audioop`_ C extension)
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> > audioop
+> > ~~~~~~~
+> >
+> > The `audioop <https://docs.python.org/3/library/audioop.html>`_ module
+> > contains helper functions to manipulate raw audio data and adaptive
+> > differential pulse-code modulated audio data. The module is implemented
+> in
+> > C without any additional dependencies. The `aifc`_, `sunau`_, and `wave`_
+> > module depend on `audioop`_ for some operations.
+> >
+> > Module type
+> >   C extension
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> > colorsys
+> > ~~~~~~~~
+> >
+> > The `colorsys <https://docs.python.org/3/library/colorsys.html>`_ module
+> > defines color conversion functions between RGB, YIQ, HSL, and HSV
+> > coordinate
+> > systems. The Pillow library provides much faster conversation between
+> > color systems.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   `Pillow <https://pypi.org/project/Pillow/>`_,
+> >   `colorspacious <https://pypi.org/project/colorspacious/>`_
+> >
+> > chunk
+> > ~~~~~
+> >
+> > The `chunk <https://docs.python.org/3/library/chunk.html>`_ module
+> > provides
+> > support for reading and writing Electronic Arts' Interchange File Format.
+> > IFF is an old audio file format originally introduced for Commodore and
+> > Amiga. The format is no longer relevant.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> > imghdr
+> > ~~~~~~
+> >
+> > The `imghdr <https://docs.python.org/3/library/imghdr.html>`_ module is
+> a
+> > simple tool to guess the image file format from the first 32 bytes
+> > of a file or buffer. It supports only a limited amount of formats and
+> > neither returns resolution nor color depth.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   *n/a*
+> >
+> > ossaudiodev
+> > ~~~~~~~~~~~
+> >
+> > The `ossaudiodev <https://docs.python.org/3/library/ossaudiodev.html>`_
+> > module provides support for Open Sound System, an interface to sound
+> > playback and capture devices. OSS was initially free software, but later
+> > support for newer sound devices and improvements were proprietary. Linux
+> > community abandoned OSS in favor of ALSA [1]_. Some operation systems
+> > like
+> > OpenBSD and NetBSD provide an incomplete [2]_ emulation of OSS.
+> >
+> > Module type
+> >   C extension
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> > sndhdr
+> > ~~~~~~
+> >
+> > The `sndhdr <https://docs.python.org/3/library/sndhdr.html>`_ module is
+> > similar to the `imghdr`_ module but for audio formats. It guesses file
+> > format, channels, frame rate, and sample widths from the first 512 bytes
+> of
+> > a file or buffer. The module only supports AU, AIFF, HCOM, VOC, WAV, and
+> > other ancient formats.
+> >
+> > Module type
+> >   pure Python (depends on `audioop`_ C extension for some operations)
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   *n/a*
+> >
+> > sunau
+> > ~~~~~
+> >
+> > The `sunau <https://docs.python.org/3/library/sunhdr.html>`_ module
+> > provides
+> > support for Sun AU sound format. It's yet another old, obsolete file
+> format.
+> >
+> > Module type
+> >   pure Python (depends on `audioop`_ C extension for some operations)
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> >
+> > Networking modules
+> > ------------------
+> >
+> > asynchat
+> > ~~~~~~~~
+> >
+> > The `asynchat <https://docs.python.org/3/library/asynchat.html>`_ module
+> > is build on top of `asyncore`_ and has been deprecated since Python 3.6.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.6
+> > Removed in
+> >   3.10
+> > Substitute
+> >   asyncio
+> >
+> > asyncore
+> > ~~~~~~~~
+> >
+> > The `asyncore <https://docs.python.org/3/library/asyncore.html>`_ module
+> > was
+> > the first module for asynchronous socket service clients and servers. It
+> > has been replaced by asyncio and is deprecated since Python 3.6.
+> >
+> > The ``asyncore`` module is also used in stdlib tests. The tests for
+> > ``ftplib``, ``logging``, ``smptd``, ``smtplib``, and ``ssl`` are partly
+> > based on ``asyncore``. These tests must be updated to use asyncio or
+> > threading.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.6
+> > Removed in
+> >   3.10
+> > Substitute
+> >   asyncio
+> >
+> >
+> > cgi
+> > ~~~
+> >
+> > The `cgi <https://docs.python.org/3/library/cgi.html>`_ module is a
+> support
+> > module for Common Gateway Interface (CGI) scripts. CGI is deemed as
+> > inefficient because every incoming request is handled in a new process.
+> PEP
+> > 206 considers the module as *designed poorly and are now near-impossible
+> > to fix*.
+> >
+> > Several people proposed to either keep the cgi module for features like
+> > `cgi.parse_qs()` or move `cgi.escape()` to a different module. The
+> > functions `cgi.parse_qs` and `cgi.parse_qsl` have been
+> > deprecated for a while and are actually aliases for
+> > `urllib.parse.parse_qs` and `urllib.parse.parse_qsl`. The
+> > function `cgi.quote` has been deprecated in favor of `html.quote`
+> > with secure default values.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> >
+> > cgitb
+> > ~~~~~
+> >
+> > The `cgitb <https://docs.python.org/3/library/cgitb.html>`_ module is a
+> > helper for the cgi module for configurable tracebacks.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> > smtpd
+> > ~~~~~
+> >
+> > The `smtpd <https://docs.python.org/3/library/smtpd.html>`_ module
+> > provides
+> > a simple implementation of a SMTP mail server. The module documentation
+> > recommends ``aiosmtpd``.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   **3.7**
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   aiosmtpd
+> >
+> > nntplib
+> > ~~~~~~~
+> >
+> > The `nntplib <https://docs.python.org/3/library/nntplib.html>`_ module
+> > implements the client side of the Network News Transfer Protocol (nntp).
+> > News
+> > groups used to be a dominant platform for online discussions. Over the
+> last
+> > two decades, news has been slowly but steadily replaced with mailing
+> lists
+> > and web-based discussion platforms.
+> >
+> > The ``nntplib`` tests have been the cause of additional work in the
+> recent
+> > past. Python only contains client side of NNTP. The test cases depend on
+> > external news server. These servers were unstable in the past.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> >
+> > Operating system interface
+> > --------------------------
+> >
+> > crypt
+> > ~~~~~
+> >
+> > The `crypt <https://docs.python.org/3/library/crypt.html>`_ module
+> > implements
+> > password hashing based on ``crypt(3)`` function from ``libcrypt`` or
+> > ``libxcrypt`` on Unix-like platform. The algorithms are mostly old, of
+> poor
+> > quality and insecure. Users are discouraged to use them.
+> >
+> > * The module is not available on Windows. Cross-platform application need
+> >   an alternative implementation any way.
+> > * Only DES encryption is guarenteed to be available. DES has an extremely
+> >   limited key space of 2**56.
+> > * MD5, salted SHA256, salted SHA512, and Blowfish are optional extension.
+> >   SSHA256 and SSHA512 are glibc extensions. Blowfish (bcrypt) is the only
+> >   algorithm that is still secure. However it's in glibc and therefore not
+> >   commonly available on Linux.
+> > * Depending on the platform, the ``crypt`` module is not thread safe.
+> Only
+> >   implementations with ``crypt_r(3)`` are thread safe.
+> >
+> > Module type
+> >   C extension + Python module
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   `bcrypt <https://pypi.org/project/bcrypt/>`_,
+> >   `passlib <https://pypi.org/project/passlib/>`_,
+> >   `argon2cffi <https://pypi.org/project/argon2-cffi/>`_,
+> >   hashlib module (PBKDF2, scrypt)
+> >
+> > macpath
+> > ~~~~~~~
+> >
+> > The `macpath <https://docs.python.org/3/library/macpath.html>`_ module
+> > provides Mac OS 9 implementation of os.path routines. Mac OS 9 is no
+> longer
+> > supported
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.7
+> > Removed in
+> >   3.8
+> > Substitute
+> >   **none**
+> >
+> > nis
+> > ~~~
+> >
+> > The `nis <https://docs.python.org/3/library/nis.html>`_ module provides
+> > NIS/YP support. Network Information Service / Yellow Pages is an old and
+> > deprecated directory service protocol developed by Sun Microsystems. It's
+> > designed successor NIS+ from 1992 never took off. For a long time, libc's
+> > Name Service Switch, LDAP, and Kerberos/GSSAPI are considered a more
+> > powerful
+> > and more secure replacement of NIS.
+> >
+> > Module type
+> >   C extension
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> > spwd
+> > ~~~~
+> >
+> > The `spwd <https://docs.python.org/3/library/spwd.html>`_ module
+> > provides
+> > direct access to Unix shadow password database using non-standard APIs.
+> > In general it's a bad idea to use the spwd. The spwd circumvents system
+> > security policies, it does not use the PAM stack, and is
+> > only compatible with local user accounts.
+> >
+> > Module type
+> >   C extension
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> > Misc modules
+> > ------------
+> >
+> > fileinput
+> > ~~~~~~~~~
+> >
+> > The `fileinput <https://docs.python.org/3/library/fileinput.html>`_
+> module
+> > implements a helpers to iterate over a list of files from ``sys.argv``.
+> The
+> > module predates the optparser and argparser module. The same
+> > functionality
+> > can be implemented with the argparser module.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   argparse
+> >
+> > formatter
+> > ~~~~~~~~~
+> >
+> > The `formatter <https://docs.python.org/3/library/formatter.html>`_
+> > module
+> > is an old text formatting module which has been deprecated since Python
+> > 3.4.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.4
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   *n/a*
+> >
+> > imp
+> > ~~~
+> >
+> > The `imp <https://docs.python.org/3/library/imp.html>`_ module is the
+> > predecessor of the
+> > `importlib <https://docs.python.org/3/library/importlib.html>`_ module.
+> > Most
+> > functions have been deprecated since Python 3.3 and the module since
+> > Python 3.4.
+> >
+> > Module type
+> >   C extension
+> > Deprecated in
+> >   3.4
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   importlib
+> >
+> > msilib
+> > ~~~~~~
+> >
+> > The `msilib <https://docs.python.org/3/library/msilib.html>`_ package
+> is a
+> > Windows-only package. It supports the creation of Microsoft Installers
+> (MSI).
+> > The package also exposes additional APIs to create cabinet files (CAB).
+> The
+> > module is used to facilitate distutils to create MSI installers with
+> > ``bdist_msi`` command. In the past it was used to create CPython's
+> official
+> > Windows installer, too.
+> >
+> > Microsoft is slowly moving away from MSI in favor of Windows 10 Apps
+> > (AppX)
+> > as new deployment model [3]_.
+> >
+> > Module type
+> >   C extension + Python code
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   **none**
+> >
+> > pipes
+> > ~~~~~
+> >
+> > The `pipes <https://docs.python.org/3/library/pipes.html>`_ module
+> > provides
+> > helpers to pipe the input of one command into the output of another
+> > command.
+> > The module is built on top of ``os.popen``. Users are encouraged to use
+> > the subprocess module instead.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   subprocess module
+> >
+> > Removed modules
+> > ===============
+> >
+> > fpectl
+> > ------
+> >
+> > The `fpectl <https://docs.python.org/3.6/library/fpectl.html>`_ module
+> was
+> > never built by default, its usage was discouraged and considered
+> dangerous.
+> > It also required a configure flag that caused an ABI incompatibility. The
+> > module was removed in 3.7 by Nathaniel J. Smith in
+> > `bpo-29137 <https://bugs.python.org/issue29137>`_.
+> >
+> > Module type
+> >   C extension + CAPI
+> > Deprecated in
+> >   3.7
+> > Removed in
+> >   3.7
+> > Substitute
+> >   **none**
+> >
+> >
+> > Modules to keep
+> > ===============
+> >
+> > Some modules were originally proposed for deprecation.
+> >
+> > lib2to3
+> > -------
+> >
+> > The `lib2to3 <https://docs.python.org/3/library/2to3.html>`_ package
+> > provides
+> > the ``2to3`` command to transpile Python 2 code to Python 3 code.
+> >
+> > The package is useful for other tasks besides porting code from Python 2
+> to
+> > 3. For example `black`_ uses it for code reformatting.
+> >
+> > Module type
+> >   pure Python
+> >
+> > getopt
+> > ------
+> >
+> > The `getopt <https://docs.python.org/3/library/getopt.html>`_ module
+> > mimics
+> > C's getopt() option parser. Although users are encouraged to use argparse
+> > instead, the getopt module is still widely used.
+> >
+> > Module type
+> >   pure Python
+> >
+> > optparse
+> > --------
+> >
+> > The `optparse <https://docs.python.org/3/library/optparse.html>`_ module
+> > is
+> > the predecessor of the argparse module. Although it has been deprecated
+> > for
+> > many years, it's still widely used.
+> >
+> > Module type
+> >   pure Python
+> > Deprecated in
+> >   3.2
+> > Substitute
+> >   argparse
+> >
+> > wave
+> > ~~~~
+> >
+> > The `wave <https://docs.python.org/3/library/wave.html>`_ module
+> > provides
+> > support for the WAV sound format. The module uses one simple function
+> > from the `audioop`_ module to perform byte swapping between little and
+> > big
+> > endian formats. Before 24 bit WAV support was added, byte swap used to be
+> > implemented with the ``array`` module. To remove ``wave``'s dependency on
+> > the
+> > ``audioop``, the byte swap function could be either be moved to another
+> > module (e.g. ``operator``) or the ``array`` module could gain support for
+> > 24 bit (3 byte) arrays.
+> >
+> > Module type
+> >   pure Python (depends on *byteswap* from `audioop`_ C extension)
+> > Deprecated in
+> >   3.8
+> > To be removed in
+> >   3.10
+> > Substitute
+> >   *n/a*
+> >
+> >
+> > Future maintenance of removed modules
+> > =====================================
+> >
+> > The main goal of the PEP is to reduce the burden and workload on the
+> > Python
+> > core developer team. Therefore removed modules will not be maintained by
+> > the core team as separate PyPI packages. However the removed code, tests
+> > and
+> > documentation may be moved into a new git repository, so community
+> > members
+> > have a place from which they can pick up and fork code.
+> >
+> > A first draft of a `legacylib <https://github.com/tiran/legacylib>`_
+> > repository is available on my private Github account.
+> >
+> > It's my hope that some of the deprecated modules will be picked up and
+> > adopted by users that actually care about them. For example ``colorsys``
+> and
+> > ``imghdr`` are useful modules, but have limited feature set. A fork of
+> > ``imghdr`` can add new features and support for more image formats,
+> > without
+> > being constrained by Python's release cycle.
+> >
+> > Most of the modules are in pure Python and can be easily packaged. Some
+> > depend on a simple C module, e.g. `audioop`_ and `crypt`_. Since
+> `audioop`_
+> > does not depend on any external libraries, it can be shipped in as binary
+> > wheels with some effort. Other C modules can be replaced with ctypes or
+> > cffi.
+> > For example I created `legacycrypt
+> <https://github.com/tiran/legacycrypt>`_
+> > with ``_crypt`` extension reimplemented with a few lines of ctypes code.
+> >
+> >
+> > Discussions
+> > ===========
+> >
+> > * Elana Hashman and Nick Coghlan suggested to keep the *getopt* module.
+> > * Berker Peksag proposed to deprecate and removed *msilib*.
+> > * Brett Cannon recommended to delay active deprecation warnings and
+> > removal
+> >   of modules like *imp* until Python 3.10. Version 3.8 will be released
+> >   shortly before Python 2 reaches end of lifetime. A delay reduced churn
+> for
+> >   users that migrate from Python 2 to 3.8.
+> > * Brett also came up with the idea to keep lib2to3. The package is useful
+> >   for other purposes, e.g. `black <https://pypi.org/project/black/>`_
+> uses
+> >   it to reformat Python code.
+> > * At one point, distutils was mentioned in the same sentence as this PEP.
+> >   To avoid lengthy discussion and delay of the PEP, I decided against
+> dealing
+> >   with distutils. Deprecation of the distutils package will be handled by
+> >   another PEP.
+> > * Multiple people (Gregory P. Smith, David Beazley, Nick Coghlan, ...)
+> >   convinced me to keep the `wave`_ module. [4]_
+> > * Gregory P. Smith proposed to deprecate `nntplib`_. [4]_
+> >
+> >
+> > References
+> > ==========
+> >
+> > .. [1]
+> > https://en.wikipedia.org/wiki/Open_Sound_System#Free,_proprietary,_fre
+> > e
+> > .. [2] https://man.openbsd.org/ossaudio
+> > .. [3]
+> https://blogs.msmvps.com/installsite/blog/2015/05/03/the-future-of-
+> > windows-installer-msi-in-the-light-of-windows-10-and-the-universal-
+> > windows-platform/
+> > .. [4] https://twitter.com/ChristianHeimes/status/1130257799475335169
+> > .. [5] https://twitter.com/dabeaz/status/1130278844479545351
+> >
+> >
+> > Copyright
+> > =========
+> >
+> > This document has been placed in the public domain.
+> >
+> >
+> >
+> >
+> > ..
+> >    Local Variables:
+> >    mode: indented-text
+> >    indent-tabs-mode: nil
+> >    sentence-end-double-space: t
+> >    fill-column: 70
+> >    coding: utf-8
+> >    End:
+> >
+> >
+> > _______________________________________________
+> > Python-Dev mailing list
+> > Python-Dev at python.org
+> > https://mail.python.org/mailman/listinfo/python-dev
+> > Unsubscribe: https://mail.python.org/mailman/options/python-dev/tritium-
+> > list%40sdamon.com
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/b432a524/attachment-0001.html>
+
+From steve at holdenweb.com  Thu May 23 15:32:08 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Thu, 23 May 2019 20:32:08 +0100
+Subject: [Python-Dev] PEP 594: Removing dead batteries from the standard
+ library
+In-Reply-To: <BFB09280-A295-40BF-A6D0-14D495B527A4@python.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <BFB09280-A295-40BF-A6D0-14D495B527A4@python.org>
+Message-ID: <CAMofdRDqsv-kw-XceHSaLX3oWkFZu56J_BKdZdJC8_TK5CfcMA@mail.gmail.com>
+
+What would _really_ help is getting the groups that maintain each dead
+parrot to collaborate on a "Python Legacy release" that adds back anything
+with a maintainer to the stdlib of the current Python version.
+
+Even that will demand large resources, and if it's to be organised in a way
+that doesn't involve lots of dev time then perhaps the PSF could be
+involved? I presume the Steering Committee are the people to consider
+directions like this.
+
+Steve Holden
+
+
+On Thu, May 23, 2019 at 7:03 PM Barry Warsaw <barry at python.org> wrote:
+
+> On May 20, 2019, at 13:15, Christian Heimes <christian at python.org> wrote:
+> >
+> > here is the first version of my PEP 594 to deprecate and eventually
+> remove modules from the standard library. The PEP started last year with
+> talk during the Python Language Summit 2018,
+> https://lwn.net/Articles/755229/.
+> >
+> > The PEP can be confirmed in two stages. I'm not planning any code
+> changes for 3.8. Instead I only like to document a bunch of modules as
+> deprecated. Active deprecation is planned for 3.9 and removal for 3.10. The
+> long deprecation phase gives us 3 years to change our minds or handle edge
+> cases, too.
+>
+> Hi Christian,
+>
+> First, I appreciate the work you?ve done on this, and the general
+> sentiment.  But I do feel like this is a partial solution to a problem the
+> Python distribution has had for a very long time.  Maybe it?s a good step
+> forward, but in a sense it is incomplete and only chips away at the problem.
+>
+> We have two competing pressures, one to provide a rich standard library
+> with lots of useful features that come right out of the box.  Let?s not
+> underestimate the value that this has for our users, and the contribution
+> such a stdlib has made to making Python as popular as it is.
+>
+> But it?s also true that lots of the stdlib don?t get the love they need to
+> stay relevant, and a curated path to keeping only the most useful and
+> modern libraries.  I wonder how much the long development cycle and
+> relatively big overhead for contributing to stdlib maintenance causes a big
+> part of our headaches with the stdlib.  Current stdlib development
+> processes also incur burden for alternative implementations.
+>
+> We?ve had many ideas over the years, such as stripping the CPython repo
+> stdlib to its bare minimum and providing some way of *distributing* a sumo
+> tarball.  But none have made it far enough to be adopted.  I don?t have any
+> new bright ideas for how to make this work, but I think finding a holistic
+> approach to these competing pressures is in the best long term interest of
+> Python.
+>
+> That all said, if PEP 594 can be viewed as part of the bigger picture,
+> then maybe it?s a good idea.  Perhaps the approaches for maintaining such
+> deprecated libraries can be used as an experiment for finding a more
+> modern, useful, and vibrant approach to stdlib maintenance.
+>
+> Cheers,
+> -Barry
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/3c42b001/attachment.html>
+
+From ezio.melotti at gmail.com  Thu May 23 16:17:24 2019
+From: ezio.melotti at gmail.com (Ezio Melotti)
+Date: Thu, 23 May 2019 22:17:24 +0200
+Subject: [Python-Dev] PEP 595: Improving bugs.python.org
+Message-ID: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+
+Hello,
+Berker and I have been working on a PEP that suggests we keep using
+and improving bugs.python.org and Roundup instead of switching to
+GitHub Issues as proposed by PEP 581.
+
+The PEP covers:
+* What are the advantages of Roundup over GitHub issues;
+* What features are missing in Roundup and how can we add them;
+* Issues with PEP 581;
+* Issues with the migration plan proposed by PEP 588;
+
+The rendered version of PEP 595 is available at
+https://www.python.org/dev/peps/pep-0595/
+
+For reference, you can consult PEP 581 and 588 at
+https://www.python.org/dev/peps/pep-0581/ and
+https://www.python.org/dev/peps/pep-0588/
+
+The full text of the PEP is include below.  We are planning to update
+the PEP to include the feedback we receive and to update the status of
+features as we implement them (we also have a Google Summer of Code
+students working on it).
+
+Best Regards,
+Ezio Melotti
+
+
+================
+PEP: 595
+Title: Improving bugs.python.org
+Author: Ezio Melotti <ezio.melotti at gmail.com>, Berker Peksag
+<berker.peksag at gmail.com>
+Status: Draft
+Type: Process
+Content-Type: text/x-rst
+Created: 12-May-2019
+
+
+Abstract
+========
+
+This PEP proposes a list of improvements to make bugs.python.org
+more usable for contributors and core developers.  This PEP also
+discusses why remaining on Roundup should be preferred over
+switching to GitHub Issues, as proposed by :pep:`581`.
+
+
+Motivation
+==========
+
+On May 14th, 2019 :pep:`581` has been accepted [#]_ without much
+public discussion and without a clear consensus [#]_.  The PEP
+contains factual errors and doesn't address some of the
+issues that the migration to GitHub Issues might present.
+
+Given the scope of the migration, the amount of work required,
+and how it will negatively affect the workflow during the
+transition phase, this decision should be re-evaluated.
+
+
+Roundup advantages over GitHub Issues
+=====================================
+
+This section discusses reasons why Roundup should be preferred
+over GitHub Issues and Roundup features that are not available
+on GitHub Issues.
+
+* **Roundup is the status quo.**  Roundup has been an integral
+  part of the CPython workflow for years.  It is a stable product
+  that has been tested and customized to adapt to our needs as the
+  workflow evolved.
+
+  It is possible to gradually improve it and avoid the disruption
+  that a switch to a different system would inevitabily bring to
+  the workflow.
+
+* **Open-source and Python powered.**  Roundup is an open-source
+  project and is written in Python.  By using it and supporting
+  it, we also support the Python ecosystem.  Several features
+  developed for bpo have also been ported to upstream Roundup
+  over the years.
+
+* **Fully customizable.**  Roundup can be (and has been) fully
+  customized to fit our needs.
+
+* **Finer-grained access control.**  Roundup allows the creation
+  of different roles with different permissions (e.g. create,
+  view, edit, etc.) for each individual property, and users can
+  have multiple roles.
+
+* **Flexible UI.**  While Roundup UI might look dated, it is
+  convenient and flexible.
+
+  For example, on the issue page, each field (e.g. title, type,
+  versions, status, linked files and PRs, etc.) have appropriate
+  UI elements (input boxes, dropdowns, tables, etc.) that are
+  easy to set and also provide a convenient way to get info about
+  the issue at a glance.  The number of fields, their values, and
+  the UI element they use is also fully customizable.
+  GitHub only provides labels.
+
+  The issue list page presents the issues in a compact and easy
+  to read table with separate columns for different fields.  For
+  comparison, Roundup lists 50 issues in a screen, whereas GitHub
+  takes two screens to shows 25 issues.
+
+* **Advanced search.**  Roundup provides an accurate way to search
+  and filter by using any combination of issue fields.
+  It is also possible to customize the number of results and the
+  fields displayed in the table, and the sorting and grouping
+  (up to two levels).
+
+  bpo also provides predefined summaries (e.g. "Created by you",
+  "Assigned to you", etc.) and allows the creation of custom
+  search queries that can be conveniently accessed from the sidebar.
+
+* **Nosy list autocomplete.**  The nosy list has an autocomplete
+  feature that suggests maintainers and experts.  The suggestions
+  are automatically updated when the experts index [#]_ changes.
+
+* **Dependencies and Superseders.** Roundup allows to specify
+  dependencies that must be addressed before the current issues
+  can be closed and a superseder issue to easily mark duplicates
+  [#]_.  The list of dependencies can also be used to create
+  meta-issues that references several other sub-issues [#]_.
+
+
+Improving Roundup
+=================
+
+This section lists some of the issues mentioned by :pep:`581`
+and other desired features and discusses how they can be implemented
+by improving Roundup and/or our instance.
+
+* **REST API support.**  A REST API will make integration with other
+  services and the development of new tools and applications easiers.
+
+  Upstream Roundup now supports a REST API. Updating the tracker will
+  make the REST API available.
+
+* **GitHub login support.**  This will allow users to login
+  to bugs.python.org (bpo) without having to create a new account.
+  It will also solve issues with confirmation emails being marked
+  as spam, and provide two-factor authentication.
+
+  A patch to add this functionality is already available and is
+  being integrated at the time of writing [#]_.
+
+* **Markdown support and message preview and editing.**  This feature
+  will allow the use of Markdown in messages and the ability to
+  preview the message before the submission and edit it afterward.
+
+  This can be done, but it will take some work.  Possible solutions
+  have been proposed on the roundup-devel mailing list [#]_.
+
+* **"Remove me from nosy list" button.**  Add a button on issue pages
+  to remove self from the nosy list.
+
+  This feature will be added during GSoC 2019.
+
+* **Mobile friendly theme.**  Current theme of bugs.python.org looks
+  dated and it doesn't work well with mobile browsers.
+
+  A mobile-friendly theme that is more modern but still familiar
+  will be added.
+
+* **Add PR link to BPO emails.**  Currently bpo emails don't include
+  links to the corresponding PRs.
+
+  A patch [#]_ is available to change the content of the bpo emails
+  from::
+
+     components: +Tkinter
+     versions: +Python 3.4
+     pull_requests: +42
+
+  to::
+
+     components: +Tkinter
+     versions: +Python 3.4
+     pull_request: https://github.com/python/cpython/pull/341
+
+* **Python 3 support.**  Using Python 3 will make maintenance easier.
+
+  Upstream Roundup now supports Python 3. Updating the tracker will
+  allow us to switch to Python 3.  The instances will need to be
+  updated as well.
+
+* **Use upstream Roundup.**  We currently use a fork of Roundup with
+  a few modifications, most notably the GitHub integration.  If this
+  is ported upstream, we can start using upstream Roundup without
+  having to maintain our fork.
+
+
+PEP 581 issues
+==============
+
+This section addresses some errors and inaccuracies found in :pep:`581`.
+
+The "Why GitHub?" section of PEP 581 lists features currently
+available on GitHub Issues but not on Roundup.  Some of this features
+are currently supported:
+
+* "Ability to reply to issue and pull request conversations via email."
+
+  * Being able to reply by email has been one of the core features of
+    Roundup since the beginning.  It is also possible to create new
+    issues or close existing ones, set or modify fields, and add
+    attachments.
+
+* "Email notifications containing metadata, integrated with Gmail,
+  allowing systematic filtering of emails."
+
+  * Emails sent by Roundup contains metadata that can be used for
+    filtering.
+
+* "Additional privacy, such as offering the user a choice to hide an
+  email address, while still allowing communication with the user
+  through @-mentions."
+
+  * Email addresses are hidden by default to users that are not
+    registered.  Registered users can see other users' addresses
+    because we configured the tracker to show them.  It can easily
+    be changed if desired.  Users can still be added to the nosy
+    list by using their username even if their address is hidden.
+
+* "Ability to automatically close issues when a PR has been merged."
+
+  * The GitHub integration of Roundup automatically closes issues
+    when a commit that contains "fixes issue <id>" is merged.
+    (Alternative spellings such as "closes" or "bug" are also supported.)
+    See [#]_ for a recent example of this feature.
+
+* "Support for permalinks, allowing easy quoting and copying &
+  pasting of source code."
+
+  * Roundup has permalinks for issues, messages, attachments, etc.
+    In addition, Roundup allows to easily rewrite broken URLs in
+    messages (e.g. if the code hosting changes).
+
+* "Core developers, volunteers, and the PSF don't have to maintain the
+  issue infrastructure/site, giving us more time and resources to focus
+  on the development of Python."
+
+  * While this is partially true, additional resources are required to
+    write and maintain bots.
+
+    In some cases, bots are required to workaround GitHub's lack of
+    features rather than expanding. [#]_ was written
+    specifically to workaround GitHub's email integration.
+
+    Updating our bots to stay up-to-date with changes in the GitHub API
+    has also maintenance cost. [#]_ took two days to be fixed.
+
+    In addition, we will still need to maintain Roundup for bpo (even
+    if it becomes read-only) and for the other trackers
+    we currently host/maintain (Jython [#]_ and Roundup [#]_).
+
+The "Issues with Roundup / bpo" section of :pep:`581` lists some issues
+that have already been fixed:
+
+* "The upstream Roundup code is in Mercurial. Without any CI available,
+  it puts heavy burden on the few existing maintainers in terms of
+  reviewing, testing, and applying patches."
+
+  * While Roundup uses Mercurial by default, there is a git clone
+    available on GitHub [#]_.  Roundup also has CI available [#]_ [#]_.
+
+* "There is no REST API available. There is an open issue in Roundup for
+  adding REST API. Last activity was in 2016."
+
+  * The REST API has been integrated and it's now available in Roundup.
+
+* "Users email addresses are exposed. There is no option to mask it."
+
+  * Exposing addresses to registered and logged in users was a decision
+    taken when our instance was set up.
+
+    This has now been changed to make the email addresses hidden for
+    regular users too (Developers and Coordinators can still see them).
+    The "Email address"" column from the user listing page [#]_ has been
+    removed too.
+
+* "It sends a number of unnecessary emails and notifications, and it is
+  difficult, if not impossible, to configure."
+
+  * This can be configured.
+
+* "Creating an account has been a hassle. There have been reports of people
+  having trouble creating accounts or logging in."
+
+  * The main issue is confirmation emails being marked as spam.  Work has
+    been done to resolve the issue.
+
+Migration considerations
+========================
+
+This section describes issues with the migrations that might not
+have been addressed by :pep:`581` and :pep:`588`.
+
+:pep:`588` suggests to add a button to migrate issues to GitHub
+only when someone wants to keep working on them.  This approach
+has several issues:
+
+* bpo will need to be updated in order to add a button that,
+  once pressed, creates a new issue on GitHub, copies over all
+  the messages, attachments, and creates/adds label for the
+  existing fields.  Permissions will also need to be tweaked
+  to make individual issues read-only once they are migrated,
+  and to prevent users to create new accounts.
+
+* The issues will be split between two trackers; searching issues
+  will take significant more effort.
+
+* The conversion from Roundup to GitHub is lossy, unless all
+  the bpo fields are converted into labels or preserved somewhere
+  else.
+
+* bpo converts a number of references into links, including
+  issue, message, and PR IDs, changeset numbers, legacy SVN
+  revision numbers, paths to files in the repo, files in
+  tracebacks (detecting the correct branch), links to devguide
+  pages and sections [#]_.  This happens when messages are
+  requested so it is possible to create the correct link (e.g.
+  all the file links used to point to hg.python.org and now
+  point to GitHub).
+
+  If the links are hardcoded during the migration, it will be
+  difficult (if not impossible) to change them later.  If they
+  aren't, they will either be lost, or a tool to generate the
+  links and updating them will need to be written.
+
+* GitHub doesn't provide a way to set and preserve issue IDs
+  if they are migrated automatically with the use of a button.
+  (Some projects managed to preserve the IDs by contaacting
+  the GitHub staff and migrating the issues *en masse*.)
+
+* On top of the work and changes required to migrate to GitHub
+  issues, we will still need to keep running and maintaining
+  Roundup, for both our instance (read-only) and for the Jython
+  and Roundup trackers (read-write).
+
+
+In addition to the issues listed in the "Open issues" section of
+:pep:`588`, this issues will need to be addressed:
+
+* GitHub is properietary and there is risk of vendor lock-in.
+  Their business model might change and they could shut down
+  altogether.
+
+* Switching to GitHub Issues will likely increase the number of
+  invalid reports and increase the triaging effort.  This concern
+  has been raised in the past in a Zulip topic [#]_.
+
+  There have been already cases where people posted comments on
+  PRs that required moderators to mark them as off-topic or
+  disruptive, delete them altogether, and even lock the
+  conversation [#]_.
+
+* Roundup sends weekly reports to python-dev with a summary that
+  includes new issues, recent issues with no replies, recent
+  issues waiting for review, most discussed issues, closed issues,
+  and deltas for open/closed/total issue counts [#]_.  The report
+  provides an easy way to keep track of the tracker activity and
+  to make sure that issues that require attention are noticed.
+
+  The data collect by the weekly report is also use to generate
+  statistics and graphs that can be used to gain new insights [#]_.
+
+* There are currently two mailing lists where Roundup posts new
+  tracker issues and all messages respectively: new-bugs-announce
+  [#]_ and python-bugs-list [#]_.  A new system will need to be
+  developed to preserve this functionality.  These MLs offer
+  additional ways to keep track of the tracker activity.
+
+
+References
+==========
+
+.. [#] [Python-Dev] PEP 581 (Using GitHub issues for CPython) is accepted
+
+   https://mail.python.org/pipermail/python-dev/2019-May/157399.html
+
+.. [#] [python-committers] [Python-Dev] PEP 581 (Using GitHub issues
+   for CPython) is accepted
+
+   https://mail.python.org/pipermail/python-committers/2019-May/006755.html
+
+.. [#] Experts Index -- Python Devguide
+
+   https://devguide.python.org/experts/
+
+.. [#] An example of superseded issues:
+   "re.sub() replaces only several matches"
+
+   https://bugs.python.org/issue12078
+
+.. [#] An example of meta issue using dependencies to track sub-issues:
+   "Meta-issue: support of the android platform""
+
+   https://bugs.python.org/issue26865
+
+.. [#] Support logging in with GitHub
+
+   https://github.com/python/bugs.python.org/issues/7
+
+.. [#] Re: [Roundup-devel] PEP 581 and Google Summer of Code
+
+   https://sourceforge.net/p/roundup/mailman/message/36667828/
+
+.. [#] [Tracker-discuss] [issue624] bpo emails contain useless non-github
+       pull_request number - users want a link to actual github PR
+
+   https://mail.python.org/pipermail/tracker-discuss/2018-June/004547.html
+
+.. [#] The commit reported in msg342882 closes the issue (see the history below)
+
+   https://bugs.python.org/issue36951#msg342882
+
+.. [#] The cpython-emailer-webhook project
+
+   https://github.com/berkerpeksag/cpython-emailer-webhook
+
+.. [#] A recent incident caused by GitHub
+
+   https://github.com/python/bedevere/pull/163
+
+.. [#] Jython issue tracker
+
+   https://bugs.jython.org/
+
+.. [#] Roundup issue tracker
+
+   https://issues.roundup-tracker.org/
+
+.. [#] GitHub clone of Roundup
+
+   https://github.com/roundup-tracker/roundup
+
+.. [#] Travis-CI for Roundup
+
+   https://travis-ci.org/roundup-tracker/roundup) and codecov
+
+.. [#] Codecov for Roundup
+
+   https://codecov.io/gh/roundup-tracker/roundup/commits
+
+.. [#] User listing -- Python tracker
+
+   https://bugs.python.org/user?@sort=username
+
+.. [#] Generating Special Links in a Comment -- Python Devguide
+
+   https://devguide.python.org/triaging/#generating-special-links-in-a-comment
+
+.. [#] The New-bugs-announce mailing list
+
+   https://mail.python.org/mailman/listinfo/new-bugs-announce
+
+.. [#] The Python-bugs-list mailing list
+
+   https://mail.python.org/mailman/listinfo/python-bugs-list
+
+.. [#] An example of [Python-Dev] Summary of Python tracker Issues
+
+   https://mail.python.org/pipermail/python-dev/2019-May/157483.html
+
+.. [#] Issues stats -- Python tracker
+
+   https://bugs.python.org/issue?@template=stats
+
+.. [#] s/n ratio -- Python -- Zulip
+
+   https://python.zulipchat.com/#narrow/stream/130206-pep581/topic/s.2Fn.20ratio
+
+.. [#] For example this and other related PRs:
+
+   https://github.com/python/cpython/pull/9099
+
+
+Copyright
+=========
+
+This document has been placed in the public domain.
+
+..
+   Local Variables:
+   mode: indented-text
+   indent-tabs-mode: nil
+   sentence-end-double-space: t
+   fill-column: 70
+   coding: utf-8
+   End:
+
+From tim.peters at gmail.com  Thu May 23 16:39:25 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Thu, 23 May 2019 15:39:25 -0500
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+Message-ID: <CAExdVNk6u7uEfm9bVec7MSj_09e71eDXd+twgRX5zXjfnb0wow@mail.gmail.com>
+
+It seems pretty clear now that the primary cause is keeping arenas
+sorted by number of free pools. As deallocation goes on, the number of
+distinct "# of free pools" values decreases, leaving large numbers of
+arenas sharing the same value.  Then, e.g., if there are 10,000 arenas
+with 30 free pools remaining, and another pool is freed in one of
+them, its free pool count jumps to 31, and on average we have to crawl
+over 5,000 of its former peers to locate its new position in the list.
+
+Which is also consistent with what the OP saw, and I did too but in a
+much smaller case:  the longer deallocation goes on, the slower it
+gets (fewer and fewer Nodes freed per unit time).
+
+Which suggests a different - albeit related - approach:  it's not
+really the order of arenas that matters, but the partitioning of
+arenas by number of free pools.  So instead of a singly doubly linked
+list of arenas, have a vector of doubly linked lists, one list per
+possible number of free pools.  That's a fixed and relatively small
+number.  For example, even if all arena bytes could be used for pools
+(they can't be - there's bookkeeping info at the start of an arena),
+the maximum number of free pools in an arena would be 2**18 / 2**12 ==
+2**6 == 64.
+
+When a pool is freed, no big deal:  unlink the arena from its current
+list, and stick it in the list for the next higher number of free
+pools.  This, of course, is constant-time.
+
+Of course there are edge cases (e.g., if the area is entirely free, it
+should be given back to C instead), but they seem pretty obvious, and
+I haven't thought of a real problem.
+
+Tedious, though ;-)
+
+From brett at python.org  Thu May 23 17:06:13 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 23 May 2019 14:06:13 -0700
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <CAD3kds25fvFa-0DridAwyHxyUpMxECZMNNK+=WnG3q8gQ=mOdA@mail.gmail.com>
+References: <0acd0f02-ecff-8ea0-757b-30884b4ea8b0@python.org>
+ <20190521173112.503f4c91@fsol>
+ <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+ <CAP1=2W7T7n+y_zdJCF5OG0H55X0q+Jjq223UEv41CnNLRq+qHQ@mail.gmail.com>
+ <27ba695b-3219-a628-acef-4e0af649e2de@python.org>
+ <CAP1=2W4QX73S64LvbhP2UmymnLye2C93RGHhbgm+MZhMTp+00Q@mail.gmail.com>
+ <20190522121237.021cbec4@fsol>
+ <CAP1=2W53GAkoKp_3j3vT4uuuBsOmhRYeDwjR3n5Vss5b4n0tGg@mail.gmail.com>
+ <CAD3kds2wYjTpOB0rty4Lxf46t_oMd4phXaOUTjW_WDEJrv7i3Q@mail.gmail.com>
+ <CAPJVwBm8agWYEnXBu74ZEzv6W52PzRv3QFWPEwXa55MifY5cNw@mail.gmail.com>
+ <CAD3kds25fvFa-0DridAwyHxyUpMxECZMNNK+=WnG3q8gQ=mOdA@mail.gmail.com>
+Message-ID: <CAP1=2W6ero5WsbfHczr4o0+E0m6P7_=NtYVvFgt+2m5JThicBA@mail.gmail.com>
+
+On Wed, May 22, 2019 at 1:23 PM Sean Wallitsch <
+sean.wallitsch at dreamworks.com> wrote:
+
+> My apologies for that oversight. My understanding is that many of the
+> methods present in aifc depend heavily on audioop for reading and writing.
+>
+
+But are people using audioop directly? This shifts whether we still
+publicly deprecate auidoop and make it an implementation detail of aifc
+versus a free-standing module whose API we need to continue to support.
+
+-Brett
+
+
+>
+> On Wed, May 22, 2019 at 12:35 PM Nathaniel Smith <njs at pobox.com> wrote:
+>
+>> On Wed, May 22, 2019, 12:14 Sean Wallitsch <sean.wallitsch at dreamworks.com>
+>> wrote:
+>>
+>>> Dear python-dev,
+>>>
+>>> I'm writing to provide some feedback on PEP-594, primarily the proposed
+>>> deprecation and reason for the removal of the aifc and audioop libraries.
+>>>
+>>> The post production film industry continues to make heavy use of AIFFs,
+>>> as completely uncompressed audio is preferred. Support for the consumer
+>>> alternatives (ALAC, FLAC) is virtually non-existent, with no movement
+>>> towards adoption of those formats. Even Apple's own professional editing
+>>> tool Final Cut Pro does not support ALAC. Many of the applications also
+>>> support WAV, but not all.
+>>>
+>>> Removal of this module from the standard library is complicated by the
+>>> fact that a large number of film industry facilities have extremely limited
+>>> internet access for security reasons. This does not make it impossible to
+>>> get a library from pypi, but speaking to those devs has made me aware of
+>>> what a painful process that is for them. They have benefited greatly from
+>>> aifc's inclusion in the standard library.
+>>>
+>>
+>> That's really helpful data, thank you!
+>>
+>> Is audioop also used? You mention both aifc and audioop at the beginning
+>> and end of your message, but all the details in the middle focus on just
+>> aifc.
+>>
+>> -n
+>>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/16f9fcd4/attachment.html>
+
+From brett at python.org  Thu May 23 17:17:28 2019
+From: brett at python.org (Brett Cannon)
+Date: Thu, 23 May 2019 14:17:28 -0700
+Subject: [Python-Dev] we will probably be having an difficult discussion
+ about the stdlib after PEP 594 is done (was: PEP 594: Removing dead
+ batteries from the standard library)
+In-Reply-To: <BFB09280-A295-40BF-A6D0-14D495B527A4@python.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <BFB09280-A295-40BF-A6D0-14D495B527A4@python.org>
+Message-ID: <CAP1=2W5MHH8Axq9JjYt9jRS5rRc-8XkXRgodDYheMOcVydrZdg@mail.gmail.com>
+
+On Thu, May 23, 2019 at 11:03 AM Barry Warsaw <barry at python.org> wrote:
+
+> On May 20, 2019, at 13:15, Christian Heimes <christian at python.org> wrote:
+> >
+> > here is the first version of my PEP 594 to deprecate and eventually
+> remove modules from the standard library. The PEP started last year with
+> talk during the Python Language Summit 2018,
+> https://lwn.net/Articles/755229/.
+> >
+> > The PEP can be confirmed in two stages. I'm not planning any code
+> changes for 3.8. Instead I only like to document a bunch of modules as
+> deprecated. Active deprecation is planned for 3.9 and removal for 3.10. The
+> long deprecation phase gives us 3 years to change our minds or handle edge
+> cases, too.
+>
+> Hi Christian,
+>
+> First, I appreciate the work you?ve done on this, and the general
+> sentiment.  But I do feel like this is a partial solution to a problem the
+> Python distribution has had for a very long time.  Maybe it?s a good step
+> forward, but in a sense it is incomplete and only chips away at the problem.
+>
+
+Yep, but I will take this chipping away over nothing. :)
+
+
+>
+> We have two competing pressures, one to provide a rich standard library
+> with lots of useful features that come right out of the box.  Let?s not
+> underestimate the value that this has for our users, and the contribution
+> such a stdlib has made to making Python as popular as it is.
+>
+> But it?s also true that lots of the stdlib don?t get the love they need to
+> stay relevant, and a curated path to keeping only the most useful and
+> modern libraries.  I wonder how much the long development cycle and
+> relatively big overhead for contributing to stdlib maintenance causes a big
+> part of our headaches with the stdlib.  Current stdlib development
+> processes also incur burden for alternative implementations.
+>
+> We?ve had many ideas over the years, such as stripping the CPython repo
+> stdlib to its bare minimum and providing some way of *distributing* a sumo
+> tarball.  But none have made it far enough to be adopted.  I don?t have any
+> new bright ideas for how to make this work, but I think finding a holistic
+> approach to these competing pressures is in the best long term interest of
+> Python.
+>
+> That all said, if PEP 594 can be viewed as part of the bigger picture,
+> then maybe it?s a good idea.  Perhaps the approaches for maintaining such
+> deprecated libraries can be used as an experiment for finding a more
+> modern, useful, and vibrant approach to stdlib maintenance.
+>
+
+I'm personally viewing it as a first step in addressing the maintenance
+burden we have with such a large stdlib. Christian started this work over a
+year ago and I think it's worth seeing through. After that we should
+probably have a discussion as a team about how we view the stdlib long-term
+and how that ties into maintaining it so that people's opinion of the
+stdlib's quality goes up rather than viewing the quality of it as varying
+module-to-module.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/5facd739/attachment-0001.html>
+
+From steve at pearwood.info  Thu May 23 20:44:22 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 24 May 2019 10:44:22 +1000
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <CAP1=2W6ero5WsbfHczr4o0+E0m6P7_=NtYVvFgt+2m5JThicBA@mail.gmail.com>
+References: <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+ <CAP1=2W7T7n+y_zdJCF5OG0H55X0q+Jjq223UEv41CnNLRq+qHQ@mail.gmail.com>
+ <27ba695b-3219-a628-acef-4e0af649e2de@python.org>
+ <CAP1=2W4QX73S64LvbhP2UmymnLye2C93RGHhbgm+MZhMTp+00Q@mail.gmail.com>
+ <20190522121237.021cbec4@fsol>
+ <CAP1=2W53GAkoKp_3j3vT4uuuBsOmhRYeDwjR3n5Vss5b4n0tGg@mail.gmail.com>
+ <CAD3kds2wYjTpOB0rty4Lxf46t_oMd4phXaOUTjW_WDEJrv7i3Q@mail.gmail.com>
+ <CAPJVwBm8agWYEnXBu74ZEzv6W52PzRv3QFWPEwXa55MifY5cNw@mail.gmail.com>
+ <CAD3kds25fvFa-0DridAwyHxyUpMxECZMNNK+=WnG3q8gQ=mOdA@mail.gmail.com>
+ <CAP1=2W6ero5WsbfHczr4o0+E0m6P7_=NtYVvFgt+2m5JThicBA@mail.gmail.com>
+Message-ID: <20190524004422.GR4221@ando.pearwood.info>
+
+On Thu, May 23, 2019 at 02:06:13PM -0700, Brett Cannon wrote:
+> On Wed, May 22, 2019 at 1:23 PM Sean Wallitsch <
+> sean.wallitsch at dreamworks.com> wrote:
+> 
+> > My apologies for that oversight. My understanding is that many of the
+> > methods present in aifc depend heavily on audioop for reading and writing.
+> >
+> 
+> But are people using audioop directly?
+
+Yes they are.
+
+https://old.reddit.com/r/Python/comments/brgl8v/pep_594_removing_dead_batteries_from_the_standard/eodvexl/
+
+Shouldn't the PEP be responsable for establishing (as well as any 
+negative can be proven) that these modules aren't used, rather than 
+merely assuming that they aren't?
+
+Of course it is hard to establish that a module isn't being used. Not 
+all code can be searched for on the Internet, there's huge amounts of 
+non-open source code written by users that never leaves their computer, 
+or behind corporate firewalls.
+
+The difficulty of proving this negative requires that we be especially 
+conservative about removal. At the very least, we should demonstrate 
+that the package is *an active burden*.
+
+Its not enough to say "nobody has touched this module for ages" since 
+stable, working code doesn't rot unless we change the language (or the 
+std lib!) and break it.
+
+So far, the PEPs record hasn't been too good: out of the 31 modules 
+listed in the original draft, the PEP marks four as "keep", leaving 27 
+to be deprecated. So far, we've found:
+
+- the sound libraries are in heavy use by hobbyists and the professional 
+audio-visual industry; aifc in particular is a mature, stable library 
+that isn't break and doesn't need much attention;
+
+- cgi and cgitb are used by people who don't need a heavyweight HTML 
+solution (see Reddit);
+
+- colorsys, fileinput and nntplib (at least) have been added to the 
+"keep" list;
+
+- the removal of spwd (and crypt?) has been controversial.
+
+So far, nearly 30% of the so-called "dead batteries" turn out to be not 
+so dead after all.
+
+I may have missed some. Nor have I even talked much about modules which 
+I personally use occasionally, like binhex, because it's not about *me* 
+its about the community. As much as I would prefer binhex to remain, if 
+it is removed I will be disappointed but I'll make do.
+
+Speaking of binhex, I tried to get a sense of how much of a burden it 
+actually is. There was a comment by Guido in *2007*:
+
+https://github.com/python/cpython/commit/34a042d301d6ab88645046a6dfa6c38265ca4b39
+
+"This is the last time I fix binhex. If it breaks again it goes in the 
+dustbin"
+
+which of course is Guido's perogative to say Won't Fix. Its now 2019 and 
+it hasn't broken again, or at least it hasn't broken again sufficiently 
+to make any difference. Serhey found one issue:
+
+https://bugs.python.org/issue29566
+
+but I'm not sure if that's actually a bug or not. There was a 
+documentation bug (in the source code) in 2017:
+
+https://bugs.python.org/issue29557
+
+and one enhancement request to clean up the code:
+
+https://bugs.python.org/issue34063
+
+Other than that, Serhey touched binhex.py as part of a mass patch to 
+almost the whole stdlib to modernise file handling to use "with".
+
+So by my count, in 12 years since Guido's frustrated comment about 
+binhex, it has seen:
+
+- removal of an obsolete and ambiguous comment from the source code;
+- addition of a few with blocks to modernise file handling;
+- one enhancement request still outstanding;
+- one possibly a bug (or maybe not) still outstanding.
+
+
+I may have missed some, but we're talking about one issue per three 
+years. How is this a maintenance burden?
+
+
+-- 
+Steven
+
+From barry at python.org  Thu May 23 21:02:20 2019
+From: barry at python.org (Barry Warsaw)
+Date: Thu, 23 May 2019 18:02:20 -0700
+Subject: [Python-Dev] we will probably be having an difficult discussion
+ about the stdlib after PEP 594 is done (was: PEP 594: Removing dead
+ batteries from the standard library)
+In-Reply-To: <CAP1=2W5MHH8Axq9JjYt9jRS5rRc-8XkXRgodDYheMOcVydrZdg@mail.gmail.com>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <BFB09280-A295-40BF-A6D0-14D495B527A4@python.org>
+ <CAP1=2W5MHH8Axq9JjYt9jRS5rRc-8XkXRgodDYheMOcVydrZdg@mail.gmail.com>
+Message-ID: <61B1753E-F700-46DA-9992-C67D09B8268B@python.org>
+
+On May 23, 2019, at 14:17, Brett Cannon <brett at python.org> wrote:
+
+> I'm personally viewing it as a first step in addressing the maintenance burden we have with such a large stdlib. Christian started this work over a year ago and I think it's worth seeing through. After that we should probably have a discussion as a team about how we view the stdlib long-term and how that ties into maintaining it so that people's opinion of the stdlib's quality goes up rather than viewing the quality of it as varying module-to-module.
+
++1 :)
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190523/f7a45bd2/attachment.sig>
+
+From greg.ewing at canterbury.ac.nz  Thu May 23 22:25:33 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Fri, 24 May 2019 14:25:33 +1200
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <f4ce2bc8-5379-f192-7375-3e59ab7b81d3@python.org>
+References: <HE1PR05MB32111928324AFAE7076D2366B4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+ <f4ce2bc8-5379-f192-7375-3e59ab7b81d3@python.org>
+Message-ID: <5CE7561D.2060806@canterbury.ac.nz>
+
+Steve Dower wrote:
+> We need to make it more clear somehow that Python uses 
+> series.major.minor.micro versioning, not SemVer.
+
+We could also do with deciding what the "series" part is really
+supposed to be for. At the moment it seems to be "we change it
+when the major number gets up to 9, or we feel like it, whichever
+comes first."
+
+-- 
+Greg
+
+From songofacandy at gmail.com  Fri May 24 01:35:27 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 24 May 2019 14:35:27 +0900
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAGE7PNL07HgQg2K6xdR9=0rEpYhHJNsnzv14YK_Um11R2Ryrmg@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <CAExdVNnunjcbPSJ7XQHykcqghmq=j2deF711kdmL1Z_Fc29tdQ@mail.gmail.com>
+ <CAGE7PNL07HgQg2K6xdR9=0rEpYhHJNsnzv14YK_Um11R2Ryrmg@mail.gmail.com>
+Message-ID: <CAEfz+Tx6szMFZiEJ7em4zv5PkWX_u8XysG=1KuPmr_Nd7oufgg@mail.gmail.com>
+
+On Fri, May 24, 2019 at 3:49 AM Gregory P. Smith <greg at krypto.org> wrote:
+>
+> I suggest filing a bug to track this...
+>
+
+I created the issue: https://bugs.python.org/issue37029
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From steve at pearwood.info  Fri May 24 02:55:44 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Fri, 24 May 2019 16:55:44 +1000
+Subject: [Python-Dev] PEP 594 - a proposal for unmaintained modules
+Message-ID: <20190524065544.GS4221@ando.pearwood.info>
+
+I don't know if this is a good idea or a terrible idea or somewhere in 
+between, so I'm throwing it out to see if anyone likes it.
+
+Let's add a third option to PEP 594 between "keep" and "remove": 
+explicitly flagging a module as unmaintained. Unmaintained modules:
+
+- will raise a warning when imported that they are unmaintained;
+
+- will have their tests disabled;
+
+- possibly we move them into a seperate namespace: 
+  ``from unmaintained import aardvark``
+
+- bug reports without patches will be closed Will Not Fix;
+
+- bug reports with patches *may* be accepted if some core dev is 
+  willing to review and check it in, but there is no obligation
+  to do so;
+
+- should it turn out that someone is willing to maintain the module,
+  it can be returned to regular status.
+
+
+Plus side:
+
+- reduce the maintenance burden (if any) from the module;
+
+- while still distributing the module and allowing users to use 
+  it: "no promises, but here you go";
+
+- other implementations are under no obligation to distribute
+  unmaintained modules.
+
+Minus side:
+
+- this becomes a self-fulfilling prophesy: with tests turned off,
+  bit-rot will eventually set in and break modules that currently
+  aren't broken.
+
+
+
+Thoughts?
+
+
+
+
+-- 
+Steven
+
+From songofacandy at gmail.com  Fri May 24 03:17:20 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 24 May 2019 16:17:20 +0900
+Subject: [Python-Dev] PEP 594 -- Bundling libraries?
+Message-ID: <CAEfz+TyGNdBXELwUHFHkaZZ0KBva0YZKhHcpaUQvarxvCMpp=Q@mail.gmail.com>
+
+When removing libraries from stdlib, can we bundle
+removed libraries and install it like ensurepip does?
+
+Ruby does similar thing, called "Gemification".
+See https://rubykaigi.org/2017/presentations/hsbt.html
+
+When people don't use venv, scripts importing nntplib
+or aifc runs correctly.
+
+When people use venv, they need to `pip install nntplib`
+(we may be able to use PyPI's namespace beta feature here).
+But I assume `pip install` is not a problem for people using venv.
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
