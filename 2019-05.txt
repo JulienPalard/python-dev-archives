@@ -40733,3 +40733,2670 @@ Regards,
 -- 
 Inada Naoki  <songofacandy at gmail.com>
 
+From songofacandy at gmail.com  Fri May 24 03:37:06 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 24 May 2019 16:37:06 +0900
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <20190523183331.2163dd60@fsol>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+ <CAEfz+TxVG5VvxdEfG5wV1gvFWCMQuP-u=pTQ1L-GVEpB3D=9eQ@mail.gmail.com>
+ <20190523183331.2163dd60@fsol>
+Message-ID: <CAEfz+TztRthC=K5=u5U9t0NBu=k6yDQ7DZqCYSZ24PuuBPXRrw@mail.gmail.com>
+
+> > >
+> > > It's relatively easy to test replacing our custom allocators with the
+> > > system ones, yes? Can we try those to see whether they have the same
+> > > characteristic?
+> > >
+> >
+> > Yes.
+> >
+> > PYTHONMALLOC=malloc LD_PRELOAD=/path/to/jemalloc.so python script.py
+> >
+> > I will try it tomorrow.
+>
+> Can you simply test with the system allocator rather than jemalloc?
+>
+
+For the record, result for 10M nodes, Ubuntu 18.04 on AWS r5a.4xlarge:
+
+$ local/bin/python3 t1.py  # default
+1138.1123778309993 -- end train, start del
+688.7927911250008 -- end
+
+$ arena-1m/bin/python3 t1.py  # Changed ARENA_SIZE to 1MiB
+1085.3363994170013 -- end train, start del
+84.57135540099989 -- end
+
+$ PYTHONMALLOC=malloc local/bin/python3 t1.py
+1157.4882792789995 -- end train, start del
+27.919834706000074 -- end
+
+$ LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1
+PYTHONMALLOC=malloc local/bin/python3 t1.py
+1098.4383037820007 -- end train, start del
+117.93938426599925 -- end
+
+In this case, glibc malloc is the fastest.
+glibc is know to weak about fragmentation.
+But algorithm to avoid fragmentation is just an overhead in this script.
+
+Regards,
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From vstinner at redhat.com  Fri May 24 07:21:22 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Fri, 24 May 2019 13:21:22 +0200
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAEfz+TztRthC=K5=u5U9t0NBu=k6yDQ7DZqCYSZ24PuuBPXRrw@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+ <CAEfz+TxVG5VvxdEfG5wV1gvFWCMQuP-u=pTQ1L-GVEpB3D=9eQ@mail.gmail.com>
+ <20190523183331.2163dd60@fsol>
+ <CAEfz+TztRthC=K5=u5U9t0NBu=k6yDQ7DZqCYSZ24PuuBPXRrw@mail.gmail.com>
+Message-ID: <CA+3bQGFiL4CUmGoNipKZ+amn=809qJchP9=96Q0VTw7SRJZM4g@mail.gmail.com>
+
+Le ven. 24 mai 2019 ? 09:41, Inada Naoki <songofacandy at gmail.com> a ?crit :
+> For the record, result for 10M nodes, Ubuntu 18.04 on AWS r5a.4xlarge:
+>
+> $ local/bin/python3 t1.py  # default
+> 1138.1123778309993 -- end train, start del
+> 688.7927911250008 -- end
+>
+> $ arena-1m/bin/python3 t1.py  # Changed ARENA_SIZE to 1MiB
+> 1085.3363994170013 -- end train, start del
+> 84.57135540099989 -- end
+
+688 => 84 looks like an interesting speedup. Would it be technically
+possible to make ARENA_SIZE configurable at runtime?
+
+Using the new PEP 587 preinitialization, it shouldn't be too hard to
+hard a new command line option and/or an environment variable to tune
+the memory allocator:
+https://www.python.org/dev/peps/pep-0587/#preinitialization-with-pypreconfig
+
+Victor
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From thomas at python.org  Fri May 24 08:23:21 2019
+From: thomas at python.org (Thomas Wouters)
+Date: Fri, 24 May 2019 14:23:21 +0200
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+Message-ID: <CAPdQG2rr978QuKb08YBeiHCxGPbnmm9A3vTU3-_nvOngM976nw@mail.gmail.com>
+
+On Thu, May 23, 2019 at 5:15 PM Steve Dower <steve.dower at python.org> wrote:
+
+> On 23May2019 0542, Inada Naoki wrote:
+> > 1. perf shows 95% of CPU time is eaten by _PyObject_Free, not kernel
+> space.
+> > 2. This loop is cleary hot:
+> >
+> https://github.com/python/cpython/blob/51aa35e9e17eef60d04add9619fe2a7eb938358c/Objects/obmalloc.c#L1816-L1819
+> >
+> > I can attach the process by gdb and I confirmed many arenas have
+> > same nfreepools.
+>
+> It's relatively easy to test replacing our custom allocators with the
+> system ones, yes? Can we try those to see whether they have the same
+> characteristic?
+>
+> Given the relative amount of investment over the last 19 years [1], I
+> wouldn't be surprised if most system ones are at least as good for our
+> needs now. Certainly Windows HeapAlloc has had serious improvements in
+> that time to help with fragmentation and small allocations.
+>
+
+FYI, and I've mentioned this at PyCon to a few people (might've been you,
+Steve, I don't remember) -- but at Google we've experimented with disabling
+obmalloc when using TCMalloc (a faster and thread-aware malloc, which makes
+a huge difference within Google when dealing with multi-threaded C++
+libraries), both using the usual Python benchmarks and real-world code with
+real-world workloads (a core part of YouTube, for example), all on Linux.
+There's still a significant benefit to using obmalloc when using glibc's
+malloc, and also a noticeable benefit when using TCMalloc. There are
+certainly cases where it doesn't matter much, and there may even be cases
+where the overhead of obmalloc isn't worth it, but I do believe it's still
+a firm net benefit.
+
+
+>
+> Cheers,
+> Steve
+>
+> [1]:
+>
+> https://github.com/python/cpython/blob/51aa35e9e17eef60d04add9619fe2a7eb938358c/Objects/obmalloc.c#L769
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/thomas%40python.org
+>
+
+
+-- 
+Thomas Wouters <thomas at python.org>
+
+Hi! I'm an email virus! Think twice before sending your email to help me
+spread!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/f9ba4546/attachment.html>
+
+From devel2019 at baptiste-carvello.net  Fri May 24 05:20:57 2019
+From: devel2019 at baptiste-carvello.net (Baptiste Carvello)
+Date: Fri, 24 May 2019 11:20:57 +0200
+Subject: [Python-Dev] Python in next Windows 10 update
+In-Reply-To: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+References: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+Message-ID: <010000d6-1450-9953-6258-0c93b56d98f2@baptiste-carvello.net>
+
+Hello,
+
+Le 21/05/2019 ? 22:30, Steve Dower a ?crit?:
+>
+> [...]
+> 
+> * the Python 3.7 installed from the store will not auto-update to 3.8,
+> but when 3.8 is released we (Microsoft) will update the redirect to
+> point at it
+> * if you pass arguments to the redirect command, it just exits with an
+> error code - you only get the Store page if you run it without arguments
+
+I was wondering how those 2 bullet points combine. Say a user installs
+3.7 from the store, then uses "python.exe" with arguments, in a shebang
+line or a batch script.
+
+Does it mean the script might break unexpectedly when 3.8 is released?
+Then, would it make sense for the redirect command to proxy to the 3.7
+install when arguments are passed?
+
+Cheers,
+Baptiste
+
+
+
+From benjamin_cail at brown.edu  Fri May 24 10:49:36 2019
+From: benjamin_cail at brown.edu (Ben Cail)
+Date: Fri, 24 May 2019 10:49:36 -0400
+Subject: [Python-Dev] we will probably be having an difficult discussion
+ about the stdlib after PEP 594 is done
+In-Reply-To: <61B1753E-F700-46DA-9992-C67D09B8268B@python.org>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <BFB09280-A295-40BF-A6D0-14D495B527A4@python.org>
+ <CAP1=2W5MHH8Axq9JjYt9jRS5rRc-8XkXRgodDYheMOcVydrZdg@mail.gmail.com>
+ <61B1753E-F700-46DA-9992-C67D09B8268B@python.org>
+Message-ID: <b92d5982-51dd-9cc1-81bb-4c753aa17578@brown.edu>
+
+First, thanks to all the python core devs (and others) who work on 
+Python - many, many people (myself included) benefit from your work. 
+Suggestion below...
+
+On 5/23/19 9:02 PM, Barry Warsaw wrote:
+> On May 23, 2019, at 14:17, Brett Cannon <brett at python.org> wrote:
+>
+>> I'm personally viewing it as a first step in addressing the maintenance burden we have with such a large stdlib. Christian started this work over a year ago and I think it's worth seeing through. After that we should probably have a discussion as a team about how we view the stdlib long-term and how that ties into maintaining it so that people's opinion of the stdlib's quality goes up rather than viewing the quality of it as varying module-to-module.
+> +1 :)
+
+
+Why not have the PSF hire someone (or multiple people) to be paid to 
+work on the maintenance burden? This could be similar to the Django 
+fellows: 
+https://www.djangoproject.com/fundraising/#who-is-the-django-fellow. It 
+seems like a good thing for Django, and Python is used by many more 
+people than Django. Why not pay someone to do the work that others don't 
+want to do? The person in this position could be guided by the PSF 
+and/or the Steering Council, to do the work most necessary for the good 
+of the language as a whole (like maintaining old modules that other core 
+devs don't want to work on).
+
+You could market it together with the maintenance burden: "you want to 
+use all these old modules, but we don't want to maintain them. So pay us 
+some money, and we'll hire someone to maintain them."
+
+If this idea has already been discussed in this context and rejected, 
+could it be added to the PEP, with the reasons why it won't work?
+
+Thanks again for your work.
+
+-Ben
+
+
+From steve.dower at python.org  Fri May 24 12:11:33 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 24 May 2019 09:11:33 -0700
+Subject: [Python-Dev] Python in next Windows 10 update
+In-Reply-To: <010000d6-1450-9953-6258-0c93b56d98f2@baptiste-carvello.net>
+References: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+ <010000d6-1450-9953-6258-0c93b56d98f2@baptiste-carvello.net>
+Message-ID: <8514e16f-0068-6cbb-b8f9-5ee8d2c15406@python.org>
+
+On 24May2019 0220, Baptiste Carvello wrote:
+> Hello,
+> 
+> Le 21/05/2019 ? 22:30, Steve Dower a ?crit?:
+>>
+>> [...]
+>>
+>> * the Python 3.7 installed from the store will not auto-update to 3.8,
+>> but when 3.8 is released we (Microsoft) will update the redirect to
+>> point at it
+>> * if you pass arguments to the redirect command, it just exits with an
+>> error code - you only get the Store page if you run it without arguments
+> 
+> I was wondering how those 2 bullet points combine. Say a user installs
+> 3.7 from the store, then uses "python.exe" with arguments, in a shebang
+> line or a batch script.
+> 
+> Does it mean the script might break unexpectedly when 3.8 is released?
+> Then, would it make sense for the redirect command to proxy to the 3.7
+> install when arguments are passed?
+
+This is a very big complicated situation (just like on Linux), but the 
+answer is that if you are worried about your script breaking, then don't 
+use "python.exe" in the shebang line or batch file. You can use 
+"python3.7" just fine (well, no shebang lines on Windows).
+
+As for the redirect command, if you install Python from the store, it 
+will be replaced completely. Uninstalling Python doesn't even bring it 
+back (another thing we considered and decided wasn't worth the effort - 
+if you've installed Python once then you probably know how to find it 
+again).
+
+And if you replace it with something higher in PATH then it's just like 
+shadowing any other command, including the case where one day Microsoft 
+adds a new version of a command you were using (e.g. ssh or bash :) ).
+
+So there's really no change to your scenario due to the redirect, just 
+the same old "if you don't specify the version of Python you want then 
+you'll get what you get". (Refer to the linux-sig list for detailed 
+discussion.)
+
+Cheers,
+Steve
+
+From steve.dower at python.org  Fri May 24 12:54:05 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 24 May 2019 09:54:05 -0700
+Subject: [Python-Dev] PEP 594 - a proposal for unmaintained modules
+In-Reply-To: <20190524065544.GS4221@ando.pearwood.info>
+References: <20190524065544.GS4221@ando.pearwood.info>
+Message-ID: <25c05229-7e8a-c8b7-8445-ccbb5836aecb@python.org>
+
+On 23May2019 2355, Steven D'Aprano wrote:
+> I don't know if this is a good idea or a terrible idea or somewhere in
+> between, so I'm throwing it out to see if anyone likes it.
+> 
+> Let's add a third option to PEP 594 between "keep" and "remove":
+> explicitly flagging a module as unmaintained. Unmaintained modules:
+> 
+> - will raise a warning when imported that they are unmaintained;
+
+Nobody reads warnings.
+
+> - will have their tests disabled;
+
+I'm fine with this. Reducing time to run the test suite is the biggest 
+immediate win from removing unmaintained modules.
+
+> - possibly we move them into a seperate namespace:
+>    ``from unmaintained import aardvark``
+
+May as well move them all the way to PyPI and leave the import name the 
+same.
+
+> - bug reports without patches will be closed Will Not Fix;
+
+By whom?
+
+> - bug reports with patches *may* be accepted if some core dev is
+>    willing to review and check it in, but there is no obligation
+>    to do so;
+
+Historically, nobody has been willing to review and merge these modules 
+for years. How long do we have to wait?
+
+> - should it turn out that someone is willing to maintain the module,
+>    it can be returned to regular status.
+
+Or we can give them the keys to the PyPI package. Or help pip implement 
+the "Obsoleted By" header and redirect to a fork.
+
+> Plus side:
+> 
+> - reduce the maintenance burden (if any) from the module;
+
+Apart from having to read, review, and decide on bug reports, CVEs, and 
+documentation.
+
+> - while still distributing the module and allowing users to use
+>    it: "no promises, but here you go";
+
+a.k.a. PyPI?
+
+> - other implementations are under no obligation to distribute
+>    unmaintained modules.
+
+a.k.a. PyPI?
+
+> Minus side:
+> 
+> - this becomes a self-fulfilling prophesy: with tests turned off,
+>    bit-rot will eventually set in and break modules that currently
+>    aren't broken.
+
+True. And then we have the added maintenance burden of explaining 
+repeatedly that we don't care that it's broken, but we want to put it on 
+your machine anyway.
+
+All in all, this is basically where we are today, with the exception 
+that we haven't officially said that we no longer support these modules. 
+PEP 594 is this official statement, and our usual process for things we 
+don't support is to remove them in two versions time. It doesn't have to 
+be so controversial - either the people who are saying "we rely on this" 
+are also willing to help us maintain them, or they're not. And if 
+they're not, they clearly don't rely on it (or realize the cost of 
+relying on volunteer-maintained software).
+
+Cheers,
+Steve
+
+From tim.peters at gmail.com  Fri May 24 13:48:30 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Fri, 24 May 2019 12:48:30 -0500
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAEfz+TztRthC=K5=u5U9t0NBu=k6yDQ7DZqCYSZ24PuuBPXRrw@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+ <CAEfz+TxVG5VvxdEfG5wV1gvFWCMQuP-u=pTQ1L-GVEpB3D=9eQ@mail.gmail.com>
+ <20190523183331.2163dd60@fsol>
+ <CAEfz+TztRthC=K5=u5U9t0NBu=k6yDQ7DZqCYSZ24PuuBPXRrw@mail.gmail.com>
+Message-ID: <CAExdVN=xHdv=eWoy9UUXp3Em8w-=Az1AEyau3vt849=XrGJ1Gw@mail.gmail.com>
+
+[Inada Naoki <songofacandy at gmail.com>]
+> For the record, result for 10M nodes, Ubuntu 18.04 on AWS r5a.4xlarge:
+
+I'm unclear on what "nodes" means.  If you mean you changed 27M to 10M
+in this line:
+
+    for token in random_strings(27_000_000):
+
+that's fine, but there are about 40 times more than that `Node`
+objects created by the program.  So if you did change that to
+10_000_000, you'd have about 400M `Node` objects, consuming about 80x
+that many bytes of RAM (or about 32GB).
+
+> $ local/bin/python3 t1.py  # default
+> 1138.1123778309993 -- end train, start del
+> 688.7927911250008 -- end
+>
+> $ arena-1m/bin/python3 t1.py  # Changed ARENA_SIZE to 1MiB
+> 1085.3363994170013 -- end train, start del
+> 84.57135540099989 -- end
+
+Nice!  I assume these are seconds.  On Stackoverflow, the OP reported
+that boosting ARENA_SIZE the same way cut deallocation time in his
+original program to about 13 minutes.
+
+
+> $ PYTHONMALLOC=malloc local/bin/python3 t1.py
+> 1157.4882792789995 -- end train, start del
+> 27.919834706000074 -- end
+
+While the OP reported, for the original program:
+
+"""
+With PYTHONMALLOC=malloc, insertion takes nearly twice as long, but
+deallocation only takes 2 minutes!
+"""
+
+The "nearly twice as long" for building the tree is in sharp contrast
+to what you saw, but there's about 3x as much of everything in the
+original program, and, e.;g., it's certainly possible malloc is
+tripping over fragmentation then that obmalloc avoids.
+
+
+
+> $ LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1
+> PYTHONMALLOC=malloc local/bin/python3 t1.py
+> 1098.4383037820007 -- end train, start del
+> 117.93938426599925 -- end
+>
+> In this case, glibc malloc is the fastest.
+> glibc is know to weak about fragmentation.
+> But algorithm to avoid fragmentation is just an overhead in this script.
+
+I can't say.
+
+I'll note that the approach I very briefly sketched before
+(restructure the list of arenas to partition it into multiple lists
+partitioned by number of free pools) "should make" obmalloc
+competitive with malloc here (it would eliminate all searches, except
+perhaps (depending on how gonzo the code is) a rare need to search for
+"the first" non-empty list).
+
+From g.rodola at gmail.com  Fri May 24 13:56:00 2019
+From: g.rodola at gmail.com (Giampaolo Rodola')
+Date: Sat, 25 May 2019 00:56:00 +0700
+Subject: [Python-Dev] Python in next Windows 10 update
+In-Reply-To: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+References: <768e3895-2d7e-4150-f043-3c59d04e9de3@python.org>
+Message-ID: <CAFYqXL9-FsXAWizRi_gCoRMEGHe-GtCQcUguJgFexrgKvU6yVA@mail.gmail.com>
+
+On Wed, 22 May 2019 at 03:30, Steve Dower <steve.dower at python.org> wrote:
+
+> Hi all
+>
+> Just sharing this here because I think it's important for us to be aware
+> of it - I'm not trying to promote or sell anything here :) (Those who
+> were at the language summit have seen this already.)
+>
+> In the next Windows 10 update that starts rolling out today, we
+> (Microsoft) have added "python.exe" and "python3.exe" commands that are
+> installed on PATH *by default* and will open the Microsoft Store at the
+> page where we (Python core team) publish our build.
+>
+> This makes it a 1-2 click process to get from a clean machine to having
+> a usable Python install ("python.exe" -> opens Store -> "Get it Free" ->
+> "python.exe" now works!)
+>
+> The associated blog post:
+>
+>
+> https://devblogs.microsoft.com/python/python-in-the-windows-10-may-2019-update/
+>
+> Here are answers to a few questions that I assume will come up, at least
+> from this audience that understands the issues better than most:
+>
+> * if someone had installed Python and put it on PATH with our installer,
+> this new command *does not* interfere
+> * if someone had manually modified their own PATH, they *may* see some
+> interference (but we [Microsoft] decided this was an acceptable risk)
+> * the Python 3.7 installed from the store will not auto-update to 3.8,
+> but when 3.8 is released we (Microsoft) will update the redirect to
+> point at it
+> * if you pass arguments to the redirect command, it just exits with an
+> error code - you only get the Store page if you run it without arguments
+> * once the Store package is installed, the redirect command is replaced
+> (this required a new feature in the OS). If you install with the regular
+> installer and update PATH, or active a venv, it will add it *before* the
+> redirect. So these scenarios should be all good.
+>
+> I'm happy to answer other questions here. The long-term contact for this
+> integration is python (at) microsoft.com, which right now will come to me.
+>
+> And on a personal note, I'm very excited that we (Microsoft) got the
+> approval to do this. Getting *anything* added to Windows is a big task,
+> so it's a reflection of the popularity and support for Python that's
+> growing within Microsoft that we were able to make this happen. That's
+> due to every contributor, both to the core runtime and the ecosystem. I
+> hope this will only help us improve the availability of Python for users
+> and make it an easier choice for dev tasks in the future.
+>
+> Cheers,
+> Steve
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/g.rodola%40gmail.com
+
+
+<https://mail.python.org/mailman/options/python-dev/g.rodola%40gmail.com>
+>
+I am really glad this happened. I think that in a sense this could be
+considered sort of historical.
+-- 
+Giampaolo - http://grodola.blogspot.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190525/bd00b6e1/attachment.html>
+
+From njs at pobox.com  Fri May 24 14:06:03 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 24 May 2019 11:06:03 -0700
+Subject: [Python-Dev] we will probably be having an difficult discussion
+ about the stdlib after PEP 594 is done
+In-Reply-To: <b92d5982-51dd-9cc1-81bb-4c753aa17578@brown.edu>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <BFB09280-A295-40BF-A6D0-14D495B527A4@python.org>
+ <CAP1=2W5MHH8Axq9JjYt9jRS5rRc-8XkXRgodDYheMOcVydrZdg@mail.gmail.com>
+ <61B1753E-F700-46DA-9992-C67D09B8268B@python.org>
+ <b92d5982-51dd-9cc1-81bb-4c753aa17578@brown.edu>
+Message-ID: <CAPJVwBniAo13KT88eqLb0FQqieiqqR3fCHOrzauHH90OYOGsrg@mail.gmail.com>
+
+On Fri, May 24, 2019, 08:08 Ben Cail <benjamin_cail at brown.edu> wrote:
+
+>
+> Why not have the PSF hire someone (or multiple people) to be paid to
+> work on the maintenance burden? This could be similar to the Django
+> fellows:
+> https://www.djangoproject.com/fundraising/#who-is-the-django-fellow. It
+> seems like a good thing for Django, and Python is used by many more
+> people than Django. Why not pay someone to do the work that others don't
+> want to do? The person in this position could be guided by the PSF
+> and/or the Steering Council, to do the work most necessary for the good
+> of the language as a whole (like maintaining old modules that other core
+> devs don't want to work on).
+>
+> You could market it together with the maintenance burden: "you want to
+> use all these old modules, but we don't want to maintain them. So pay us
+> some money, and we'll hire someone to maintain them."
+>
+
+I think the basic idea here is a good one, but:
+
+- transitioning from an all-volunteer project to a mixed
+paid-staff+volunteers project is a big step, and we'll need to take time to
+figure out what that would look like before people are comfortable with it.
+
+- even if we have folks paid to help with maintenance, it won't mean we
+suddenly have infinite resources and can do everything. We'll still need to
+pick which things to prioritize. And I think if you asked 100 people to
+name the most critical issues facing Python today, most of them would not
+say "maintaining xdrlib".
+
+-n
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/0da69459/attachment.html>
+
+From status at bugs.python.org  Fri May 24 14:08:23 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 24 May 2019 18:08:23 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190524180823.DADF652B26B@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-05-17 - 2019-05-24)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7067 ( +0)
+  closed 41721 (+88)
+  total  48788 (+88)
+
+Open issues with patches: 2849 
+
+
+Issues opened (59)
+==================
+
+#34651: Disallow fork in a subinterpreter.
+https://bugs.python.org/issue34651  reopened by vstinner
+
+#36950: test.support: add an helper to wait for an event with a timeou
+https://bugs.python.org/issue36950  opened by vstinner
+
+#36953: Remove collections ABCs?
+https://bugs.python.org/issue36953  opened by p-ganssle
+
+#36954: test_recursive_repr breaks tracing in test_xml_etree
+https://bugs.python.org/issue36954  opened by gphemsley
+
+#36956: Calling "functions" used to implement generators/comps easily 
+https://bugs.python.org/issue36956  opened by bup
+
+#36959: ISO date errors in _strptime are jumbled
+https://bugs.python.org/issue36959  opened by gphemsley
+
+#36960: Make datetime docs more user-friendly
+https://bugs.python.org/issue36960  opened by bsolomon1124
+
+#36967: Eliminate unnecessary check in _strptime when determining AM/P
+https://bugs.python.org/issue36967  opened by gphemsley
+
+#36968: Top level transient modal windows stopping deiconify on window
+https://bugs.python.org/issue36968  opened by Daniel Law
+
+#36969: pdb.do_args: display keyword-only and positional only argument
+https://bugs.python.org/issue36969  opened by blueyed
+
+#36971: Add subsections in C API "Common Object Structures" page
+https://bugs.python.org/issue36971  opened by jdemeyer
+
+#36973: test_json.test_recursion.TestPyRecursion.test_endless_recursio
+https://bugs.python.org/issue36973  opened by xtreak
+
+#36974: Implement PEP 590
+https://bugs.python.org/issue36974  opened by jdemeyer
+
+#36976: email: AttributeError
+https://bugs.python.org/issue36976  opened by alter-bug-tracer
+
+#36977: SharedMemoryManager should relase its resources when its paren
+https://bugs.python.org/issue36977  opened by pierreglaser
+
+#36979: ncurses extension uses wrong include path
+https://bugs.python.org/issue36979  opened by chargr
+
+#36982: Add support for extended color functions in ncurses 6.1
+https://bugs.python.org/issue36982  opened by websurfer5
+
+#36983: typing.__all__ has drifted from actual contents
+https://bugs.python.org/issue36983  opened by Anthony Sottile
+
+#36984: typing docs "versionadded" is inaccurate for many attributes
+https://bugs.python.org/issue36984  opened by Anthony Sottile
+
+#36985: typing.ForwardRef is undocumented
+https://bugs.python.org/issue36985  opened by Anthony Sottile
+
+#36986: tarfile: unexpected IsADirectoryError on extraction
+https://bugs.python.org/issue36986  opened by alter-bug-tracer
+
+#36988: zipfile: string IndexError on extract
+https://bugs.python.org/issue36988  opened by alter-bug-tracer
+
+#36989: test_thread fails because symbol is (no longer) exported
+https://bugs.python.org/issue36989  opened by Michael.Felt
+
+#36990: test_asyncio.test_create_connection_ipv6_scope fails(in mock t
+https://bugs.python.org/issue36990  opened by Michael.Felt
+
+#36996: unittest.mock.patch decorator doesn't work with async function
+https://bugs.python.org/issue36996  opened by xtreak
+
+#36997: Document that spwd is considered harmful
+https://bugs.python.org/issue36997  opened by christian.heimes
+
+#36998: distutils sdist command fails to create MANIFEST if any filena
+https://bugs.python.org/issue36998  opened by a.badger
+
+#36999: Expose the coroutine object in asyncio task objects
+https://bugs.python.org/issue36999  opened by alex.gronholm
+
+#37001: symtable.symtable doesn't accept bytes which leads to a mismat
+https://bugs.python.org/issue37001  opened by dino.viehland
+
+#37002: PyType_FromSpec can't create immutable types
+https://bugs.python.org/issue37002  opened by dino.viehland
+
+#37003: ast unparse does not support f-string new debug format.
+https://bugs.python.org/issue37003  opened by mbussonn
+
+#37004: SequenceMatcher.ratio() noncommutativity not well-documented
+https://bugs.python.org/issue37004  opened by Dennis Sweeney
+
+#37005: bz2 module doesn't write end-of-stream marker
+https://bugs.python.org/issue37005  opened by Dobatymo
+
+#37006: Add top level await statement support for doctest
+https://bugs.python.org/issue37006  opened by xtreak
+
+#37007: Implement socket.if_{nametoindex,indextoname} for Windows
+https://bugs.python.org/issue37007  opened by dtantsur
+
+#37009: Threading and THREAD_SAFE for AIX
+https://bugs.python.org/issue37009  opened by Michael.Felt
+
+#37010: Review performance of inspect.getfullargspec
+https://bugs.python.org/issue37010  opened by ncoghlan
+
+#37011: pdb: restore original tracing function instead of sys.settrace
+https://bugs.python.org/issue37011  opened by blueyed
+
+#37012: Possible crash due to PyType_FromSpecWithBases()
+https://bugs.python.org/issue37012  opened by petr.viktorin
+
+#37013: Fatal Python error in socket.if_indextoname()
+https://bugs.python.org/issue37013  opened by ZackerySpytz
+
+#37014: [First easy issue] fileinput module should document that openh
+https://bugs.python.org/issue37014  opened by Grant Wu2
+
+#37015: Fix asyncio mock warnings
+https://bugs.python.org/issue37015  opened by asvetlov
+
+#37017: Use LOAD_METHOD optimization in CallMethod C API functions
+https://bugs.python.org/issue37017  opened by msullivan
+
+#37018: put http.server on a diet
+https://bugs.python.org/issue37018  opened by v+python
+
+#37021: Can _random.getrandbits() be converted to METH_FASTCALL?
+https://bugs.python.org/issue37021  opened by rhettinger
+
+#37022: pdb: do_p and do_pp swallow exceptions from __repr__
+https://bugs.python.org/issue37022  opened by blueyed
+
+#37023: test_gdb failed on AMD64 Debian PGO 3.x
+https://bugs.python.org/issue37023  opened by vstinner
+
+#37024: SQLite flag in configure due to homebrew not linking sqlite
+https://bugs.python.org/issue37024  opened by lys.nikolaou
+
+#37025: Misleading error message "Python failed to load the default ac
+https://bugs.python.org/issue37025  opened by rhabacker
+
+#37026: socketserver: BaseServer.handle_request() infinite loop
+https://bugs.python.org/issue37026  opened by jmberg
+
+#37027: Return a safe proxy over a socket from get_extra_info('socket'
+https://bugs.python.org/issue37027  opened by yselivanov
+
+#37028: Implement asyncio repl
+https://bugs.python.org/issue37028  opened by yselivanov
+
+#37029: PyObject_Free is O(N) where N = # of arenas
+https://bugs.python.org/issue37029  opened by inada.naoki
+
+#37030: Lib/cmd.py: Hide undocumented commands in help and completenam
+https://bugs.python.org/issue37030  opened by aldwinaldwin
+
+#37032: Add CodeType.replace() method
+https://bugs.python.org/issue37032  opened by vstinner
+
+#37034: Argument Clinic omits name of keyword-only parameter on _PyArg
+https://bugs.python.org/issue37034  opened by vstinner
+
+#37035: Don't log OSError exceptions in asyncio transports
+https://bugs.python.org/issue37035  opened by asvetlov
+
+#37036: Iterating a text file by line should not implicitly disable te
+https://bugs.python.org/issue37036  opened by josh.r
+
+#37037: Enable rpath remapping in makefile
+https://bugs.python.org/issue37037  opened by steve.dower
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#37037: Enable rpath remapping in makefile
+https://bugs.python.org/issue37037
+
+#37034: Argument Clinic omits name of keyword-only parameter on _PyArg
+https://bugs.python.org/issue37034
+
+#37029: PyObject_Free is O(N) where N = # of arenas
+https://bugs.python.org/issue37029
+
+#37028: Implement asyncio repl
+https://bugs.python.org/issue37028
+
+#37027: Return a safe proxy over a socket from get_extra_info('socket'
+https://bugs.python.org/issue37027
+
+#37026: socketserver: BaseServer.handle_request() infinite loop
+https://bugs.python.org/issue37026
+
+#37025: Misleading error message "Python failed to load the default ac
+https://bugs.python.org/issue37025
+
+#37024: SQLite flag in configure due to homebrew not linking sqlite
+https://bugs.python.org/issue37024
+
+#37018: put http.server on a diet
+https://bugs.python.org/issue37018
+
+#37013: Fatal Python error in socket.if_indextoname()
+https://bugs.python.org/issue37013
+
+#37012: Possible crash due to PyType_FromSpecWithBases()
+https://bugs.python.org/issue37012
+
+#37009: Threading and THREAD_SAFE for AIX
+https://bugs.python.org/issue37009
+
+#37004: SequenceMatcher.ratio() noncommutativity not well-documented
+https://bugs.python.org/issue37004
+
+#37002: PyType_FromSpec can't create immutable types
+https://bugs.python.org/issue37002
+
+#37001: symtable.symtable doesn't accept bytes which leads to a mismat
+https://bugs.python.org/issue37001
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#37035: Don't log OSError exceptions in asyncio transports
+https://bugs.python.org/issue37035
+
+#37032: Add CodeType.replace() method
+https://bugs.python.org/issue37032
+
+#37030: Lib/cmd.py: Hide undocumented commands in help and completenam
+https://bugs.python.org/issue37030
+
+#37028: Implement asyncio repl
+https://bugs.python.org/issue37028
+
+#37027: Return a safe proxy over a socket from get_extra_info('socket'
+https://bugs.python.org/issue37027
+
+#37023: test_gdb failed on AMD64 Debian PGO 3.x
+https://bugs.python.org/issue37023
+
+#37021: Can _random.getrandbits() be converted to METH_FASTCALL?
+https://bugs.python.org/issue37021
+
+#37017: Use LOAD_METHOD optimization in CallMethod C API functions
+https://bugs.python.org/issue37017
+
+#37014: [First easy issue] fileinput module should document that openh
+https://bugs.python.org/issue37014
+
+#37013: Fatal Python error in socket.if_indextoname()
+https://bugs.python.org/issue37013
+
+#37012: Possible crash due to PyType_FromSpecWithBases()
+https://bugs.python.org/issue37012
+
+#37011: pdb: restore original tracing function instead of sys.settrace
+https://bugs.python.org/issue37011
+
+#37007: Implement socket.if_{nametoindex,indextoname} for Windows
+https://bugs.python.org/issue37007
+
+#37004: SequenceMatcher.ratio() noncommutativity not well-documented
+https://bugs.python.org/issue37004
+
+#37003: ast unparse does not support f-string new debug format.
+https://bugs.python.org/issue37003
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#36906: Compile time textwrap.dedent() equivalent for str or bytes lit
+https://bugs.python.org/issue36906  14 msgs
+
+#36763: Implementation of the PEP 587
+https://bugs.python.org/issue36763  11 msgs
+
+#36829: Add sys.unraisablehook() to custom how "unraisable exceptions"
+https://bugs.python.org/issue36829  11 msgs
+
+#36998: distutils sdist command fails to create MANIFEST if any filena
+https://bugs.python.org/issue36998  10 msgs
+
+#28971: nntplib is broken when responses are longer than _MAXLINE
+https://bugs.python.org/issue28971   9 msgs
+
+#36721: Add pkg-config python-3.8-embed and --embed to python3.8-confi
+https://bugs.python.org/issue36721   9 msgs
+
+#37003: ast unparse does not support f-string new debug format.
+https://bugs.python.org/issue37003   8 msgs
+
+#37032: Add CodeType.replace() method
+https://bugs.python.org/issue37032   8 msgs
+
+#1230540: sys.excepthook doesn't work in threads
+https://bugs.python.org/issue1230540   7 msgs
+
+#21315: email._header_value_parser does not recognise in-line encoding
+https://bugs.python.org/issue21315   6 msgs
+
+
+
+Issues closed (84)
+==================
+
+#8138: wsgiref.simple_server.SimpleServer claims to be multithreaded
+https://bugs.python.org/issue8138  closed by berker.peksag
+
+#20285: Improve object.__doc__ and help(object) output
+https://bugs.python.org/issue20285  closed by cheryl.sabella
+
+#22865: Document how to make pty.spawn not copy data
+https://bugs.python.org/issue22865  closed by vstinner
+
+#23378: argparse.add_argument action parameter should allow value exte
+https://bugs.python.org/issue23378  closed by gvanrossum
+
+#23395: _thread.interrupt_main() errors if SIGINT handler in SIG_DFL, 
+https://bugs.python.org/issue23395  closed by pitrou
+
+#23896: lib2to3 doesn't provide a grammar where exec is a function
+https://bugs.python.org/issue23896  closed by gvanrossum
+
+#24882: ThreadPoolExecutor doesn't reuse threads until #threads == max
+https://bugs.python.org/issue24882  closed by pitrou
+
+#25329: test_json crashes with stack overflow on Windows
+https://bugs.python.org/issue25329  closed by vstinner
+
+#26467: Add async magic method support to unittest.mock.Mock
+https://bugs.python.org/issue26467  closed by lisroach
+
+#27268: Incorrect error message on float('')
+https://bugs.python.org/issue27268  closed by cheryl.sabella
+
+#27737: email.header.Header.encode() crashes with IndexError on spaces
+https://bugs.python.org/issue27737  closed by r.david.murray
+
+#29183: Unintuitive error handling in wsgiref when a crash happens in 
+https://bugs.python.org/issue29183  closed by berker.peksag
+
+#31850: test_nntplib failed with "nntplib.NNTPDataError: line too long
+https://bugs.python.org/issue31850  closed by vstinner
+
+#33110: Adding a done callback to a concurrent.futures Future once it 
+https://bugs.python.org/issue33110  closed by pitrou
+
+#33164: Blake 2 module update
+https://bugs.python.org/issue33164  closed by inada.naoki
+
+#33482: codecs.StreamRecoder.writelines is broken
+https://bugs.python.org/issue33482  closed by gvanrossum
+
+#33519: Should MutableSequence provide .copy()?
+https://bugs.python.org/issue33519  closed by cheryl.sabella
+
+#33524: non-ascii characters in headers causes TypeError on email.poli
+https://bugs.python.org/issue33524  closed by cheryl.sabella
+
+#33563: fileinput input's and Fileinput's bufsize=0 do not remit depre
+https://bugs.python.org/issue33563  closed by mbussonn
+
+#34580: sqlite doc: clarify the scope of the context manager
+https://bugs.python.org/issue34580  closed by berker.peksag
+
+#34616: implement "Async exec"
+https://bugs.python.org/issue34616  closed by yselivanov
+
+#35091: Objects/listobject.c: gallop functions rely on signed integer 
+https://bugs.python.org/issue35091  closed by cheryl.sabella
+
+#35252: test_functools dead code after FIXME
+https://bugs.python.org/issue35252  closed by lys.nikolaou
+
+#35563: Doc: warnings.rst - add links to references
+https://bugs.python.org/issue35563  closed by cheryl.sabella
+
+#35721: _UnixSubprocessTransport leaks socket pair if Popen fails
+https://bugs.python.org/issue35721  closed by asvetlov
+
+#35810: Object Initialization does not incref Heap-allocated Types
+https://bugs.python.org/issue35810  closed by petr.viktorin
+
+#35924: curses segfault resizing window
+https://bugs.python.org/issue35924  closed by Josiah Ulfers
+
+#35926: Need openssl 1.1.1 support on Windows for ARM and ARM64
+https://bugs.python.org/issue35926  closed by steve.dower
+
+#35933: python doc does not say that the state kwarg in Pickler.save_r
+https://bugs.python.org/issue35933  closed by pierreglaser
+
+#35990: ipaddress.IPv4Interface won't accept 2-tuple (address, mask)
+https://bugs.python.org/issue35990  closed by SilentGhost
+
+#36035: pathlib.Path().rglob() breaks with broken symlinks
+https://bugs.python.org/issue36035  closed by pitrou
+
+#36045: builtins.help function is not much help with async functions
+https://bugs.python.org/issue36045  closed by asvetlov
+
+#36368: server process of shared_memory shuts down if KeyboardInterrup
+https://bugs.python.org/issue36368  closed by pierreglaser
+
+#36567: DOC: manpage directive doesn't create hyperlink
+https://bugs.python.org/issue36567  closed by berker.peksag
+
+#36648: MAP_SHARED isn't proper for anonymous mappings for VxWorks
+https://bugs.python.org/issue36648  closed by vstinner
+
+#36713: duplicate method definition in Lib/ctypes/test/test_unicode.py
+https://bugs.python.org/issue36713  closed by ezio.melotti
+
+#36755: [2.7] test_httplib leaked [8, 8, 8] references with OpenSSL 1.
+https://bugs.python.org/issue36755  closed by benjamin.peterson
+
+#36797: Cull more oudated distutils information
+https://bugs.python.org/issue36797  closed by ncoghlan
+
+#36810: Recursive type annotations do not work in documentation tests
+https://bugs.python.org/issue36810  closed by levkivskyi
+
+#36826: ast_unparser.c doesn't handle := expressions
+https://bugs.python.org/issue36826  closed by pablogsal
+
+#36867: Make semaphore_tracker track other system resources
+https://bugs.python.org/issue36867  closed by vstinner
+
+#36878: ast.parse with type_comments=True should allow extra text afte
+https://bugs.python.org/issue36878  closed by gvanrossum
+
+#36887: Add integer square root, math.isqrt
+https://bugs.python.org/issue36887  closed by mark.dickinson
+
+#36888: Create a way to check that the parent process is alive for dea
+https://bugs.python.org/issue36888  closed by pitrou
+
+#36907: Crash due to borrowed references in _PyStack_UnpackDict()
+https://bugs.python.org/issue36907  closed by petr.viktorin
+
+#36908: "This module is always available" is confusing
+https://bugs.python.org/issue36908  closed by Mariatta
+
+#36921: Deprecate yield from and @coroutine in asyncio
+https://bugs.python.org/issue36921  closed by asvetlov
+
+#36929: Other Python _io implementations may not expose _io in their t
+https://bugs.python.org/issue36929  closed by vstinner
+
+#36932: asyncio-task.rst could use proper deprecated-removed directive
+https://bugs.python.org/issue36932  closed by asvetlov
+
+#36936: CALL_FUNCTION_KW opcode: keyword names must be non-empty
+https://bugs.python.org/issue36936  closed by petr.viktorin
+
+#36937: New _PyObject_MakeTpCall() function
+https://bugs.python.org/issue36937  closed by jdemeyer
+
+#36945: Add _PyPreConfig.configure_locale: allow to leave LC_CTYPE unc
+https://bugs.python.org/issue36945  closed by vstinner
+
+#36948: NameError in urllib.request.URLopener.retrieve
+https://bugs.python.org/issue36948  closed by berker.peksag
+
+#36949: WeakSet.__repr__ and __str__ do not show contents of the set
+https://bugs.python.org/issue36949  closed by steve.dower
+
+#36951: Wrong types for PyMemberDefs in Objects/typeobject.c
+https://bugs.python.org/issue36951  closed by benjamin.peterson
+
+#36952: fileinput input's and Fileinput's bufsize=0 marked for removal
+https://bugs.python.org/issue36952  closed by inada.naoki
+
+#36955: Python3 - mulltiprocessing
+https://bugs.python.org/issue36955  closed by SilentGhost
+
+#36957: Speed up math.isqrt
+https://bugs.python.org/issue36957  closed by mark.dickinson
+
+#36958: IDLE should print exit message or status if one is provided
+https://bugs.python.org/issue36958  closed by terry.reedy
+
+#36961: ast_unparser.c doesn't handle PEP570
+https://bugs.python.org/issue36961  closed by pablogsal
+
+#36962: Cant sort ModuleInfo instances
+https://bugs.python.org/issue36962  closed by eric.smith
+
+#36963: PyDict_GetItem SegFaults on simple dictionary lookup when usin
+https://bugs.python.org/issue36963  closed by larry
+
+#36964: `python3 -m venv NAME`: virtualenv is not portable
+https://bugs.python.org/issue36964  closed by brett.cannon
+
+#36965: use of STATUS_CONTROL_C_EXIT in Modules/main.c breaks compilat
+https://bugs.python.org/issue36965  closed by vstinner
+
+#36966: Export __VENV_PROMPT__ as environment variable
+https://bugs.python.org/issue36966  closed by lys.nikolaou
+
+#36970: Rename _PyObject_FastCallKeywords
+https://bugs.python.org/issue36970  closed by jdemeyer
+
+#36972: Add SupportsIndex
+https://bugs.python.org/issue36972  closed by levkivskyi
+
+#36975: csv: undocumented UnicodeDecodeError on malformed file
+https://bugs.python.org/issue36975  closed by brett.cannon
+
+#36978: `python3 -m pip install` has no `--requirement` option on Wind
+https://bugs.python.org/issue36978  closed by eric.smith
+
+#36980: pass-by-reference clues
+https://bugs.python.org/issue36980  closed by steven.daprano
+
+#36981: asyncio transport.write() memory out
+https://bugs.python.org/issue36981  closed by viocal
+
+#36987: Dictionary: why is the value not used up?
+https://bugs.python.org/issue36987  closed by matrixise
+
+#36991: zipfile: AttributeError on extract
+https://bugs.python.org/issue36991  closed by matrixise
+
+#36992: zipfile: AttributeError on extract (LZMA)
+https://bugs.python.org/issue36992  closed by matrixise
+
+#36993: zipfile: tuple IndexError on extract
+https://bugs.python.org/issue36993  closed by matrixise
+
+#36994: Missing tests for CALL_FUNCTION_EX opcode profiling method_des
+https://bugs.python.org/issue36994  closed by jdemeyer
+
+#36995: tp_print -> tp_vectorcall_offset
+https://bugs.python.org/issue36995  closed by jdemeyer
+
+#37000: _randbelow_with_getrandbits function inefficient with powers o
+https://bugs.python.org/issue37000  closed by rhettinger
+
+#37008: make unittest.mock.mock_open honor next()
+https://bugs.python.org/issue37008  closed by asvetlov
+
+#37016: Python embedded in C++ cannot open a file
+https://bugs.python.org/issue37016  closed by matrixise
+
+#37019: Create symlinks relative to cwd
+https://bugs.python.org/issue37019  closed by serhiy.storchaka
+
+#37020: Invalid floating point multiplication result
+https://bugs.python.org/issue37020  closed by SilentGhost
+
+#37031: signalmodule.c: reuse runtime->main_thread
+https://bugs.python.org/issue37031  closed by vstinner
+
+#37033: Dictionary defaults .get(), .pop(), .setdefault()
+https://bugs.python.org/issue37033  closed by SilentGhost
+
+From greg at krypto.org  Fri May 24 14:23:43 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Fri, 24 May 2019 11:23:43 -0700
+Subject: [Python-Dev] [python-committers] PEP 595: Improving
+ bugs.python.org
+In-Reply-To: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+Message-ID: <CAGE7PNKk7AojNQMSfScAH_J3Hmx+K0V42=wSAx8jm=FAoJtXFQ@mail.gmail.com>
+
+-cc: committers to avoid crossposting.
+
+I have feedback for roundup as experienced on BPO that should be
+represented within PEP 595 if we are going to have a summary of "improving
+roundup for BPO" captured in a PEP (presumably already rejected given 581?
+But good to have documented regardless so _thank you_ for doing this
+writeup even though I realize our plan of record may be demoralizing for
+you).
+
+> **Flexible UI.**  While Roundup UI might look dated, it is convenient and
+flexible.
+
+I wholly disagree with this statement.
+
+The BPO roundup UI drives me nuts. every. single. time. I have to use it.
+It is not optimized for common workflows users actually need to accomplish
+when using a bug tracker.  Two example usability issues (of many): Users
+can't read the latest update to a bug of length because it is hidden within
+the *middle* of the scrolling region, they must hunt for it.  After
+reading, the text box to add to the discussion is oddly located near the
+*top* of the scrolling region so that a user cannot see context of a bug
+discussion they are responding to as they type.  I file things like this
+under "User experience design is needed for the common workflows of all
+classes of users".
+
+Roundup needs a modern responsive web interface, not GET/POST request based
+interface seen on BPO.  As a result of that, roundup *feels* like is
+belongs in the Pre-2004 era interface wise by being web form and full page
+reload server for everything. A responsive modern "async javascript
+requests happen in the background of the UI" system that we all expect of
+any web UI is needed. Not just tweaking the existing thing to have a mobile
+friendly version of the web form. This includes persistent connections so
+that updates to an issue show up live as they happen instead of getting an
+error message "someone/something else has updated this issue since you
+started typing, the action you wanted to take such as submitting that
+comment or editing that field is now invalid and cannot be completed
+without a lot of manual work figuring out what happened, cut and pasting,
+and fixing things up on the you the users part".
+
+I'm not going to try proposing a PR to this PEP encapsulating that, I'll
+leave that up to anyone willing to wrangle such a PEP.  The list archive
+has it regardless now. :)
+
+-Greg
+
+
+On Thu, May 23, 2019 at 1:17 PM Ezio Melotti <ezio.melotti at gmail.com> wrote:
+
+> Hello,
+> Berker and I have been working on a PEP that suggests we keep using
+> and improving bugs.python.org and Roundup instead of switching to
+> GitHub Issues as proposed by PEP 581.
+>
+> The PEP covers:
+> * What are the advantages of Roundup over GitHub issues;
+> * What features are missing in Roundup and how can we add them;
+> * Issues with PEP 581;
+> * Issues with the migration plan proposed by PEP 588;
+>
+> The rendered version of PEP 595 is available at
+> https://www.python.org/dev/peps/pep-0595/
+>
+> For reference, you can consult PEP 581 and 588 at
+> https://www.python.org/dev/peps/pep-0581/ and
+> https://www.python.org/dev/peps/pep-0588/
+>
+> The full text of the PEP is include below.  We are planning to update
+> the PEP to include the feedback we receive and to update the status of
+> features as we implement them (we also have a Google Summer of Code
+> students working on it).
+>
+> Best Regards,
+> Ezio Melotti
+>
+>
+> ================
+> PEP: 595
+> Title: Improving bugs.python.org
+> Author: Ezio Melotti <ezio.melotti at gmail.com>, Berker Peksag
+> <berker.peksag at gmail.com>
+> Status: Draft
+> Type: Process
+> Content-Type: text/x-rst
+> Created: 12-May-2019
+>
+>
+> Abstract
+> ========
+>
+> This PEP proposes a list of improvements to make bugs.python.org
+> more usable for contributors and core developers.  This PEP also
+> discusses why remaining on Roundup should be preferred over
+> switching to GitHub Issues, as proposed by :pep:`581`.
+>
+>
+> Motivation
+> ==========
+>
+> On May 14th, 2019 :pep:`581` has been accepted [#]_ without much
+> public discussion and without a clear consensus [#]_.  The PEP
+> contains factual errors and doesn't address some of the
+> issues that the migration to GitHub Issues might present.
+>
+> Given the scope of the migration, the amount of work required,
+> and how it will negatively affect the workflow during the
+> transition phase, this decision should be re-evaluated.
+>
+>
+> Roundup advantages over GitHub Issues
+> =====================================
+>
+> This section discusses reasons why Roundup should be preferred
+> over GitHub Issues and Roundup features that are not available
+> on GitHub Issues.
+>
+> * **Roundup is the status quo.**  Roundup has been an integral
+>   part of the CPython workflow for years.  It is a stable product
+>   that has been tested and customized to adapt to our needs as the
+>   workflow evolved.
+>
+>   It is possible to gradually improve it and avoid the disruption
+>   that a switch to a different system would inevitabily bring to
+>   the workflow.
+>
+> * **Open-source and Python powered.**  Roundup is an open-source
+>   project and is written in Python.  By using it and supporting
+>   it, we also support the Python ecosystem.  Several features
+>   developed for bpo have also been ported to upstream Roundup
+>   over the years.
+>
+> * **Fully customizable.**  Roundup can be (and has been) fully
+>   customized to fit our needs.
+>
+> * **Finer-grained access control.**  Roundup allows the creation
+>   of different roles with different permissions (e.g. create,
+>   view, edit, etc.) for each individual property, and users can
+>   have multiple roles.
+>
+> * **Flexible UI.**  While Roundup UI might look dated, it is
+>   convenient and flexible.
+>
+>   For example, on the issue page, each field (e.g. title, type,
+>   versions, status, linked files and PRs, etc.) have appropriate
+>   UI elements (input boxes, dropdowns, tables, etc.) that are
+>   easy to set and also provide a convenient way to get info about
+>   the issue at a glance.  The number of fields, their values, and
+>   the UI element they use is also fully customizable.
+>   GitHub only provides labels.
+>
+>   The issue list page presents the issues in a compact and easy
+>   to read table with separate columns for different fields.  For
+>   comparison, Roundup lists 50 issues in a screen, whereas GitHub
+>   takes two screens to shows 25 issues.
+>
+> * **Advanced search.**  Roundup provides an accurate way to search
+>   and filter by using any combination of issue fields.
+>   It is also possible to customize the number of results and the
+>   fields displayed in the table, and the sorting and grouping
+>   (up to two levels).
+>
+>   bpo also provides predefined summaries (e.g. "Created by you",
+>   "Assigned to you", etc.) and allows the creation of custom
+>   search queries that can be conveniently accessed from the sidebar.
+>
+> * **Nosy list autocomplete.**  The nosy list has an autocomplete
+>   feature that suggests maintainers and experts.  The suggestions
+>   are automatically updated when the experts index [#]_ changes.
+>
+> * **Dependencies and Superseders.** Roundup allows to specify
+>   dependencies that must be addressed before the current issues
+>   can be closed and a superseder issue to easily mark duplicates
+>   [#]_.  The list of dependencies can also be used to create
+>   meta-issues that references several other sub-issues [#]_.
+>
+>
+> Improving Roundup
+> =================
+>
+> This section lists some of the issues mentioned by :pep:`581`
+> and other desired features and discusses how they can be implemented
+> by improving Roundup and/or our instance.
+>
+> * **REST API support.**  A REST API will make integration with other
+>   services and the development of new tools and applications easiers.
+>
+>   Upstream Roundup now supports a REST API. Updating the tracker will
+>   make the REST API available.
+>
+> * **GitHub login support.**  This will allow users to login
+>   to bugs.python.org (bpo) without having to create a new account.
+>   It will also solve issues with confirmation emails being marked
+>   as spam, and provide two-factor authentication.
+>
+>   A patch to add this functionality is already available and is
+>   being integrated at the time of writing [#]_.
+>
+> * **Markdown support and message preview and editing.**  This feature
+>   will allow the use of Markdown in messages and the ability to
+>   preview the message before the submission and edit it afterward.
+>
+>   This can be done, but it will take some work.  Possible solutions
+>   have been proposed on the roundup-devel mailing list [#]_.
+>
+> * **"Remove me from nosy list" button.**  Add a button on issue pages
+>   to remove self from the nosy list.
+>
+>   This feature will be added during GSoC 2019.
+>
+> * **Mobile friendly theme.**  Current theme of bugs.python.org looks
+>   dated and it doesn't work well with mobile browsers.
+>
+>   A mobile-friendly theme that is more modern but still familiar
+>   will be added.
+>
+> * **Add PR link to BPO emails.**  Currently bpo emails don't include
+>   links to the corresponding PRs.
+>
+>   A patch [#]_ is available to change the content of the bpo emails
+>   from::
+>
+>      components: +Tkinter
+>      versions: +Python 3.4
+>      pull_requests: +42
+>
+>   to::
+>
+>      components: +Tkinter
+>      versions: +Python 3.4
+>      pull_request: https://github.com/python/cpython/pull/341
+>
+> * **Python 3 support.**  Using Python 3 will make maintenance easier.
+>
+>   Upstream Roundup now supports Python 3. Updating the tracker will
+>   allow us to switch to Python 3.  The instances will need to be
+>   updated as well.
+>
+> * **Use upstream Roundup.**  We currently use a fork of Roundup with
+>   a few modifications, most notably the GitHub integration.  If this
+>   is ported upstream, we can start using upstream Roundup without
+>   having to maintain our fork.
+>
+>
+> PEP 581 issues
+> ==============
+>
+> This section addresses some errors and inaccuracies found in :pep:`581`.
+>
+> The "Why GitHub?" section of PEP 581 lists features currently
+> available on GitHub Issues but not on Roundup.  Some of this features
+> are currently supported:
+>
+> * "Ability to reply to issue and pull request conversations via email."
+>
+>   * Being able to reply by email has been one of the core features of
+>     Roundup since the beginning.  It is also possible to create new
+>     issues or close existing ones, set or modify fields, and add
+>     attachments.
+>
+> * "Email notifications containing metadata, integrated with Gmail,
+>   allowing systematic filtering of emails."
+>
+>   * Emails sent by Roundup contains metadata that can be used for
+>     filtering.
+>
+> * "Additional privacy, such as offering the user a choice to hide an
+>   email address, while still allowing communication with the user
+>   through @-mentions."
+>
+>   * Email addresses are hidden by default to users that are not
+>     registered.  Registered users can see other users' addresses
+>     because we configured the tracker to show them.  It can easily
+>     be changed if desired.  Users can still be added to the nosy
+>     list by using their username even if their address is hidden.
+>
+> * "Ability to automatically close issues when a PR has been merged."
+>
+>   * The GitHub integration of Roundup automatically closes issues
+>     when a commit that contains "fixes issue <id>" is merged.
+>     (Alternative spellings such as "closes" or "bug" are also supported.)
+>     See [#]_ for a recent example of this feature.
+>
+> * "Support for permalinks, allowing easy quoting and copying &
+>   pasting of source code."
+>
+>   * Roundup has permalinks for issues, messages, attachments, etc.
+>     In addition, Roundup allows to easily rewrite broken URLs in
+>     messages (e.g. if the code hosting changes).
+>
+> * "Core developers, volunteers, and the PSF don't have to maintain the
+>   issue infrastructure/site, giving us more time and resources to focus
+>   on the development of Python."
+>
+>   * While this is partially true, additional resources are required to
+>     write and maintain bots.
+>
+>     In some cases, bots are required to workaround GitHub's lack of
+>     features rather than expanding. [#]_ was written
+>     specifically to workaround GitHub's email integration.
+>
+>     Updating our bots to stay up-to-date with changes in the GitHub API
+>     has also maintenance cost. [#]_ took two days to be fixed.
+>
+>     In addition, we will still need to maintain Roundup for bpo (even
+>     if it becomes read-only) and for the other trackers
+>     we currently host/maintain (Jython [#]_ and Roundup [#]_).
+>
+> The "Issues with Roundup / bpo" section of :pep:`581` lists some issues
+> that have already been fixed:
+>
+> * "The upstream Roundup code is in Mercurial. Without any CI available,
+>   it puts heavy burden on the few existing maintainers in terms of
+>   reviewing, testing, and applying patches."
+>
+>   * While Roundup uses Mercurial by default, there is a git clone
+>     available on GitHub [#]_.  Roundup also has CI available [#]_ [#]_.
+>
+> * "There is no REST API available. There is an open issue in Roundup for
+>   adding REST API. Last activity was in 2016."
+>
+>   * The REST API has been integrated and it's now available in Roundup.
+>
+> * "Users email addresses are exposed. There is no option to mask it."
+>
+>   * Exposing addresses to registered and logged in users was a decision
+>     taken when our instance was set up.
+>
+>     This has now been changed to make the email addresses hidden for
+>     regular users too (Developers and Coordinators can still see them).
+>     The "Email address"" column from the user listing page [#]_ has been
+>     removed too.
+>
+> * "It sends a number of unnecessary emails and notifications, and it is
+>   difficult, if not impossible, to configure."
+>
+>   * This can be configured.
+>
+> * "Creating an account has been a hassle. There have been reports of people
+>   having trouble creating accounts or logging in."
+>
+>   * The main issue is confirmation emails being marked as spam.  Work has
+>     been done to resolve the issue.
+>
+> Migration considerations
+> ========================
+>
+> This section describes issues with the migrations that might not
+> have been addressed by :pep:`581` and :pep:`588`.
+>
+> :pep:`588` suggests to add a button to migrate issues to GitHub
+> only when someone wants to keep working on them.  This approach
+> has several issues:
+>
+> * bpo will need to be updated in order to add a button that,
+>   once pressed, creates a new issue on GitHub, copies over all
+>   the messages, attachments, and creates/adds label for the
+>   existing fields.  Permissions will also need to be tweaked
+>   to make individual issues read-only once they are migrated,
+>   and to prevent users to create new accounts.
+>
+> * The issues will be split between two trackers; searching issues
+>   will take significant more effort.
+>
+> * The conversion from Roundup to GitHub is lossy, unless all
+>   the bpo fields are converted into labels or preserved somewhere
+>   else.
+>
+> * bpo converts a number of references into links, including
+>   issue, message, and PR IDs, changeset numbers, legacy SVN
+>   revision numbers, paths to files in the repo, files in
+>   tracebacks (detecting the correct branch), links to devguide
+>   pages and sections [#]_.  This happens when messages are
+>   requested so it is possible to create the correct link (e.g.
+>   all the file links used to point to hg.python.org and now
+>   point to GitHub).
+>
+>   If the links are hardcoded during the migration, it will be
+>   difficult (if not impossible) to change them later.  If they
+>   aren't, they will either be lost, or a tool to generate the
+>   links and updating them will need to be written.
+>
+> * GitHub doesn't provide a way to set and preserve issue IDs
+>   if they are migrated automatically with the use of a button.
+>   (Some projects managed to preserve the IDs by contaacting
+>   the GitHub staff and migrating the issues *en masse*.)
+>
+> * On top of the work and changes required to migrate to GitHub
+>   issues, we will still need to keep running and maintaining
+>   Roundup, for both our instance (read-only) and for the Jython
+>   and Roundup trackers (read-write).
+>
+>
+> In addition to the issues listed in the "Open issues" section of
+> :pep:`588`, this issues will need to be addressed:
+>
+> * GitHub is properietary and there is risk of vendor lock-in.
+>   Their business model might change and they could shut down
+>   altogether.
+>
+> * Switching to GitHub Issues will likely increase the number of
+>   invalid reports and increase the triaging effort.  This concern
+>   has been raised in the past in a Zulip topic [#]_.
+>
+>   There have been already cases where people posted comments on
+>   PRs that required moderators to mark them as off-topic or
+>   disruptive, delete them altogether, and even lock the
+>   conversation [#]_.
+>
+> * Roundup sends weekly reports to python-dev with a summary that
+>   includes new issues, recent issues with no replies, recent
+>   issues waiting for review, most discussed issues, closed issues,
+>   and deltas for open/closed/total issue counts [#]_.  The report
+>   provides an easy way to keep track of the tracker activity and
+>   to make sure that issues that require attention are noticed.
+>
+>   The data collect by the weekly report is also use to generate
+>   statistics and graphs that can be used to gain new insights [#]_.
+>
+> * There are currently two mailing lists where Roundup posts new
+>   tracker issues and all messages respectively: new-bugs-announce
+>   [#]_ and python-bugs-list [#]_.  A new system will need to be
+>   developed to preserve this functionality.  These MLs offer
+>   additional ways to keep track of the tracker activity.
+>
+>
+> References
+> ==========
+>
+> .. [#] [Python-Dev] PEP 581 (Using GitHub issues for CPython) is accepted
+>
+>    https://mail.python.org/pipermail/python-dev/2019-May/157399.html
+>
+> .. [#] [python-committers] [Python-Dev] PEP 581 (Using GitHub issues
+>    for CPython) is accepted
+>
+>
+> https://mail.python.org/pipermail/python-committers/2019-May/006755.html
+>
+> .. [#] Experts Index -- Python Devguide
+>
+>    https://devguide.python.org/experts/
+>
+> .. [#] An example of superseded issues:
+>    "re.sub() replaces only several matches"
+>
+>    https://bugs.python.org/issue12078
+>
+> .. [#] An example of meta issue using dependencies to track sub-issues:
+>    "Meta-issue: support of the android platform""
+>
+>    https://bugs.python.org/issue26865
+>
+> .. [#] Support logging in with GitHub
+>
+>    https://github.com/python/bugs.python.org/issues/7
+>
+> .. [#] Re: [Roundup-devel] PEP 581 and Google Summer of Code
+>
+>    https://sourceforge.net/p/roundup/mailman/message/36667828/
+>
+> .. [#] [Tracker-discuss] [issue624] bpo emails contain useless non-github
+>        pull_request number - users want a link to actual github PR
+>
+>    https://mail.python.org/pipermail/tracker-discuss/2018-June/004547.html
+>
+> .. [#] The commit reported in msg342882 closes the issue (see the history
+> below)
+>
+>    https://bugs.python.org/issue36951#msg342882
+>
+> .. [#] The cpython-emailer-webhook project
+>
+>    https://github.com/berkerpeksag/cpython-emailer-webhook
+>
+> .. [#] A recent incident caused by GitHub
+>
+>    https://github.com/python/bedevere/pull/163
+>
+> .. [#] Jython issue tracker
+>
+>    https://bugs.jython.org/
+>
+> .. [#] Roundup issue tracker
+>
+>    https://issues.roundup-tracker.org/
+>
+> .. [#] GitHub clone of Roundup
+>
+>    https://github.com/roundup-tracker/roundup
+>
+> .. [#] Travis-CI for Roundup
+>
+>    https://travis-ci.org/roundup-tracker/roundup) and codecov
+>
+> .. [#] Codecov for Roundup
+>
+>    https://codecov.io/gh/roundup-tracker/roundup/commits
+>
+> .. [#] User listing -- Python tracker
+>
+>    https://bugs.python.org/user?@sort=username
+>
+> .. [#] Generating Special Links in a Comment -- Python Devguide
+>
+>
+> https://devguide.python.org/triaging/#generating-special-links-in-a-comment
+>
+> .. [#] The New-bugs-announce mailing list
+>
+>    https://mail.python.org/mailman/listinfo/new-bugs-announce
+>
+> .. [#] The Python-bugs-list mailing list
+>
+>    https://mail.python.org/mailman/listinfo/python-bugs-list
+>
+> .. [#] An example of [Python-Dev] Summary of Python tracker Issues
+>
+>    https://mail.python.org/pipermail/python-dev/2019-May/157483.html
+>
+> .. [#] Issues stats -- Python tracker
+>
+>    https://bugs.python.org/issue?@template=stats
+>
+> .. [#] s/n ratio -- Python -- Zulip
+>
+>
+> https://python.zulipchat.com/#narrow/stream/130206-pep581/topic/s.2Fn.20ratio
+>
+> .. [#] For example this and other related PRs:
+>
+>    https://github.com/python/cpython/pull/9099
+>
+>
+> Copyright
+> =========
+>
+> This document has been placed in the public domain.
+>
+> ..
+>    Local Variables:
+>    mode: indented-text
+>    indent-tabs-mode: nil
+>    sentence-end-double-space: t
+>    fill-column: 70
+>    coding: utf-8
+>    End:
+> _______________________________________________
+> python-committers mailing list
+> python-committers at python.org
+> https://mail.python.org/mailman/listinfo/python-committers
+> Code of Conduct: https://www.python.org/psf/codeofconduct/
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/7c9d3776/attachment.html>
+
+From brett at python.org  Fri May 24 15:12:17 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 24 May 2019 12:12:17 -0700
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <20190524004422.GR4221@ando.pearwood.info>
+References: <da888e12-7b7a-83be-0363-867ccd98db69@python.org>
+ <CAP1=2W7T7n+y_zdJCF5OG0H55X0q+Jjq223UEv41CnNLRq+qHQ@mail.gmail.com>
+ <27ba695b-3219-a628-acef-4e0af649e2de@python.org>
+ <CAP1=2W4QX73S64LvbhP2UmymnLye2C93RGHhbgm+MZhMTp+00Q@mail.gmail.com>
+ <20190522121237.021cbec4@fsol>
+ <CAP1=2W53GAkoKp_3j3vT4uuuBsOmhRYeDwjR3n5Vss5b4n0tGg@mail.gmail.com>
+ <CAD3kds2wYjTpOB0rty4Lxf46t_oMd4phXaOUTjW_WDEJrv7i3Q@mail.gmail.com>
+ <CAPJVwBm8agWYEnXBu74ZEzv6W52PzRv3QFWPEwXa55MifY5cNw@mail.gmail.com>
+ <CAD3kds25fvFa-0DridAwyHxyUpMxECZMNNK+=WnG3q8gQ=mOdA@mail.gmail.com>
+ <CAP1=2W6ero5WsbfHczr4o0+E0m6P7_=NtYVvFgt+2m5JThicBA@mail.gmail.com>
+ <20190524004422.GR4221@ando.pearwood.info>
+Message-ID: <CAP1=2W43=Z6xO5Q9Dye=XWxxU8scKQvuvZaQ+NVEV3g7G-eMgQ@mail.gmail.com>
+
+On Thu, May 23, 2019 at 5:45 PM Steven D'Aprano <steve at pearwood.info> wrote:
+
+> On Thu, May 23, 2019 at 02:06:13PM -0700, Brett Cannon wrote:
+> > On Wed, May 22, 2019 at 1:23 PM Sean Wallitsch <
+> > sean.wallitsch at dreamworks.com> wrote:
+> >
+> > > My apologies for that oversight. My understanding is that many of the
+> > > methods present in aifc depend heavily on audioop for reading and
+> writing.
+> > >
+> >
+> > But are people using audioop directly?
+>
+> Yes they are.
+>
+>
+> https://old.reddit.com/r/Python/comments/brgl8v/pep_594_removing_dead_batteries_from_the_standard/eodvexl/
+>
+> Shouldn't the PEP be responsable for establishing (as well as any
+> negative can be proven) that these modules aren't used, rather than
+> merely assuming that they aren't?
+>
+
+> Of course it is hard to establish that a module isn't being used. Not
+> all code can be searched for on the Internet, there's huge amounts of
+> non-open source code written by users that never leaves their computer,
+> or behind corporate firewalls.
+>
+
+Exactly, hence why we are going through the PEP process on this and not
+simply deprecating everything outright without public discussion.
+
+
+>
+> The difficulty of proving this negative requires that we be especially
+> conservative about removal. At the very least, we should demonstrate
+> that the package is *an active burden*.
+>
+> Its not enough to say "nobody has touched this module for ages" since
+> stable, working code doesn't rot unless we change the language (or the
+> std lib!) and break it.
+>
+> So far, the PEPs record hasn't been too good: out of the 31 modules
+> listed in the original draft, the PEP marks four as "keep", leaving 27
+> to be deprecated. So far, we've found:
+>
+
+I don't think it's fair to be saying Christian isn't doing "too good"
+simply because he took a stab at trying to figure out some way to know
+which modules would make sense to remove and he got it wrong for some of
+them from some people's perspective. As you pointed out, there's no
+scientific way to do this ahead of time due to closed source code (e.g. the
+VFX industry is not publishing all of their asset pipeline tools so there
+was no way to know ahead of time without asking like we are with the PEP),
+so he had to start somewhere. And this initial list was discussed at the
+PyCon US 2018 language summit as a good one to start from so he isn't
+entirely guessing without some initial support to try this list out.
+
+
+>
+> - the sound libraries are in heavy use by hobbyists and the professional
+> audio-visual industry; aifc in particular is a mature, stable library
+> that isn't break and doesn't need much attention;
+>
+> - cgi and cgitb are used by people who don't need a heavyweight HTML
+> solution (see Reddit);
+>
+> - colorsys, fileinput and nntplib (at least) have been added to the
+> "keep" list;
+>
+> - the removal of spwd (and crypt?) has been controversial.
+>
+> So far, nearly 30% of the so-called "dead batteries" turn out to be not
+> so dead after all.
+>
+> I may have missed some. Nor have I even talked much about modules which
+> I personally use occasionally, like binhex, because it's not about *me*
+> its about the community. As much as I would prefer binhex to remain, if
+> it is removed I will be disappointed but I'll make do.
+>
+
+I personally think it's about both us and the community. The community can
+and does ask for stuff all the time, but we have to balance that with what
+we as a team are capable of handling and in my opinion the stdlib is too
+big right now for us to maintain appropriately. Plus there's an asymmetric
+ask here when the community says they want something while we have to keep
+it going.
+
+
+>
+> Speaking of binhex, I tried to get a sense of how much of a burden it
+> actually is. There was a comment by Guido in *2007*:
+>
+>
+> https://github.com/python/cpython/commit/34a042d301d6ab88645046a6dfa6c38265ca4b39
+>
+> "This is the last time I fix binhex. If it breaks again it goes in the
+> dustbin"
+>
+> which of course is Guido's perogative to say Won't Fix. Its now 2019 and
+> it hasn't broken again, or at least it hasn't broken again sufficiently
+> to make any difference. Serhey found one issue:
+>
+> https://bugs.python.org/issue29566
+>
+> but I'm not sure if that's actually a bug or not. There was a
+> documentation bug (in the source code) in 2017:
+>
+> https://bugs.python.org/issue29557
+>
+> and one enhancement request to clean up the code:
+>
+> https://bugs.python.org/issue34063
+>
+> Other than that, Serhey touched binhex.py as part of a mass patch to
+> almost the whole stdlib to modernise file handling to use "with".
+>
+> So by my count, in 12 years since Guido's frustrated comment about
+> binhex, it has seen:
+>
+> - removal of an obsolete and ambiguous comment from the source code;
+> - addition of a few with blocks to modernise file handling;
+> - one enhancement request still outstanding;
+> - one possibly a bug (or maybe not) still outstanding.
+>
+>
+> I may have missed some, but we're talking about one issue per three
+> years. How is this a maintenance burden?
+>
+
+Then multiply that by however many modules stay in the PEP -- and which we
+know don't all have such small stats compared to binhex -- and it starts to
+become death by a thousand paper cuts. Numerically all of that seems small,
+but all of that required time that we all have a limited amount of (both in
+the open source contribution sense and in the living-and-breathing sense).
+My point is none of this is free no matter how minuscule we think the cost
+is.
+
+You can also flip that question around and ask why are there *any*
+enhancement requests or open issues if maintenance is so easy for binhex?
+Why has no one signed up for the module in the experts index if it's such a
+minor load to maintain? My guess is we all have other priorities that we
+value more, which makes total sense, but that also says to me that other
+things are taking higher priority. And for me, even ignoring a module still
+takes effort.
+
+For me personally, a module not being in this PEP means we consider it
+critical to a large portion of users of Python where being "in the box" is
+an important aspect as well as having us directly maintain the module. If a
+module is in this PEP it says to me that we consider it a nice-to-have for
+the community, but not at the cost of the modules not listed, or the
+CPython interpreter, or the language itself which is the other stuff we are
+planning to keep maintaining after this PEP.
+
+Anyway, in the end we are never all going to agree to what the definition
+is of what is or is not enough effort in maintenance to warrant keeping
+something in the stdlib. The best I think we can do is try to reach
+consensus and then try to figure out what guidelines we want to use for
+what does belong in the stdlib going forward along with trying to figure
+out how to maintain what we do choose to keep.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/35c2247d/attachment-0001.html>
+
+From brett at python.org  Fri May 24 15:19:29 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 24 May 2019 12:19:29 -0700
+Subject: [Python-Dev] PEP 594 -- Bundling libraries?
+In-Reply-To: <CAEfz+TyGNdBXELwUHFHkaZZ0KBva0YZKhHcpaUQvarxvCMpp=Q@mail.gmail.com>
+References: <CAEfz+TyGNdBXELwUHFHkaZZ0KBva0YZKhHcpaUQvarxvCMpp=Q@mail.gmail.com>
+Message-ID: <CAP1=2W6nzWLumiw-sD38NDSTg7PqMDMf8AioKUxUCsxbxwTGjw@mail.gmail.com>
+
+On Fri, May 24, 2019 at 12:20 AM Inada Naoki <songofacandy at gmail.com> wrote:
+
+> When removing libraries from stdlib, can we bundle
+> removed libraries and install it like ensurepip does?
+>
+
+I think that would require people picking those modules up and maintaining
+them. But even then I don't know how easy it would be to communicate that
+those modules are no longer under our care and so please report bugs and
+feature requests to that module's own repository before they open an issue
+on bpo.
+
+-Brett
+
+
+>
+> Ruby does similar thing, called "Gemification".
+> See https://rubykaigi.org/2017/presentations/hsbt.html
+>
+> When people don't use venv, scripts importing nntplib
+> or aifc runs correctly.
+>
+> When people use venv, they need to `pip install nntplib`
+> (we may be able to use PyPI's namespace beta feature here).
+> But I assume `pip install` is not a problem for people using venv.
+>
+> Regards,
+> --
+> Inada Naoki  <songofacandy at gmail.com>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/42e6217f/attachment.html>
+
+From brett at python.org  Fri May 24 15:30:54 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 24 May 2019 12:30:54 -0700
+Subject: [Python-Dev] we will probably be having an difficult discussion
+ about the stdlib after PEP 594 is done
+In-Reply-To: <CAPJVwBniAo13KT88eqLb0FQqieiqqR3fCHOrzauHH90OYOGsrg@mail.gmail.com>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <BFB09280-A295-40BF-A6D0-14D495B527A4@python.org>
+ <CAP1=2W5MHH8Axq9JjYt9jRS5rRc-8XkXRgodDYheMOcVydrZdg@mail.gmail.com>
+ <61B1753E-F700-46DA-9992-C67D09B8268B@python.org>
+ <b92d5982-51dd-9cc1-81bb-4c753aa17578@brown.edu>
+ <CAPJVwBniAo13KT88eqLb0FQqieiqqR3fCHOrzauHH90OYOGsrg@mail.gmail.com>
+Message-ID: <CAP1=2W5EWGcp5ek3Q0qzfgkiAJc+vb6Oo_XjZb+1XXd1TCbXjg@mail.gmail.com>
+
+On Fri, May 24, 2019 at 11:07 AM Nathaniel Smith <njs at pobox.com> wrote:
+
+> On Fri, May 24, 2019, 08:08 Ben Cail <benjamin_cail at brown.edu> wrote:
+>
+>>
+>> Why not have the PSF hire someone (or multiple people) to be paid to
+>> work on the maintenance burden? This could be similar to the Django
+>> fellows:
+>> https://www.djangoproject.com/fundraising/#who-is-the-django-fellow. It
+>> seems like a good thing for Django, and Python is used by many more
+>> people than Django. Why not pay someone to do the work that others don't
+>> want to do? The person in this position could be guided by the PSF
+>> and/or the Steering Council, to do the work most necessary for the good
+>> of the language as a whole (like maintaining old modules that other core
+>> devs don't want to work on).
+>>
+>> You could market it together with the maintenance burden: "you want to
+>> use all these old modules, but we don't want to maintain them. So pay us
+>> some money, and we'll hire someone to maintain them."
+>>
+>
+> I think the basic idea here is a good one, but:
+>
+> - transitioning from an all-volunteer project to a mixed
+> paid-staff+volunteers project is a big step, and we'll need to take time to
+> figure out what that would look like before people are comfortable with it.
+>
+> - even if we have folks paid to help with maintenance, it won't mean we
+> suddenly have infinite resources and can do everything. We'll still need to
+> pick which things to prioritize. And I think if you asked 100 people to
+> name the most critical issues facing Python today, most of them would not
+> say "maintaining xdrlib".
+>
+
+I'll just quickly say that the steering council has gotten out from under
+the PEP backlog enough to start a conversation with the PSF about staffing.
+It's initially around PM-type things (e.g. Python 2 sunset, PEP 588), but
+if that works out then I would assume we would expand the conversation to
+other types of staffing. IOW it's too early to start talking about this
+topic but just know the steering council is aware of what the DSF does and
+the general idea of potentially hiring folks to help on the dev-side of
+things (and Nathaniel's point about setting expectations I think is spot-on
+:) .
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/f5639bd2/attachment.html>
+
+From njs at pobox.com  Fri May 24 16:43:21 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 24 May 2019 13:43:21 -0700
+Subject: [Python-Dev] we will probably be having an difficult discussion
+ about the stdlib after PEP 594 is done (was: PEP 594: Removing dead
+ batteries from the standard library)
+In-Reply-To: <CAP1=2W5MHH8Axq9JjYt9jRS5rRc-8XkXRgodDYheMOcVydrZdg@mail.gmail.com>
+References: <bf0bf5b8-1ef0-556b-632c-eaebfb325496@python.org>
+ <BFB09280-A295-40BF-A6D0-14D495B527A4@python.org>
+ <CAP1=2W5MHH8Axq9JjYt9jRS5rRc-8XkXRgodDYheMOcVydrZdg@mail.gmail.com>
+Message-ID: <CAPJVwBmxNS5Z+gZcH=R3-T6fFCOVVEa3fyOcW032Ux2=S3-ghA@mail.gmail.com>
+
+On Thu, May 23, 2019 at 2:18 PM Brett Cannon <brett at python.org> wrote:
+> I'm personally viewing it as a first step in addressing the maintenance burden we have with such a large stdlib. Christian started this work over a year ago and I think it's worth seeing through. After that we should probably have a discussion as a team about how we view the stdlib long-term and how that ties into maintaining it so that people's opinion of the stdlib's quality goes up rather than viewing the quality of it as varying module-to-module.
+
+I started a thread on discourse to discuss some "what if" scenarios
+here, in the hopes it will help us make more informed decisions:
+https://discuss.python.org/t/1738
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From ezio.melotti at gmail.com  Fri May 24 16:48:33 2019
+From: ezio.melotti at gmail.com (Ezio Melotti)
+Date: Fri, 24 May 2019 22:48:33 +0200
+Subject: [Python-Dev] [python-committers] PEP 595: Improving
+ bugs.python.org
+In-Reply-To: <CAGE7PNKk7AojNQMSfScAH_J3Hmx+K0V42=wSAx8jm=FAoJtXFQ@mail.gmail.com>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+ <CAGE7PNKk7AojNQMSfScAH_J3Hmx+K0V42=wSAx8jm=FAoJtXFQ@mail.gmail.com>
+Message-ID: <CACBhJdGyFJBzSt79oJysT1owPxn_AkmOdJ5c21O1hgVTv5ByxQ@mail.gmail.com>
+
+On Fri, May 24, 2019, 20:23 Gregory P. Smith <greg at krypto.org> wrote:
+
+> -cc: committers to avoid crossposting.
+>
+
++1 (I wanted to include committers, since the announcement about PEP 581
+was posted there too, but it's better to keep the discussion here)
+
+
+> I have feedback for roundup as experienced on BPO that should be
+> represented within PEP 595 if we are going to have a summary of "improving
+> roundup for BPO" captured in a PEP (presumably already rejected given 581?
+> But good to have documented regardless so _thank you_ for doing this
+> writeup even though I realize our plan of record may be demoralizing for
+> you).
+>
+
+We would like people to re-evaluate the decision, but if that doesn't
+happen I think the PEP is still useful, since it provides a fair view of
+Roundup capabilities and discusses things that we will have to take into
+account if we proceed with the migration -- that's why we decided to go
+ahead and write the PEP.
+
+
+> > **Flexible UI.**  While Roundup UI might look dated, it is convenient
+> and flexible.
+>
+> I wholly disagree with this statement.
+>
+
+> The BPO roundup UI drives me nuts. every. single. time. I have to use it.
+> It is not optimized for common workflows users actually need to accomplish
+> when using a bug tracker.  Two example usability issues (of many): Users
+> can't read the latest update to a bug of length because it is hidden within
+> the *middle* of the scrolling region, they must hunt for it.
+>
+
+This came up in the past, and two solutions have been proposed already:
+1) keyboard shortcuts have been added in the issue page to quickly jump to
+the first/previous/next/last message and to the response box [0].  They
+support both mnemonic (f/p/n/l/r) and vim-style (h/k/j/l/i) combinations.
+You can find a summary table in the left sidebar of the issue page, under
+help -> keyboard shortcuts.
+2) a patch to collapse the history by default (so that the last message was
+at the end of the page) was proposed and merged [1], but it was reverted
+after a few days because some devs wanted direct access to the history
+without having to do an extra click every time to expand it.
+
+After reading, the text box to add to the discussion is oddly located near
+> the *top* of the scrolling region so that a user cannot see context of a
+> bug discussion they are responding to as they type.
+>
+
+This has also been discussed and different people had different opinion.
+Some suggested to reverse the order of the messages so that the last
+message is at the top near the reply box (like Twitter does), but other
+said it's unnatural to read.  Some suggested to put the reply box at the
+bottom; however if the other fields are left at the top you would have to
+go back up to set them, and if they are moved down you won't easily see
+them at the top when you open an existing issue.  Another solution is
+duplicating the fields and response box at the top and bottom.
+
+
+What I mean with *flexible* when I wrote the PEP, is that, unlike GitHub
+(where they decide), we can customize bpo however we want (as long as we
+agree on what we want -- we could even have per-user settings if we really
+want to :)
+
+
+I think I last heard discussion on the position of the response box in 2011
+(when shortcuts and history collapsing were discussed).  Maybe people
+didn't care enough about it so they didn't bother bringing it up or they
+didn't know it could be changed.  If people do speak up, we can change
+bpo/Roundup.
+
+
+  I file things like this under "User experience design is needed for the
+> common workflows of all classes of users".
+>
+> Roundup needs a modern responsive web interface, not GET/POST request
+> based interface seen on BPO.  As a result of that, roundup *feels* like
+> is belongs in the Pre-2004 era interface wise by being web form and full
+> page reload server for everything. A responsive modern "async javascript
+> requests happen in the background of the UI" system that we all expect of
+> any web UI is needed. Not just tweaking the existing thing to have a mobile
+> friendly version of the web form. This includes persistent connections so
+> that updates to an issue show up live as they happen instead of getting an
+> error message "someone/something else has updated this issue since you
+> started typing, the action you wanted to take such as submitting that
+> comment or editing that field is now invalid and cannot be completed
+> without a lot of manual work figuring out what happened, cut and pasting,
+> and fixing things up on the you the users part".
+>
+
+This is a good point and I think it can be done now that Roundup has a REST
+API.
+
+
+> I'm not going to try proposing a PR to this PEP encapsulating that, I'll
+> leave that up to anyone willing to wrangle such a PEP.  The list archive
+> has it regardless now. :)
+>
+
+Thanks a lot for the feedback, I'll update the PEP once I get back to a PC
+(using mobile now).
+
+Best Regards,
+Ezio Melotti
+
+[0]:
+https://bitbucket.org/python/tracker-cpython/commits/dbe3912f93895cd1c44fd353a0fd5db1b467a075
+[1]:
+https://bitbucket.org/python/tracker-cpython/commits/525d3e387a65c4ada41eaa19608e6e20ecc16b86
+
+
+> -Greg
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/4e2c3925/attachment.html>
+
+From greg at krypto.org  Fri May 24 17:14:45 2019
+From: greg at krypto.org (Gregory P. Smith)
+Date: Fri, 24 May 2019 14:14:45 -0700
+Subject: [Python-Dev] [python-committers] PEP 595: Improving
+ bugs.python.org
+In-Reply-To: <CACBhJdGyFJBzSt79oJysT1owPxn_AkmOdJ5c21O1hgVTv5ByxQ@mail.gmail.com>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+ <CAGE7PNKk7AojNQMSfScAH_J3Hmx+K0V42=wSAx8jm=FAoJtXFQ@mail.gmail.com>
+ <CACBhJdGyFJBzSt79oJysT1owPxn_AkmOdJ5c21O1hgVTv5ByxQ@mail.gmail.com>
+Message-ID: <CAGE7PNJ0rDaeHzTUZ8rSo+xfVDXRo2DN=EQH0Z=5EJSLS3BYYg@mail.gmail.com>
+
+On Fri, May 24, 2019 at 1:48 PM Ezio Melotti <ezio.melotti at gmail.com> wrote:
+
+>
+> On Fri, May 24, 2019, 20:23 Gregory P. Smith <greg at krypto.org> wrote:
+>
+>> -cc: committers to avoid crossposting.
+>>
+>
+> +1 (I wanted to include committers, since the announcement about PEP 581
+> was posted there too, but it's better to keep the discussion here)
+>
+>
+>> I have feedback for roundup as experienced on BPO that should be
+>> represented within PEP 595 if we are going to have a summary of "improving
+>> roundup for BPO" captured in a PEP (presumably already rejected given 581?
+>> But good to have documented regardless so _thank you_ for doing this
+>> writeup even though I realize our plan of record may be demoralizing for
+>> you).
+>>
+>
+> We would like people to re-evaluate the decision, but if that doesn't
+> happen I think the PEP is still useful, since it provides a fair view of
+> Roundup capabilities and discusses things that we will have to take into
+> account if we proceed with the migration -- that's why we decided to go
+> ahead and write the PEP.
+>
+>
+>> > **Flexible UI.**  While Roundup UI might look dated, it is convenient
+>> and flexible.
+>>
+>> I wholly disagree with this statement.
+>>
+>
+>> The BPO roundup UI drives me nuts. every. single. time. I have to use
+>> it.  It is not optimized for common workflows users actually need to
+>> accomplish when using a bug tracker.  Two example usability issues (of
+>> many): Users can't read the latest update to a bug of length because it is
+>> hidden within the *middle* of the scrolling region, they must hunt for it.
+>>
+>
+> This came up in the past, and two solutions have been proposed already:
+> 1) keyboard shortcuts have been added in the issue page to quickly jump to
+> the first/previous/next/last message and to the response box [0].  They
+> support both mnemonic (f/p/n/l/r) and vim-style (h/k/j/l/i) combinations.
+> You can find a summary table in the left sidebar of the issue page, under
+> help -> keyboard shortcuts.
+> 2) a patch to collapse the history by default (so that the last message
+> was at the end of the page) was proposed and merged [1], but it was
+> reverted after a few days because some devs wanted direct access to the
+> history without having to do an extra click every time to expand it.
+>
+> After reading, the text box to add to the discussion is oddly located near
+>> the *top* of the scrolling region so that a user cannot see context of a
+>> bug discussion they are responding to as they type.
+>>
+>
+> This has also been discussed and different people had different opinion.
+> Some suggested to reverse the order of the messages so that the last
+> message is at the top near the reply box (like Twitter does), but other
+> said it's unnatural to read.  Some suggested to put the reply box at the
+> bottom; however if the other fields are left at the top you would have to
+> go back up to set them, and if they are moved down you won't easily see
+> them at the top when you open an existing issue.  Another solution is
+> duplicating the fields and response box at the top and bottom.
+>
+
+The two other modern bugtracker UIs I use on a regular basis do this by
+having all such non-conversation metainfo in a persistent top and side bar
+boxes such that it is always present.  Keeping the conversation and
+metainfo changes listed in order (latest message at the bottom, metainfo
+deltas interspersed in between messages all ordered/grouped by timestamp,
+and reply text entry box below that.  These two are typically big-screen
+engineering UIs (github being one of them), if mobile is desired i expect
+these would effectively wind up as a multi-pane UI.  There's a third ticket
+that I use for non-engineering stuff which does things in reverse order
+with the text entry up top and messages in reverse chronological order
+below that.  This reversal always annoys me; probably because I spend most
+of my time in the others so it forces me to do headstands. I don't know if
+there is a *right* answer between the two approaches, I just know what I
+prefer. But the common theme is keeping new the update UI elements right
+next to the most recent entries which is what BPO lacks today.
+
+What I mean with *flexible* when I wrote the PEP, is that, unlike GitHub
+> (where they decide), we can customize bpo however we want (as long as we
+> agree on what we want -- we could even have per-user settings if we really
+> want to :)
+>
+
+Definitely true in that sense.  Custom things, no matter where, are custom
+code.  diverge from an upstream project in our own fork and maintenance and
+updates become harder.  Author a pile of bots to automate tasks within a
+standard API or UI (as is working great for our Github PR workflow) and the
+equivalent maintenance burden falls on keeping the bots working.
+
+I think I last heard discussion on the position of the response box in 2011
+> (when shortcuts and history collapsing were discussed).  Maybe people
+> didn't care enough about it so they didn't bother bringing it up or they
+> didn't know it could be changed.  If people do speak up, we can change
+> bpo/Roundup.
+>
+>
+>   I file things like this under "User experience design is needed for the
+>> common workflows of all classes of users".
+>>
+>> Roundup needs a modern responsive web interface, not GET/POST request
+>> based interface seen on BPO.  As a result of that, roundup *feels* like
+>> is belongs in the Pre-2004 era interface wise by being web form and full
+>> page reload server for everything. A responsive modern "async javascript
+>> requests happen in the background of the UI" system that we all expect of
+>> any web UI is needed. Not just tweaking the existing thing to have a mobile
+>> friendly version of the web form. This includes persistent connections so
+>> that updates to an issue show up live as they happen instead of getting an
+>> error message "someone/something else has updated this issue since you
+>> started typing, the action you wanted to take such as submitting that
+>> comment or editing that field is now invalid and cannot be completed
+>> without a lot of manual work figuring out what happened, cut and pasting,
+>> and fixing things up on the you the users part".
+>>
+>
+> This is a good point and I think it can be done now that Roundup has a
+> REST API.
+>
+
+Agreed, that seemed likely to be a pre-requisite.  I don't know how many
+other non-bpo roundup users are out there, but even as CPython moves away
+from roundup, the other users would presumably appreciate such a UI.  It'd
+also be a good educational project for anyone wanting to learn how to
+construct such things on top of an existing system.
+
+-gps
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/85dfcacc/attachment-0001.html>
+
+From ezio.melotti at gmail.com  Fri May 24 17:59:37 2019
+From: ezio.melotti at gmail.com (Ezio Melotti)
+Date: Fri, 24 May 2019 23:59:37 +0200
+Subject: [Python-Dev] [python-committers] PEP 595: Improving
+ bugs.python.org
+In-Reply-To: <CAGE7PNJ0rDaeHzTUZ8rSo+xfVDXRo2DN=EQH0Z=5EJSLS3BYYg@mail.gmail.com>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+ <CAGE7PNKk7AojNQMSfScAH_J3Hmx+K0V42=wSAx8jm=FAoJtXFQ@mail.gmail.com>
+ <CACBhJdGyFJBzSt79oJysT1owPxn_AkmOdJ5c21O1hgVTv5ByxQ@mail.gmail.com>
+ <CAGE7PNJ0rDaeHzTUZ8rSo+xfVDXRo2DN=EQH0Z=5EJSLS3BYYg@mail.gmail.com>
+Message-ID: <CACBhJdFUBu1AicMr7bdODro7agTSjab3kRHJD2mLLCESpMqmew@mail.gmail.com>
+
+On Fri, May 24, 2019, 23:14 Gregory P. Smith <greg at krypto.org> wrote:
+
+>
+>
+> On Fri, May 24, 2019 at 1:48 PM Ezio Melotti <ezio.melotti at gmail.com>
+> wrote:
+>
+>>
+>> On Fri, May 24, 2019, 20:23 Gregory P. Smith <greg at krypto.org> wrote:
+>>
+>>> -cc: committers to avoid crossposting.
+>>>
+>>
+>> +1 (I wanted to include committers, since the announcement about PEP 581
+>> was posted there too, but it's better to keep the discussion here)
+>>
+>>
+>>> I have feedback for roundup as experienced on BPO that should be
+>>> represented within PEP 595 if we are going to have a summary of "improving
+>>> roundup for BPO" captured in a PEP (presumably already rejected given 581?
+>>> But good to have documented regardless so _thank you_ for doing this
+>>> writeup even though I realize our plan of record may be demoralizing for
+>>> you).
+>>>
+>>
+>> We would like people to re-evaluate the decision, but if that doesn't
+>> happen I think the PEP is still useful, since it provides a fair view of
+>> Roundup capabilities and discusses things that we will have to take into
+>> account if we proceed with the migration -- that's why we decided to go
+>> ahead and write the PEP.
+>>
+>>
+>>> > **Flexible UI.**  While Roundup UI might look dated, it is convenient
+>>> and flexible.
+>>>
+>>> I wholly disagree with this statement.
+>>>
+>>
+>>> The BPO roundup UI drives me nuts. every. single. time. I have to use
+>>> it.  It is not optimized for common workflows users actually need to
+>>> accomplish when using a bug tracker.  Two example usability issues (of
+>>> many): Users can't read the latest update to a bug of length because it is
+>>> hidden within the *middle* of the scrolling region, they must hunt for it.
+>>>
+>>
+>> This came up in the past, and two solutions have been proposed already:
+>> 1) keyboard shortcuts have been added in the issue page to quickly jump
+>> to the first/previous/next/last message and to the response box [0].  They
+>> support both mnemonic (f/p/n/l/r) and vim-style (h/k/j/l/i) combinations.
+>> You can find a summary table in the left sidebar of the issue page, under
+>> help -> keyboard shortcuts.
+>> 2) a patch to collapse the history by default (so that the last message
+>> was at the end of the page) was proposed and merged [1], but it was
+>> reverted after a few days because some devs wanted direct access to the
+>> history without having to do an extra click every time to expand it.
+>>
+>> After reading, the text box to add to the discussion is oddly located
+>>> near the *top* of the scrolling region so that a user cannot see context of
+>>> a bug discussion they are responding to as they type.
+>>>
+>>
+>> This has also been discussed and different people had different opinion.
+>> Some suggested to reverse the order of the messages so that the last
+>> message is at the top near the reply box (like Twitter does), but other
+>> said it's unnatural to read.  Some suggested to put the reply box at the
+>> bottom; however if the other fields are left at the top you would have to
+>> go back up to set them, and if they are moved down you won't easily see
+>> them at the top when you open an existing issue.  Another solution is
+>> duplicating the fields and response box at the top and bottom.
+>>
+>
+> The two other modern bugtracker UIs I use on a regular basis do this by
+> having all such non-conversation metainfo in a persistent top and side bar
+> boxes such that it is always present.  Keeping the conversation and
+> metainfo changes listed in order (latest message at the bottom, metainfo
+> deltas interspersed in between messages all ordered/grouped by timestamp,
+> and reply text entry box below that.  These two are typically big-screen
+> engineering UIs (github being one of them), if mobile is desired i expect
+> these would effectively wind up as a multi-pane UI.  There's a third ticket
+> that I use for non-engineering stuff which does things in reverse order
+> with the text entry up top and messages in reverse chronological order
+> below that.  This reversal always annoys me; probably because I spend most
+> of my time in the others so it forces me to do headstands. I don't know if
+> there is a *right* answer between the two approaches, I just know what I
+> prefer. But the common theme is keeping new the update UI elements right
+> next to the most recent entries which is what BPO lacks today.
+>
+> What I mean with *flexible* when I wrote the PEP, is that, unlike GitHub
+>> (where they decide), we can customize bpo however we want (as long as we
+>> agree on what we want -- we could even have per-user settings if we really
+>> want to :)
+>>
+>
+> Definitely true in that sense.  Custom things, no matter where, are custom
+> code.  diverge from an upstream project in our own fork and maintenance and
+> updates become harder.  Author a pile of bots to automate tasks within a
+> standard API or UI (as is working great for our Github PR workflow) and the
+> equivalent maintenance burden falls on keeping the bots working.
+>
+
+To clarify, Roundup allows you by design to define instances where you can
+customize the schema (i.e. classes, fields, permissions), templates, and
+extensions.  They provide a default instance that you can start with, but
+it is expected that you customize it.  In every new release they tell you
+if anything changed and how to update your instances (so far upgrading it's
+always been quite straightforward).
+
+We have a fork of the Roundup core only because it's faster to implement
+new features, test them, and then contribute them upstream, but otherwise
+is not required to run customized instances.
+
+That said, your point that custom things, no matter where, need to be
+maintained still stands.
+
+
+> I think I last heard discussion on the position of the response box in
+>> 2011 (when shortcuts and history collapsing were discussed).  Maybe people
+>> didn't care enough about it so they didn't bother bringing it up or they
+>> didn't know it could be changed.  If people do speak up, we can change
+>> bpo/Roundup.
+>>
+>>
+>>   I file things like this under "User experience design is needed for the
+>>> common workflows of all classes of users".
+>>>
+>>> Roundup needs a modern responsive web interface, not GET/POST request
+>>> based interface seen on BPO.  As a result of that, roundup *feels* like
+>>> is belongs in the Pre-2004 era interface wise by being web form and full
+>>> page reload server for everything. A responsive modern "async javascript
+>>> requests happen in the background of the UI" system that we all expect of
+>>> any web UI is needed. Not just tweaking the existing thing to have a mobile
+>>> friendly version of the web form. This includes persistent connections so
+>>> that updates to an issue show up live as they happen instead of getting an
+>>> error message "someone/something else has updated this issue since you
+>>> started typing, the action you wanted to take such as submitting that
+>>> comment or editing that field is now invalid and cannot be completed
+>>> without a lot of manual work figuring out what happened, cut and pasting,
+>>> and fixing things up on the you the users part".
+>>>
+>>
+>> This is a good point and I think it can be done now that Roundup has a
+>> REST API.
+>>
+>
+> Agreed, that seemed likely to be a pre-requisite.  I don't know how many
+> other non-bpo roundup users are out there, but even as CPython moves away
+> from roundup, the other users would presumably appreciate such a UI.  It'd
+> also be a good educational project for anyone wanting to learn how to
+> construct such things on top of an existing system.
+>
+
+We have a Google Summer of Code student working on it over the summer.  If
+we switch to GitHub issues, upstream Roundup and all other projects using
+it will still benefit from his work.
+
+
+> -gps
+>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/763fa08a/attachment.html>
+
+From tim.peters at gmail.com  Fri May 24 21:04:43 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Fri, 24 May 2019 20:04:43 -0500
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAExdVN=xHdv=eWoy9UUXp3Em8w-=Az1AEyau3vt849=XrGJ1Gw@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+ <CAEfz+TxVG5VvxdEfG5wV1gvFWCMQuP-u=pTQ1L-GVEpB3D=9eQ@mail.gmail.com>
+ <20190523183331.2163dd60@fsol>
+ <CAEfz+TztRthC=K5=u5U9t0NBu=k6yDQ7DZqCYSZ24PuuBPXRrw@mail.gmail.com>
+ <CAExdVN=xHdv=eWoy9UUXp3Em8w-=Az1AEyau3vt849=XrGJ1Gw@mail.gmail.com>
+Message-ID: <CAExdVNnt6YK7ZwUBSWKguXHiOmXLNsTZUrApML-3uc3merYrQA@mail.gmail.com>
+
+[Tim]
+> I'll note that the approach I very briefly sketched before
+> (restructure the list of arenas to partition it into multiple lists
+> partitioned by number of free pools) "should make" obmalloc
+> competitive with malloc here ...
+
+But it's also intrusive, breaking up a simple linked list into a
+mutli-headed beast.  That affects all code using it, not just the
+parts mutating it.
+
+So instead I suggest leaving `usable_arenas` entirely alone, but add a
+vector of "search fingers", say,
+
+static struct arenaobject* nfp2lasta[MAX_NUMBER_OF_FREE_POOLS_POSSIBLE + 1];
+
+mapping a count of free pools to (a pointer to) the last arena object
+in usable_arenas with that number of free pools.
+
+Then the search loop in py_malloc_free() can be replaced with a single
+array lookup.:  it leaps directly to where the search loop ends now.
+For example, if we free a pool in an arena that had 23 free pools,
+then the arena object's count of free pools has to be increased to 24,
+and the arena object unlinked from its current position in
+usable_arenas and inserted immediately after nfp2lasta[23].  Note that
+usable_arenas is a doubly linked list, so there's no _need_ at all to
+iterate over it.  Each node in the list knows what's immediately
+before and after it.  And since a free pool count can only increase by
+1, it's always correct to move the arena immediately after the last
+arena with the same original free pool count.
+
+Key invariants:
+
+1. nfp2lasta[n] is NULL if and only if no arena in usable_arenas has
+nfreepools == n.
+
+2. nfp2lasta[pa->nfreepools] == pa if and only if pa is the only arena
+in usable_arenas with that many free pools.
+
+So, in the example above,  nfp2lasta[23] has to be set to NULL if and
+only if the arena in question was the only one with 23 free pools
+(which can be determined cheaply via invariant #2).
+
+And nfp2lasta[24] has to be set to point to the arena in question if
+and only if nfp2lasta[24] is NULL.
+
+Tricky bit:  if the arena in question is the only one with a given
+original free pool count, no pointers in arena objects need to be
+changed at all.  Following the sketch above literally would leave you
+trying to insert it after itself, which wouldn't end well  ;-)
+
+Anyway, this "feels like a right solution" to me, eliminating all
+searches with simple (albeit delicate) constant-time code, and
+requiring code changes only where an arena's number of free pools can
+change.
+
+From tim.peters at gmail.com  Fri May 24 21:14:45 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Fri, 24 May 2019 20:14:45 -0500
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAExdVNnt6YK7ZwUBSWKguXHiOmXLNsTZUrApML-3uc3merYrQA@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+ <CAEfz+TxVG5VvxdEfG5wV1gvFWCMQuP-u=pTQ1L-GVEpB3D=9eQ@mail.gmail.com>
+ <20190523183331.2163dd60@fsol>
+ <CAEfz+TztRthC=K5=u5U9t0NBu=k6yDQ7DZqCYSZ24PuuBPXRrw@mail.gmail.com>
+ <CAExdVN=xHdv=eWoy9UUXp3Em8w-=Az1AEyau3vt849=XrGJ1Gw@mail.gmail.com>
+ <CAExdVNnt6YK7ZwUBSWKguXHiOmXLNsTZUrApML-3uc3merYrQA@mail.gmail.com>
+Message-ID: <CAExdVNkWOso4fQ=R=kPzvk=TSQG2bFUo1+mUM3LrX9V9n332LQ@mail.gmail.com>
+
+[Tim]
+> Key invariants:
+> ...
+> 2. nfp2lasta[pa->nfreepools] == pa if and only if pa is the only arena
+> in usable_arenas with that many free pools.
+
+Ack!  Scratch that.  I need a nap :-(
+
+In fact if that equality holds, it means that nfp2lasta entry has to
+change if pa is moved and pa->prevarena has the same count of free
+pools.
+
+So forget about the explanation and just think about the goal - the
+details will work themselves out ;-)
+
+From random832 at fastmail.com  Sat May 25 00:09:13 2019
+From: random832 at fastmail.com (Random832)
+Date: Sat, 25 May 2019 00:09:13 -0400
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <CAMofdRDaeS_uiT4_z8Upr1JLK8A2HAGK2W=yL1ckVU4JQoenLg@mail.gmail.com>
+References: <HE1PR05MB32111928324AFAE7076D2366B4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+ <CAMofdRDaeS_uiT4_z8Upr1JLK8A2HAGK2W=yL1ckVU4JQoenLg@mail.gmail.com>
+Message-ID: <7089a29d-1913-4c1c-92e7-0a7b7a26d8eb@www.fastmail.com>
+
+On Thu, May 23, 2019, at 15:27, Steve Holden wrote:
+> Besides which, it would be lovely to have a major release that didn't 
+> involve any pain at all for the majority of users!
+> 
+> Our erstwhile BDFL always eschewed two-digit version identifiers- due 
+> to the possibility for confusion about collating sequence, I beleive.. 
+> We should honour his preferences by going from 3.9 to 4.0.
+
+Is 4.0 still gonna install as "python3", pip3, etc, executable as "py -3" on windows? I can see that being a pain point even if nothing else is.
+
+From v+python at g.nevcal.com  Sat May 25 01:43:23 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Fri, 24 May 2019 22:43:23 -0700
+Subject: [Python-Dev] PEP 594: update 1
+In-Reply-To: <7089a29d-1913-4c1c-92e7-0a7b7a26d8eb@www.fastmail.com>
+References: <HE1PR05MB32111928324AFAE7076D2366B4010@HE1PR05MB3211.eurprd05.prod.outlook.com>
+ <CAMofdRDaeS_uiT4_z8Upr1JLK8A2HAGK2W=yL1ckVU4JQoenLg@mail.gmail.com>
+ <7089a29d-1913-4c1c-92e7-0a7b7a26d8eb@www.fastmail.com>
+Message-ID: <864b637a-c39c-ecbc-9d6c-189f67edc32e@g.nevcal.com>
+
+On 5/24/2019 9:09 PM, Random832 wrote:
+> On Thu, May 23, 2019, at 15:27, Steve Holden wrote:
+>> Besides which, it would be lovely to have a major release that didn't
+>> involve any pain at all for the majority of users!
+>>
+>> Our erstwhile BDFL always eschewed two-digit version identifiers- due
+>> to the possibility for confusion about collating sequence, I beleive..
+>> We should honour his preferences by going from 3.9 to 4.0.
+> Is 4.0 still gonna install as "python3", pip3, etc, executable as "py -3" on windows? I can see that being a pain point even if nothing else is.
+
+Maybe by then it can go back to just being python, as 2.x will be past 
+end-of-life.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190524/366fab89/attachment.html>
+
