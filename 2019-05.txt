@@ -47582,3 +47582,2223 @@ good reason for this behaviour.
 -- 
 Greg
 
+From tjreedy at udel.edu  Mon May 27 09:12:40 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Mon, 27 May 2019 09:12:40 -0400
+Subject: [Python-Dev] [SPAM?] Re: PEP 558: Defined semantics for locals()
+In-Reply-To: <5CEB8F2B.6050300@canterbury.ac.nz>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz>
+Message-ID: <qcgnoa$6ks0$1@blaine.gmane.org>
+
+On 5/27/2019 3:18 AM, Greg Ewing wrote:
+> Chris Angelico wrote:
+>> Except that it does. After calling locals() a second time, the result
+>> of the *first* call will be updated to reflect changes.
+> 
+> Yeow. That's *really* unintuitive. There had better be an extremely
+> good reason for this behaviour.
+
+I believe that the situation is or can be thought of as this: there is 
+exactly 1 function locals dict.  Initially, it is empty and inaccessible 
+(unusable) from code.  Each locals() call updates the dict to a current 
+snapshot and returns it.
+
+
+-- 
+Terry Jan Reedy
+
+
+From mertz at gnosis.cx  Mon May 27 09:27:33 2019
+From: mertz at gnosis.cx (David Mertz)
+Date: Mon, 27 May 2019 09:27:33 -0400
+Subject: [Python-Dev] PEP 594 - a proposal for unmaintained modules
+In-Reply-To: <20190527031625.GD4221@ando.pearwood.info>
+References: <20190524065544.GS4221@ando.pearwood.info>
+ <25c05229-7e8a-c8b7-8445-ccbb5836aecb@python.org>
+ <20190527031625.GD4221@ando.pearwood.info>
+Message-ID: <CAEbHw4ZYYOa-Do+xtCxwoCNaCR63qzCt6Wo5n646tt5uyh0gbg@mail.gmail.com>
+
+On Sun, May 26, 2019 at 11:17 PM Steven D'Aprano <steve at pearwood.info>
+wrote:
+
+> > Nobody reads warnings.
+>
+> If nobody reads warnings, we should just remove the warnings module and
+> be done with it. That should probably be a PEP.
+>
+
+We'll have to start issuing a PendingDeprecationWarning when folk import
+the `warnings` module. :-)
+
+-- 
+Keeping medicines from the bloodstreams of the sick; food
+from the bellies of the hungry; books from the hands of the
+uneducated; technology from the underdeveloped; and putting
+advocates of freedom in prisons.  Intellectual property is
+to the 21st century what the slave trade was to the 16th.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190527/4ecc3d7e/attachment.html>
+
+From Richard at Damon-Family.org  Mon May 27 09:52:41 2019
+From: Richard at Damon-Family.org (Richard Damon)
+Date: Mon, 27 May 2019 09:52:41 -0400
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <qcgnoa$6ks0$1@blaine.gmane.org>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz> <qcgnoa$6ks0$1@blaine.gmane.org>
+Message-ID: <ac612f37-47de-7017-2aec-e73d58f8560e@Damon-Family.org>
+
+On 5/27/19 9:12 AM, Terry Reedy wrote:
+> On 5/27/2019 3:18 AM, Greg Ewing wrote:
+>> Chris Angelico wrote:
+>>> Except that it does. After calling locals() a second time, the result
+>>> of the *first* call will be updated to reflect changes.
+>>
+>> Yeow. That's *really* unintuitive. There had better be an extremely
+>> good reason for this behaviour.
+>
+> I believe that the situation is or can be thought of as this: there is
+> exactly 1 function locals dict.? Initially, it is empty and
+> inaccessible (unusable) from code.? Each locals() call updates the
+> dict to a current snapshot and returns it.
+>
+I had a similar concern, and one BIG issue with it being define this way
+is that you get a fundamental re-entrancy problem. If module a uses
+locals(), and then calls module b that uses locals(), module a has lost
+its usage. One implication of this is that then you really want ALL
+modules to define if they use the locals() function or not, then you get
+the question, does this 1 of apply across threads? does a call to locals
+in another thread make me lose my locals (or does each thread get its
+own version), if that is true then if you might possible be in a
+situation where threads are in play you MUST make the copy anyway, and
+do it fast enough that the GIL isn't released between the snapshot and
+the copy (if possible),
+
+C made this sort of mistake decades ago for some functions, not thinking
+about threads or re-entrancy, and had to create solutions to fix it. Let
+us not forget history and thus repeat it.
+
+Is there a fundamental reason that local needs to keep a single dict, as
+opposed to creating a new one for each call? The way it is currently
+defined, once it is called, the snapshot will stay forever, consuming
+resources, while if a new dict was created, the resource would be
+reclaimed after use. Yes, if called twice you end up with two copies
+instead of both being updated to the current, but if you WANTED to just
+update the current copy, you could just rebind it to the new version,
+otherwise you are just forcing the programmer to be making the copies
+explicitly.
+
+-- 
+Richard Damon
+
+
+From vano at mail.mipt.ru  Mon May 27 09:59:28 2019
+From: vano at mail.mipt.ru (Ivan Pozdeev)
+Date: Mon, 27 May 2019 16:59:28 +0300
+Subject: [Python-Dev] PEP 594 - a proposal for unmaintained modules
+In-Reply-To: <20190527015501.GC4221@ando.pearwood.info>
+References: <20190524065544.GS4221@ando.pearwood.info>
+ <a4b3aef1-e000-42d4-c21a-5539112732ee@mail.mipt.ru>
+ <20190527015501.GC4221@ando.pearwood.info>
+Message-ID: <5867b9b0-653c-70a4-b8c0-4951a3177c33@mail.mipt.ru>
+
+On 27.05.2019 4:55, Steven D'Aprano wrote:
+> On Sun, May 26, 2019 at 04:03:11PM +0300, Ivan Pozdeev via Python-Dev wrote:
+>> On 24.05.2019 9:55, Steven D'Aprano wrote:
+>>> I don't know if this is a good idea or a terrible idea or somewhere in
+>>> between, so I'm throwing it out to see if anyone likes it.
+> [...]
+>
+>> This would greately damage Python's image as a mature, reliable product,
+>> something that you can bank on for your critical tasks.
+>>
+>> By including something into the offer, we implicitly endorse it and claim
+>> that we want out users to use that rather than competing offers.
+> Do we? I don't think that is the case for everything -- we certainly
+> don't want people using private or undocumented functions, nor do we
+> want them using deprecated code.
+
+But we do. We promise that everything works as documented. Even if something is deprecated, one is supposed to be able to rely on it while 
+it's (still) in.
+
+>
+> [...]
+>> You may argue that marking it as unsupported would do the same but it
+>> wouldn't. This mean I'll have to be constantly on the lookout for hidden
+>> notes and such,
+> Is "from unmaintained import module" enough to tell you that the
+> module is unmaintained?
+This comes with its own set of drawbacks:
+* compatibility break
+* "unmaintained" is a judgement call, actual usability can change back and forth depending on the amount of interest
+* it's still a blow to Python's credibility if the team feels the need to lug a truckload of dead code around
+
+-- 
+Regards,
+Ivan
+
+
+From vstinner at redhat.com  Mon May 27 10:31:23 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 27 May 2019 16:31:23 +0200
+Subject: [Python-Dev] Accepting PEP 587 (Python Initialization
+ Configuration)
+In-Reply-To: <CAPdQG2ojOWPVWsxMb_+pGBwAe7Y1vbBQn6Hc0b9GsRy=T+kMAg@mail.gmail.com>
+References: <CAPdQG2ojOWPVWsxMb_+pGBwAe7Y1vbBQn6Hc0b9GsRy=T+kMAg@mail.gmail.com>
+Message-ID: <CA+3bQGFJDS-D1emox51YPxWAnMEiJt364g-4_dbod1JO2-VYSA@mail.gmail.com>
+
+Hi,
+
+Thanks Thomas for accepting my PEP :-)
+
+Thanks everyone who was involved in discussions since it started July
+2018! For the first version of my PEP 587, I tried to design an API as
+small as possible, but it was clear that it didn't fit all use cases.
+Slowly, I extended and adjusted the API to fix all use cases. The
+feedback was *very* useful!
+
+A special thank to Nick Coghlan, Steve Dower and Gregory Szorc!!!
+
+I'm now implementing the PEP ;-) I wrote 1000 lines of documentation
+(in Doc/c-api/init_config.rst, well it's mostly code copied from the
+PEP)! I will merge it before 3.8beta1.
+
+Victor
+
+
+Le dim. 26 mai 2019 ? 16:05, Thomas Wouters <thomas at python.org> a ?crit :
+>
+>
+> As PEP-delegate, I'm accepting version 5 of PEP 587 (Python Initialization Configuration). I don't think Victor has posted the latest version, but it contains a couple of minor renames, and a new private API to allow us to experiment with two-phase initialisation of Python.
+>
+> There's still time to debate exact names and work on the wording of the PEP, but I'm satisfied the design is solid, a clear improvement over what we currently have, and a step in the right direction for some of the more extensive changes that have been proposed (e.g. using Python *code* for the Python configuration. If we do get to that point, the PEP contains a few things that are superfluous, but I'd consider them minor transitionary warts at that point -- if we ever get there).
+>
+> Thanks, Victor, for pushing this massive amount of work through; it won't affect most people using Python (at least until the rest of PEP 432 lands) but it's a giant boon to those of us who embed Python :)
+>
+> --
+> Thomas Wouters <thomas at python.org>
+>
+> Hi! I'm an email virus! Think twice before sending your email to help me spread!
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+--
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From solipsis at pitrou.net  Mon May 27 11:05:32 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Mon, 27 May 2019 17:05:32 +0200
+Subject: [Python-Dev] PEP 594 - a proposal for unmaintained modules
+References: <20190524065544.GS4221@ando.pearwood.info>
+ <25c05229-7e8a-c8b7-8445-ccbb5836aecb@python.org>
+ <20190527031625.GD4221@ando.pearwood.info>
+ <CAEbHw4ZYYOa-Do+xtCxwoCNaCR63qzCt6Wo5n646tt5uyh0gbg@mail.gmail.com>
+Message-ID: <20190527170532.0801c945@fsol>
+
+On Mon, 27 May 2019 09:27:33 -0400
+David Mertz <mertz at gnosis.cx> wrote:
+> On Sun, May 26, 2019 at 11:17 PM Steven D'Aprano <steve at pearwood.info>
+> wrote:
+> 
+> > > Nobody reads warnings.  
+> >
+> > If nobody reads warnings, we should just remove the warnings module and
+> > be done with it. That should probably be a PEP.
+> >  
+> 
+> We'll have to start issuing a PendingDeprecationWarning when folk import
+> the `warnings` module. :-)
+
+And message users that they can `pip install warnings` to get the
+independently-maintained version ;-)
+
+Regards
+
+Antoine.
+
+
+
+From guido at python.org  Mon May 27 11:06:25 2019
+From: guido at python.org (Guido van Rossum)
+Date: Mon, 27 May 2019 08:06:25 -0700
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <ac612f37-47de-7017-2aec-e73d58f8560e@Damon-Family.org>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz> <qcgnoa$6ks0$1@blaine.gmane.org>
+ <ac612f37-47de-7017-2aec-e73d58f8560e@Damon-Family.org>
+Message-ID: <CAP7+vJKQO3oPTiSnxK=jxhUXRcRy0f4kCKA6+-jePbn4y_Q-8A@mail.gmail.com>
+
+No, there's only one locals() dict *per stack frame*. So no worries about
+concurrency.
+
+On Mon, May 27, 2019 at 6:54 AM Richard Damon <Richard at damon-family.org>
+wrote:
+
+> On 5/27/19 9:12 AM, Terry Reedy wrote:
+> > On 5/27/2019 3:18 AM, Greg Ewing wrote:
+> >> Chris Angelico wrote:
+> >>> Except that it does. After calling locals() a second time, the result
+> >>> of the *first* call will be updated to reflect changes.
+> >>
+> >> Yeow. That's *really* unintuitive. There had better be an extremely
+> >> good reason for this behaviour.
+> >
+> > I believe that the situation is or can be thought of as this: there is
+> > exactly 1 function locals dict.  Initially, it is empty and
+> > inaccessible (unusable) from code.  Each locals() call updates the
+> > dict to a current snapshot and returns it.
+> >
+> I had a similar concern, and one BIG issue with it being define this way
+> is that you get a fundamental re-entrancy problem. If module a uses
+> locals(), and then calls module b that uses locals(), module a has lost
+> its usage. One implication of this is that then you really want ALL
+> modules to define if they use the locals() function or not, then you get
+> the question, does this 1 of apply across threads? does a call to locals
+> in another thread make me lose my locals (or does each thread get its
+> own version), if that is true then if you might possible be in a
+> situation where threads are in play you MUST make the copy anyway, and
+> do it fast enough that the GIL isn't released between the snapshot and
+> the copy (if possible),
+>
+> C made this sort of mistake decades ago for some functions, not thinking
+> about threads or re-entrancy, and had to create solutions to fix it. Let
+> us not forget history and thus repeat it.
+>
+> Is there a fundamental reason that local needs to keep a single dict, as
+> opposed to creating a new one for each call? The way it is currently
+> defined, once it is called, the snapshot will stay forever, consuming
+> resources, while if a new dict was created, the resource would be
+> reclaimed after use. Yes, if called twice you end up with two copies
+> instead of both being updated to the current, but if you WANTED to just
+> update the current copy, you could just rebind it to the new version,
+> otherwise you are just forcing the programmer to be making the copies
+> explicitly.
+>
+> --
+> Richard Damon
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190527/2400c3ac/attachment.html>
+
+From njs at pobox.com  Mon May 27 11:15:01 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Mon, 27 May 2019 08:15:01 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+Message-ID: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+
+First, I want to say: I'm very happy with PEP 558's changes to
+f_locals. It solves the weird threading bugs, and exposes the
+fundamental operations you need for debugging in a simple and clean
+way, while leaving a lot of implementation flexibility for future
+Python VMs. It's a huge improvement over what we had before.
+
+I'm not as sure about the locals() parts of the proposal. It might be
+fine, but there are some complex trade-offs here that I'm still trying
+to wrap my head around. The rest of this document is me thinking out
+loud to try to clarify these issues.
+
+
+##### What are we trying to solve?
+
+There are two major questions, which are somewhat distinct:
+- What should the behavior of locals() be in CPython?
+- How much of that should be part of the language definition, vs
+CPython implementation details?
+
+The status quo is that for locals() inside function scope, the
+behavior is quite complex and subtle, and it's entirely implementation
+defined. In the current PEP draft, there are some small changes to the
+semantics, and also it promotes them becoming part of the official
+language semantics.
+
+I think the first question, about semantics, is the more important
+one. If we're promoting them to the language definition, the main
+effect is just to make it more important we get the semantics right.
+
+
+##### What are the PEP's proposed semantics for locals()?
+
+They're kinda subtle. [Nick: please double-check this section, both
+for errors and because I think it includes some edge cases that the
+PEP currently doesn't mention.]
+
+For module/class scopes, locals() has always returned a mapping object
+which acts as a "source of truth" for the actual local environment ?
+mutating the environment directly changes the mapping object, and
+vice-versa. That's not going to change.
+
+In function scopes, things are more complicated. The *local
+environment* is conceptually well-defined, and includes:
+- local variables (current source of truth: "fast locals" array)
+- closed-over variables (current source of truth: cell objects)
+- any arbitrary key/values written to frame.f_locals that don't
+correspond to local or closed-over variables, e.g. you can do
+frame.f_locals[object()] = 10, and then later read it out again.
+
+However, the mapping returned by locals() does not directly reflect
+this local environment. Instead, each function frame has a dict
+associated with it. locals() returns this dict. The dict always holds
+any non-local/non-closed-over variables, and also, in certain
+circumstances, we write a snapshot of local and closed-over variables
+back into the dict.
+
+Specifically, we write back:
+
+- Whenever locals() is called
+- Whenever exec() or eval() is called without passing an explicit
+locals argument
+- After every trace/profile event, if a Python-level tracing/profiling
+function is registered.
+
+(Note: in CPython, the use of Python-level tracing/profiling functions
+is extremely rare. It's more common in alternative implementations
+like PyPy. For example, the coverage package uses a C-level tracing
+function on CPython, which does not trigger locals updates, but on
+PyPy it uses a Python-level tracing function, which does trigger
+updates.)
+
+In addition, the PEP doesn't say, but I think that any writes to
+f_locals immediately update both the environment and the locals dict.
+
+These semantics have some surprising consequences. Most obviously, in
+function scope (unlike other scopes), mutating locals() does not
+affect the actual local environment:
+
+  def f():
+      a = 1
+      locals()["a"] = 2
+      assert a == 1
+
+The writeback rules can also produce surprising results:
+
+  def f():
+      loc1 = locals()
+      # Since it's a snapshot created at the time of the call
+      # to locals(), it doesn't contain 'loc1':
+      assert "loc1" not in loc1
+      loc2 = locals()
+      # Now loc1 has changed:
+      assert "loc1" in loc1
+
+However, the results here are totally different if a Python-level
+tracing/profiling function is installed ? in particular, the first
+assertion fails.
+
+The interaction between f_locals and and locals() is also subtle:
+
+  def f():
+      a = 1
+      loc = locals()
+      assert "loc" not in loc
+      # Regular variable updates don't affect 'loc'
+      a = 2
+      assert loc["a"] == 1
+      # But debugging updates do:
+      sys._getframe().f_locals["a"] = 3
+      assert a == 3
+      assert loc["a"] == 3
+      # But it's not a full writeback
+      assert "loc" not in loc
+      # Mutating 'loc' doesn't affect f_locals:
+      loc["a"] = 1
+      assert sys._getframe().f_locals["a"] == 1
+      # Except when it does:
+      loc["b"] = 3
+      assert sys._getframe().f_locals["b"] == 3
+
+Again, the results here are totally different if a Python-level
+tracing/profiling function is installed.
+
+And you can also hit these subtleties via 'exec' and 'eval':
+
+  def f():
+      a = 1
+      loc = locals()
+      assert "loc" not in loc
+      # exec() triggers writeback, and then mutates the locals dict
+      exec("a = 2; b = 3")
+      # So now the current environment has been reflected into 'loc'
+      assert "loc" in loc
+      # Also loc["a"] has been changed to reflect the exec'ed assignments
+      assert loc["a"] == 2
+      # But if we look at the actual environment, directly or via
+      # f_locals, we can see that 'a' has not changed:
+      assert a == 1
+      assert sys._getframe().f_locals["a"] == 1
+      # loc["b"] changed as well:
+      assert loc["b"] == 3
+      # And this *does* show up in f_locals:
+      assert sys._getframe().f_locals["b"] == 3
+
+Of course, many of these edge cases are pretty obscure, so it's not
+clear how much they matter. But I think we can at least agree that
+this isn't the one obvious way to do it :-).
+
+
+##### What's the landscape of possible semantics?
+
+I did some brainstorming, and came up with 4 sets of semantics that
+seem plausible enough to at least consider:
+
+- [PEP]: the semantics in the current PEP draft.
+- [PEP-minus-tracing]: same as [PEP], except dropping the writeback on
+Python-level trace/profile events.
+- [snapshot]: in function scope, each call to locals() returns a new,
+*static* snapshot of the local environment, removing all this
+writeback stuff. Something like:
+
+  def locals():
+      frame = get_caller_frame()
+      if is_function_scope(frame):
+          # make a point-in-time copy of the "live" proxy object
+          return dict(frame.f_locals)
+      else:
+          # in module/class scope, return the actual local environment
+          return frame.f_locals
+
+- [proxy]: Simply return the .f_locals object, so in all contexts
+locals() returns a live mutable view of the actual environment:
+
+  def locals():
+      return get_caller_frame().f_locals
+
+
+##### How to evaluate our options?
+
+I can think of a lot of criteria that all-else-being-equal we would
+like Python to meet. (Of course, in practice they conflict.)
+
+Consistency across APIs: it's surprising if locals() and
+frame.f_locals do different things. This argues for [proxy].
+
+Consistency across contexts: it's surprising if locals() has acts
+differently in module/class scope versus function scope. This argues
+for [proxy].
+
+Consistent behavior when the environment shifts, or small maintenance
+changes are made: it's nice if code that works today keeps working
+tomorrow. On this criterion, I think [snapshot] > [proxy] >
+[PEP-minus-tracing] >>> [PEP]. [PEP] is particularly bad here because
+a very rare environmental change that almost no-one tests and mostly
+only happens when debugging (i.e., enabling tracing) causes a radical
+change in semantics.
+
+Simplicity of explaining to users: all else being equal, it's nice if
+our docs are short and clear and the language fits in your head. On
+this criterion, I think: [proxy] > [snapshot] > [PEP-minus-tracing] >
+[PEP]. As evidence that the current behavior is confusing, see:
+
+- Ned gets confused and writes a long blog post after he figures it
+out: https://nedbatchelder.com/blog/201211/tricky_locals.html
+- A linter that warns against mutating locals():
+https://lgtm.com/rules/10030096/
+
+Simplicity of implementation: "If the implementation is easy to
+explain, it may be a good idea." Since we need the proxy code anyway
+to implement f_locals, I think it's: [proxy] (free) > [snapshot] (one
+'if' statement) > ([PEP] = [PEP-minus-tracing]).
+
+Impact on other interpreter implementations: all else being equal,
+we'd like to give new interpreters maximal freedom to do clever
+things. (And local variables are a place where language VMs often
+expend a lot of cleverness.) [proxy] and [snapshot] are both easily
+implemented in terms of f_locals, so they basically don't constrain
+alternative implementations at all. I'm not as sure about [PEP] and
+[PEP-minus-tracing]. I originally thought they must be horrible. On
+further thought, I'm not convinced they're *that* bad, since the need
+to support people doing silly stuff like frame.f_locals[object()] = 10
+means that implementations will already need to sometimes attach
+something like a dict object to their function frames. But perhaps
+alternative implementations would like to disallow this, or are OK
+with making it really slow but care about locals() performance more.
+Anyway, it's definitely ([proxy] = [snapshot]) > ([PEP] =
+[PEP-minus-tracing]), but I'm not sure whether the '>' is large or
+small.
+
+Backwards compatibility: help(locals) says:
+
+  NOTE: Whether or not updates to this dictionary will affect
+  name lookups in the local scope and vice-versa is
+  *implementation dependent* and not covered by any backwards
+  compatibility guarantees.
+
+So that claims that there are ~no backwards compatibility issues here.
+I'm going to ignore that; no matter what the docs say, we still don't
+want to break everyone's code. And unfortunately, I can't think of any
+realistic way to do a gradual transition, with like deprecation
+warnings and all that (can anyone else?), so whatever we do will be a
+flag-day change.
+
+Of our four options, [PEP] is intuitively the closest to what CPython
+has traditionally done. But what exactly breaks under the different
+approaches? I'll split this off into its own section.
+
+
+##### Backwards compatibility
+
+I'll split this into three parts: code that treats locals() as
+read-only, exec()/eval(), and code that mutates locals().
+
+I believe (but haven't checked) that the majority of uses of locals()
+are in simple cases like:
+
+  def f():
+      ....
+      print("{a} {b}".format(**locals()))
+
+Luckily, this code remains totally fine under all four of our candidates.
+
+exec() and eval() are an interesting case. In Python 2, exec'ing some
+assignments actually *did* mutate the local environment, e.g. you
+could do:
+
+  # Python 2
+  def f():
+      exec "a = 1"
+      assert a == 1
+
+In Python 3, this was changed, so now exec() inside a function cannot
+mutate the enclosing scope. We got some bug reports about this change,
+and there are a number of questions on stackoverflow about it, e.g.:
+
+- https://bugs.python.org/issue4831
+- https://stackoverflow.com/questions/52217525/how-can-i-change-the-value-of-variable-in-a-exec-function
+- https://stackoverflow.com/questions/50995581/eval-exec-with-assigning-variable-python
+
+In all released versions of Python, eval() was syntactically unable to
+rebind variables, so eval()'s interaction with the local environment
+was undefined. However, in 3.8, eval() *will* be able to rebind
+variables using the ':=' operator, so this interaction will become
+user-visible. Presumably we'll want eval() to match exec().
+
+OK, with that background out of the way, let's look at our candidates.
+
+If we adopt [proxy], then that will mean exec()-inside-functions will
+go back to the Python 2 behavior, where executing assignments in the
+enclosing scope actually changes the enclosing scope. This will likely
+break some code out there that's relying on the Python 3 behavior,
+though I don't know how common that is. (I'm guessing not too common?
+Using the same variable inside and outside an 'exec' and trusting that
+they *won't* be the same seems like an unusual thing to do. But I
+don't know.)
+
+With [PEP] and [PEP-minus-tracing], exec() is totally unchanged. With
+[snapshot], there's technically a small difference: if you call
+locals() and then exec(), the exec() no longer triggers an implicit
+writeback to the dict that locals() returned. I think we can ignore
+this, and say that for all three of these, exec() is unlikely to
+produce backwards compatibility issues.
+
+OK, finally, let's talk about code that calls locals() and then
+mutates the return value. The main difference between our candidates
+is how they handle mutation, so this seems like the most important
+case to focus on.
+
+Conveniently, Mark Shannon and friends have statically analyzed a
+large corpus of Python code and made a list of cases where people do
+this: https://lgtm.com/rules/10030096/alerts/
+Thanks! I haven't gone through the whole list, but I read through the
+first few in the hopes of getting a better sense of what kind of code
+does this in the real world and how it would be impacted by our
+different options.
+
+https://lgtm.com/projects/g/pydata/xarray/snapshot/a2ac6af744584c8afed3d56d00c7d6ace85341d9/files/xarray/plot/plot.py?sort=name&dir=ASC&mode=heatmap#L701
+Current: raises if a Python-level trace/profile function is set
+[PEP]: raises if a Python-level trace/profile function is set
+[PEP-minus-tracing]: ok
+[snapshot]: ok
+[proxy]: always raises
+Comment: uses locals() to capture a bunch of passed in kwargs so it
+can pass them as **kwargs to another function, and treats them like a
+snapshot. The authors were clearly aware of the dangers, because this
+pattern appears multiple times in this file, and all the other places
+make an explicit copy of locals() before using it, but this place
+apparently got missed. Fix is trivial: just do that here too.
+
+https://github.com/swagger-api/swagger-codegen/blob/master/modules/swagger-codegen/src/main/resources/python/api.mustache
+Current: ok
+[PEP]: ok
+[PEP-minus-tracing]: ok
+[snapshot]: ok
+[proxy]: ok
+Comment: this is inside a tool used to generate Python wrappers for
+REST APIs. The vast majority of entries in the lgtm database are from
+code generated by this tool. This was tricky to analyze, because it's
+complex templated code, and it does mutate locals(). But I'm pretty
+confident that the mutations end up just... not mattering, and all
+possible generated code works under all of our candidates. Which is
+lucky, because if we did have to fix this it wouldn't be trivial:
+fixing up the code generator itself wouldn't be too hard, but it'll
+take years for everyone to regenerate their old wrappers.
+
+https://lgtm.com/projects/g/saltstack/salt/snapshot/bb0950e5eafbb897c8e969e3f20fd297d8ba2006/files/salt/utils/thin.py?sort=name&dir=ASC&mode=heatmap#L258
+Current: ok
+[PEP]: ok
+[PEP-minus-tracing]: ok
+[snapshot]: raises
+[proxy]: ok
+Comment: the use of locals() here is totally superfluous ? it
+repeatedly reads and writes to locals()[mod], and in all cases this
+could be replaced by a simple variable, or any other dict. And it's
+careful not to assign to any name that matches an actual local
+variable, so it works fine with [proxy] too. But it does assume that
+multiple calls to locals() return the same dict, so [snapshot] breaks
+it. In this case the fix is trivial: just use a variable.
+
+https://lgtm.com/projects/g/materialsproject/pymatgen/snapshot/fd6900ed1040a4d35f2cf2b3506e6e3d7cdf77db/files/pymatgen/ext/jhu.py?sort=name&dir=ASC&mode=heatmap#L52
+Current: buggy if a trace/profile function is set
+[PEP]: buggy if a trace/profile function is set
+[PEP-minus-tracing]: ok
+[snapshot]: ok
+[proxy]: raises
+Comment: Another example of collecting kwargs into a dict. Actually
+this code is always buggy, because they seem to think that
+dict.pop("a", "b") removes both "a" and "b" from the dict... but it
+would raise an exception on [proxy], because they use one of those
+local variables after popping it from locals(). Fix is trivial: take
+an explicit snapshot of locals() before modifying it.
+
+
+##### Conclusion so far
+
+[PEP-minus-tracing] seems to strictly dominate [PEP]. It's equal or
+better on all criteria, and actually *more* compatible with all the
+legacy code I looked at, even though it's technically less consistent
+with what CPython used to do. Unless someone points out some new
+argument, I think we can reject the writeback-when-tracing part of the
+PEP draft.
+
+Choosing between the remaining three is more of a judgement call.
+
+I'm leaning towards saying that on net, [snapshot] beats
+[PEP-minus-tracing]: it's dramatically simpler, and the backwards
+incompatibilities that we've found so far seem pretty minor, on par
+with what we do in every point release. (In fact, in 3/4 of the cases
+I looked at, [snapshot] is actually what users seemed to trying to use
+in the first place.)
+
+For [proxy] versus [snapshot], a lot depends on what we think of
+changing the semantics of exec(). [proxy] is definitely more
+consistent and elegant, and if we could go back in time I think it's
+what we'd have done from the start. Its compatibility is maybe a bit
+worse than [snapshot] on non-exec() cases, but this seems pretty minor
+overall (it often doesn't matter, and if it does just write
+dict(locals()) instead of locals(), like you would in non-function
+scope). But the change in exec() semantics is an actual language
+change, even though it may not affect much real code, so that's what
+stands out for me.
+
+I'd very much like to hear about any considerations I've missed, and
+any opinions on the "judgement call" part.
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From steve at holdenweb.com  Mon May 27 11:25:55 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Mon, 27 May 2019 16:25:55 +0100
+Subject: [Python-Dev] PEP 594 - a proposal for unmaintained modules
+In-Reply-To: <20190527170532.0801c945@fsol>
+References: <20190524065544.GS4221@ando.pearwood.info>
+ <25c05229-7e8a-c8b7-8445-ccbb5836aecb@python.org>
+ <20190527031625.GD4221@ando.pearwood.info>
+ <CAEbHw4ZYYOa-Do+xtCxwoCNaCR63qzCt6Wo5n646tt5uyh0gbg@mail.gmail.com>
+ <20190527170532.0801c945@fsol>
+Message-ID: <CAMofdRAxpeU2N3t19ij6=vQuB6z99S2Js+MbmT3MqG4Svbpy3Q@mail.gmail.com>
+
+This whole vexing issue isn't going to be solved with any simple fix. A
+tool that could identify upcoming trouble spots might or might not be
+helpful.
+
+Or perhaps it could be implemented as a __future__ feature, so that those
+who choose not to use it during development see no change.
+
+The primary effect of the import would be to put the import system into
+"PEP-594 advice mode," where any imports of potentially troublesome modules
+would at least give assiduous developers some idea of how much trouble to
+expect by emitting warnings (unless explicitly silenced).
+
+Even though only intended for development, it would inevitably make its way
+into production code, so there would still be plenty of room for
+bikeshedding about that ;-).
+
+
+On Mon, May 27, 2019 at 4:07 PM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> On Mon, 27 May 2019 09:27:33 -0400
+> David Mertz <mertz at gnosis.cx> wrote:
+> > On Sun, May 26, 2019 at 11:17 PM Steven D'Aprano <steve at pearwood.info>
+> > wrote:
+> >
+> > > > Nobody reads warnings.
+> > >
+> > > If nobody reads warnings, we should just remove the warnings module and
+> > > be done with it. That should probably be a PEP.
+> > >
+> >
+> > We'll have to start issuing a PendingDeprecationWarning when folk import
+> > the `warnings` module. :-)
+>
+> And message users that they can `pip install warnings` to get the
+> independently-maintained version ;-)
+>
+> Regards
+>
+> Antoine.
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190527/37c3607c/attachment.html>
+
+From p.f.moore at gmail.com  Mon May 27 12:12:25 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Mon, 27 May 2019 17:12:25 +0100
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <CAP7+vJKQO3oPTiSnxK=jxhUXRcRy0f4kCKA6+-jePbn4y_Q-8A@mail.gmail.com>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz> <qcgnoa$6ks0$1@blaine.gmane.org>
+ <ac612f37-47de-7017-2aec-e73d58f8560e@Damon-Family.org>
+ <CAP7+vJKQO3oPTiSnxK=jxhUXRcRy0f4kCKA6+-jePbn4y_Q-8A@mail.gmail.com>
+Message-ID: <CACac1F_aLvM6Dygt+RKik5VN-J=U=MS9o2bhtSgYK4EHkRYa6w@mail.gmail.com>
+
+On Mon, 27 May 2019 at 16:11, Guido van Rossum <guido at python.org> wrote:
+>
+> No, there's only one locals() dict *per stack frame*. So no worries about concurrency.
+
+Again, if the PEP is about formalising the behaviour as language
+mandated, this is worth documenting explicitly.
+Paul
+
+From guido at python.org  Mon May 27 12:15:37 2019
+From: guido at python.org (Guido van Rossum)
+Date: Mon, 27 May 2019 09:15:37 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+Message-ID: <CAP7+vJ+JCzgu7Hsmof-obER5gb9ubmKFs6pRPrqB5d8=E1HFfg@mail.gmail.com>
+
+I re-ran your examples and found that some of them fail.
+
+On Mon, May 27, 2019 at 8:17 AM Nathaniel Smith <njs at pobox.com> wrote:
+
+> First, I want to say: I'm very happy with PEP 558's changes to
+> f_locals. It solves the weird threading bugs, and exposes the
+> fundamental operations you need for debugging in a simple and clean
+> way, while leaving a lot of implementation flexibility for future
+> Python VMs. It's a huge improvement over what we had before.
+>
+> I'm not as sure about the locals() parts of the proposal. It might be
+> fine, but there are some complex trade-offs here that I'm still trying
+> to wrap my head around. The rest of this document is me thinking out
+> loud to try to clarify these issues.
+>
+>
+> ##### What are we trying to solve?
+>
+> There are two major questions, which are somewhat distinct:
+> - What should the behavior of locals() be in CPython?
+> - How much of that should be part of the language definition, vs
+> CPython implementation details?
+>
+> The status quo is that for locals() inside function scope, the
+> behavior is quite complex and subtle, and it's entirely implementation
+> defined. In the current PEP draft, there are some small changes to the
+> semantics, and also it promotes them becoming part of the official
+> language semantics.
+>
+> I think the first question, about semantics, is the more important
+> one. If we're promoting them to the language definition, the main
+> effect is just to make it more important we get the semantics right.
+>
+>
+> ##### What are the PEP's proposed semantics for locals()?
+>
+> They're kinda subtle. [Nick: please double-check this section, both
+> for errors and because I think it includes some edge cases that the
+> PEP currently doesn't mention.]
+>
+> For module/class scopes, locals() has always returned a mapping object
+> which acts as a "source of truth" for the actual local environment ?
+> mutating the environment directly changes the mapping object, and
+> vice-versa. That's not going to change.
+>
+> In function scopes, things are more complicated. The *local
+> environment* is conceptually well-defined, and includes:
+> - local variables (current source of truth: "fast locals" array)
+> - closed-over variables (current source of truth: cell objects)
+> - any arbitrary key/values written to frame.f_locals that don't
+> correspond to local or closed-over variables, e.g. you can do
+> frame.f_locals[object()] = 10, and then later read it out again.
+>
+> However, the mapping returned by locals() does not directly reflect
+> this local environment. Instead, each function frame has a dict
+> associated with it. locals() returns this dict. The dict always holds
+> any non-local/non-closed-over variables, and also, in certain
+> circumstances, we write a snapshot of local and closed-over variables
+> back into the dict.
+>
+> Specifically, we write back:
+>
+> - Whenever locals() is called
+> - Whenever exec() or eval() is called without passing an explicit
+> locals argument
+> - After every trace/profile event, if a Python-level tracing/profiling
+> function is registered.
+>
+> (Note: in CPython, the use of Python-level tracing/profiling functions
+> is extremely rare. It's more common in alternative implementations
+> like PyPy. For example, the coverage package uses a C-level tracing
+> function on CPython, which does not trigger locals updates, but on
+> PyPy it uses a Python-level tracing function, which does trigger
+> updates.)
+>
+> In addition, the PEP doesn't say, but I think that any writes to
+> f_locals immediately update both the environment and the locals dict.
+>
+> These semantics have some surprising consequences. Most obviously, in
+> function scope (unlike other scopes), mutating locals() does not
+> affect the actual local environment:
+>
+>   def f():
+>       a = 1
+>       locals()["a"] = 2
+>       assert a == 1
+>
+> The writeback rules can also produce surprising results:
+>
+>   def f():
+>       loc1 = locals()
+>       # Since it's a snapshot created at the time of the call
+>       # to locals(), it doesn't contain 'loc1':
+>       assert "loc1" not in loc1
+>       loc2 = locals()
+>       # Now loc1 has changed:
+>       assert "loc1" in loc1
+>
+> However, the results here are totally different if a Python-level
+> tracing/profiling function is installed ? in particular, the first
+> assertion fails.
+>
+> The interaction between f_locals and and locals() is also subtle:
+>
+>   def f():
+>       a = 1
+>       loc = locals()
+>       assert "loc" not in loc
+>       # Regular variable updates don't affect 'loc'
+>       a = 2
+>       assert loc["a"] == 1
+>       # But debugging updates do:
+>       sys._getframe().f_locals["a"] = 3
+>       assert a == 3
+>
+
+That assert fails; `a` is still 2 here for me.
+
+
+>       assert loc["a"] == 3
+>       # But it's not a full writeback
+>       assert "loc" not in loc
+>       # Mutating 'loc' doesn't affect f_locals:
+>       loc["a"] = 1
+>       assert sys._getframe().f_locals["a"] == 1
+>       # Except when it does:
+>       loc["b"] = 3
+>       assert sys._getframe().f_locals["b"] == 3
+>
+
+All of this can be explained by realizing `loc is
+sys._getframe().f_locals`. IOW locals() always returns the dict in f_locals.
+
+
+> Again, the results here are totally different if a Python-level
+> tracing/profiling function is installed.
+>
+> And you can also hit these subtleties via 'exec' and 'eval':
+>
+>   def f():
+>       a = 1
+>       loc = locals()
+>       assert "loc" not in loc
+>       # exec() triggers writeback, and then mutates the locals dict
+>       exec("a = 2; b = 3")
+>       # So now the current environment has been reflected into 'loc'
+>       assert "loc" in loc
+>       # Also loc["a"] has been changed to reflect the exec'ed assignments
+>       assert loc["a"] == 2
+>       # But if we look at the actual environment, directly or via
+>       # f_locals, we can see that 'a' has not changed:
+>       assert a == 1
+>       assert sys._getframe().f_locals["a"] == 1
+>       # loc["b"] changed as well:
+>       assert loc["b"] == 3
+>       # And this *does* show up in f_locals:
+>       assert sys._getframe().f_locals["b"] == 3
+>
+
+This works indeed. My understanding is that the bytecode interpreter, when
+accessing the value of a local variable, ignores f_locals and always uses
+the "fast" array. But exec() and eval() don't use fast locals, their code
+is always compiled as if it appears in a module-level scope.
+
+While the interpreter is running and no debugger is active, in a function
+scope f_locals is not used at all, the interpreter only interacts with the
+fast array and the cells. It is initialized by the first locals() call for
+a function scope, and locals() copies the fast array and the cells into it.
+Subsequent calls in the same function scope keep the same value for
+f_locals and re-copy fast and cells into it. This also clears out deleted
+local variables and emptied cells, but leaves "strange" keys (like "b" in
+the examples) unchanged.
+
+The truly weird case happen when Python-level tracers are present, then the
+contents of f_locals is written back to the fast array and cells at certain
+points. This is intended for use by pdb (am I the only user of pdb left in
+the world?), so one can step through a function and mutate local variables.
+I find this essential in some cases.
+
+
+> Of course, many of these edge cases are pretty obscure, so it's not
+> clear how much they matter. But I think we can at least agree that
+> this isn't the one obvious way to do it :-).
+>
+>
+> ##### What's the landscape of possible semantics?
+>
+> I did some brainstorming, and came up with 4 sets of semantics that
+> seem plausible enough to at least consider:
+>
+> - [PEP]: the semantics in the current PEP draft.
+>
+
+To be absolutely clear this copies the fast array and cells to f_locals
+when locals() is called, but never copies back, except when Python-level
+tracing/profiling is on.
+
+
+> - [PEP-minus-tracing]: same as [PEP], except dropping the writeback on
+> Python-level trace/profile events.
+>
+
+But this still copies the fast array and cells to f_locals when a Python
+trace function is called, right? It just doesn't write back.
+
+
+> - [snapshot]: in function scope, each call to locals() returns a new,
+> *static* snapshot of the local environment, removing all this
+> writeback stuff. Something like:
+>
+>   def locals():
+>       frame = get_caller_frame()
+>       if is_function_scope(frame):
+>           # make a point-in-time copy of the "live" proxy object
+>           return dict(frame.f_locals)
+>       else:
+>           # in module/class scope, return the actual local environment
+>           return frame.f_locals
+>
+
+This is the most extreme variant, and in this case there is no point in
+having f_locals at all for a function scope (since nothing uses it). I'm
+not 100% sure that you understand this.
+
+
+> - [proxy]: Simply return the .f_locals object, so in all contexts
+> locals() returns a live mutable view of the actual environment:
+>
+>   def locals():
+>       return get_caller_frame().f_locals
+>
+
+So this is PEP without any writeback. But there is still copying from the
+fast array and cells to f_locals. Does that only happen when locals() is
+called? Or also when a Python-level trace/profiling function is called?
+
+My problem with all variants except what's in the PEP is that it would
+leave pdb *no* way (short of calling into the C API using ctypes) of
+writing back local variables.
+
+
+>
+> ##### How to evaluate our options?
+>
+> I can think of a lot of criteria that all-else-being-equal we would
+> like Python to meet. (Of course, in practice they conflict.)
+>
+> Consistency across APIs: it's surprising if locals() and
+> frame.f_locals do different things. This argues for [proxy].
+>
+> Consistency across contexts: it's surprising if locals() has acts
+> differently in module/class scope versus function scope. This argues
+> for [proxy].
+>
+> Consistent behavior when the environment shifts, or small maintenance
+> changes are made: it's nice if code that works today keeps working
+> tomorrow. On this criterion, I think [snapshot] > [proxy] >
+> [PEP-minus-tracing] >>> [PEP]. [PEP] is particularly bad here because
+> a very rare environmental change that almost no-one tests and mostly
+> only happens when debugging (i.e., enabling tracing) causes a radical
+> change in semantics.
+>
+> Simplicity of explaining to users: all else being equal, it's nice if
+> our docs are short and clear and the language fits in your head. On
+> this criterion, I think: [proxy] > [snapshot] > [PEP-minus-tracing] >
+> [PEP]. As evidence that the current behavior is confusing, see:
+>
+> - Ned gets confused and writes a long blog post after he figures it
+> out: https://nedbatchelder.com/blog/201211/tricky_locals.html
+> - A linter that warns against mutating locals():
+> https://lgtm.com/rules/10030096/
+>
+> Simplicity of implementation: "If the implementation is easy to
+> explain, it may be a good idea." Since we need the proxy code anyway
+> to implement f_locals, I think it's: [proxy] (free) > [snapshot] (one
+> 'if' statement) > ([PEP] = [PEP-minus-tracing]).
+>
+> Impact on other interpreter implementations: all else being equal,
+> we'd like to give new interpreters maximal freedom to do clever
+> things. (And local variables are a place where language VMs often
+> expend a lot of cleverness.) [proxy] and [snapshot] are both easily
+> implemented in terms of f_locals, so they basically don't constrain
+> alternative implementations at all. I'm not as sure about [PEP] and
+> [PEP-minus-tracing]. I originally thought they must be horrible. On
+> further thought, I'm not convinced they're *that* bad, since the need
+> to support people doing silly stuff like frame.f_locals[object()] = 10
+> means that implementations will already need to sometimes attach
+> something like a dict object to their function frames. But perhaps
+> alternative implementations would like to disallow this, or are OK
+> with making it really slow but care about locals() performance more.
+> Anyway, it's definitely ([proxy] = [snapshot]) > ([PEP] =
+> [PEP-minus-tracing]), but I'm not sure whether the '>' is large or
+> small.
+>
+> Backwards compatibility: help(locals) says:
+>
+>   NOTE: Whether or not updates to this dictionary will affect
+>   name lookups in the local scope and vice-versa is
+>   *implementation dependent* and not covered by any backwards
+>   compatibility guarantees.
+>
+> So that claims that there are ~no backwards compatibility issues here.
+> I'm going to ignore that; no matter what the docs say, we still don't
+> want to break everyone's code. And unfortunately, I can't think of any
+> realistic way to do a gradual transition, with like deprecation
+> warnings and all that (can anyone else?), so whatever we do will be a
+> flag-day change.
+>
+> Of our four options, [PEP] is intuitively the closest to what CPython
+> has traditionally done. But what exactly breaks under the different
+> approaches? I'll split this off into its own section.
+>
+>
+> ##### Backwards compatibility
+>
+> I'll split this into three parts: code that treats locals() as
+> read-only, exec()/eval(), and code that mutates locals().
+>
+> I believe (but haven't checked) that the majority of uses of locals()
+> are in simple cases like:
+>
+>   def f():
+>       ....
+>       print("{a} {b}".format(**locals()))
+>
+> Luckily, this code remains totally fine under all four of our candidates.
+>
+> exec() and eval() are an interesting case. In Python 2, exec'ing some
+> assignments actually *did* mutate the local environment, e.g. you
+> could do:
+>
+>   # Python 2
+>   def f():
+>       exec "a = 1"
+>       assert a == 1
+>
+> In Python 3, this was changed, so now exec() inside a function cannot
+> mutate the enclosing scope. We got some bug reports about this change,
+> and there are a number of questions on stackoverflow about it, e.g.:
+>
+> - https://bugs.python.org/issue4831
+> -
+> https://stackoverflow.com/questions/52217525/how-can-i-change-the-value-of-variable-in-a-exec-function
+> -
+> https://stackoverflow.com/questions/50995581/eval-exec-with-assigning-variable-python
+>
+> In all released versions of Python, eval() was syntactically unable to
+> rebind variables, so eval()'s interaction with the local environment
+> was undefined. However, in 3.8, eval() *will* be able to rebind
+> variables using the ':=' operator, so this interaction will become
+> user-visible. Presumably we'll want eval() to match exec().
+>
+> OK, with that background out of the way, let's look at our candidates.
+>
+> If we adopt [proxy], then that will mean exec()-inside-functions will
+> go back to the Python 2 behavior, where executing assignments in the
+> enclosing scope actually changes the enclosing scope. This will likely
+> break some code out there that's relying on the Python 3 behavior,
+> though I don't know how common that is. (I'm guessing not too common?
+> Using the same variable inside and outside an 'exec' and trusting that
+> they *won't* be the same seems like an unusual thing to do. But I
+> don't know.)
+>
+> With [PEP] and [PEP-minus-tracing], exec() is totally unchanged. With
+> [snapshot], there's technically a small difference: if you call
+> locals() and then exec(), the exec() no longer triggers an implicit
+> writeback to the dict that locals() returned. I think we can ignore
+> this, and say that for all three of these, exec() is unlikely to
+> produce backwards compatibility issues.
+>
+> OK, finally, let's talk about code that calls locals() and then
+> mutates the return value. The main difference between our candidates
+> is how they handle mutation, so this seems like the most important
+> case to focus on.
+>
+> Conveniently, Mark Shannon and friends have statically analyzed a
+> large corpus of Python code and made a list of cases where people do
+> this: https://lgtm.com/rules/10030096/alerts/
+> Thanks! I haven't gone through the whole list, but I read through the
+> first few in the hopes of getting a better sense of what kind of code
+> does this in the real world and how it would be impacted by our
+> different options.
+>
+>
+> https://lgtm.com/projects/g/pydata/xarray/snapshot/a2ac6af744584c8afed3d56d00c7d6ace85341d9/files/xarray/plot/plot.py?sort=name&dir=ASC&mode=heatmap#L701
+> Current: raises if a Python-level trace/profile function is set
+> [PEP]: raises if a Python-level trace/profile function is set
+> [PEP-minus-tracing]: ok
+> [snapshot]: ok
+> [proxy]: always raises
+> Comment: uses locals() to capture a bunch of passed in kwargs so it
+> can pass them as **kwargs to another function, and treats them like a
+> snapshot. The authors were clearly aware of the dangers, because this
+> pattern appears multiple times in this file, and all the other places
+> make an explicit copy of locals() before using it, but this place
+> apparently got missed. Fix is trivial: just do that here too.
+>
+>
+> https://github.com/swagger-api/swagger-codegen/blob/master/modules/swagger-codegen/src/main/resources/python/api.mustache
+> Current: ok
+> [PEP]: ok
+> [PEP-minus-tracing]: ok
+> [snapshot]: ok
+> [proxy]: ok
+> Comment: this is inside a tool used to generate Python wrappers for
+> REST APIs. The vast majority of entries in the lgtm database are from
+> code generated by this tool. This was tricky to analyze, because it's
+> complex templated code, and it does mutate locals(). But I'm pretty
+> confident that the mutations end up just... not mattering, and all
+> possible generated code works under all of our candidates. Which is
+> lucky, because if we did have to fix this it wouldn't be trivial:
+> fixing up the code generator itself wouldn't be too hard, but it'll
+> take years for everyone to regenerate their old wrappers.
+>
+>
+> https://lgtm.com/projects/g/saltstack/salt/snapshot/bb0950e5eafbb897c8e969e3f20fd297d8ba2006/files/salt/utils/thin.py?sort=name&dir=ASC&mode=heatmap#L258
+> Current: ok
+> [PEP]: ok
+> [PEP-minus-tracing]: ok
+> [snapshot]: raises
+> [proxy]: ok
+> Comment: the use of locals() here is totally superfluous ? it
+> repeatedly reads and writes to locals()[mod], and in all cases this
+> could be replaced by a simple variable, or any other dict. And it's
+> careful not to assign to any name that matches an actual local
+> variable, so it works fine with [proxy] too. But it does assume that
+> multiple calls to locals() return the same dict, so [snapshot] breaks
+> it. In this case the fix is trivial: just use a variable.
+>
+>
+> https://lgtm.com/projects/g/materialsproject/pymatgen/snapshot/fd6900ed1040a4d35f2cf2b3506e6e3d7cdf77db/files/pymatgen/ext/jhu.py?sort=name&dir=ASC&mode=heatmap#L52
+> Current: buggy if a trace/profile function is set
+> [PEP]: buggy if a trace/profile function is set
+> [PEP-minus-tracing]: ok
+> [snapshot]: ok
+> [proxy]: raises
+> Comment: Another example of collecting kwargs into a dict. Actually
+> this code is always buggy, because they seem to think that
+> dict.pop("a", "b") removes both "a" and "b" from the dict... but it
+> would raise an exception on [proxy], because they use one of those
+> local variables after popping it from locals(). Fix is trivial: take
+> an explicit snapshot of locals() before modifying it.
+>
+>
+> ##### Conclusion so far
+>
+> [PEP-minus-tracing] seems to strictly dominate [PEP]. It's equal or
+> better on all criteria, and actually *more* compatible with all the
+> legacy code I looked at, even though it's technically less consistent
+> with what CPython used to do. Unless someone points out some new
+> argument, I think we can reject the writeback-when-tracing part of the
+> PEP draft.
+>
+> Choosing between the remaining three is more of a judgement call.
+>
+> I'm leaning towards saying that on net, [snapshot] beats
+> [PEP-minus-tracing]: it's dramatically simpler, and the backwards
+> incompatibilities that we've found so far seem pretty minor, on par
+> with what we do in every point release. (In fact, in 3/4 of the cases
+> I looked at, [snapshot] is actually what users seemed to trying to use
+> in the first place.)
+>
+> For [proxy] versus [snapshot], a lot depends on what we think of
+> changing the semantics of exec(). [proxy] is definitely more
+> consistent and elegant, and if we could go back in time I think it's
+> what we'd have done from the start. Its compatibility is maybe a bit
+> worse than [snapshot] on non-exec() cases, but this seems pretty minor
+> overall (it often doesn't matter, and if it does just write
+> dict(locals()) instead of locals(), like you would in non-function
+> scope). But the change in exec() semantics is an actual language
+> change, even though it may not affect much real code, so that's what
+> stands out for me.
+>
+> I'd very much like to hear about any considerations I've missed, and
+> any opinions on the "judgement call" part.
+>
+
+To me it looks as if you're working with the wrong mental model of how it
+currently works. Unfortunately there's no way to find out how it currently
+works without reading the source code, since from Python code you cannot
+access the fast array and cells directly, and by just observing f_locals
+you get a slightly wrong picture.
+
+Perhaps we should give the two operations that copy from/to the fast array
+and cells names, so we can talk about them more easily.
+
+Sorry I didn't snip stuff.
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190527/b6f6ba58/attachment-0001.html>
+
+From njs at pobox.com  Mon May 27 12:41:36 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Mon, 27 May 2019 09:41:36 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CAP7+vJ+JCzgu7Hsmof-obER5gb9ubmKFs6pRPrqB5d8=E1HFfg@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <CAP7+vJ+JCzgu7Hsmof-obER5gb9ubmKFs6pRPrqB5d8=E1HFfg@mail.gmail.com>
+Message-ID: <CAPJVwBnj1pb5MQYT9ReaWRgEMkn7-xM2hxy1g5TwisSmYE9QAQ@mail.gmail.com>
+
+On Mon, May 27, 2019 at 9:16 AM Guido van Rossum <guido at python.org> wrote:
+>
+> I re-ran your examples and found that some of them fail.
+>
+> On Mon, May 27, 2019 at 8:17 AM Nathaniel Smith <njs at pobox.com> wrote:
+[...]
+>> The interaction between f_locals and and locals() is also subtle:
+>>
+>>   def f():
+>>       a = 1
+>>       loc = locals()
+>>       assert "loc" not in loc
+>>       # Regular variable updates don't affect 'loc'
+>>       a = 2
+>>       assert loc["a"] == 1
+>>       # But debugging updates do:
+>>       sys._getframe().f_locals["a"] = 3
+>>       assert a == 3
+>
+>
+> That assert fails; `a` is still 2 here for me.
+
+I think you're running on current Python, and I'm talking about the
+semantics in the current PEP 558 draft, which redefines f_locals so
+that the assert passes. Nick has a branch here if you want to try it:
+https://github.com/python/cpython/pull/3640
+
+(Though I admit I was lazy, and haven't tried running my examples at
+all -- they're just based on the text.)
+
+>>
+>>       assert loc["a"] == 3
+>>       # But it's not a full writeback
+>>       assert "loc" not in loc
+>>       # Mutating 'loc' doesn't affect f_locals:
+>>       loc["a"] = 1
+>>       assert sys._getframe().f_locals["a"] == 1
+>>       # Except when it does:
+>>       loc["b"] = 3
+>>       assert sys._getframe().f_locals["b"] == 3
+>
+>
+> All of this can be explained by realizing `loc is sys._getframe().f_locals`. IOW locals() always returns the dict in f_locals.
+
+That's not true in the PEP version of things. locals() and
+frame.f_locals become radically different. locals() is still a dict
+stored in the frame object, but f_locals is a magic proxy object that
+reads/writes to the fast locals array directly.
+
+>>
+>> Again, the results here are totally different if a Python-level
+>> tracing/profiling function is installed.
+>>
+>> And you can also hit these subtleties via 'exec' and 'eval':
+>>
+>>   def f():
+>>       a = 1
+>>       loc = locals()
+>>       assert "loc" not in loc
+>>       # exec() triggers writeback, and then mutates the locals dict
+>>       exec("a = 2; b = 3")
+>>       # So now the current environment has been reflected into 'loc'
+>>       assert "loc" in loc
+>>       # Also loc["a"] has been changed to reflect the exec'ed assignments
+>>       assert loc["a"] == 2
+>>       # But if we look at the actual environment, directly or via
+>>       # f_locals, we can see that 'a' has not changed:
+>>       assert a == 1
+>>       assert sys._getframe().f_locals["a"] == 1
+>>       # loc["b"] changed as well:
+>>       assert loc["b"] == 3
+>>       # And this *does* show up in f_locals:
+>>       assert sys._getframe().f_locals["b"] == 3
+>
+>
+> This works indeed. My understanding is that the bytecode interpreter, when accessing the value of a local variable, ignores f_locals and always uses the "fast" array. But exec() and eval() don't use fast locals, their code is always compiled as if it appears in a module-level scope.
+>
+> While the interpreter is running and no debugger is active, in a function scope f_locals is not used at all, the interpreter only interacts with the fast array and the cells. It is initialized by the first locals() call for a function scope, and locals() copies the fast array and the cells into it. Subsequent calls in the same function scope keep the same value for f_locals and re-copy fast and cells into it. This also clears out deleted local variables and emptied cells, but leaves "strange" keys (like "b" in the examples) unchanged.
+>
+> The truly weird case happen when Python-level tracers are present, then the contents of f_locals is written back to the fast array and cells at certain points. This is intended for use by pdb (am I the only user of pdb left in the world?), so one can step through a function and mutate local variables. I find this essential in some cases.
+
+Right, the original goal for the PEP was to remove the "truly weird
+case" but keep pdb working
+
+>>
+>> Of course, many of these edge cases are pretty obscure, so it's not
+>> clear how much they matter. But I think we can at least agree that
+>> this isn't the one obvious way to do it :-).
+>>
+>>
+>> ##### What's the landscape of possible semantics?
+>>
+>> I did some brainstorming, and came up with 4 sets of semantics that
+>> seem plausible enough to at least consider:
+>>
+>> - [PEP]: the semantics in the current PEP draft.
+>
+>
+> To be absolutely clear this copies the fast array and cells to f_locals when locals() is called, but never copies back, except when Python-level tracing/profiling is on.
+
+In the PEP draft, it never copies back at all, under any circumstance.
+
+>>
+>> - [PEP-minus-tracing]: same as [PEP], except dropping the writeback on
+>> Python-level trace/profile events.
+>
+>
+> But this still copies the fast array and cells to f_locals when a Python trace function is called, right? It just doesn't write back.
+
+No, when I say "writeback" in this email I always mean
+PyFrame_FastToLocals. The PEP removes PyFrame_LocalsToFast entirely.
+
+>> - [snapshot]: in function scope, each call to locals() returns a new,
+>> *static* snapshot of the local environment, removing all this
+>> writeback stuff. Something like:
+>>
+>>   def locals():
+>>       frame = get_caller_frame()
+>>       if is_function_scope(frame):
+>>           # make a point-in-time copy of the "live" proxy object
+>>           return dict(frame.f_locals)
+>>       else:
+>>           # in module/class scope, return the actual local environment
+>>           return frame.f_locals
+>
+>
+> This is the most extreme variant, and in this case there is no point in having f_locals at all for a function scope (since nothing uses it). I'm not 100% sure that you understand this.
+
+Yes, this does suggest an optimization: you should be able to skip
+allocating a dict for every frame in most cases. I'm not sure how much
+of a difference it makes. In principle we could implement that
+optimization right now by delaying the dict allocation until the first
+time f_locals or locals() is used, but we currently don't bother. And
+even if we adopt this, we'll still need to keep a slot in the frame
+struct to allocate the dict if we need to, because people can still be
+obnoxious and do frame.f_locals["unique never before seen name"] =
+blah and expect to be able to read it back later, which means we need
+somewhere to store that. (In fact Trio does do this right now, as part
+of its control-C handling stuff, because there's literally no other
+place where you can store information that a signal handler can see
+when it's walking the stack.) We could deprecate writing new names to
+f_locals like this, but that's a longer-term thing.
+
+>>
+>> - [proxy]: Simply return the .f_locals object, so in all contexts
+>> locals() returns a live mutable view of the actual environment:
+>>
+>>   def locals():
+>>       return get_caller_frame().f_locals
+>
+>
+> So this is PEP without any writeback. But there is still copying from the fast array and cells to f_locals. Does that only happen when locals() is called? Or also when a Python-level trace/profiling function is called?
+> My problem with all variants except what's in the PEP is that it would leave pdb *no* way (short of calling into the C API using ctypes) of writing back local variables.
+
+No, this option is called [proxy] because this is the version where
+locals() and f_locals *both* give you magic proxy objects where
+__getitem__ and __setitem__ access the fast locals array directly, as
+compared to the PEP where only f_locals gives you that magic object.
+
+-n
+
+--
+Nathaniel J. Smith -- https://vorpus.org
+
+From tjreedy at udel.edu  Mon May 27 14:05:32 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Mon, 27 May 2019 14:05:32 -0400
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <ac612f37-47de-7017-2aec-e73d58f8560e@Damon-Family.org>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz> <qcgnoa$6ks0$1@blaine.gmane.org>
+ <ac612f37-47de-7017-2aec-e73d58f8560e@Damon-Family.org>
+Message-ID: <qch8td$7njn$1@blaine.gmane.org>
+
+On 5/27/2019 9:52 AM, Richard Damon wrote:
+> On 5/27/19 9:12 AM, Terry Reedy wrote:
+
+>> I believe that the situation is or can be thought of as this: there is
+>> exactly 1 function locals dict.
+
+per function invocation, or more generally, as Guido said, per stack 
+frame.  This part is obvious to me, but I should have been clearer.
+
+>>? Initially, it is empty and
+>> inaccessible (unusable) from code.? Each locals() call updates the
+>> dict to a current snapshot and returns it.
+>>
+> I had a similar concern, and one BIG issue with it being define this way
+> is that you get a fundamental re-entrancy problem. If module a uses
+> locals(), and then calls module b that uses locals(), module a has lost
+> its usage.
+
+No. Sorry about being unclear.
+
+-- 
+Terry Jan Reedy
+
+
+
+From Richard at Damon-Family.org  Mon May 27 15:08:55 2019
+From: Richard at Damon-Family.org (Richard Damon)
+Date: Mon, 27 May 2019 15:08:55 -0400
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <qch8td$7njn$1@blaine.gmane.org>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz> <qcgnoa$6ks0$1@blaine.gmane.org>
+ <ac612f37-47de-7017-2aec-e73d58f8560e@Damon-Family.org>
+ <qch8td$7njn$1@blaine.gmane.org>
+Message-ID: <723d1f0a-1b36-0e09-6e1c-f0b1df4f1410@Damon-Family.org>
+
+On 5/27/19 2:05 PM, Terry Reedy wrote:
+> On 5/27/2019 9:52 AM, Richard Damon wrote:
+>> On 5/27/19 9:12 AM, Terry Reedy wrote:
+>
+>>> I believe that the situation is or can be thought of as this: there is
+>>> exactly 1 function locals dict.
+>
+> per function invocation, or more generally, as Guido said, per stack
+> frame.? This part is obvious to me, but I should have been clearer.
+>
+>>> ? Initially, it is empty and
+>>> inaccessible (unusable) from code.? Each locals() call updates the
+>>> dict to a current snapshot and returns it.
+>>>
+>> I had a similar concern, and one BIG issue with it being define this way
+>> is that you get a fundamental re-entrancy problem. If module a uses
+>> locals(), and then calls module b that uses locals(), module a has lost
+>> its usage.
+>
+> No. Sorry about being unclear.
+>
+Ok, if each function invocation gets its own dict, then the reentrancy
+issues go away.
+
+The fact that it isn't the 'active' dict, so you can't use it to modify
+the current state, but also you don't get a fresh copy each time (there
+is a single mutable dict that gets updated) seems to be an odd behavior
+and I can't see where it is an advantage to the user of the function, or
+where that makes it easier on the implementation. (But I could easy be
+missing something).
+
+-- 
+Richard Damon
+
+
+From guido at python.org  Mon May 27 15:30:21 2019
+From: guido at python.org (Guido van Rossum)
+Date: Mon, 27 May 2019 12:30:21 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CAPJVwBnj1pb5MQYT9ReaWRgEMkn7-xM2hxy1g5TwisSmYE9QAQ@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <CAP7+vJ+JCzgu7Hsmof-obER5gb9ubmKFs6pRPrqB5d8=E1HFfg@mail.gmail.com>
+ <CAPJVwBnj1pb5MQYT9ReaWRgEMkn7-xM2hxy1g5TwisSmYE9QAQ@mail.gmail.com>
+Message-ID: <CAP7+vJL9Voo5cr-aBbgbsSPoJo4UkK65dx+iZzb2XjArt5WpEw@mail.gmail.com>
+
+OK, I apologize for not catching on to the changed semantics of f_locals
+(which in the proposal is always a proxy for the fast locals and the
+cells). I don't know if I just skimmed that part of the PEP or that it
+needs calling out more.
+
+I'm assuming that there are backwards compatibility concerns, and the PEP
+is worried that more code will break if one of the simpler options is
+chosen. In particular I guess that the choice of returning the same object
+is meant to make locals() in a function frame more similar to locals() in a
+module frame. And the choice of returning a plain dict rather than a proxy
+is meant to make life easier for code that assumes it's getting a plain
+dict.
+
+Other than that I agree that returning a proxy (i.e. just a reference to
+f_locals) seems to be the most attractive option...
+
+On Mon, May 27, 2019 at 9:41 AM Nathaniel Smith <njs at pobox.com> wrote:
+
+> On Mon, May 27, 2019 at 9:16 AM Guido van Rossum <guido at python.org> wrote:
+> >
+> > I re-ran your examples and found that some of them fail.
+> >
+> > On Mon, May 27, 2019 at 8:17 AM Nathaniel Smith <njs at pobox.com> wrote:
+> [...]
+> >> The interaction between f_locals and and locals() is also subtle:
+> >>
+> >>   def f():
+> >>       a = 1
+> >>       loc = locals()
+> >>       assert "loc" not in loc
+> >>       # Regular variable updates don't affect 'loc'
+> >>       a = 2
+> >>       assert loc["a"] == 1
+> >>       # But debugging updates do:
+> >>       sys._getframe().f_locals["a"] = 3
+> >>       assert a == 3
+> >
+> >
+> > That assert fails; `a` is still 2 here for me.
+>
+> I think you're running on current Python, and I'm talking about the
+> semantics in the current PEP 558 draft, which redefines f_locals so
+> that the assert passes. Nick has a branch here if you want to try it:
+> https://github.com/python/cpython/pull/3640
+>
+> (Though I admit I was lazy, and haven't tried running my examples at
+> all -- they're just based on the text.)
+>
+> >>
+> >>       assert loc["a"] == 3
+> >>       # But it's not a full writeback
+> >>       assert "loc" not in loc
+> >>       # Mutating 'loc' doesn't affect f_locals:
+> >>       loc["a"] = 1
+> >>       assert sys._getframe().f_locals["a"] == 1
+> >>       # Except when it does:
+> >>       loc["b"] = 3
+> >>       assert sys._getframe().f_locals["b"] == 3
+> >
+> >
+> > All of this can be explained by realizing `loc is
+> sys._getframe().f_locals`. IOW locals() always returns the dict in f_locals.
+>
+> That's not true in the PEP version of things. locals() and
+> frame.f_locals become radically different. locals() is still a dict
+> stored in the frame object, but f_locals is a magic proxy object that
+> reads/writes to the fast locals array directly.
+>
+> >>
+> >> Again, the results here are totally different if a Python-level
+> >> tracing/profiling function is installed.
+> >>
+> >> And you can also hit these subtleties via 'exec' and 'eval':
+> >>
+> >>   def f():
+> >>       a = 1
+> >>       loc = locals()
+> >>       assert "loc" not in loc
+> >>       # exec() triggers writeback, and then mutates the locals dict
+> >>       exec("a = 2; b = 3")
+> >>       # So now the current environment has been reflected into 'loc'
+> >>       assert "loc" in loc
+> >>       # Also loc["a"] has been changed to reflect the exec'ed
+> assignments
+> >>       assert loc["a"] == 2
+> >>       # But if we look at the actual environment, directly or via
+> >>       # f_locals, we can see that 'a' has not changed:
+> >>       assert a == 1
+> >>       assert sys._getframe().f_locals["a"] == 1
+> >>       # loc["b"] changed as well:
+> >>       assert loc["b"] == 3
+> >>       # And this *does* show up in f_locals:
+> >>       assert sys._getframe().f_locals["b"] == 3
+> >
+> >
+> > This works indeed. My understanding is that the bytecode interpreter,
+> when accessing the value of a local variable, ignores f_locals and always
+> uses the "fast" array. But exec() and eval() don't use fast locals, their
+> code is always compiled as if it appears in a module-level scope.
+> >
+> > While the interpreter is running and no debugger is active, in a
+> function scope f_locals is not used at all, the interpreter only interacts
+> with the fast array and the cells. It is initialized by the first locals()
+> call for a function scope, and locals() copies the fast array and the cells
+> into it. Subsequent calls in the same function scope keep the same value
+> for f_locals and re-copy fast and cells into it. This also clears out
+> deleted local variables and emptied cells, but leaves "strange" keys (like
+> "b" in the examples) unchanged.
+> >
+> > The truly weird case happen when Python-level tracers are present, then
+> the contents of f_locals is written back to the fast array and cells at
+> certain points. This is intended for use by pdb (am I the only user of pdb
+> left in the world?), so one can step through a function and mutate local
+> variables. I find this essential in some cases.
+>
+> Right, the original goal for the PEP was to remove the "truly weird
+> case" but keep pdb working
+>
+> >>
+> >> Of course, many of these edge cases are pretty obscure, so it's not
+> >> clear how much they matter. But I think we can at least agree that
+> >> this isn't the one obvious way to do it :-).
+> >>
+> >>
+> >> ##### What's the landscape of possible semantics?
+> >>
+> >> I did some brainstorming, and came up with 4 sets of semantics that
+> >> seem plausible enough to at least consider:
+> >>
+> >> - [PEP]: the semantics in the current PEP draft.
+> >
+> >
+> > To be absolutely clear this copies the fast array and cells to f_locals
+> when locals() is called, but never copies back, except when Python-level
+> tracing/profiling is on.
+>
+> In the PEP draft, it never copies back at all, under any circumstance.
+>
+> >>
+> >> - [PEP-minus-tracing]: same as [PEP], except dropping the writeback on
+> >> Python-level trace/profile events.
+> >
+> >
+> > But this still copies the fast array and cells to f_locals when a Python
+> trace function is called, right? It just doesn't write back.
+>
+> No, when I say "writeback" in this email I always mean
+> PyFrame_FastToLocals. The PEP removes PyFrame_LocalsToFast entirely.
+>
+> >> - [snapshot]: in function scope, each call to locals() returns a new,
+> >> *static* snapshot of the local environment, removing all this
+> >> writeback stuff. Something like:
+> >>
+> >>   def locals():
+> >>       frame = get_caller_frame()
+> >>       if is_function_scope(frame):
+> >>           # make a point-in-time copy of the "live" proxy object
+> >>           return dict(frame.f_locals)
+> >>       else:
+> >>           # in module/class scope, return the actual local environment
+> >>           return frame.f_locals
+> >
+> >
+> > This is the most extreme variant, and in this case there is no point in
+> having f_locals at all for a function scope (since nothing uses it). I'm
+> not 100% sure that you understand this.
+>
+> Yes, this does suggest an optimization: you should be able to skip
+> allocating a dict for every frame in most cases. I'm not sure how much
+> of a difference it makes. In principle we could implement that
+> optimization right now by delaying the dict allocation until the first
+> time f_locals or locals() is used, but we currently don't bother. And
+> even if we adopt this, we'll still need to keep a slot in the frame
+> struct to allocate the dict if we need to, because people can still be
+> obnoxious and do frame.f_locals["unique never before seen name"] =
+> blah and expect to be able to read it back later, which means we need
+> somewhere to store that. (In fact Trio does do this right now, as part
+> of its control-C handling stuff, because there's literally no other
+> place where you can store information that a signal handler can see
+> when it's walking the stack.) We could deprecate writing new names to
+> f_locals like this, but that's a longer-term thing.
+>
+> >>
+> >> - [proxy]: Simply return the .f_locals object, so in all contexts
+> >> locals() returns a live mutable view of the actual environment:
+> >>
+> >>   def locals():
+> >>       return get_caller_frame().f_locals
+> >
+> >
+> > So this is PEP without any writeback. But there is still copying from
+> the fast array and cells to f_locals. Does that only happen when locals()
+> is called? Or also when a Python-level trace/profiling function is called?
+> > My problem with all variants except what's in the PEP is that it would
+> leave pdb *no* way (short of calling into the C API using ctypes) of
+> writing back local variables.
+>
+> No, this option is called [proxy] because this is the version where
+> locals() and f_locals *both* give you magic proxy objects where
+> __getitem__ and __setitem__ access the fast locals array directly, as
+> compared to the PEP where only f_locals gives you that magic object.
+>
+> -n
+>
+> --
+> Nathaniel J. Smith -- https://vorpus.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190527/2493dedb/attachment.html>
+
+From steve at pearwood.info  Mon May 27 22:28:48 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Tue, 28 May 2019 12:28:48 +1000
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+Message-ID: <20190528022848.GF4221@ando.pearwood.info>
+
+On Mon, May 27, 2019 at 08:15:01AM -0700, Nathaniel Smith wrote:
+[...]
+> I'm not as sure about the locals() parts of the proposal. It might be
+> fine, but there are some complex trade-offs here that I'm still trying
+> to wrap my head around. The rest of this document is me thinking out
+> loud to try to clarify these issues.
+
+Wow. Thanks for the detail on this, I think the PEP should link to this 
+thread, you've done some great work here.
+
+
+[...]
+> In function scopes, things are more complicated. The *local
+> environment* is conceptually well-defined, and includes:
+> - local variables (current source of truth: "fast locals" array)
+> - closed-over variables (current source of truth: cell objects)
+
+I don't think closed-over variables are *local* variables. They're 
+"nonlocal", and you need a special keyword to write to them.
+
+
+> - any arbitrary key/values written to frame.f_locals that don't
+> correspond to local or closed-over variables, e.g. you can do
+> frame.f_locals[object()] = 10, and then later read it out again.
+
+Today I learned something new.
+
+
+> However, the mapping returned by locals() does not directly reflect
+> this local environment. Instead, each function frame has a dict
+> associated with it. locals() returns this dict. The dict always holds
+> any non-local/non-closed-over variables, and also, in certain
+> circumstances, we write a snapshot of local and closed-over variables
+> back into the dict.
+
+I'm going to try to make a case for your "snapshot" scenario.
+
+The locals dict inside a function is rather weird:
+
+- unlike in the global or class scope, writing to the dict does not 
+  update the variables
+
+- writing to it is discouraged, but its not a read-only proxy
+
+- it seems to be a snapshot of the state of variables when you 
+  called locals():
+
+      # inside a function
+      x = 1
+      d = locals()
+      x = 2
+      assert d['x'] == 1
+
+- but it's not a proper, static, snapshot, because sometimes it
+  will mutate without you touching it.
+
+That last point is Action At A Distance, and while it is explicable 
+("there's only one locals dict, and calling locals() updates it") its 
+also rather unintuitive and surprising and violates the Principle Of 
+Least Surprise.
+
+[Usual disclaimers about "surprising to whom?" applies.]
+
+Unless I missed something, it doesn't seem that any of the code you 
+(Nathan) analysed is making use of this AAAD behaviour, at least not 
+deliberately. At least one of the examples took steps to avoid it by 
+making an explicit copy after calling locals(), but missed one leaving 
+that function possibly buggy.
+
+Given how weirdly the locals dict behaves, and how tricky it is to 
+explain all the corner cases, I'm going to +1 your "snapshot" idea: 
+
+- we keep the current behaviour for locals() in the global and class 
+  scopes;
+
+- we keep the PEP's behaviour for writebacks when locals() or exec()
+  (and eval with walrus operator) are called, for the frame dict;
+
+- but we change locals() to return a copy of that dict, rather than
+  the dict itself.
+
+(I think I've got the details right... please correct me if I've 
+misunderstood anything.)
+
+Being a backwards-incompatible change, that means that folks who were 
+relying on that automagical refresh of the snapshot will need to change 
+their code to explicitly refresh:
+
+    # update in place:
+    d.update(locals())
+
+    # or get a new snapshot
+    d = locals()
+
+
+Or they explicitly grab a reference to the frame dict instead of 
+calling locals(). Either way is likely to be less surprising than the 
+status quo and less likely to lead to accidental, unexpected updates of 
+the local dictionary without your knowledge.
+
+
+[...]
+> Of course, many of these edge cases are pretty obscure, so it's not
+> clear how much they matter. But I think we can at least agree that
+> this isn't the one obvious way to do it :-).
+
+Indeed. I thought I was doing well to know that writing to locals() 
+inside a function didn't necessarily update the variable, but I had no 
+idea of the levels of complexity actually involved!
+
+
+> I can think of a lot of criteria that all-else-being-equal we would
+> like Python to meet. (Of course, in practice they conflict.)
+> 
+> Consistency across APIs: it's surprising if locals() and
+> frame.f_locals do different things. This argues for [proxy].
+
+I don't think it is that surprising, since frame.f_locals is kinda 
+obscure (the average Python coder wouldn't know a frame if one fell 
+on them) and locals() has been documented as weird for decades.
+
+In any case, at least "its a copy of ..." is simple and understandable.
+
+
+> Consistency across contexts: it's surprising if locals() has acts
+> differently in module/class scope versus function scope. This argues
+> for [proxy].
+
+True as far as it goes, but its also true that for the longest time, in 
+most implementations, locals() has acted differently. So no change there.
+
+On the other hand, locals() currently returns a dict everywhere. It 
+might be surprising for it to start returning a proxy object inside 
+functions instead of a dict.
+
+
+-- 
+Steven
+
+From v+python at g.nevcal.com  Mon May 27 23:53:55 2019
+From: v+python at g.nevcal.com (Glenn Linderman)
+Date: Mon, 27 May 2019 20:53:55 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <20190528022848.GF4221@ando.pearwood.info>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+Message-ID: <34234c7a-c616-2508-7d4a-7a435d92ed5e@g.nevcal.com>
+
+On 5/27/2019 7:28 PM, Steven D'Aprano wrote:
+> On the other hand, locals() currently returns a dict everywhere. It
+> might be surprising for it to start returning a proxy object inside
+> functions instead of a dict.
+I thought the proxy object sounded more useful... how different is it in 
+use from a dict? "proxy" sounds like it should quack like a dict, as a 
+general term, but maybe a more specific "proxy" is meant here, that 
+doesn't quite quack like a dict?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190527/1b274ca7/attachment.html>
+
+From guido at python.org  Tue May 28 00:17:23 2019
+From: guido at python.org (Guido van Rossum)
+Date: Mon, 27 May 2019 21:17:23 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <20190528022848.GF4221@ando.pearwood.info>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+Message-ID: <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+
+Note that the weird, Action At A Distance behavior is also visible for
+locals() called at module scope (since there, locals() is globals(), which
+returns the actual dict that's the module's __dict__, i.e. the Source Of
+Truth. So I think it's unavoidable in general, and we would do wise not to
+try and "fix" it just for function locals. (And I certainly don't want to
+mess with globals().)
+
+This is another case for the proposed [proxy] semantics, assuming we can
+get over our worry about backwards incompatibility.
+
+On Mon, May 27, 2019 at 7:31 PM Steven D'Aprano <steve at pearwood.info> wrote:
+
+> On Mon, May 27, 2019 at 08:15:01AM -0700, Nathaniel Smith wrote:
+> [...]
+> > I'm not as sure about the locals() parts of the proposal. It might be
+> > fine, but there are some complex trade-offs here that I'm still trying
+> > to wrap my head around. The rest of this document is me thinking out
+> > loud to try to clarify these issues.
+>
+> Wow. Thanks for the detail on this, I think the PEP should link to this
+> thread, you've done some great work here.
+>
+>
+> [...]
+> > In function scopes, things are more complicated. The *local
+> > environment* is conceptually well-defined, and includes:
+> > - local variables (current source of truth: "fast locals" array)
+> > - closed-over variables (current source of truth: cell objects)
+>
+> I don't think closed-over variables are *local* variables. They're
+> "nonlocal", and you need a special keyword to write to them.
+>
+>
+> > - any arbitrary key/values written to frame.f_locals that don't
+> > correspond to local or closed-over variables, e.g. you can do
+> > frame.f_locals[object()] = 10, and then later read it out again.
+>
+> Today I learned something new.
+>
+>
+> > However, the mapping returned by locals() does not directly reflect
+> > this local environment. Instead, each function frame has a dict
+> > associated with it. locals() returns this dict. The dict always holds
+> > any non-local/non-closed-over variables, and also, in certain
+> > circumstances, we write a snapshot of local and closed-over variables
+> > back into the dict.
+>
+> I'm going to try to make a case for your "snapshot" scenario.
+>
+> The locals dict inside a function is rather weird:
+>
+> - unlike in the global or class scope, writing to the dict does not
+>   update the variables
+>
+> - writing to it is discouraged, but its not a read-only proxy
+>
+> - it seems to be a snapshot of the state of variables when you
+>   called locals():
+>
+>       # inside a function
+>       x = 1
+>       d = locals()
+>       x = 2
+>       assert d['x'] == 1
+>
+> - but it's not a proper, static, snapshot, because sometimes it
+>   will mutate without you touching it.
+>
+> That last point is Action At A Distance, and while it is explicable
+> ("there's only one locals dict, and calling locals() updates it") its
+> also rather unintuitive and surprising and violates the Principle Of
+> Least Surprise.
+>
+> [Usual disclaimers about "surprising to whom?" applies.]
+>
+> Unless I missed something, it doesn't seem that any of the code you
+> (Nathan) analysed is making use of this AAAD behaviour, at least not
+> deliberately. At least one of the examples took steps to avoid it by
+> making an explicit copy after calling locals(), but missed one leaving
+> that function possibly buggy.
+>
+> Given how weirdly the locals dict behaves, and how tricky it is to
+> explain all the corner cases, I'm going to +1 your "snapshot" idea:
+>
+> - we keep the current behaviour for locals() in the global and class
+>   scopes;
+>
+> - we keep the PEP's behaviour for writebacks when locals() or exec()
+>   (and eval with walrus operator) are called, for the frame dict;
+>
+> - but we change locals() to return a copy of that dict, rather than
+>   the dict itself.
+>
+> (I think I've got the details right... please correct me if I've
+> misunderstood anything.)
+>
+> Being a backwards-incompatible change, that means that folks who were
+> relying on that automagical refresh of the snapshot will need to change
+> their code to explicitly refresh:
+>
+>     # update in place:
+>     d.update(locals())
+>
+>     # or get a new snapshot
+>     d = locals()
+>
+>
+> Or they explicitly grab a reference to the frame dict instead of
+> calling locals(). Either way is likely to be less surprising than the
+> status quo and less likely to lead to accidental, unexpected updates of
+> the local dictionary without your knowledge.
+>
+>
+> [...]
+> > Of course, many of these edge cases are pretty obscure, so it's not
+> > clear how much they matter. But I think we can at least agree that
+> > this isn't the one obvious way to do it :-).
+>
+> Indeed. I thought I was doing well to know that writing to locals()
+> inside a function didn't necessarily update the variable, but I had no
+> idea of the levels of complexity actually involved!
+>
+>
+> > I can think of a lot of criteria that all-else-being-equal we would
+> > like Python to meet. (Of course, in practice they conflict.)
+> >
+> > Consistency across APIs: it's surprising if locals() and
+> > frame.f_locals do different things. This argues for [proxy].
+>
+> I don't think it is that surprising, since frame.f_locals is kinda
+> obscure (the average Python coder wouldn't know a frame if one fell
+> on them) and locals() has been documented as weird for decades.
+>
+> In any case, at least "its a copy of ..." is simple and understandable.
+>
+>
+> > Consistency across contexts: it's surprising if locals() has acts
+> > differently in module/class scope versus function scope. This argues
+> > for [proxy].
+>
+> True as far as it goes, but its also true that for the longest time, in
+> most implementations, locals() has acted differently. So no change there.
+>
+> On the other hand, locals() currently returns a dict everywhere. It
+> might be surprising for it to start returning a proxy object inside
+> functions instead of a dict.
+>
+>
+> --
+> Steven
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190527/74fc9ef0/attachment.html>
+
+From njs at pobox.com  Tue May 28 00:57:34 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Mon, 27 May 2019 21:57:34 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+Message-ID: <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+
+On Mon, May 27, 2019 at 9:18 PM Guido van Rossum <guido at python.org> wrote:
+>
+> Note that the weird, Action At A Distance behavior is also visible for locals() called at module scope (since there, locals() is globals(), which returns the actual dict that's the module's __dict__, i.e. the Source Of Truth. So I think it's unavoidable in general, and we would do wise not to try and "fix" it just for function locals. (And I certainly don't want to mess with globals().)
+
+I think it's worth distinguishing between two different types of weird
+Action At A Distance here:
+
+- There's the "justified" action-at-a-distance that currently happens
+at module scope, where locals().__setitem__ affects variable lookup,
+and variable mutation affects locals().__getitem__. This can produce
+surprising results if you pass locals() into something that's
+expecting a regular dict, but it's also arguably the point of an
+environment introspection API, and like you say, it's unavoidable and
+expected at module scope and when using globals().
+
+- And then there's the "spooky" action-at-a-distance that currently
+happens at function scope, where calling locals() has the side-effect
+of mutating the return value from previous calls to locals(), and the
+objects returned from locals may or may not spontaneously mutate
+themselves depending on whether some other code registered a trace
+function. This is traditional, but extremely surprising if you aren't
+deeply familiar with internals of CPython's implementation.
+
+Of the four designs:
+
+[PEP] and [PEP-minus-tracing] both have "spooky" action-at-a-distance
+(worse in [PEP]), but they don't have "justified"
+action-at-a-distance.
+
+[proxy] adds "justified" action-at-a-distance, and removes "spooky"
+action at a distance.
+
+[snapshot] gets rid of both kinds of action-at-a-distance (at least in
+function scope).
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
