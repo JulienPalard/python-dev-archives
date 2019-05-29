@@ -49802,3 +49802,1605 @@ function scope).
 -- 
 Nathaniel J. Smith -- https://vorpus.org
 
+From p.f.moore at gmail.com  Tue May 28 03:37:17 2019
+From: p.f.moore at gmail.com (Paul Moore)
+Date: Tue, 28 May 2019 08:37:17 +0100
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+Message-ID: <CACac1F_3iP4O-pZRpHjb1o+=vC9JRpv06Rd6K8+y7xSg3Pf1_g@mail.gmail.com>
+
+On Tue, 28 May 2019 at 06:00, Nathaniel Smith <njs at pobox.com> wrote:
+
+> - There's the "justified" action-at-a-distance that currently happens
+> at module scope, where locals().__setitem__ affects variable lookup,
+> and variable mutation affects locals().__getitem__. This can produce
+> surprising results if you pass locals() into something that's
+> expecting a regular dict, but it's also arguably the point of an
+> environment introspection API, and like you say, it's unavoidable and
+> expected at module scope and when using globals().
+
+If I understand you, this "justified" action at a distance is exactly
+similar to how os.environ works, making it very reasonable that locals
+and globals work the same (indeed, explaining that locals *doesn't* do
+this at the moment is why (IMO) people consider locals() as "a bit
+weird").
+
+> - And then there's the "spooky" action-at-a-distance that currently
+> happens at function scope, where calling locals() has the side-effect
+> of mutating the return value from previous calls to locals(), and the
+> objects returned from locals may or may not spontaneously mutate
+> themselves depending on whether some other code registered a trace
+> function. This is traditional, but extremely surprising if you aren't
+> deeply familiar with internals of CPython's implementation.
+
+Yep, this is the one that most non-experts commenting on this thread
+(including me) seem to have been surprised by.
+
+> Of the four designs:
+>
+> [PEP] and [PEP-minus-tracing] both have "spooky" action-at-a-distance
+> (worse in [PEP]), but they don't have "justified"
+> action-at-a-distance.
+>
+> [proxy] adds "justified" action-at-a-distance, and removes "spooky"
+> action at a distance.
+>
+> [snapshot] gets rid of both kinds of action-at-a-distance (at least in
+> function scope).
+
+This summary leaves me very strongly feeling that I prefer [proxy]
+first, then [snapshot], with the two [PEP] variants a distant third
+and fourth.
+
+Of course, all of this is only if we have decided to formalise the
+semantics and change CPython to conform. I've never personally been
+affected by any of the edge cases with locals(), so on a purely
+personal basis, I'm equally happy with "do nothing" :-)
+
+Paul
+
+From steve at holdenweb.com  Tue May 28 04:30:11 2019
+From: steve at holdenweb.com (Steve Holden)
+Date: Tue, 28 May 2019 09:30:11 +0100
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <723d1f0a-1b36-0e09-6e1c-f0b1df4f1410@Damon-Family.org>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz> <qcgnoa$6ks0$1@blaine.gmane.org>
+ <ac612f37-47de-7017-2aec-e73d58f8560e@Damon-Family.org>
+ <qch8td$7njn$1@blaine.gmane.org>
+ <723d1f0a-1b36-0e09-6e1c-f0b1df4f1410@Damon-Family.org>
+Message-ID: <CAMofdRCXNxkZvs8q55MoEGVLVCsZ27f6HKWscBBi0qzjqJikgA@mail.gmail.com>
+
+I'm guessing the reason is to remove the overhead of keeping the dictionary
+up to date during function execution when no Python code needs access to it.
+
+
+On Mon, May 27, 2019 at 8:10 PM Richard Damon <Richard at damon-family.org>
+wrote:
+
+> On 5/27/19 2:05 PM, Terry Reedy wrote:
+> > On 5/27/2019 9:52 AM, Richard Damon wrote:
+> >> On 5/27/19 9:12 AM, Terry Reedy wrote:
+> >
+> >>> I believe that the situation is or can be thought of as this: there is
+> >>> exactly 1 function locals dict.
+> >
+> > per function invocation, or more generally, as Guido said, per stack
+> > frame.  This part is obvious to me, but I should have been clearer.
+> >
+> >>>   Initially, it is empty and
+> >>> inaccessible (unusable) from code.  Each locals() call updates the
+> >>> dict to a current snapshot and returns it.
+> >>>
+> >> I had a similar concern, and one BIG issue with it being define this way
+> >> is that you get a fundamental re-entrancy problem. If module a uses
+> >> locals(), and then calls module b that uses locals(), module a has lost
+> >> its usage.
+> >
+> > No. Sorry about being unclear.
+> >
+> Ok, if each function invocation gets its own dict, then the reentrancy
+> issues go away.
+>
+> The fact that it isn't the 'active' dict, so you can't use it to modify
+> the current state, but also you don't get a fresh copy each time (there
+> is a single mutable dict that gets updated) seems to be an odd behavior
+> and I can't see where it is an advantage to the user of the function, or
+> where that makes it easier on the implementation. (But I could easy be
+> missing something).
+>
+> --
+> Richard Damon
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/steve%40holdenweb.com
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190528/f6983ada/attachment.html>
+
+From steve at pearwood.info  Tue May 28 06:03:09 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Tue, 28 May 2019 20:03:09 +1000
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CACac1F_3iP4O-pZRpHjb1o+=vC9JRpv06Rd6K8+y7xSg3Pf1_g@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CACac1F_3iP4O-pZRpHjb1o+=vC9JRpv06Rd6K8+y7xSg3Pf1_g@mail.gmail.com>
+Message-ID: <20190528100309.GI4221@ando.pearwood.info>
+
+On Tue, May 28, 2019 at 08:37:17AM +0100, Paul Moore wrote:
+
+> Of course, all of this is only if we have decided to formalise the
+> semantics and change CPython to conform. I've never personally been
+> affected by any of the edge cases with locals(), so on a purely
+> personal basis, I'm equally happy with "do nothing" :-)
+
+I don't think "Do Nothing" is a good option, because (as I understand 
+it) the status quo has some weird bugs when you have tracing functions 
+written in Python (but not in C?). So something has to change, one way 
+or another. Hence Nick's PEP.
+
+
+-- 
+Steven
+
+From encukou at gmail.com  Tue May 28 07:52:53 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Tue, 28 May 2019 13:52:53 +0200
+Subject: [Python-Dev] Accepting PEP 590 (Vectorcall)
+Message-ID: <a60cd03a-8291-5088-7fa9-3d70a3a45779@gmail.com>
+
+As BDFL-Delegate, I am accepting PEP 590 -- Vectorcall: a fast calling 
+protocol for CPython.
+https://www.python.org/dev/peps/pep-0590/
+
+There was a major last-minute change to the text (though one that was 
+discussed since PyCon US): The API is not finalized yet, and it's 
+provided using private names (with leading underscores). We intend to 
+use the Python 3.8 cycle to get feedback from consumers, and finalize it 
+in 3.9.
+
+
+
+Thanks to Jeroen Demeyer, who spent a lot of time pushing this forward, 
+and probably has some new gray hair from interactions with me and other 
+core devs. Without his PEP 580 (and its implementation), the simpler PEP 
+590 would not be possible.
+It might not be apparent if some of his interactions are taken out of 
+context, but throughout the process Jeroen always worked to make Python 
+better, and he acted professionally even as we made decisions he didn't 
+agree with.
+
+Thanks to Mark Shannon for providing major insights, patiently 
+explaining that they actually are good ideas, and for the initial 
+implementation.
+
+Thanks to Stefan Behnel, Nick Coghlan, Victor Stinner and everyone else 
+involved in PEPs 576, 579, 580 and 590.
+
+I learned a lot in this process.
+
+This is my first time as BDFL-delegate. If you have any criticism of the 
+way I handled things, please share! (Assume I have tough skin, but keep 
+to the code of conduct.) I'd be happy to know how I can improve.
+
+
+And now, I'm off to get the implementation reviewed!
+
+From guido at python.org  Tue May 28 10:47:19 2019
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 28 May 2019 07:47:19 -0700
+Subject: [Python-Dev] Accepting PEP 590 (Vectorcall)
+In-Reply-To: <a60cd03a-8291-5088-7fa9-3d70a3a45779@gmail.com>
+References: <a60cd03a-8291-5088-7fa9-3d70a3a45779@gmail.com>
+Message-ID: <CAP7+vJLBx8dk053xz0yUZRa_hSpZiJEeobpxhb5bJ35PCRW5Fw@mail.gmail.com>
+
+Thank you Petr for being a great BDFL-Delegate, and thanks to Mark and
+Jeroen for working together. And thanks to everyone else who participated
+in the discussion. Good luck with the implementation and the follow-up
+steps!
+
+--Guido
+
+On Tue, May 28, 2019 at 4:55 AM Petr Viktorin <encukou at gmail.com> wrote:
+
+> As BDFL-Delegate, I am accepting PEP 590 -- Vectorcall: a fast calling
+> protocol for CPython.
+> https://www.python.org/dev/peps/pep-0590/
+>
+> There was a major last-minute change to the text (though one that was
+> discussed since PyCon US): The API is not finalized yet, and it's
+> provided using private names (with leading underscores). We intend to
+> use the Python 3.8 cycle to get feedback from consumers, and finalize it
+> in 3.9.
+>
+>
+>
+> Thanks to Jeroen Demeyer, who spent a lot of time pushing this forward,
+> and probably has some new gray hair from interactions with me and other
+> core devs. Without his PEP 580 (and its implementation), the simpler PEP
+> 590 would not be possible.
+> It might not be apparent if some of his interactions are taken out of
+> context, but throughout the process Jeroen always worked to make Python
+> better, and he acted professionally even as we made decisions he didn't
+> agree with.
+>
+> Thanks to Mark Shannon for providing major insights, patiently
+> explaining that they actually are good ideas, and for the initial
+> implementation.
+>
+> Thanks to Stefan Behnel, Nick Coghlan, Victor Stinner and everyone else
+> involved in PEPs 576, 579, 580 and 590.
+>
+> I learned a lot in this process.
+>
+> This is my first time as BDFL-delegate. If you have any criticism of the
+> way I handled things, please share! (Assume I have tough skin, but keep
+> to the code of conduct.) I'd be happy to know how I can improve.
+>
+>
+> And now, I'm off to get the implementation reviewed!
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190528/f543e78e/attachment.html>
+
+From ncoghlan at gmail.com  Tue May 28 11:15:32 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Wed, 29 May 2019 01:15:32 +1000
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+Message-ID: <CADiSq7etgyEqsopc7V8o13mqHCLFERq1ZJ5-Yz9B+yGNzGTm1Q@mail.gmail.com>
+
+On Sun, 26 May 2019 at 00:37, Guido van Rossum <guido at python.org> wrote:
+>
+> This looks great.
+>
+> I only have two nits with the text.
+>
+> First, why is the snapshot called a "dynamic snapshot"? What exactly is dynamic about it?
+
+The dynamic part comes in if you call locals() twice: because it
+returns the same mapping object every time, the second call to
+locals() will update the snapshot with the updated values of the local
+variables. To get a static snapshot that won't be implicitly updated
+by subsequent calls to locals() (or accesses to frame.f_locals, or
+implicit updates prior to trace function invocation) you have to do
+"locals().copy()".
+
+As others have noted, this isn't the behaviour we would choose if we
+were designing this API from scratch, but the current CPython
+behaviour has ~18 years of de facto standardisation behind it (as near
+as I can tell it has worked this way since nested scopes and fast
+locals were introduced in Python 2.1), so I'd be pretty hesitant about
+changing it at this point.
+
+In particular, I want to preserve the existing behaviour of Python 3
+code that runs exec() and eval() at function scope, which means
+ensuring that locals():
+
+1. Continues to behave like a normal dict instance when passed to another API
+2. Continues to leave the actual local variables of the calling frame alone
+
+> Second, you use the word "mapping" a lot. Would you mind changing that to "mapping object" in most places? Especially in the phrase "each call to ``locals()`` returns the *same* mapping". To me, without the word "object" added, this *could* be interpreted as "a dict with the same key/value pairs" (since "mapping" is also an abstract mathematical concept describing anything that maps keys to values).
+
+That makes sense - I'll update the text.
+
+Cheers,
+Nick.
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From solipsis at pitrou.net  Tue May 28 11:37:29 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Tue, 28 May 2019 17:37:29 +0200
+Subject: [Python-Dev] Accepting PEP 590 (Vectorcall)
+References: <a60cd03a-8291-5088-7fa9-3d70a3a45779@gmail.com>
+Message-ID: <20190528173729.3d23914b@fsol>
+
+
+Congrats to everyone who participated!
+
+Regards
+
+Antoine.
+
+
+On Tue, 28 May 2019 13:52:53 +0200
+Petr Viktorin <encukou at gmail.com> wrote:
+> As BDFL-Delegate, I am accepting PEP 590 -- Vectorcall: a fast calling 
+> protocol for CPython.
+> https://www.python.org/dev/peps/pep-0590/
+> 
+> There was a major last-minute change to the text (though one that was 
+> discussed since PyCon US): The API is not finalized yet, and it's 
+> provided using private names (with leading underscores). We intend to 
+> use the Python 3.8 cycle to get feedback from consumers, and finalize it 
+> in 3.9.
+> 
+> 
+> 
+> Thanks to Jeroen Demeyer, who spent a lot of time pushing this forward, 
+> and probably has some new gray hair from interactions with me and other 
+> core devs. Without his PEP 580 (and its implementation), the simpler PEP 
+> 590 would not be possible.
+> It might not be apparent if some of his interactions are taken out of 
+> context, but throughout the process Jeroen always worked to make Python 
+> better, and he acted professionally even as we made decisions he didn't 
+> agree with.
+> 
+> Thanks to Mark Shannon for providing major insights, patiently 
+> explaining that they actually are good ideas, and for the initial 
+> implementation.
+> 
+> Thanks to Stefan Behnel, Nick Coghlan, Victor Stinner and everyone else 
+> involved in PEPs 576, 579, 580 and 590.
+> 
+> I learned a lot in this process.
+> 
+> This is my first time as BDFL-delegate. If you have any criticism of the 
+> way I handled things, please share! (Assume I have tough skin, but keep 
+> to the code of conduct.) I'd be happy to know how I can improve.
+> 
+> 
+> And now, I'm off to get the implementation reviewed!
+
+
+
+
+From tim.peters at gmail.com  Tue May 28 14:23:53 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Tue, 28 May 2019 13:23:53 -0500
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+Message-ID: <CAExdVNky=MpntPfA9L7_mipAzX9-igYyOwFKNt0X+CpOMG_hNw@mail.gmail.com>
+
+I made a pull request for this that appears to work fine for my 10x
+smaller test case (reduces tear-down time from over 45 seconds to over
+7).  It implements my second earlier sketch (add a vector of search
+fingers, to eliminate searches):
+
+https://github.com/python/cpython/pull/13612
+
+It would be good to know how it works on the OP's 10x larger test
+case, which requires a machine with over 80 GB of RAM.  Hoping it will
+reduce tear-down time from hours to minutes (they have about a billion
+`Node` objects, so tear-down time will never be trivial).
+
+It would also be good to get a code review, if you have the time and
+inclination.  Thanks!
+
+From ezio.melotti at gmail.com  Tue May 28 15:05:10 2019
+From: ezio.melotti at gmail.com (Ezio Melotti)
+Date: Tue, 28 May 2019 21:05:10 +0200
+Subject: [Python-Dev] PEP 595: Improving bugs.python.org
+In-Reply-To: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+Message-ID: <CACBhJdG962h0vdw1gLp0t1Dr9Y9Ym6GjUPxPNQ5CCO59JpNgdQ@mail.gmail.com>
+
+On Thu, May 23, 2019 at 10:17 PM Ezio Melotti <ezio.melotti at gmail.com> wrote:
+>
+> Hello,
+> Berker and I have been working on a PEP that suggests we keep using
+> and improving bugs.python.org and Roundup instead of switching to
+> GitHub Issues as proposed by PEP 581.
+>
+> The PEP covers:
+> * What are the advantages of Roundup over GitHub issues;
+> * What features are missing in Roundup and how can we add them;
+> * Issues with PEP 581;
+> * Issues with the migration plan proposed by PEP 588;
+>
+> The rendered version of PEP 595 is available at
+> https://www.python.org/dev/peps/pep-0595/
+>
+> For reference, you can consult PEP 581 and 588 at
+> https://www.python.org/dev/peps/pep-0581/ and
+> https://www.python.org/dev/peps/pep-0588/
+>
+> The full text of the PEP is include below.  We are planning to update
+> the PEP to include the feedback we receive and to update the status of
+> features as we implement them (we also have a Google Summer of Code
+> students working on it).
+>
+> Best Regards,
+> Ezio Melotti
+>
+>
+
+Hello,
+earlier today I expanded and reworded the "Migration considerations"
+section and added the feedback I got from the replies.
+
+You can find the rendered version of that section (and the rest of the
+PEP) at https://www.python.org/dev/peps/pep-0595/#migration-considerations
+The changeset can be found at
+https://github.com/python/peps/commit/b3f4c8eb09d1987d00785cad385adf7e0394776e
+
+The full text of the latest version of the PEP is included below.
+
+Best Regards,
+Ezio Melotti
+
+
+================
+PEP: 595
+Title: Improving bugs.python.org
+Author: Ezio Melotti <ezio.melotti at gmail.com>, Berker Peksag
+<berker.peksag at gmail.com>
+Status: Draft
+Type: Process
+Content-Type: text/x-rst
+Created: 12-May-2019
+
+
+Abstract
+========
+
+This PEP proposes a list of improvements to make bugs.python.org
+more usable for contributors and core developers.  This PEP also
+discusses why remaining on Roundup should be preferred over
+switching to GitHub Issues, as proposed by :pep:`581`.
+
+
+Motivation
+==========
+
+On May 14th, 2019 :pep:`581` has been accepted [#]_ without much
+public discussion and without a clear consensus [#]_.  The PEP
+contains factual errors and doesn't address some of the
+issues that the migration to GitHub Issues might present.
+
+Given the scope of the migration, the amount of work required,
+and how it will negatively affect the workflow during the
+transition phase, this decision should be re-evaluated.
+
+
+Roundup advantages over GitHub Issues
+=====================================
+
+This section discusses reasons why Roundup should be preferred
+over GitHub Issues and Roundup features that are not available
+on GitHub Issues.
+
+* **Roundup is the status quo.**  Roundup has been an integral
+  part of the CPython workflow for years.  It is a stable product
+  that has been tested and customized to adapt to our needs as the
+  workflow evolved.
+
+  It is possible to gradually improve it and avoid the disruption
+  that a switch to a different system would inevitabily bring to
+  the workflow.
+
+* **Open-source and Python powered.**  Roundup is an open-source
+  project and is written in Python.  By using it and supporting
+  it, we also support the Python ecosystem.  Several features
+  developed for bpo have also been ported to upstream Roundup
+  over the years.
+
+* **Fully customizable.**  Roundup can be (and has been) fully
+  customized to fit our needs.
+
+* **Finer-grained access control.**  Roundup allows the creation
+  of different roles with different permissions (e.g. create,
+  view, edit, etc.) for each individual property, and users can
+  have multiple roles.
+
+* **Flexible UI.**  While Roundup UI might look dated, it is
+  convenient and flexible.
+
+  For example, on the issue page, each field (e.g. title, type,
+  versions, status, linked files and PRs, etc.) have appropriate
+  UI elements (input boxes, dropdowns, tables, etc.) that are
+  easy to set and also provide a convenient way to get info about
+  the issue at a glance.  The number of fields, their values, and
+  the UI element they use is also fully customizable.
+  GitHub only provides labels.
+
+  The issue list page presents the issues in a compact and easy
+  to read table with separate columns for different fields.  For
+  comparison, Roundup lists 50 issues in a screen, whereas GitHub
+  takes two screens to shows 25 issues.
+
+* **Advanced search.**  Roundup provides an accurate way to search
+  and filter by using any combination of issue fields.
+  It is also possible to customize the number of results and the
+  fields displayed in the table, and the sorting and grouping
+  (up to two levels).
+
+  bpo also provides predefined summaries (e.g. "Created by you",
+  "Assigned to you", etc.) and allows the creation of custom
+  search queries that can be conveniently accessed from the sidebar.
+
+* **Nosy list autocomplete.**  The nosy list has an autocomplete
+  feature that suggests maintainers and experts.  The suggestions
+  are automatically updated when the experts index [#]_ changes.
+
+* **Dependencies and Superseders.** Roundup allows to specify
+  dependencies that must be addressed before the current issues
+  can be closed and a superseder issue to easily mark duplicates
+  [#]_.  The list of dependencies can also be used to create
+  meta-issues that references several other sub-issues [#]_.
+
+
+Improving Roundup
+=================
+
+This section lists some of the issues mentioned by :pep:`581`
+and other desired features and discusses how they can be implemented
+by improving Roundup and/or our instance.
+
+* **REST API support.**  A REST API will make integration with other
+  services and the development of new tools and applications easiers.
+
+  Upstream Roundup now supports a REST API. Updating the tracker will
+  make the REST API available.
+
+* **GitHub login support.**  This will allow users to login
+  to bugs.python.org (bpo) without having to create a new account.
+  It will also solve issues with confirmation emails being marked
+  as spam, and provide two-factor authentication.
+
+  A patch to add this functionality is already available and is
+  being integrated at the time of writing [#]_.
+
+* **Markdown support and message preview and editing.**  This feature
+  will allow the use of Markdown in messages and the ability to
+  preview the message before the submission and edit it afterward.
+
+  This can be done, but it will take some work.  Possible solutions
+  have been proposed on the roundup-devel mailing list [#]_.
+
+* **"Remove me from nosy list" button.**  Add a button on issue pages
+  to remove self from the nosy list.
+
+  This feature will be added during GSoC 2019.
+
+* **Mobile friendly theme.**  Current theme of bugs.python.org looks
+  dated and it doesn't work well with mobile browsers.
+
+  A mobile-friendly theme that is more modern but still familiar
+  will be added.
+
+* **Move reply box close to the last message.**  The reply box is
+  located at the top of the page, whereas the last message is at the
+  bottom.
+
+  The reply box can be moved or duplicated after the last message.
+
+* **Real-time updates.**  When another users submits changes to an
+  issue, they should show up in real time.
+
+  This can be accomplished by using the REST API.
+
+* **Add PR link to BPO emails.**  Currently bpo emails don't include
+  links to the corresponding PRs.
+
+  A patch [#]_ is available to change the content of the bpo emails
+  from::
+
+     components: +Tkinter
+     versions: +Python 3.4
+     pull_requests: +42
+
+  to::
+
+     components: +Tkinter
+     versions: +Python 3.4
+     pull_request: https://github.com/python/cpython/pull/341
+
+* **Python 3 support.**  Using Python 3 will make maintenance easier.
+
+  Upstream Roundup now supports Python 3. Updating the tracker will
+  allow us to switch to Python 3.  The instances will need to be
+  updated as well.
+
+* **Use upstream Roundup.**  We currently use a fork of Roundup with
+  a few modifications, most notably the GitHub integration.  If this
+  is ported upstream, we can start using upstream Roundup without
+  having to maintain our fork.
+
+
+PEP 581 issues
+==============
+
+This section addresses some errors and inaccuracies found in :pep:`581`.
+
+The "Why GitHub?" section of PEP 581 lists features currently
+available on GitHub Issues but not on Roundup.  Some of this features
+are currently supported:
+
+* "Ability to reply to issue and pull request conversations via email."
+
+  * Being able to reply by email has been one of the core features of
+    Roundup since the beginning.  It is also possible to create new
+    issues or close existing ones, set or modify fields, and add
+    attachments.
+
+* "Email notifications containing metadata, integrated with Gmail,
+  allowing systematic filtering of emails."
+
+  * Emails sent by Roundup contains metadata that can be used for
+    filtering.
+
+* "Additional privacy, such as offering the user a choice to hide an
+  email address, while still allowing communication with the user
+  through @-mentions."
+
+  * Email addresses are hidden by default to users that are not
+    registered.  Registered users can see other users' addresses
+    because we configured the tracker to show them.  It can easily
+    be changed if desired.  Users can still be added to the nosy
+    list by using their username even if their address is hidden.
+
+* "Ability to automatically close issues when a PR has been merged."
+
+  * The GitHub integration of Roundup automatically closes issues
+    when a commit that contains "fixes issue <id>" is merged.
+    (Alternative spellings such as "closes" or "bug" are also supported.)
+    See [#]_ for a recent example of this feature.
+
+* "Support for permalinks, allowing easy quoting and copying &
+  pasting of source code."
+
+  * Roundup has permalinks for issues, messages, attachments, etc.
+    In addition, Roundup allows to easily rewrite broken URLs in
+    messages (e.g. if the code hosting changes).
+
+* "Core developers, volunteers, and the PSF don't have to maintain the
+  issue infrastructure/site, giving us more time and resources to focus
+  on the development of Python."
+
+  * While this is partially true, additional resources are required to
+    write and maintain bots.
+
+    In some cases, bots are required to workaround GitHub's lack of
+    features rather than expanding. [#]_ was written
+    specifically to workaround GitHub's email integration.
+
+    Updating our bots to stay up-to-date with changes in the GitHub API
+    has also maintenance cost. [#]_ took two days to be fixed.
+
+    In addition, we will still need to maintain Roundup for bpo (even
+    if it becomes read-only) and for the other trackers
+    we currently host/maintain (Jython [#]_ and Roundup [#]_).
+
+The "Issues with Roundup / bpo" section of :pep:`581` lists some issues
+that have already been fixed:
+
+* "The upstream Roundup code is in Mercurial. Without any CI available,
+  it puts heavy burden on the few existing maintainers in terms of
+  reviewing, testing, and applying patches."
+
+  * While Roundup uses Mercurial by default, there is a git clone
+    available on GitHub [#]_.  Roundup also has CI available [#]_ [#]_.
+
+* "There is no REST API available. There is an open issue in Roundup for
+  adding REST API. Last activity was in 2016."
+
+  * The REST API has been integrated and it's now available in Roundup.
+
+* "Users email addresses are exposed. There is no option to mask it."
+
+  * Exposing addresses to registered and logged in users was a decision
+    taken when our instance was set up.
+
+    This has now been changed to make the email addresses hidden for
+    regular users too (Developers and Coordinators can still see them).
+    The "Email address"" column from the user listing page [#]_ has been
+    removed too.
+
+* "It sends a number of unnecessary emails and notifications, and it is
+  difficult, if not impossible, to configure."
+
+  * This can be configured.
+
+* "Creating an account has been a hassle. There have been reports of people
+  having trouble creating accounts or logging in."
+
+  * The main issue is confirmation emails being marked as spam.  Work has
+    been done to resolve the issue.
+
+
+Migration considerations
+========================
+
+This section describes issues with the migrations that might not
+have been addressed by :pep:`581` and :pep:`588`.
+
+:pep:`588` suggests to add a button to migrate issues to GitHub
+only when someone wants to keep working on them.  This approach
+has several issues, but there are also other issues that will
+need to be addressed regardless of the approach used:
+
+* **Vendor lock-in.**  GitHub is properietary and there is risk
+  of vendor lock-in.  Their business model might change and they
+  could shut down altogether.  For example, several projects
+  decided to move away from GitHub after Microsoft acquisition.
+
+  If/when the repository is no longer available on GitHub, we will
+  be forced to migrate again and all the links to the issues won't
+  work anymore.
+
+* **Required bpo updates.**  bpo will need to be updated in order
+  to add a button that, once pressed, creates a new issue on
+  GitHub, copies over all the messages, attachments, and
+  creates/adds labels for the existing fields.  Permissions will
+  also need to be tweaked to make individual issues read-only
+  once they are migrated, and to prevent users to create new
+  accounts.  It might be necessary to set up redirects (see below).
+
+* **Two trackers.**  If issues are migrated on demand, the issues
+  will be split between two trackers.  Referencing and searching
+  issues will take significant more effort.
+
+* **Lossy conversion.**  GitHub only mechanism to add custom metadata
+  is through labels.  bpo uses a number of fields to specify several
+  different metadata.  Preserving all fields and values will result
+  in too many labels.  If only some fields and values are preserved
+  the others will be lost (unless there is a way to preserve them
+  elsewhere).
+
+* **Issue IDs preservation.**  GitHub doesn't provide a way to
+  set and preserve the ID of migrated issues. Some projects managed
+  to preserve the IDs by contacting the GitHub staff and migrating
+  the issues *en masse*.  However, this is no longer possible, since
+  PRs and issues share the same namespace and PRs already use
+  existing bpo issue IDs.
+
+* **Internal issue links preservation.**  Existing issues might
+  contain references to other issues in messages and fields (e.g.
+  dependencies or superseder).  Since the issue ID will change
+  during the migration, these will need to be updated.  If the
+  issues are migrated on demand, all the existing internal
+  references to the migrated issues (on both bpo and GitHub issues)
+  will have to be updated.
+
+  Setting up a redirect for each migrated issue on bpo might
+  mitigate the issue, however -- if references in migrated messages
+  are not updated -- it will cause confusion (e.g. if bpo issue
+  `#1234` becomes GitHub issue `#4321`, a reference to `#1234`
+  in a migrated message could link to bpo `#1234` and bpo can
+  redirect to GitHub issue `#4321`, but new references to `#1234`
+  will link to GitHub PR `#1234` rather than GitHub issue `#4321`).
+  Manually having to specify a `bpo-` or `gh-` prefix is error prone.
+
+* **External issue links preservation.**  A number of websites,
+  mails, etc. link to bpo issues.  If bpo is shut down, these links
+  will break.  If we don't want to break the links, we will have to
+  keep bpo alive and set up a redirect system that links to the
+  corresponding GitHub issue.
+
+  In addition, if GitHub shuts down, we won't have any way to setup
+  redirects and preserve external links to GitHub issues.
+
+* **References preservation and updating.**  In addition to issue
+  references, bpo converts a number of other references into links,
+  including message and PR IDs, changeset numbers, legacy SVN
+  revision numbers, paths to files in the repo, files in tracebacks
+  (detecting the correct branch), and links to devguide pages and
+  sections [#]_.
+
+  Since Roundup converts references to links when messages are
+  requested, it is possible to update the target and generate the
+  correct link.  This need already arised several times, for
+  example: files and HG changesets moved from `hg.python.org` to
+  GitHub and the devguide moved from `docs.python.org/devguide` to
+  `devguide.python.org`.
+
+  Since messages on GitHub are static, the links will need to be
+  generated and hardcoded during the migration or they will be lost.
+  In order to update them, a tool to find all references and
+  regenerate the links will need to be written.
+
+* **Roundup and bpo maintenance.**  On top of the aforementioned
+  changes to bpo and development of tools required to migrate to
+  GitHub issues, we will still need to keep running and maintaining
+  Roundup, both for our bpo instance (read-only) and for the Jython
+  and Roundup trackers (read-write).
+
+  Even if eventually we migrate all bpo issues to GitHub and we stop
+  maintaining Jython and Roundup, bpo will need to be maintained
+  and redirect to the corresponding GitHub issues.
+
+* **Bots maintenance.**  Since it's not possible to customize GitHub
+  directly, it's also necessary to write, maintain, and host bots.
+  Even if eventually we stop maintaining Roundup, the maintenance
+  burden simply shifted from Roundup to the bots.  Hosting each
+  different bot also has a monetary cost.
+
+* **Using issue templates.**  Manually editing issue templates to
+  "remove texts that don't apply to [the] issue" is cumbersome and
+  error-prone.
+
+* **Signal to noise ratio.**  Switching to GitHub Issues will
+  likely increase the number of invalid reports and increase
+  the triaging effort.  This concern has been raised in the past
+  in a Zulip topic [#]_.
+
+  There have been already cases where people posted comments on
+  PRs that required moderators to mark them as off-topic or
+  disruptive, delete them altogether, and even lock the
+  conversation [#]_.
+
+* **Weekly tracker reports and stats.**  Roundup sends weekly reports
+  to python-dev with a summary that includes new issues, recent
+  issues with no replies, recent issues waiting for review, most
+  discussed issues, closed issues, and deltas for open/closed/total
+  issue counts [#]_.  The report provides an easy way to keep track
+  of the tracker activity and to make sure that issues that require
+  attention are noticed.
+
+  The data collect by the weekly report is also use to generate
+  statistics and graphs that can be used to gain new insights [#]_.
+
+* **bpo-related MLs.**  There are currently two mailing lists where
+  bpo posts new tracker issues and all messages respectively:
+  `new-bugs-announce` [#]_ and `python-bugs-list` [#]_.  A new system
+  will need to be developed to preserve this functionality.  These MLs
+  offer additional ways to keep track of the tracker activity.
+
+
+References
+==========
+
+.. [#] [Python-Dev] PEP 581 (Using GitHub issues for CPython) is accepted
+
+   https://mail.python.org/pipermail/python-dev/2019-May/157399.html
+
+.. [#] [python-committers] [Python-Dev] PEP 581 (Using GitHub issues
+   for CPython) is accepted
+
+   https://mail.python.org/pipermail/python-committers/2019-May/006755.html
+
+.. [#] Experts Index -- Python Devguide
+
+   https://devguide.python.org/experts/
+
+.. [#] An example of superseded issues:
+   "re.sub() replaces only several matches"
+
+   https://bugs.python.org/issue12078
+
+.. [#] An example of meta issue using dependencies to track sub-issues:
+   "Meta-issue: support of the android platform""
+
+   https://bugs.python.org/issue26865
+
+.. [#] Support logging in with GitHub
+
+   https://github.com/python/bugs.python.org/issues/7
+
+.. [#] Re: [Roundup-devel] PEP 581 and Google Summer of Code
+
+   https://sourceforge.net/p/roundup/mailman/message/36667828/
+
+.. [#] [Tracker-discuss] [issue624] bpo emails contain useless non-github
+       pull_request number - users want a link to actual github PR
+
+   https://mail.python.org/pipermail/tracker-discuss/2018-June/004547.html
+
+.. [#] The commit reported in msg342882 closes the issue (see the history below)
+
+   https://bugs.python.org/issue36951#msg342882
+
+.. [#] The cpython-emailer-webhook project
+
+   https://github.com/berkerpeksag/cpython-emailer-webhook
+
+.. [#] A recent incident caused by GitHub
+
+   https://github.com/python/bedevere/pull/163
+
+.. [#] Jython issue tracker
+
+   https://bugs.jython.org/
+
+.. [#] Roundup issue tracker
+
+   https://issues.roundup-tracker.org/
+
+.. [#] GitHub clone of Roundup
+
+   https://github.com/roundup-tracker/roundup
+
+.. [#] Travis-CI for Roundup
+
+   https://travis-ci.org/roundup-tracker/roundup) and codecov
+
+.. [#] Codecov for Roundup
+
+   https://codecov.io/gh/roundup-tracker/roundup/commits
+
+.. [#] User listing -- Python tracker
+
+   https://bugs.python.org/user?@sort=username
+
+.. [#] Generating Special Links in a Comment -- Python Devguide
+
+   https://devguide.python.org/triaging/#generating-special-links-in-a-comment
+
+.. [#] The New-bugs-announce mailing list
+
+   https://mail.python.org/mailman/listinfo/new-bugs-announce
+
+.. [#] The Python-bugs-list mailing list
+
+   https://mail.python.org/mailman/listinfo/python-bugs-list
+
+.. [#] An example of [Python-Dev] Summary of Python tracker Issues
+
+   https://mail.python.org/pipermail/python-dev/2019-May/157483.html
+
+.. [#] Issues stats -- Python tracker
+
+   https://bugs.python.org/issue?@template=stats
+
+.. [#] s/n ratio -- Python -- Zulip
+
+   https://python.zulipchat.com/#narrow/stream/130206-pep581/topic/s.2Fn.20ratio
+
+.. [#] For example this and other related PRs:
+
+   https://github.com/python/cpython/pull/9099
+
+
+Copyright
+=========
+
+This document has been placed in the public domain.
+
+..
+   Local Variables:
+   mode: indented-text
+   indent-tabs-mode: nil
+   sentence-end-double-space: t
+   fill-column: 70
+   coding: utf-8
+   End:
+
+From greg.ewing at canterbury.ac.nz  Tue May 28 20:23:14 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Wed, 29 May 2019 12:23:14 +1200
+Subject: [Python-Dev] [SPAM?] Re: PEP 558: Defined semantics for locals()
+In-Reply-To: <qcgnoa$6ks0$1@blaine.gmane.org>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz> <qcgnoa$6ks0$1@blaine.gmane.org>
+Message-ID: <5CEDD0F2.20107@canterbury.ac.nz>
+
+Terry Reedy wrote:
+> I believe that the situation is or can be thought of as this: there is 
+> exactly 1 function locals dict.  Initially, it is empty and inaccessible 
+> (unusable) from code.  Each locals() call updates the dict to a current 
+> snapshot and returns it.
+
+Yes, I understand *what's* happening, but not *why* it was designed
+that way. Would it really be probihitively expensive to create a
+fresh dict each time?
+
+-- 
+Greg
+
+
+From guido at python.org  Tue May 28 21:02:19 2019
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 28 May 2019 18:02:19 -0700
+Subject: [Python-Dev] [SPAM?] Re: PEP 558: Defined semantics for locals()
+In-Reply-To: <5CEDD0F2.20107@canterbury.ac.nz>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz> <qcgnoa$6ks0$1@blaine.gmane.org>
+ <5CEDD0F2.20107@canterbury.ac.nz>
+Message-ID: <CAP7+vJ+Y6dBb9m1rpx=DLaU_RY5PVq5Z2SHogKZ7qbh-5S8hMQ@mail.gmail.com>
+
+On Tue, May 28, 2019 at 5:25 PM Greg Ewing <greg.ewing at canterbury.ac.nz>
+wrote:
+
+> Terry Reedy wrote:
+> > I believe that the situation is or can be thought of as this: there is
+> > exactly 1 function locals dict.  Initially, it is empty and inaccessible
+> > (unusable) from code.  Each locals() call updates the dict to a current
+> > snapshot and returns it.
+>
+> Yes, I understand *what's* happening, but not *why* it was designed
+> that way. Would it really be prohibitively expensive to create a
+> fresh dict each time?
+>
+
+No. But it would be inconsistent with the behavior at module level.
+
+FWIW I am leaning more and more to the [proxy] model, where locals() and
+frame.f_locals are the same object, which *proxies* the fast locals and
+cells. That only has one downside: it no longer returns a dict, but merely
+a MutableMapping. But why would code care about the difference? (There used
+to be some relevant builtins that took dicts but not general
+MutableMappings -- but that has been fixed long ago.)
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190528/d1775d35/attachment.html>
+
+From greg.ewing at canterbury.ac.nz  Tue May 28 21:45:41 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Wed, 29 May 2019 13:45:41 +1200
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+Message-ID: <5CEDE445.80107@canterbury.ac.nz>
+
+Nathaniel Smith wrote:
+> - [proxy]: Simply return the .f_locals object, so in all contexts
+> locals() returns a live mutable view of the actual environment:
+> 
+>   def locals():
+>       return get_caller_frame().f_locals
+
+Not sure I quite follow this --  as far as I can see, f_locals
+currently has the same snapshot behaviour as locals().
+
+I'm assuming you mean to change things so that locals() returns a
+mutable view tracking the environment in both directions. That
+sounds like a much better idea all round to me. No weird
+shared-snapshot behaviour, and no need for anything to behave
+differently when tracing.
+
+If the change to the behaviour of exec() and eval() is a concern,
+then perhaps there should be a new localsview() function that
+returns a mutable view, with locals() redefined as dict(localsview()).
+
+-- 
+Greg
+
+From njs at pobox.com  Tue May 28 21:50:04 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 28 May 2019 18:50:04 -0700
+Subject: [Python-Dev] [SPAM?] Re: PEP 558: Defined semantics for locals()
+In-Reply-To: <CAP7+vJ+Y6dBb9m1rpx=DLaU_RY5PVq5Z2SHogKZ7qbh-5S8hMQ@mail.gmail.com>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz> <qcgnoa$6ks0$1@blaine.gmane.org>
+ <5CEDD0F2.20107@canterbury.ac.nz>
+ <CAP7+vJ+Y6dBb9m1rpx=DLaU_RY5PVq5Z2SHogKZ7qbh-5S8hMQ@mail.gmail.com>
+Message-ID: <CAPJVwBkyt3g_KXAXwBFN1z7Y5eLNwa090sHYsn6kaonW2XCQQw@mail.gmail.com>
+
+On Tue, May 28, 2019 at 6:02 PM Guido van Rossum <guido at python.org> wrote:
+>
+> On Tue, May 28, 2019 at 5:25 PM Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+>>
+>> Terry Reedy wrote:
+>> > I believe that the situation is or can be thought of as this: there is
+>> > exactly 1 function locals dict.  Initially, it is empty and inaccessible
+>> > (unusable) from code.  Each locals() call updates the dict to a current
+>> > snapshot and returns it.
+>>
+>> Yes, I understand *what's* happening, but not *why* it was designed
+>> that way. Would it really be prohibitively expensive to create a
+>> fresh dict each time?
+>
+> No. But it would be inconsistent with the behavior at module level.
+>
+> FWIW I am leaning more and more to the [proxy] model, where locals() and frame.f_locals are the same object, which *proxies* the fast locals and cells. That only has one downside: it no longer returns a dict, but merely a MutableMapping. But why would code care about the difference? (There used to be some relevant builtins that took dicts but not general MutableMappings -- but that has been fixed long ago.)
+
+Related trivia: the exec() and eval() builtins still mandate that
+their 'globals' argument be an actual no-fooling dict, but their
+'locals' argument is allowed to be any kind of mapping object. This is
+an intentional, documented feature [1]. And inside the exec/eval,
+calls to locals() return whatever object was passed. For example:
+
+>>> exec("print(type(locals()))", {}, collections.ChainMap())
+<class 'collections.ChainMap'>
+
+So technically speaking, it's already possible for locals() to return
+a non-dict.
+
+Of course this is incredibly uncommon in practice, so existing code
+doesn't necessarily take it into account. But it's some kind of
+conceptual precedent, anyway.
+
+-n
+
+[1] See https://docs.python.org/3/library/functions.html#eval and the
+'exec' docs right below it. I think the motivation is that in the
+current CPython implementation, every time you access a global it does
+a direct lookup in the globals object, so it's important that we do
+this lookup as fast as possible, and forcing the globals object to be
+a actual dict allows some optimizations. For locals, though, we
+usually use the "fast locals" mechanism and the mapping object is
+mostly vestigial, so it doesn't matter how fast lookups are, so we can
+support any mapping.
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From rob.cliffe at btinternet.com  Tue May 28 21:52:09 2019
+From: rob.cliffe at btinternet.com (Rob Cliffe)
+Date: Wed, 29 May 2019 02:52:09 +0100
+Subject: [Python-Dev] Overloading comparison operator for lists
+In-Reply-To: <CAPfdVgHmGeQC4R3N2arq+pHm8EfenM8_1kyWf=oV+reZJrTF5A@mail.gmail.com>
+References: <CAPfdVgHmGeQC4R3N2arq+pHm8EfenM8_1kyWf=oV+reZJrTF5A@mail.gmail.com>
+Message-ID: <ea286a84-c9ac-9ed0-4fe7-2d093ca20855@btinternet.com>
+
+
+
+On 27/05/2019 04:52:17, Montana Burr wrote:
+> NumPy arrays have this awesome feature, where array == 3 does an 
+> element-wise comparison and returns a list. For example:
+>
+> np.array([1,2,3,4,5])==3
+>
+> returns
+>
+> [False,False,True,False,False]
+>
+> It would be cool if Python had similar functionality for lists.
+>
+Well, it does have:
+ >>>? [x==3 for x in [1,2,3,4,5]]
+[False, False, True, False, False]
+
+This is IMHO much more intuitive than your construct overloading "==".
+It is also more flexible (any operation can be performed on x, not just 
+an equality comparison).
+So sorry, but I can see no justification for changing the Python 
+language to do something, which can already be done, to be done in a 
+more obscure way.
+Also
+ ??? [1,2,3,4,5]==3
+is already legal syntax (it evaluates to False, since the operands are 
+not equal), so you are proposing a code-breaking change.
+
+Apologies if someone has already pointed all this out, as is very likely 
+(I have only just (re-)joined python-ideas and may have missed the 
+relevant posts).
+Best wishes
+Rob Cliffe
+
+From njs at pobox.com  Tue May 28 22:27:59 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 28 May 2019 19:27:59 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <5CEDE445.80107@canterbury.ac.nz>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <5CEDE445.80107@canterbury.ac.nz>
+Message-ID: <CAPJVwB=4_KV2vbdJYst5=DsA9UmfcP7L9SNGk29jXnY+mE2Pjg@mail.gmail.com>
+
+On Tue, May 28, 2019 at 6:48 PM Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+>
+> Nathaniel Smith wrote:
+> > - [proxy]: Simply return the .f_locals object, so in all contexts
+> > locals() returns a live mutable view of the actual environment:
+> >
+> >   def locals():
+> >       return get_caller_frame().f_locals
+>
+> Not sure I quite follow this --  as far as I can see, f_locals
+> currently has the same snapshot behaviour as locals().
+>
+> I'm assuming you mean to change things so that locals() returns a
+> mutable view tracking the environment in both directions. That
+> sounds like a much better idea all round to me. No weird
+> shared-snapshot behaviour, and no need for anything to behave
+> differently when tracing.
+
+Yeah, I made the classic mistake and forgot that my audience isn't as
+immersed in this as I am :-). Throughout the email I'm assuming we're
+going to adopt PEP 558's proposal about replacing f_locals with a new
+kind of mutable view object, and then given that, asking what we
+should do about locals().
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From njs at pobox.com  Wed May 29 00:02:51 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Tue, 28 May 2019 21:02:51 -0700
+Subject: [Python-Dev] [SPAM?] Re: PEP 558: Defined semantics for locals()
+In-Reply-To: <5CEDD0F2.20107@canterbury.ac.nz>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <CAP7+vJL+skyGWOB4M9TuXfpkgoKjOpfk1NqK1MD58M46304QCw@mail.gmail.com>
+ <CAPJVwBk-fLWa2Ob-T-Q0tsav2Xe4Bhdk--iKDogzdmMJufz8tw@mail.gmail.com>
+ <d1a76bc8-99bf-1e51-b10b-e38cc05f279a@Damon-Family.org>
+ <CAPTjJmra3ZwyxqaS9RtM_5QSTKD9Z0NuEBtewz1wBJ_cnwYYvA@mail.gmail.com>
+ <5CEB8F2B.6050300@canterbury.ac.nz> <qcgnoa$6ks0$1@blaine.gmane.org>
+ <5CEDD0F2.20107@canterbury.ac.nz>
+Message-ID: <CAPJVwB=NZE8pB0swdNRB+a2idw+bP7Q4EbMwuCXs7ED4i4_tRA@mail.gmail.com>
+
+On Tue, May 28, 2019 at 5:24 PM Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+>
+> Terry Reedy wrote:
+> > I believe that the situation is or can be thought of as this: there is
+> > exactly 1 function locals dict.  Initially, it is empty and inaccessible
+> > (unusable) from code.  Each locals() call updates the dict to a current
+> > snapshot and returns it.
+>
+> Yes, I understand *what's* happening, but not *why* it was designed
+> that way.
+
+I'm not sure of the exact history, but I think it's something like:
+
+In the Beginning, CPython was Simple, but Slow: every frame struct had
+an f_locals field, it was always a dict, the bytecode accessed the
+dict, locals() returned the dict, that was that. Then one day the
+serpent of Performance Optimization came, whispering of static
+analysis of function scope and LOAD_FAST bytecodes. And we were
+seduced by the serpent's vision, and made CPython Faster, with
+semantics that were Almost The Same, and we shipped it to our users.
+But now the sin of Cache Inconsistency had entered our hearts, and we
+were condemned to labor endlessly: again and again, users discovered a
+leak in our abstraction, and again and again we covered our sin with
+new patches, until Simplicity was obscured.
+
+(The current design does makes sense, but you really have to look at
+it as a hard-fought compromise between the elegant original design
+versus ~30 years of real-world demands. And hey, it could be worse ?
+look at the fun Intel's been having with their caches.)
+
+-n
+
+--
+Nathaniel J. Smith -- https://vorpus.org
+
+From ncoghlan at gmail.com  Wed May 29 00:12:17 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Wed, 29 May 2019 14:12:17 +1000
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+Message-ID: <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+
+(I'll likely write a more detailed reply once I'm back on an actual
+computer, but wanted to send an initial response while folks in the US are
+still awake, as the detailed reply may not be needed)
+
+Thanks for this write-up Nathaniel - I think you've done a good job of
+capturing the available design alternatives.
+
+The one implicit function locals() update case that you missed is in the
+accessor for "frame.f_locals", so I think dropping CPython's implicit
+update for all Python trace functions would be a clear win (I actually
+almost changed the PEP to do that once I realized it was already pretty
+redundant given the frame accessor behaviour).
+
+I'm OK with either [PEP-minus-tracing] or [snapshot], with a slight
+preference for [snapshot] (since it's easier to explain).
+
+The only design option I wouldn't be OK with is [proxy], as I think that
+poses a significant potential backwards compatibility problem, and I trust
+Armin Rigo's perspective that it would be hellish for JIT-compiled Python
+implementations to handle without taking the same kind of performance hit
+they do when they need to emulate the frame API.
+
+By contrast, true snapshot semantics will hopefully make life *easier* for
+JIT compilers, and folks that actually want the update() behaviour can
+either rely on frame.f_locals, or do an explicit update.
+
+This would also create a possible opportunity to simplify the fast locals
+proxy semantics: if it doesn't need to emulate the current behaviour of
+allowing arbitrary keys to be added and preserved between calls to
+locals(), then it could dispense with its internal dict cache entirely, and
+instead reject any operations that try to add new keys that aren't defined
+on the underlying code object (removing keys and then adding them back
+would still be permitted, and handled like a code level del statement).
+
+Cheers,
+Nick.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190529/7582b2bd/attachment.html>
+
+From montana.burr at gmail.com  Tue May 28 23:35:51 2019
+From: montana.burr at gmail.com (Montana Burr)
+Date: Tue, 28 May 2019 21:35:51 -0600
+Subject: [Python-Dev] Overloading comparison operator for lists
+In-Reply-To: <CAPfdVgHQ2bT6Bq0Nkiyq1rtmNAGTMGZ+vtyvnRAw9vGEgn0jAw@mail.gmail.com>
+References: <CAPfdVgHmGeQC4R3N2arq+pHm8EfenM8_1kyWf=oV+reZJrTF5A@mail.gmail.com>
+ <ea286a84-c9ac-9ed0-4fe7-2d093ca20855@btinternet.com>
+ <CAPfdVgHQ2bT6Bq0Nkiyq1rtmNAGTMGZ+vtyvnRAw9vGEgn0jAw@mail.gmail.com>
+Message-ID: <CAPfdVgG_vKVdnUEjvOVpZsz_0Oeju12KuHo=r34Qvibsy34Ffw@mail.gmail.com>
+
+Ok, now I'm mildly curious to knpw:
+
+What is the justification for causing list == 3 to evaluate to False,
+besides the obvious "a list cannot equal a number"?
+
+On Tue, May 28, 2019 at 9:34 PM Montana Burr <montana.burr at gmail.com> wrote:
+
+> Ok, now I'm mildly curious to knpw:
+>
+> What is the justification for causing list == 3 to evaluate to False,
+> besides the obvious "a list cannot equal a number"?
+>
+> On Tue, May 28, 2019 at 7:52 PM Rob Cliffe <rob.cliffe at btinternet.com>
+> wrote:
+>
+>>
+>>
+>> On 27/05/2019 04:52:17, Montana Burr wrote:
+>> > NumPy arrays have this awesome feature, where array == 3 does an
+>> > element-wise comparison and returns a list. For example:
+>> >
+>> > np.array([1,2,3,4,5])==3
+>> >
+>> > returns
+>> >
+>> > [False,False,True,False,False]
+>> >
+>> > It would be cool if Python had similar functionality for lists.
+>> >
+>> Well, it does have:
+>>  >>>  [x==3 for x in [1,2,3,4,5]]
+>> [False, False, True, False, False]
+>>
+>> This is IMHO much more intuitive than your construct overloading "==".
+>> It is also more flexible (any operation can be performed on x, not just
+>> an equality comparison).
+>> So sorry, but I can see no justification for changing the Python
+>> language to do something, which can already be done, to be done in a
+>> more obscure way.
+>> Also
+>>      [1,2,3,4,5]==3
+>> is already legal syntax (it evaluates to False, since the operands are
+>> not equal), so you are proposing a code-breaking change.
+>>
+>> Apologies if someone has already pointed all this out, as is very likely
+>> (I have only just (re-)joined python-ideas and may have missed the
+>> relevant posts).
+>> Best wishes
+>> Rob Cliffe
+>>
+>
+>
+> --
+>
+> WebRep
+> Overall rating
+>
+>
+
+
+-- 
+
+WebRep
+Overall rating
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190528/cae74768/attachment.html>
+
+From guido at python.org  Wed May 29 00:29:15 2019
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 28 May 2019 21:29:15 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+Message-ID: <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+
+So why is it ?hellish? for JITs if locals() returns a proxy, while
+frame.f_locals being a proxy is okay?
+
+On Tue, May 28, 2019 at 9:12 PM Nick Coghlan <ncoghlan at gmail.com> wrote:
+
+> (I'll likely write a more detailed reply once I'm back on an actual
+> computer, but wanted to send an initial response while folks in the US are
+> still awake, as the detailed reply may not be needed)
+>
+> Thanks for this write-up Nathaniel - I think you've done a good job of
+> capturing the available design alternatives.
+>
+> The one implicit function locals() update case that you missed is in the
+> accessor for "frame.f_locals", so I think dropping CPython's implicit
+> update for all Python trace functions would be a clear win (I actually
+> almost changed the PEP to do that once I realized it was already pretty
+> redundant given the frame accessor behaviour).
+>
+> I'm OK with either [PEP-minus-tracing] or [snapshot], with a slight
+> preference for [snapshot] (since it's easier to explain).
+>
+> The only design option I wouldn't be OK with is [proxy], as I think that
+> poses a significant potential backwards compatibility problem, and I trust
+> Armin Rigo's perspective that it would be hellish for JIT-compiled Python
+> implementations to handle without taking the same kind of performance hit
+> they do when they need to emulate the frame API.
+>
+> By contrast, true snapshot semantics will hopefully make life *easier* for
+> JIT compilers, and folks that actually want the update() behaviour can
+> either rely on frame.f_locals, or do an explicit update.
+>
+> This would also create a possible opportunity to simplify the fast locals
+> proxy semantics: if it doesn't need to emulate the current behaviour of
+> allowing arbitrary keys to be added and preserved between calls to
+> locals(), then it could dispense with its internal dict cache entirely, and
+> instead reject any operations that try to add new keys that aren't defined
+> on the underlying code object (removing keys and then adding them back
+> would still be permitted, and handled like a code level del statement).
+>
+> Cheers,
+> Nick.
+>
+>
+> --
+--Guido (mobile)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190528/821083fa/attachment.html>
+
+From ncoghlan at gmail.com  Wed May 29 01:22:55 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Wed, 29 May 2019 15:22:55 +1000
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+Message-ID: <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+
+On Wed., 29 May 2019, 2:29 pm Guido van Rossum, <guido at python.org> wrote:
+
+> So why is it ?hellish? for JITs if locals() returns a proxy, while
+> frame.f_locals being a proxy is okay?
+>
+
+As I understand it, they already drop out of compiled mode if they detect
+that the code is tinkering with frame objects.
+
+Having a single locals() call de-optimize an entire function would be far
+from ideal.
+
+Cheers,
+Nick.
+
+)
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190529/6ca64ae0/attachment.html>
+
+From tjreedy at udel.edu  Wed May 29 01:43:07 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Wed, 29 May 2019 01:43:07 -0400
+Subject: [Python-Dev] Overloading comparison operator for lists
+In-Reply-To: <CAPfdVgG_vKVdnUEjvOVpZsz_0Oeju12KuHo=r34Qvibsy34Ffw@mail.gmail.com>
+References: <CAPfdVgHmGeQC4R3N2arq+pHm8EfenM8_1kyWf=oV+reZJrTF5A@mail.gmail.com>
+ <ea286a84-c9ac-9ed0-4fe7-2d093ca20855@btinternet.com>
+ <CAPfdVgHQ2bT6Bq0Nkiyq1rtmNAGTMGZ+vtyvnRAw9vGEgn0jAw@mail.gmail.com>
+ <CAPfdVgG_vKVdnUEjvOVpZsz_0Oeju12KuHo=r34Qvibsy34Ffw@mail.gmail.com>
+Message-ID: <qcl65e$4e7e$1@blaine.gmane.org>
+
+On 5/28/2019 11:35 PM, Montana Burr wrote:
+
+> What is the justification for causing list == 3 to evaluate to False, 
+> besides the obvious "a list cannot equal a number"?
+
+That is completely sufficient.  The default comparison is by id, and a 
+class must override to get something different.  The 'default' override 
+is compare by class and if equal, compare by value.  Numbers are odd in 
+allowing instances of different classes compare equal.
+
+
+-- 
+Terry Jan Reedy
+
+
+From greg.ewing at canterbury.ac.nz  Wed May 29 02:05:24 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Wed, 29 May 2019 18:05:24 +1200
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+Message-ID: <5CEE2124.4020409@canterbury.ac.nz>
+
+Nick Coghlan wrote:
+> Having a single locals() call de-optimize an entire function would be 
+> far from ideal.
+
+I don't see what would be so bad about that. The vast majority
+of functions have no need for locals().
+
+-- 
+Greg
+
+From guido at python.org  Wed May 29 02:09:35 2019
+From: guido at python.org (Guido van Rossum)
+Date: Tue, 28 May 2019 23:09:35 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <5CEE2124.4020409@canterbury.ac.nz>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+ <5CEE2124.4020409@canterbury.ac.nz>
+Message-ID: <CAP7+vJKfVTmJ96CeRB=+m3pvP8OF322pTF2XXzP=Vzg271636g@mail.gmail.com>
+
+Indeed.
+
+On Tue, May 28, 2019 at 11:07 PM Greg Ewing <greg.ewing at canterbury.ac.nz>
+wrote:
+
+> Nick Coghlan wrote:
+> > Having a single locals() call de-optimize an entire function would be
+> > far from ideal.
+>
+> I don't see what would be so bad about that. The vast majority
+> of functions have no need for locals().
+>
+> --
+> Greg
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+-- 
+--Guido (mobile)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190528/8e7b2b4e/attachment-0001.html>
+
