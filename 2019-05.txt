@@ -51404,3 +51404,426 @@ wrote:
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190528/8e7b2b4e/attachment-0001.html>
 
+From J.Demeyer at UGent.be  Wed May 29 08:25:25 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 29 May 2019 14:25:25 +0200
+Subject: [Python-Dev] PEP 590: vectorcall without tp_call
+Message-ID: <5CEE7A35.3000106@UGent.be>
+
+Hello,
+
+I have one implementation question about vectorcall which is not 
+specified in PEP 590: what should happen if a type implements vectorcall 
+(i.e. _Py_TPFLAGS_HAVE_VECTORCALL is set) but doesn't set tp_call (i.e. 
+tp_call == NULL)? I see the following possibilities:
+
+1. Ignore this problem/assume that it won't happen. This would be bad, 
+since callable(obj) would be False even though obj() would succeed.
+
+2. Raise SystemError.
+
+3. Automatically set tp_call to PyVectorcall_Call.
+
+I would vote for 3 since it's the most user-friendly option. There is 
+also no way how it could be wrong: it ensures that tp_call and 
+vectorcall are consistent.
+
+Any opinions?
+
+
+Jeroen.
+
+From steve at pearwood.info  Wed May 29 08:44:25 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Wed, 29 May 2019 22:44:25 +1000
+Subject: [Python-Dev] Overloading comparison operator for lists
+In-Reply-To: <CAPfdVgG_vKVdnUEjvOVpZsz_0Oeju12KuHo=r34Qvibsy34Ffw@mail.gmail.com>
+References: <CAPfdVgHmGeQC4R3N2arq+pHm8EfenM8_1kyWf=oV+reZJrTF5A@mail.gmail.com>
+ <ea286a84-c9ac-9ed0-4fe7-2d093ca20855@btinternet.com>
+ <CAPfdVgHQ2bT6Bq0Nkiyq1rtmNAGTMGZ+vtyvnRAw9vGEgn0jAw@mail.gmail.com>
+ <CAPfdVgG_vKVdnUEjvOVpZsz_0Oeju12KuHo=r34Qvibsy34Ffw@mail.gmail.com>
+Message-ID: <20190529124425.GK4221@ando.pearwood.info>
+
+Hi Montana,
+
+As Cameron Simpson already pointed out, your query is off-topic for the 
+Python-Dev mailing list and should be taken to the Python-Ideas mailing 
+list, which is for speculative discussion of new designs.
+
+Like Cameron, I've CCed Python-Ideas. Please send any follow-ups to that 
+list and not Python-Dev.
+
+You asked this question:
+
+On Tue, May 28, 2019 at 09:35:51PM -0600, Montana Burr wrote:
+> Ok, now I'm mildly curious to knpw:
+> 
+> What is the justification for causing list == 3 to evaluate to False,
+> besides the obvious "a list cannot equal a number"?
+
+I concur with Terry Reedy -- what more justification is needed? A list 
+cannot equal a number, so the default behaviour ought to be to return 
+False. What would you have the default behaviour be?
+
+People have already suggested that getting the numpy-style behaviour is 
+simple with a list comprehension, but the other technique is to subclass 
+list, override ``__eq__`` and give it the behaviour you want.
+
+
+-- 
+Steven
+
+From songofacandy at gmail.com  Wed May 29 09:19:25 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Wed, 29 May 2019 22:19:25 +0900
+Subject: [Python-Dev] Per opcode cache for LOAD_GLOBAL
+Message-ID: <CAEfz+Tw_QXrY1rU3GrYZfe75Au72ouN5by81yq+x1Fii4vukOA@mail.gmail.com>
+
+Hi, all.
+
+Yury implemented per opcode cache for LOAD_GLOBAL,
+LOAD_ATTR, and LOAD_METHOD.  [1]
+
+I update the patch for current master branch, but only for
+LOAD_GLOBAL for now. [2]  It sped up LOAD_GLOBAL
+about 40%. [3]  It is attractive optimization.
+
+Now 3.8b1 will be coming soon, but the pull request is not
+reviewed well yet.
+For example, should we add some switch to disable the cache?
+
+May I merge it before beta1 and polish (or revert) it by rc1?
+Or should I postpone it for 3.9?
+
+Regards,
+
+[1]: https://bugs.python.org/issue26219
+[2]: https://github.com/python/cpython/pull/12884
+[3]: https://github.com/methane/sandbox/tree/master/2019/opcache_load_global#opcache-for-load_global
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From encukou at gmail.com  Wed May 29 09:29:35 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Wed, 29 May 2019 15:29:35 +0200
+Subject: [Python-Dev] PEP 590: vectorcall without tp_call
+In-Reply-To: <5CEE7A35.3000106@UGent.be>
+References: <5CEE7A35.3000106@UGent.be>
+Message-ID: <4554973e-385a-fefa-18ff-ef1fe13d509c@gmail.com>
+
+On 5/29/19 2:25 PM, Jeroen Demeyer wrote:
+> Hello,
+> 
+> I have one implementation question about vectorcall which is not 
+> specified in PEP 590: what should happen if a type implements vectorcall 
+> (i.e. _Py_TPFLAGS_HAVE_VECTORCALL is set) but doesn't set tp_call (i.e. 
+> tp_call == NULL)? I see the following possibilities:
+> 
+> 1. Ignore this problem/assume that it won't happen. This would be bad, 
+> since callable(obj) would be False even though obj() would succeed.
+> 
+> 2. Raise SystemError.
+> 
+> 3. Automatically set tp_call to PyVectorcall_Call.
+> 
+> I would vote for 3 since it's the most user-friendly option. There is 
+> also no way how it could be wrong: it ensures that tp_call and 
+> vectorcall are consistent.
+
+That sounds like a good idea for PyType_FromSpec.
+
+For static types I either wouldn't bother at all, or only check in debug 
+  builds and fail with Py_FatalError.
+
+
+From J.Demeyer at UGent.be  Wed May 29 09:36:59 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 29 May 2019 15:36:59 +0200
+Subject: [Python-Dev] PEP 590: vectorcall without tp_call
+In-Reply-To: <4554973e-385a-fefa-18ff-ef1fe13d509c@gmail.com>
+References: <5CEE7A35.3000106@UGent.be>
+ <4554973e-385a-fefa-18ff-ef1fe13d509c@gmail.com>
+Message-ID: <5CEE8AFB.7010808@UGent.be>
+
+On 2019-05-29 15:29, Petr Viktorin wrote:
+> That sounds like a good idea for PyType_FromSpec.
+
+I don't think we're planning to support vectorcall in PyType_FromSpec 
+for now. That's maybe for 3.9 when vectorcall is no longer provisional.
+
+> For static types I either wouldn't bother at all, or only check in debug
+> builds and fail with Py_FatalError.
+
+So basically an assert(...)?
+
+
+From christian at cheimes.de  Wed May 29 10:00:40 2019
+From: christian at cheimes.de (Christian Heimes)
+Date: Wed, 29 May 2019 16:00:40 +0200
+Subject: [Python-Dev] PEP 590: vectorcall without tp_call
+In-Reply-To: <4554973e-385a-fefa-18ff-ef1fe13d509c@gmail.com>
+References: <5CEE7A35.3000106@UGent.be>
+ <4554973e-385a-fefa-18ff-ef1fe13d509c@gmail.com>
+Message-ID: <2b8badf1-e98b-e4cd-1087-ab6b722c3641@cheimes.de>
+
+On 29/05/2019 15.29, Petr Viktorin wrote:
+> On 5/29/19 2:25 PM, Jeroen Demeyer wrote:
+>> Hello,
+>>
+>> I have one implementation question about vectorcall which is not
+>> specified in PEP 590: what should happen if a type implements
+>> vectorcall (i.e. _Py_TPFLAGS_HAVE_VECTORCALL is set) but doesn't set
+>> tp_call (i.e. tp_call == NULL)? I see the following possibilities:
+>>
+>> 1. Ignore this problem/assume that it won't happen. This would be bad,
+>> since callable(obj) would be False even though obj() would succeed.
+>>
+>> 2. Raise SystemError.
+>>
+>> 3. Automatically set tp_call to PyVectorcall_Call.
+>>
+>> I would vote for 3 since it's the most user-friendly option. There is
+>> also no way how it could be wrong: it ensures that tp_call and
+>> vectorcall are consistent.
+> 
+> That sounds like a good idea for PyType_FromSpec.
+> 
+> For static types I either wouldn't bother at all, or only check in debug
+> ?builds and fail with Py_FatalError.
+
+You could add a check to PyType_Ready() and have it either return an
+error or fix tp_call.
+
+Christian
+
+
+
+From J.Demeyer at UGent.be  Wed May 29 10:54:11 2019
+From: J.Demeyer at UGent.be (Jeroen Demeyer)
+Date: Wed, 29 May 2019 16:54:11 +0200
+Subject: [Python-Dev] PEP 590: vectorcall without tp_call
+In-Reply-To: <2b8badf1-e98b-e4cd-1087-ab6b722c3641@cheimes.de>
+References: <5CEE7A35.3000106@UGent.be>
+ <4554973e-385a-fefa-18ff-ef1fe13d509c@gmail.com>
+ <2b8badf1-e98b-e4cd-1087-ab6b722c3641@cheimes.de>
+Message-ID: <5CEE9D13.7070402@UGent.be>
+
+On 2019-05-29 16:00, Christian Heimes wrote:
+> You could add a check to PyType_Ready() and have it either return an
+> error or fix tp_call.
+
+Yes, but the question is: which of these two alternatives? I would vote 
+for fixing tp_call but Petr voted for an error.
+
+From ncoghlan at gmail.com  Wed May 29 10:57:42 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 30 May 2019 00:57:42 +1000
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <5CEE2124.4020409@canterbury.ac.nz>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+ <5CEE2124.4020409@canterbury.ac.nz>
+Message-ID: <CADiSq7cCXHSqWaA=7LCdSivmOYvqqGLZV1jY8BAgp3j253cv9g@mail.gmail.com>
+
+On Wed, 29 May 2019 at 16:08, Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+>
+> Nick Coghlan wrote:
+> > Having a single locals() call de-optimize an entire function would be
+> > far from ideal.
+>
+> I don't see what would be so bad about that. The vast majority
+> of functions have no need for locals().
+
+If there was a compelling use case for letting "a = 1; exec(src);
+print(a)" print something other than "1" at function scope, then I'd
+be more amenable to the idea of the associated compatibility break and
+potential performance regression in other implementations.
+
+However, there isn't any such use case - if there were, we wouldn't
+have deliberately changed the semantics from the old Python 2 ones to
+the current Python 3 ones in PEP 3100 [1].
+
+It's also worth noting that the "no backwards compatibility
+guarantees" wording is only in the help() text, and not in
+https://docs.python.org/3/library/functions.html#locals - the latter
+just notes that writing back to it may not work, not that the
+semantics may arbitrarily change between CPython versions.
+
+I think the [snapshot] approach is a solid improvement over my initial
+proposal, though, since removing the "locals() must always return the
+same mapping object" requirement also makes it possible to remove some
+oddities in the fastlocalsproxy implementation, and Nathaniel makes a
+compelling case that in the areas where the status quo and the
+snapshot proposal differ, those differences mostly either don't
+matter, or else they will serve make code otherwise subject to subtle
+bugs in tracing mode more correct.
+
+Cheers,
+Nick.
+
+[1] "exec as a statement is not worth it -- make it a function" in
+https://www.python.org/dev/peps/pep-3100/#core-language
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From brett at python.org  Wed May 29 12:45:33 2019
+From: brett at python.org (Brett Cannon)
+Date: Wed, 29 May 2019 09:45:33 -0700
+Subject: [Python-Dev] Per opcode cache for LOAD_GLOBAL
+In-Reply-To: <CAEfz+Tw_QXrY1rU3GrYZfe75Au72ouN5by81yq+x1Fii4vukOA@mail.gmail.com>
+References: <CAEfz+Tw_QXrY1rU3GrYZfe75Au72ouN5by81yq+x1Fii4vukOA@mail.gmail.com>
+Message-ID: <CAP1=2W5chSoS1OvJV0z4KG7CE9ADcn5RON6rP4A9tZFdY9+D1g@mail.gmail.com>
+
+On Wed, May 29, 2019 at 6:21 AM Inada Naoki <songofacandy at gmail.com> wrote:
+
+> Hi, all.
+>
+> Yury implemented per opcode cache for LOAD_GLOBAL,
+> LOAD_ATTR, and LOAD_METHOD.  [1]
+>
+> I update the patch for current master branch, but only for
+> LOAD_GLOBAL for now. [2]  It sped up LOAD_GLOBAL
+> about 40%. [3]  It is attractive optimization.
+>
+> Now 3.8b1 will be coming soon, but the pull request is not
+> reviewed well yet.
+> For example, should we add some switch to disable the cache?
+>
+
+Why would we want disable it?
+
+
+>
+> May I merge it before beta1 and polish (or revert) it by rc1?
+>
+
+I think that's an RM call.
+
+
+> Or should I postpone it for 3.9?
+>
+
+That's obviously the simplest. :)
+
+-Brett
+
+
+>
+> Regards,
+>
+> [1]: https://bugs.python.org/issue26219
+> [2]: https://github.com/python/cpython/pull/12884
+> [3]:
+> https://github.com/methane/sandbox/tree/master/2019/opcache_load_global#opcache-for-load_global
+>
+> --
+> Inada Naoki  <songofacandy at gmail.com>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190529/0c4a7aac/attachment.html>
+
+From brett at python.org  Wed May 29 12:49:00 2019
+From: brett at python.org (Brett Cannon)
+Date: Wed, 29 May 2019 09:49:00 -0700
+Subject: [Python-Dev] PEP 590: vectorcall without tp_call
+In-Reply-To: <5CEE9D13.7070402@UGent.be>
+References: <5CEE7A35.3000106@UGent.be>
+ <4554973e-385a-fefa-18ff-ef1fe13d509c@gmail.com>
+ <2b8badf1-e98b-e4cd-1087-ab6b722c3641@cheimes.de> <5CEE9D13.7070402@UGent.be>
+Message-ID: <CAP1=2W5JKswbWkVvnLm4WmC80UHyYGvrF02Hz49sU=NKnzZH8A@mail.gmail.com>
+
+On Wed, May 29, 2019 at 7:55 AM Jeroen Demeyer <J.Demeyer at ugent.be> wrote:
+
+> On 2019-05-29 16:00, Christian Heimes wrote:
+> > You could add a check to PyType_Ready() and have it either return an
+> > error or fix tp_call.
+>
+> Yes, but the question is: which of these two alternatives? I would vote
+> for fixing tp_call but Petr voted for an error.
+>
+
+I also vote for the error so that people are sure they get the semantics
+they want/expect. If not defining tp_call is a reasonable thing then I
+would expect it to never have to be set to begin with and that doesn't
+sound like what anyone wants if we're talking about automatically filling
+it.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190529/0715e993/attachment.html>
+
+From encukou at gmail.com  Wed May 29 16:11:01 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Wed, 29 May 2019 22:11:01 +0200
+Subject: [Python-Dev] PEP 590: vectorcall without tp_call
+In-Reply-To: <5CEE8AFB.7010808@UGent.be>
+References: <5CEE7A35.3000106@UGent.be>
+ <4554973e-385a-fefa-18ff-ef1fe13d509c@gmail.com> <5CEE8AFB.7010808@UGent.be>
+Message-ID: <e2e5cbd6-5ad0-9343-9c65-900835081263@gmail.com>
+
+On 5/29/19 3:36 PM, Jeroen Demeyer wrote:
+> On 2019-05-29 15:29, Petr Viktorin wrote:
+>> That sounds like a good idea for PyType_FromSpec.
+> 
+> I don't think we're planning to support vectorcall in PyType_FromSpec 
+> for now. That's maybe for 3.9 when vectorcall is no longer provisional.
+> 
+>> For static types I either wouldn't bother at all, or only check in debug
+>> builds and fail with Py_FatalError.
+> 
+> So basically an assert(...)?
+
+Yes. That's the usual way to let C extension authors know they did 
+something wrong.
+
+From greg.ewing at canterbury.ac.nz  Wed May 29 19:09:42 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Thu, 30 May 2019 11:09:42 +1200
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CADiSq7cCXHSqWaA=7LCdSivmOYvqqGLZV1jY8BAgp3j253cv9g@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+ <5CEE2124.4020409@canterbury.ac.nz>
+ <CADiSq7cCXHSqWaA=7LCdSivmOYvqqGLZV1jY8BAgp3j253cv9g@mail.gmail.com>
+Message-ID: <5CEF1136.2040607@canterbury.ac.nz>
+
+Nick Coghlan wrote:
+> If there was a compelling use case for letting "a = 1; exec(src);
+> print(a)" print something other than "1" at function scope, then I'd
+> be more amenable to the idea of the associated compatibility break and
+> potential performance regression in other implementations.
+> 
+> However, there isn't any such use case - if there were, we wouldn't
+> have deliberately changed the semantics from the old Python 2 ones to
+> the current Python 3 ones in PEP 3100 [1].
+
+I get the impression that was done because everyone involved
+thought it wasn't worth the ugliness of maintaining all the
+fast/locals swapping stuff, not because of any principle that
+the current behaviour is right or better in any way.
+
+Given a locals proxy object, it would be much easier to support
+the old behaviour (which seems obvious and correct to me) without
+eval or exec having to be anything special.
+
+-- 
+Greg
+
