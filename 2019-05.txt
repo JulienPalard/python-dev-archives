@@ -51827,3 +51827,385 @@ eval or exec having to be anything special.
 -- 
 Greg
 
+From ncoghlan at gmail.com  Thu May 30 07:31:12 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Thu, 30 May 2019 21:31:12 +1000
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <5CEF1136.2040607@canterbury.ac.nz>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+ <5CEE2124.4020409@canterbury.ac.nz>
+ <CADiSq7cCXHSqWaA=7LCdSivmOYvqqGLZV1jY8BAgp3j253cv9g@mail.gmail.com>
+ <5CEF1136.2040607@canterbury.ac.nz>
+Message-ID: <CADiSq7dw9N8c0C9s+ofTfWb7hd4qk3UmJCaZ6TReEAMag-6Hbw@mail.gmail.com>
+
+On Thu, 30 May 2019 at 09:12, Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+>
+> Nick Coghlan wrote:
+> > If there was a compelling use case for letting "a = 1; exec(src);
+> > print(a)" print something other than "1" at function scope, then I'd
+> > be more amenable to the idea of the associated compatibility break and
+> > potential performance regression in other implementations.
+> >
+> > However, there isn't any such use case - if there were, we wouldn't
+> > have deliberately changed the semantics from the old Python 2 ones to
+> > the current Python 3 ones in PEP 3100 [1].
+>
+> I get the impression that was done because everyone involved
+> thought it wasn't worth the ugliness of maintaining all the
+> fast/locals swapping stuff, not because of any principle that
+> the current behaviour is right or better in any way.
+
+You may have felt that way, but I certainly don't - routinely hiding
+function local rebinding from the compiler (and type checkers, and
+human readers) is awful, and a privilege that should be reserved to
+debuggers and other tools operating at a similar level of "able to
+interfere with the normal runtime execution of a program". (Module and
+class namespaces are different - they're inherently mutable shared
+namespaces as far as the Python runtime is occurred, so locals()
+providing one more way of getting a reference to them isn't that big
+of a deal - if it's a problem, you can just push the code where you
+need to avoid those semantics matters down into a helper function)
+
+So for me, getting rid of write backs via exec and "import *" was a
+matter of "Yay, we finally closed those unfortunate loopholes" rather
+than being any kind of regrettable necessity.
+
+It's likely also a factor that Python 2.2.2 was the first version of
+Python that I ever used extensively, so the existing snapshot-like
+behaviour of locals() is the behaviour that feels normal to me, and
+I'm somewhat mystified by the notion that anyone might actually *want*
+it to behave differently (except to close the remaining loopholes that
+still allowed mysterious implicit mutation of previously created
+snapshots).
+
+The only rationale for considering that possibility seems to be "It
+would make function namespaces behave more like class and module
+namespaces", to which my response is "Why would you even want that,
+and what practical benefit would it bring to justify the otherwise
+gratuitous compatibility break?"
+
+Cheers,
+Nick.
+
+
+-- 
+Nick Coghlan   |   ncoghlan at gmail.com   |   Brisbane, Australia
+
+From xdegaye at gmail.com  Thu May 30 15:20:15 2019
+From: xdegaye at gmail.com (Xavier de Gaye)
+Date: Thu, 30 May 2019 21:20:15 +0200
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+Message-ID: <2d43c69f-49ab-6de5-a5df-a86d4d2ac7c3@gmail.com>
+
+Currently f_locals is documented as readonly [1].
+
+The PEP says:
+> * "Don't change what isn't broken": the current tracing mode problems are caused
+>   by a requirement that's specific to tracing mode (support for external
+>   rebinding of function local variable references), so it made sense to also
+>   restrict any related fixes to tracing mode
+>
+> However, actually attempting to implement and document that dynamic approach
+> highlighted the fact that it makes for a really subtle runtime state dependent
+> behaviour distinction in how ``frame.f_locals`` works, and creates several
+> new edge cases around how ``f_locals`` behaves as trace functions are added
+> and removed.
+>
+> Accordingly, the design was switched to the current one, where
+> ``frame.f_locals`` is always a write-through proxy, and ``locals()`` is always
+> a dynamic snapshot, which is both simpler to implement and easier to explain.
+
+Do these edge cases still exist when f_locals write access is restricted to code executed by the tracing function (which is more restrictive than 'tracing mode') ?
+We can use the condition frame->f_trace not NULL and tstate->tracing true (tstate being a pointer to the PyThreadState structure) to know when code is executed by the tracing function [2]:
+* The condition on tstate->tracing allows to figure out if we are running a frame executed by the trace function as opposed to a frame that is being traced or a frame executed in 'regular operation'.
+* The condition on frame->f_trace removes the ambiguity whether tstate->tracing is set by a tracing function or by a profiling function.
+
+[1] In section 'Frame objects' at https://github.com/python/cpython/blob/master/Doc/reference/datamodel.rst#the-standard-type-hierarchy
+[2] Except that frame->f_trace is NULL in a 'PyTrace_CALL' trace event, so f_locals would remain readonly in that case. But this event is always followed by a 'PyTrace_LINE' event anyway so this limitation is not important IMO.
+
+Xavier
+
+From ncoghlan at gmail.com  Thu May 30 19:06:37 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Fri, 31 May 2019 09:06:37 +1000
+Subject: [Python-Dev] PEP 558: Defined semantics for locals()
+In-Reply-To: <2d43c69f-49ab-6de5-a5df-a86d4d2ac7c3@gmail.com>
+References: <CADiSq7cD9p503NFanMwRd4nDFdJTyFZu=AvVMgGCjNr=OZKKZA@mail.gmail.com>
+ <2d43c69f-49ab-6de5-a5df-a86d4d2ac7c3@gmail.com>
+Message-ID: <CADiSq7ciw9jhz86E0zm8gxfeujccJ_wYBbHXLa6g3e5XQ2QOHA@mail.gmail.com>
+
+On Fri., 31 May 2019, 5:20 am Xavier de Gaye, <xdegaye at gmail.com> wrote:
+
+> Currently f_locals is documented as readonly [1].
+>
+
+Read-only in the sense that you can't rebind it to point to a different
+object - the dict it points to is mutable.
+
+
+> The PEP says:
+> > * "Don't change what isn't broken": the current tracing mode problems
+> are caused
+> >   by a requirement that's specific to tracing mode (support for external
+> >   rebinding of function local variable references), so it made sense to
+> also
+> >   restrict any related fixes to tracing mode
+> >
+> > However, actually attempting to implement and document that dynamic
+> approach
+> > highlighted the fact that it makes for a really subtle runtime state
+> dependent
+> > behaviour distinction in how ``frame.f_locals`` works, and creates
+> several
+> > new edge cases around how ``f_locals`` behaves as trace functions are
+> added
+> > and removed.
+> >
+> > Accordingly, the design was switched to the current one, where
+> > ``frame.f_locals`` is always a write-through proxy, and ``locals()`` is
+> always
+> > a dynamic snapshot, which is both simpler to implement and easier to
+> explain.
+>
+> Do these edge cases still exist when f_locals write access is restricted
+> to code executed by the tracing function (which is more restrictive than
+> 'tracing mode') ?
+
+
+We can use the condition frame->f_trace not NULL and tstate->tracing true
+> (tstate being a pointer to the PyThreadState structure) to know when code
+> is executed by the tracing function [2]:
+> * The condition on tstate->tracing allows to figure out if we are running
+> a frame executed by the trace function as opposed to a frame that is being
+> traced or a frame executed in 'regular operation'.
+> * The condition on frame->f_trace removes the ambiguity whether
+> tstate->tracing is set by a tracing function or by a profiling function.
+>
+
+Always creating the proxy and sometimes bypassing it and returning the
+snapshot instead would indeed have fewer edge cases than sometimes storing
+the snapshot directly on the frame object without creating the proxy at all.
+
+It's still significantly harder to document than "frame.f_locals references
+a proxy, locals() creates a snapshot", though.
+
+Cheers,
+Nick.
+
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190531/9e2644e4/attachment.html>
+
+From ncoghlan at gmail.com  Thu May 30 19:22:05 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Fri, 31 May 2019 09:22:05 +1000
+Subject: [Python-Dev] Should I postpone PEP 558 (locals() semantics) to
+ Python 3.9?
+Message-ID: <CADiSq7cHbr_bkA4k5xg8NS8u4eSWG0nEqKdCNfsP6N_b7V9cEQ@mail.gmail.com>
+
+Hi folks,
+
+The reference implementation for PEP 558 (my attempt to fix the interaction
+between tracing functions and closure variables) is currently segfaulting
+somewhere deep in the garbage collector, and I've found that there's an
+issue with the PyEval_GetLocals() API returning a borrowed reference that
+means I need to tweak the proposed C API a bit such that PyEval_GetLocals()
+returns the proxy at function scope, and we add a new PyEval_GetPyLocals()
+that matches the locals() builtin.
+
+I don't *want* to postpone this to Python 3.9, but there turned out to be
+more remaining work than I thought there was to get this ready for
+inclusion in beta 1.
+
+I'll try to get the C API design details sorted today, but the segfault is
+mystifying me, and prevents the option of putting the core implementation
+in place for b1, and tidying up the documentation and comments for b2.
+
+Cheers,
+Nick.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190531/b9f7cf3b/attachment.html>
+
+From greg.ewing at canterbury.ac.nz  Thu May 30 19:26:03 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Fri, 31 May 2019 11:26:03 +1200
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CADiSq7dw9N8c0C9s+ofTfWb7hd4qk3UmJCaZ6TReEAMag-6Hbw@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+ <5CEE2124.4020409@canterbury.ac.nz>
+ <CADiSq7cCXHSqWaA=7LCdSivmOYvqqGLZV1jY8BAgp3j253cv9g@mail.gmail.com>
+ <5CEF1136.2040607@canterbury.ac.nz>
+ <CADiSq7dw9N8c0C9s+ofTfWb7hd4qk3UmJCaZ6TReEAMag-6Hbw@mail.gmail.com>
+Message-ID: <5CF0668B.2060209@canterbury.ac.nz>
+
+Nick Coghlan wrote:
+> So for me, getting rid of write backs via exec and "import *" was a
+> matter of "Yay, we finally closed those unfortunate loopholes" rather
+> than being any kind of regrettable necessity.
+
+If that were the reasoning, the principled thing to do would be
+to raise an exception if an eval or exec tries to write to a
+local, rather than mostly ignore it.
+
+In any case, I don't really agree with that philosophy. Python
+is at its essence a dynamic language. Things like JIT and static
+type analysis are only possible to the extent that you refrain
+from using some of its dynamic features. Removing features
+entirely just because they *can* interfere with these things goes
+against the spirit of the language, IMO.
+
+-- 
+Greg
+
+From guido at python.org  Thu May 30 20:17:44 2019
+From: guido at python.org (Guido van Rossum)
+Date: Thu, 30 May 2019 17:17:44 -0700
+Subject: [Python-Dev] Should I postpone PEP 558 (locals() semantics) to
+ Python 3.9?
+In-Reply-To: <CADiSq7cHbr_bkA4k5xg8NS8u4eSWG0nEqKdCNfsP6N_b7V9cEQ@mail.gmail.com>
+References: <CADiSq7cHbr_bkA4k5xg8NS8u4eSWG0nEqKdCNfsP6N_b7V9cEQ@mail.gmail.com>
+Message-ID: <CAP7+vJ+hh6a=xF6hNDiuc_-fD8JGJdttVuAz7ug9iPV93UAsAA@mail.gmail.com>
+
+Given the flurry of discussion that happened this week, and that the PR
+switching the PEP to use independent snapshots hasn't even been landed, I'm
+skeptical that it's wise to attempt to get this in before beta 1 even if
+you were to resolve the segfaults.
+
+On Thu, May 30, 2019 at 4:24 PM Nick Coghlan <ncoghlan at gmail.com> wrote:
+
+> Hi folks,
+>
+> The reference implementation for PEP 558 (my attempt to fix the
+> interaction between tracing functions and closure variables) is currently
+> segfaulting somewhere deep in the garbage collector, and I've found that
+> there's an issue with the PyEval_GetLocals() API returning a borrowed
+> reference that means I need to tweak the proposed C API a bit such that
+> PyEval_GetLocals() returns the proxy at function scope, and we add a new
+> PyEval_GetPyLocals() that matches the locals() builtin.
+>
+> I don't *want* to postpone this to Python 3.9, but there turned out to be
+> more remaining work than I thought there was to get this ready for
+> inclusion in beta 1.
+>
+> I'll try to get the C API design details sorted today, but the segfault is
+> mystifying me, and prevents the option of putting the core implementation
+> in place for b1, and tidying up the documentation and comments for b2.
+>
+> Cheers,
+> Nick.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/guido%40python.org
+>
+
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190530/e48614c1/attachment.html>
+
+From guido at python.org  Thu May 30 20:22:57 2019
+From: guido at python.org (Guido van Rossum)
+Date: Thu, 30 May 2019 17:22:57 -0700
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <5CF0668B.2060209@canterbury.ac.nz>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+ <5CEE2124.4020409@canterbury.ac.nz>
+ <CADiSq7cCXHSqWaA=7LCdSivmOYvqqGLZV1jY8BAgp3j253cv9g@mail.gmail.com>
+ <5CEF1136.2040607@canterbury.ac.nz>
+ <CADiSq7dw9N8c0C9s+ofTfWb7hd4qk3UmJCaZ6TReEAMag-6Hbw@mail.gmail.com>
+ <5CF0668B.2060209@canterbury.ac.nz>
+Message-ID: <CAP7+vJJRg_0j8FuVFnp03bMCYMWa1NAtBjQjPs0U7MLGF59KCg@mail.gmail.com>
+
+On Thu, May 30, 2019 at 4:28 PM Greg Ewing <greg.ewing at canterbury.ac.nz>
+wrote:
+
+> Nick Coghlan wrote:
+> > So for me, getting rid of write backs via exec and "import *" was a
+> > matter of "Yay, we finally closed those unfortunate loopholes" rather
+> > than being any kind of regrettable necessity.
+>
+> If that were the reasoning, the principled thing to do would be
+> to raise an exception if an eval or exec tries to write to a
+> local, rather than mostly ignore it.
+>
+> In any case, I don't really agree with that philosophy. Python
+> is at its essence a dynamic language. Things like JIT and static
+> type analysis are only possible to the extent that you refrain
+> from using some of its dynamic features. Removing features
+> entirely just because they *can* interfere with these things goes
+> against the spirit of the language, IMO.
+>
+
+Right. And static analysis should also be able to detect most uses of
+locals() in a frame. I believe I've heard of some alternate Python
+implementations that detect usage of some functions to disable some
+optimizations (IIRC IronPython did this to sys._getframe()).
+
+-- 
+--Guido van Rossum (python.org/~guido)
+*Pronouns: he/him/his **(why is my pronoun here?)*
+<http://feministing.com/2015/02/03/how-using-they-as-a-singular-pronoun-can-change-the-world/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190530/401ea924/attachment.html>
+
+From tim.peters at gmail.com  Fri May 31 01:24:06 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Fri, 31 May 2019 00:24:06 -0500
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAExdVNky=MpntPfA9L7_mipAzX9-igYyOwFKNt0X+CpOMG_hNw@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAExdVNky=MpntPfA9L7_mipAzX9-igYyOwFKNt0X+CpOMG_hNw@mail.gmail.com>
+Message-ID: <CAExdVNn0W+FgKB2uubJ6pnXEbUk5=mLURtDiw-EABTMfMiKiyQ@mail.gmail.com>
+
+The PR for this looks good to go:
+
+https://github.com/python/cpython/pull/13612
+
+But, I still have no idea how it works for the OP's original test
+case.  So, if you have at least 80 GB of RAM to try it, I added
+`arena.py` to the BPO report:
+
+https://bugs.python.org/issue37029
+
+That adds code to the OP's test case to display the times needed to
+build the tree and to tear it down (& to display some obmalloc stats).
+So there's no need for you to think about anything ;-)
+
+I'm keen to get feedback on this before merging the PR, because this
+case is so very much larger than anything I've ever tried that I'm
+wary that there may be more than one "surprise" lurking here.  The PR
+certainly addresses "an obvious" (with hindsight) problem - but is
+that the _only_ gross design flaw here?
+
