@@ -52209,3 +52209,2539 @@ wary that there may be more than one "surprise" lurking here.  The PR
 certainly addresses "an obvious" (with hindsight) problem - but is
 that the _only_ gross design flaw here?
 
+From solipsis at pitrou.net  Fri May 31 04:22:24 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Fri, 31 May 2019 10:22:24 +0200
+Subject: [Python-Dev] PEP 595: Improving bugs.python.org
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+Message-ID: <20190531102224.0bf2229f@fsol>
+
+
+I second this.
+
+There are currently ~7000 bugs open on bugs.python.org.  The Web UI
+makes a good job of actually being able to navigate through these bugs,
+search through them, etc.
+
+Did the Steering Council conduct a usability study of Github Issues
+with those ~7000 bugs open?  If not, then I think the acceptance of
+migrating to Github is a rushed job.  Please reconsider.
+
+Regards
+
+Antoine.
+
+
+
+On Thu, 23 May 2019 22:17:24 +0200
+Ezio Melotti <ezio.melotti at gmail.com> wrote:
+> Hello,
+> Berker and I have been working on a PEP that suggests we keep using
+> and improving bugs.python.org and Roundup instead of switching to
+> GitHub Issues as proposed by PEP 581.
+> 
+> The PEP covers:
+> * What are the advantages of Roundup over GitHub issues;
+> * What features are missing in Roundup and how can we add them;
+> * Issues with PEP 581;
+> * Issues with the migration plan proposed by PEP 588;
+> 
+> The rendered version of PEP 595 is available at
+> https://www.python.org/dev/peps/pep-0595/
+> 
+> For reference, you can consult PEP 581 and 588 at
+> https://www.python.org/dev/peps/pep-0581/ and
+> https://www.python.org/dev/peps/pep-0588/
+> 
+> The full text of the PEP is include below.  We are planning to update
+> the PEP to include the feedback we receive and to update the status of
+> features as we implement them (we also have a Google Summer of Code
+> students working on it).
+> 
+> Best Regards,
+> Ezio Melotti
+> 
+> 
+> ================
+> PEP: 595
+> Title: Improving bugs.python.org
+> Author: Ezio Melotti <ezio.melotti at gmail.com>, Berker Peksag
+> <berker.peksag at gmail.com>
+> Status: Draft
+> Type: Process
+> Content-Type: text/x-rst
+> Created: 12-May-2019
+> 
+> 
+> Abstract
+> ========
+> 
+> This PEP proposes a list of improvements to make bugs.python.org
+> more usable for contributors and core developers.  This PEP also
+> discusses why remaining on Roundup should be preferred over
+> switching to GitHub Issues, as proposed by :pep:`581`.
+> 
+> 
+> Motivation
+> ==========
+> 
+> On May 14th, 2019 :pep:`581` has been accepted [#]_ without much
+> public discussion and without a clear consensus [#]_.  The PEP
+> contains factual errors and doesn't address some of the
+> issues that the migration to GitHub Issues might present.
+> 
+> Given the scope of the migration, the amount of work required,
+> and how it will negatively affect the workflow during the
+> transition phase, this decision should be re-evaluated.
+> 
+> 
+> Roundup advantages over GitHub Issues
+> =====================================
+> 
+> This section discusses reasons why Roundup should be preferred
+> over GitHub Issues and Roundup features that are not available
+> on GitHub Issues.
+> 
+> * **Roundup is the status quo.**  Roundup has been an integral
+>   part of the CPython workflow for years.  It is a stable product
+>   that has been tested and customized to adapt to our needs as the
+>   workflow evolved.
+> 
+>   It is possible to gradually improve it and avoid the disruption
+>   that a switch to a different system would inevitabily bring to
+>   the workflow.
+> 
+> * **Open-source and Python powered.**  Roundup is an open-source
+>   project and is written in Python.  By using it and supporting
+>   it, we also support the Python ecosystem.  Several features
+>   developed for bpo have also been ported to upstream Roundup
+>   over the years.
+> 
+> * **Fully customizable.**  Roundup can be (and has been) fully
+>   customized to fit our needs.
+> 
+> * **Finer-grained access control.**  Roundup allows the creation
+>   of different roles with different permissions (e.g. create,
+>   view, edit, etc.) for each individual property, and users can
+>   have multiple roles.
+> 
+> * **Flexible UI.**  While Roundup UI might look dated, it is
+>   convenient and flexible.
+> 
+>   For example, on the issue page, each field (e.g. title, type,
+>   versions, status, linked files and PRs, etc.) have appropriate
+>   UI elements (input boxes, dropdowns, tables, etc.) that are
+>   easy to set and also provide a convenient way to get info about
+>   the issue at a glance.  The number of fields, their values, and
+>   the UI element they use is also fully customizable.
+>   GitHub only provides labels.
+> 
+>   The issue list page presents the issues in a compact and easy
+>   to read table with separate columns for different fields.  For
+>   comparison, Roundup lists 50 issues in a screen, whereas GitHub
+>   takes two screens to shows 25 issues.
+> 
+> * **Advanced search.**  Roundup provides an accurate way to search
+>   and filter by using any combination of issue fields.
+>   It is also possible to customize the number of results and the
+>   fields displayed in the table, and the sorting and grouping
+>   (up to two levels).
+> 
+>   bpo also provides predefined summaries (e.g. "Created by you",
+>   "Assigned to you", etc.) and allows the creation of custom
+>   search queries that can be conveniently accessed from the sidebar.
+> 
+> * **Nosy list autocomplete.**  The nosy list has an autocomplete
+>   feature that suggests maintainers and experts.  The suggestions
+>   are automatically updated when the experts index [#]_ changes.
+> 
+> * **Dependencies and Superseders.** Roundup allows to specify
+>   dependencies that must be addressed before the current issues
+>   can be closed and a superseder issue to easily mark duplicates
+>   [#]_.  The list of dependencies can also be used to create
+>   meta-issues that references several other sub-issues [#]_.
+> 
+> 
+> Improving Roundup
+> =================
+> 
+> This section lists some of the issues mentioned by :pep:`581`
+> and other desired features and discusses how they can be implemented
+> by improving Roundup and/or our instance.
+> 
+> * **REST API support.**  A REST API will make integration with other
+>   services and the development of new tools and applications easiers.
+> 
+>   Upstream Roundup now supports a REST API. Updating the tracker will
+>   make the REST API available.
+> 
+> * **GitHub login support.**  This will allow users to login
+>   to bugs.python.org (bpo) without having to create a new account.
+>   It will also solve issues with confirmation emails being marked
+>   as spam, and provide two-factor authentication.
+> 
+>   A patch to add this functionality is already available and is
+>   being integrated at the time of writing [#]_.
+> 
+> * **Markdown support and message preview and editing.**  This feature
+>   will allow the use of Markdown in messages and the ability to
+>   preview the message before the submission and edit it afterward.
+> 
+>   This can be done, but it will take some work.  Possible solutions
+>   have been proposed on the roundup-devel mailing list [#]_.
+> 
+> * **"Remove me from nosy list" button.**  Add a button on issue pages
+>   to remove self from the nosy list.
+> 
+>   This feature will be added during GSoC 2019.
+> 
+> * **Mobile friendly theme.**  Current theme of bugs.python.org looks
+>   dated and it doesn't work well with mobile browsers.
+> 
+>   A mobile-friendly theme that is more modern but still familiar
+>   will be added.
+> 
+> * **Add PR link to BPO emails.**  Currently bpo emails don't include
+>   links to the corresponding PRs.
+> 
+>   A patch [#]_ is available to change the content of the bpo emails
+>   from::
+> 
+>      components: +Tkinter
+>      versions: +Python 3.4
+>      pull_requests: +42
+> 
+>   to::
+> 
+>      components: +Tkinter
+>      versions: +Python 3.4
+>      pull_request: https://github.com/python/cpython/pull/341
+> 
+> * **Python 3 support.**  Using Python 3 will make maintenance easier.
+> 
+>   Upstream Roundup now supports Python 3. Updating the tracker will
+>   allow us to switch to Python 3.  The instances will need to be
+>   updated as well.
+> 
+> * **Use upstream Roundup.**  We currently use a fork of Roundup with
+>   a few modifications, most notably the GitHub integration.  If this
+>   is ported upstream, we can start using upstream Roundup without
+>   having to maintain our fork.
+> 
+> 
+> PEP 581 issues
+> ==============
+> 
+> This section addresses some errors and inaccuracies found in :pep:`581`.
+> 
+> The "Why GitHub?" section of PEP 581 lists features currently
+> available on GitHub Issues but not on Roundup.  Some of this features
+> are currently supported:
+> 
+> * "Ability to reply to issue and pull request conversations via email."
+> 
+>   * Being able to reply by email has been one of the core features of
+>     Roundup since the beginning.  It is also possible to create new
+>     issues or close existing ones, set or modify fields, and add
+>     attachments.
+> 
+> * "Email notifications containing metadata, integrated with Gmail,
+>   allowing systematic filtering of emails."
+> 
+>   * Emails sent by Roundup contains metadata that can be used for
+>     filtering.
+> 
+> * "Additional privacy, such as offering the user a choice to hide an
+>   email address, while still allowing communication with the user
+>   through @-mentions."
+> 
+>   * Email addresses are hidden by default to users that are not
+>     registered.  Registered users can see other users' addresses
+>     because we configured the tracker to show them.  It can easily
+>     be changed if desired.  Users can still be added to the nosy
+>     list by using their username even if their address is hidden.
+> 
+> * "Ability to automatically close issues when a PR has been merged."
+> 
+>   * The GitHub integration of Roundup automatically closes issues
+>     when a commit that contains "fixes issue <id>" is merged.
+>     (Alternative spellings such as "closes" or "bug" are also supported.)
+>     See [#]_ for a recent example of this feature.
+> 
+> * "Support for permalinks, allowing easy quoting and copying &
+>   pasting of source code."
+> 
+>   * Roundup has permalinks for issues, messages, attachments, etc.
+>     In addition, Roundup allows to easily rewrite broken URLs in
+>     messages (e.g. if the code hosting changes).
+> 
+> * "Core developers, volunteers, and the PSF don't have to maintain the
+>   issue infrastructure/site, giving us more time and resources to focus
+>   on the development of Python."
+> 
+>   * While this is partially true, additional resources are required to
+>     write and maintain bots.
+> 
+>     In some cases, bots are required to workaround GitHub's lack of
+>     features rather than expanding. [#]_ was written
+>     specifically to workaround GitHub's email integration.
+> 
+>     Updating our bots to stay up-to-date with changes in the GitHub API
+>     has also maintenance cost. [#]_ took two days to be fixed.
+> 
+>     In addition, we will still need to maintain Roundup for bpo (even
+>     if it becomes read-only) and for the other trackers
+>     we currently host/maintain (Jython [#]_ and Roundup [#]_).
+> 
+> The "Issues with Roundup / bpo" section of :pep:`581` lists some issues
+> that have already been fixed:
+> 
+> * "The upstream Roundup code is in Mercurial. Without any CI available,
+>   it puts heavy burden on the few existing maintainers in terms of
+>   reviewing, testing, and applying patches."
+> 
+>   * While Roundup uses Mercurial by default, there is a git clone
+>     available on GitHub [#]_.  Roundup also has CI available [#]_ [#]_.
+> 
+> * "There is no REST API available. There is an open issue in Roundup for
+>   adding REST API. Last activity was in 2016."
+> 
+>   * The REST API has been integrated and it's now available in Roundup.
+> 
+> * "Users email addresses are exposed. There is no option to mask it."
+> 
+>   * Exposing addresses to registered and logged in users was a decision
+>     taken when our instance was set up.
+> 
+>     This has now been changed to make the email addresses hidden for
+>     regular users too (Developers and Coordinators can still see them).
+>     The "Email address"" column from the user listing page [#]_ has been
+>     removed too.
+> 
+> * "It sends a number of unnecessary emails and notifications, and it is
+>   difficult, if not impossible, to configure."
+> 
+>   * This can be configured.
+> 
+> * "Creating an account has been a hassle. There have been reports of people
+>   having trouble creating accounts or logging in."
+> 
+>   * The main issue is confirmation emails being marked as spam.  Work has
+>     been done to resolve the issue.
+> 
+> Migration considerations
+> ========================
+> 
+> This section describes issues with the migrations that might not
+> have been addressed by :pep:`581` and :pep:`588`.
+> 
+> :pep:`588` suggests to add a button to migrate issues to GitHub
+> only when someone wants to keep working on them.  This approach
+> has several issues:
+> 
+> * bpo will need to be updated in order to add a button that,
+>   once pressed, creates a new issue on GitHub, copies over all
+>   the messages, attachments, and creates/adds label for the
+>   existing fields.  Permissions will also need to be tweaked
+>   to make individual issues read-only once they are migrated,
+>   and to prevent users to create new accounts.
+> 
+> * The issues will be split between two trackers; searching issues
+>   will take significant more effort.
+> 
+> * The conversion from Roundup to GitHub is lossy, unless all
+>   the bpo fields are converted into labels or preserved somewhere
+>   else.
+> 
+> * bpo converts a number of references into links, including
+>   issue, message, and PR IDs, changeset numbers, legacy SVN
+>   revision numbers, paths to files in the repo, files in
+>   tracebacks (detecting the correct branch), links to devguide
+>   pages and sections [#]_.  This happens when messages are
+>   requested so it is possible to create the correct link (e.g.
+>   all the file links used to point to hg.python.org and now
+>   point to GitHub).
+> 
+>   If the links are hardcoded during the migration, it will be
+>   difficult (if not impossible) to change them later.  If they
+>   aren't, they will either be lost, or a tool to generate the
+>   links and updating them will need to be written.
+> 
+> * GitHub doesn't provide a way to set and preserve issue IDs
+>   if they are migrated automatically with the use of a button.
+>   (Some projects managed to preserve the IDs by contaacting
+>   the GitHub staff and migrating the issues *en masse*.)
+> 
+> * On top of the work and changes required to migrate to GitHub
+>   issues, we will still need to keep running and maintaining
+>   Roundup, for both our instance (read-only) and for the Jython
+>   and Roundup trackers (read-write).
+> 
+> 
+> In addition to the issues listed in the "Open issues" section of
+> :pep:`588`, this issues will need to be addressed:
+> 
+> * GitHub is properietary and there is risk of vendor lock-in.
+>   Their business model might change and they could shut down
+>   altogether.
+> 
+> * Switching to GitHub Issues will likely increase the number of
+>   invalid reports and increase the triaging effort.  This concern
+>   has been raised in the past in a Zulip topic [#]_.
+> 
+>   There have been already cases where people posted comments on
+>   PRs that required moderators to mark them as off-topic or
+>   disruptive, delete them altogether, and even lock the
+>   conversation [#]_.
+> 
+> * Roundup sends weekly reports to python-dev with a summary that
+>   includes new issues, recent issues with no replies, recent
+>   issues waiting for review, most discussed issues, closed issues,
+>   and deltas for open/closed/total issue counts [#]_.  The report
+>   provides an easy way to keep track of the tracker activity and
+>   to make sure that issues that require attention are noticed.
+> 
+>   The data collect by the weekly report is also use to generate
+>   statistics and graphs that can be used to gain new insights [#]_.
+> 
+> * There are currently two mailing lists where Roundup posts new
+>   tracker issues and all messages respectively: new-bugs-announce
+>   [#]_ and python-bugs-list [#]_.  A new system will need to be
+>   developed to preserve this functionality.  These MLs offer
+>   additional ways to keep track of the tracker activity.
+> 
+> 
+> References
+> ==========
+> 
+> .. [#] [Python-Dev] PEP 581 (Using GitHub issues for CPython) is accepted
+> 
+>    https://mail.python.org/pipermail/python-dev/2019-May/157399.html
+> 
+> .. [#] [python-committers] [Python-Dev] PEP 581 (Using GitHub issues
+>    for CPython) is accepted
+> 
+>    https://mail.python.org/pipermail/python-committers/2019-May/006755.html
+> 
+> .. [#] Experts Index -- Python Devguide
+> 
+>    https://devguide.python.org/experts/
+> 
+> .. [#] An example of superseded issues:
+>    "re.sub() replaces only several matches"
+> 
+>    https://bugs.python.org/issue12078
+> 
+> .. [#] An example of meta issue using dependencies to track sub-issues:
+>    "Meta-issue: support of the android platform""
+> 
+>    https://bugs.python.org/issue26865
+> 
+> .. [#] Support logging in with GitHub
+> 
+>    https://github.com/python/bugs.python.org/issues/7
+> 
+> .. [#] Re: [Roundup-devel] PEP 581 and Google Summer of Code
+> 
+>    https://sourceforge.net/p/roundup/mailman/message/36667828/
+> 
+> .. [#] [Tracker-discuss] [issue624] bpo emails contain useless non-github
+>        pull_request number - users want a link to actual github PR
+> 
+>    https://mail.python.org/pipermail/tracker-discuss/2018-June/004547.html
+> 
+> .. [#] The commit reported in msg342882 closes the issue (see the history below)
+> 
+>    https://bugs.python.org/issue36951#msg342882
+> 
+> .. [#] The cpython-emailer-webhook project
+> 
+>    https://github.com/berkerpeksag/cpython-emailer-webhook
+> 
+> .. [#] A recent incident caused by GitHub
+> 
+>    https://github.com/python/bedevere/pull/163
+> 
+> .. [#] Jython issue tracker
+> 
+>    https://bugs.jython.org/
+> 
+> .. [#] Roundup issue tracker
+> 
+>    https://issues.roundup-tracker.org/
+> 
+> .. [#] GitHub clone of Roundup
+> 
+>    https://github.com/roundup-tracker/roundup
+> 
+> .. [#] Travis-CI for Roundup
+> 
+>    https://travis-ci.org/roundup-tracker/roundup) and codecov
+> 
+> .. [#] Codecov for Roundup
+> 
+>    https://codecov.io/gh/roundup-tracker/roundup/commits
+> 
+> .. [#] User listing -- Python tracker
+> 
+>    https://bugs.python.org/user?@sort=username
+> 
+> .. [#] Generating Special Links in a Comment -- Python Devguide
+> 
+>    https://devguide.python.org/triaging/#generating-special-links-in-a-comment
+> 
+> .. [#] The New-bugs-announce mailing list
+> 
+>    https://mail.python.org/mailman/listinfo/new-bugs-announce
+> 
+> .. [#] The Python-bugs-list mailing list
+> 
+>    https://mail.python.org/mailman/listinfo/python-bugs-list
+> 
+> .. [#] An example of [Python-Dev] Summary of Python tracker Issues
+> 
+>    https://mail.python.org/pipermail/python-dev/2019-May/157483.html
+> 
+> .. [#] Issues stats -- Python tracker
+> 
+>    https://bugs.python.org/issue?@template=stats
+> 
+> .. [#] s/n ratio -- Python -- Zulip
+> 
+>    https://python.zulipchat.com/#narrow/stream/130206-pep581/topic/s.2Fn.20ratio
+> 
+> .. [#] For example this and other related PRs:
+> 
+>    https://github.com/python/cpython/pull/9099
+> 
+> 
+> Copyright
+> =========
+> 
+> This document has been placed in the public domain.
+> 
+> ..
+>    Local Variables:
+>    mode: indented-text
+>    indent-tabs-mode: nil
+>    sentence-end-double-space: t
+>    fill-column: 70
+>    coding: utf-8
+>    End:
+
+
+
+
+From njs at pobox.com  Fri May 31 04:34:08 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 31 May 2019 01:34:08 -0700
+Subject: [Python-Dev] Should I postpone PEP 558 (locals() semantics) to
+ Python 3.9?
+In-Reply-To: <CADiSq7cHbr_bkA4k5xg8NS8u4eSWG0nEqKdCNfsP6N_b7V9cEQ@mail.gmail.com>
+References: <CADiSq7cHbr_bkA4k5xg8NS8u4eSWG0nEqKdCNfsP6N_b7V9cEQ@mail.gmail.com>
+Message-ID: <CAPJVwBmnDGn1OdO1nBTPvi2KfhsCp9Tg5A1w2Hsx576uM7KmdQ@mail.gmail.com>
+
+I wouldn't mind having a little more breathing room. It's frustrating
+to miss the train, but these bugs are several decades old so I guess
+nothing terrible will happen if their fixes get delayed to 3.9.
+
+On Thu, May 30, 2019 at 4:23 PM Nick Coghlan <ncoghlan at gmail.com> wrote:
+>
+> Hi folks,
+>
+> The reference implementation for PEP 558 (my attempt to fix the interaction between tracing functions and closure variables) is currently segfaulting somewhere deep in the garbage collector, and I've found that there's an issue with the PyEval_GetLocals() API returning a borrowed reference that means I need to tweak the proposed C API a bit such that PyEval_GetLocals() returns the proxy at function scope, and we add a new PyEval_GetPyLocals() that matches the locals() builtin.
+>
+> I don't *want* to postpone this to Python 3.9, but there turned out to be more remaining work than I thought there was to get this ready for inclusion in beta 1.
+>
+> I'll try to get the C API design details sorted today, but the segfault is mystifying me, and prevents the option of putting the core implementation in place for b1, and tidying up the documentation and comments for b2.
+>
+> Cheers,
+> Nick.
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/njs%40pobox.com
+
+
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From encukou at gmail.com  Fri May 31 04:46:58 2019
+From: encukou at gmail.com (Petr Viktorin)
+Date: Fri, 31 May 2019 10:46:58 +0200
+Subject: [Python-Dev] Expected stability of PyCode_New() and
+ types.CodeType() signatures
+Message-ID: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+
+Hello,
+PEP 570 (Positional-Only Parameters) changed the signatures of 
+PyCode_New() and types.CodeType(), adding a new argument for "posargcount".
+Our policy for such changes seems to be fragmented tribal knowledge. I'm 
+writing to check if my understanding is reasonable, so I can apply it 
+and document it explicitly.
+
+There is a surprisingly large ecosystem of tools that create code objects.
+The expectation seems to be that these tools will need to be adapted for 
+each minor version of Python.
+
+But that's not the same as saying that if you use types.CodeType(), 
+you're on your own. To me [PR 13271], seems to go too far when it adds:
+ > These types are not supposed to be instantiated outside of
+ > CPython internals and constructor signatures will vary
+ > between Python versions.
+
+This kind of "washing our hands" doesn't do justice to tools like 
+Cython, whose use of PyCode_New is (IMO) perfectly justified. As is 
+adapting to Python minor versions.
+
+So, we should document the changes as any backwards-incompatible change.
+Specifically, changes should be (or should have been, in hindsight) 
+mentioned in:
+* The "API changes" and/or "Porting" sections of the What's New document
+* Version history of the documentation (e.g. versionchanged blocks)
+* Any relevant PEPs
+
+Also, the expected level of API stability should be documented in the docs.
+
+Does that sound right?
+
+
+PEP 570: https://www.python.org/dev/peps/pep-0570/
+PyCode_New: https://docs.python.org/3.8/c-api/code.html#c.PyCode_New
+[PR 13271]: https://github.com/python/cpython/pull/13271/files
+
+From songofacandy at gmail.com  Fri May 31 06:07:51 2019
+From: songofacandy at gmail.com (Inada Naoki)
+Date: Fri, 31 May 2019 19:07:51 +0900
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAExdVNn0W+FgKB2uubJ6pnXEbUk5=mLURtDiw-EABTMfMiKiyQ@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAExdVNky=MpntPfA9L7_mipAzX9-igYyOwFKNt0X+CpOMG_hNw@mail.gmail.com>
+ <CAExdVNn0W+FgKB2uubJ6pnXEbUk5=mLURtDiw-EABTMfMiKiyQ@mail.gmail.com>
+Message-ID: <CAEfz+TyYC=14N2vmAv__OBbf3ZHBS=X7H6JL81UoUOvi1ru6nA@mail.gmail.com>
+
+> I'm keen to get feedback on this before merging the PR, because this
+> case is so very much larger than anything I've ever tried that I'm
+> wary that there may be more than one "surprise" lurking here.  The PR
+> certainly addresses "an obvious" (with hindsight) problem - but is
+> that the _only_ gross design flaw here?
+
+I started r5a.4xlarge EC2 instance and started arena.py.
+I will post the result in next 12 hours.
+
+Regards,
+
+-- 
+Inada Naoki  <songofacandy at gmail.com>
+
+From ncoghlan at gmail.com  Fri May 31 06:20:59 2019
+From: ncoghlan at gmail.com (Nick Coghlan)
+Date: Fri, 31 May 2019 20:20:59 +1000
+Subject: [Python-Dev] Should I postpone PEP 558 (locals() semantics) to
+ Python 3.9?
+In-Reply-To: <CAPJVwBmnDGn1OdO1nBTPvi2KfhsCp9Tg5A1w2Hsx576uM7KmdQ@mail.gmail.com>
+References: <CADiSq7cHbr_bkA4k5xg8NS8u4eSWG0nEqKdCNfsP6N_b7V9cEQ@mail.gmail.com>
+ <CAPJVwBmnDGn1OdO1nBTPvi2KfhsCp9Tg5A1w2Hsx576uM7KmdQ@mail.gmail.com>
+Message-ID: <CADiSq7ffeUZSEExUsu1wsL8HNrNcJkueGONrcqKCOZK-BWrm+w@mail.gmail.com>
+
+On Fri., 31 May 2019, 6:34 pm Nathaniel Smith, <njs at pobox.com> wrote:
+
+> I wouldn't mind having a little more breathing room. It's frustrating
+> to miss the train, but these bugs are several decades old so I guess
+> nothing terrible will happen if their fixes get delayed to 3.9.
+>
+
+And I could put that extra time to good use, as starting to flesh out the
+proxy implementation showed that we're missing a lot of scaffolding to help
+make it easier to define new low level mapping types without duplicating a
+lot of code.
+
+I'll update the PEP headers accordingly.
+
+Cheers,
+Nick.
+
+
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190531/7f9be1ea/attachment.html>
+
+From tjreedy at udel.edu  Fri May 31 12:37:01 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Fri, 31 May 2019 12:37:01 -0400
+Subject: [Python-Dev] Expected stability of PyCode_New() and
+ types.CodeType() signatures
+In-Reply-To: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+References: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+Message-ID: <qcrl7f$3eq7$1@blaine.gmane.org>
+
+On 5/31/2019 4:46 AM, Petr Viktorin wrote:
+> Hello,
+> PEP 570 (Positional-Only Parameters) changed the signatures of 
+> PyCode_New() and types.CodeType(), adding a new argument for "posargcount".
+> Our policy for such changes seems to be fragmented tribal knowledge. I'm 
+> writing to check if my understanding is reasonable, so I can apply it 
+> and document it explicitly.
+> 
+> There is a surprisingly large ecosystem of tools that create code objects.
+> The expectation seems to be that these tools will need to be adapted for 
+> each minor version of Python.
+> 
+> But that's not the same as saying that if you use types.CodeType(), 
+> you're on your own. To me [PR 13271], seems to go too far when it adds:
+>  > These types are not supposed to be instantiated outside of
+>  > CPython internals and constructor signatures will vary
+>  > between Python versions.
+> 
+> This kind of "washing our hands" doesn't do justice to tools like 
+> Cython, whose use of PyCode_New is (IMO) perfectly justified. As is 
+> adapting to Python minor versions.
+
+I summarized the above on the issue
+https://bugs.python.org/issue36896
+and suggested specific revisions on the PR.
+https://github.com/python/cpython/pull/13271
+
+> So, we should document the changes as any backwards-incompatible change.
+> Specifically, changes should be (or should have been, in hindsight) 
+> mentioned in:
+> * The "API changes" and/or "Porting" sections of the What's New document
+
+The second PR for Document changes ... added something to What's New.
+https://bugs.python.org/issue36886
+https://github.com/python/cpython/commit/5d23e282af69d404a3430bb95aefe371112817b3
+
+If you think something more is needed, say so on the issue.
+
+> * Version history of the documentation (e.g. versionchanged blocks)
+
+We put version history of the code (but not of the docs) in the docs.
+https://docs.python.org/3/reference/compound_stmts.html#function-definitions
+should have a version-changed note for the added '/' syntax.
+
+> * Any relevant PEPs
+
+If you mean PEPs other than 570, we don't do that.
+
+> Also, the expected level of API stability should be documented in the docs.
+
+Yes.  I think that part of PR 13271, rewritten, is good.
+
+> PEP 570: https://www.python.org/dev/peps/pep-0570/
+> PyCode_New: https://docs.python.org/3.8/c-api/code.html#c.PyCode_New
+> [PR 13271]: https://github.com/python/cpython/pull/13271/files
+
+
+-- 
+Terry Jan Reedy
+
+
+From tjreedy at udel.edu  Fri May 31 12:43:20 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Fri, 31 May 2019 12:43:20 -0400
+Subject: [Python-Dev] Should I postpone PEP 558 (locals() semantics) to
+ Python 3.9?
+In-Reply-To: <CADiSq7ffeUZSEExUsu1wsL8HNrNcJkueGONrcqKCOZK-BWrm+w@mail.gmail.com>
+References: <CADiSq7cHbr_bkA4k5xg8NS8u4eSWG0nEqKdCNfsP6N_b7V9cEQ@mail.gmail.com>
+ <CAPJVwBmnDGn1OdO1nBTPvi2KfhsCp9Tg5A1w2Hsx576uM7KmdQ@mail.gmail.com>
+ <CADiSq7ffeUZSEExUsu1wsL8HNrNcJkueGONrcqKCOZK-BWrm+w@mail.gmail.com>
+Message-ID: <qcrlja$4cic$1@blaine.gmane.org>
+
+On 5/31/2019 6:20 AM, Nick Coghlan wrote:
+> On Fri., 31 May 2019, 6:34 pm Nathaniel Smith, <njs at pobox.com 
+> <mailto:njs at pobox.com>> wrote:
+> 
+>     I wouldn't mind having a little more breathing room. It's frustrating
+>     to miss the train, but these bugs are several decades old so I guess
+>     nothing terrible will happen if their fixes get delayed to 3.9.
+
+Agreed.
+
+> And I could put that extra time to good use, as starting to flesh out 
+> the proxy implementation showed that we're missing a lot of scaffolding 
+> to help make it easier to define new low level mapping types without 
+> duplicating a lot of code.
+> 
+> I'll update the PEP headers accordingly.
+
+I believe some of your suggested doc change is true now, will remain 
+true, and improves on the current locals entry.  No PEP approval is 
+needed for this much.
+
+
+-- 
+Terry Jan Reedy
+
+
+From status at bugs.python.org  Fri May 31 14:08:08 2019
+From: status at bugs.python.org (Python tracker)
+Date: Fri, 31 May 2019 18:08:08 +0000 (UTC)
+Subject: [Python-Dev] Summary of Python tracker Issues
+Message-ID: <20190531180808.52ABF52B006@bugs.ams1.psf.io>
+
+
+ACTIVITY SUMMARY (2019-05-24 - 2019-05-31)
+Python tracker at https://bugs.python.org/
+
+To view or respond to any of the issues listed below, click on the issue.
+Do NOT respond to this message.
+
+Issues counts and deltas:
+  open    7028 (-39)
+  closed 41839 (+118)
+  total  48867 (+79)
+
+Open issues with patches: 2820 
+
+
+Issues opened (50)
+==================
+
+#26423: Integer overflow in wrap_lenfunc() on 64-bit build of Windows 
+https://bugs.python.org/issue26423  reopened by vstinner
+
+#34725: Py_GetProgramFullPath() odd behaviour in Windows
+https://bugs.python.org/issue34725  reopened by vstinner
+
+#35753: Importing call from unittest.mock directly causes ValueError
+https://bugs.python.org/issue35753  reopened by pablogsal
+
+#36889: Merge StreamWriter and StreamReader into just asyncio.Stream
+https://bugs.python.org/issue36889  reopened by koobs
+
+#36991: zipfile: AttributeError on extract
+https://bugs.python.org/issue36991  reopened by berker.peksag
+
+#37038: Make idlelib/run.py runnable.
+https://bugs.python.org/issue37038  opened by terry.reedy
+
+#37039: IDLE: Improve zoomheight doc and behavior.
+https://bugs.python.org/issue37039  opened by terry.reedy
+
+#37040: checking for membership in itertools.count enters infinite loo
+https://bugs.python.org/issue37040  opened by Dan Rose
+
+#37041: IDLE: path browser unusable on some displays
+https://bugs.python.org/issue37041  opened by aroberge
+
+#37042: wait_for(coro, timeout=0) memleak
+https://bugs.python.org/issue37042  opened by ixje
+
+#37043: Buildbots fail when new files are added
+https://bugs.python.org/issue37043  opened by jaraco
+
+#37044: Build/test artifacts not ignored for framework build
+https://bugs.python.org/issue37044  opened by jaraco
+
+#37048: ssl module: QUIC support for HTTP/3
+https://bugs.python.org/issue37048  opened by christian.heimes
+
+#37052: Add examples for mocking async for and async context manager i
+https://bugs.python.org/issue37052  opened by xtreak
+
+#37055: Numerous warnings with blake2 module
+https://bugs.python.org/issue37055  opened by remi.lapeyre
+
+#37060: import ctypes fails with a statically linked interpreter due t
+https://bugs.python.org/issue37060  opened by indygreg
+
+#37062: `AutoNumber` class in enum documentation: support *args in con
+https://bugs.python.org/issue37062  opened by rrt
+
+#37063: Incorrect application of func.__defaults__ by inspect's signat
+https://bugs.python.org/issue37063  opened by bup
+
+#37064: Feature request: option to keep/add flags to pathfix.
+https://bugs.python.org/issue37064  opened by pkopkan
+
+#37068: Emit SyntaxWarning for f-strings without expressions ?
+https://bugs.python.org/issue37068  opened by mbussonn
+
+#37069: regrtest: log unraisable exceptions and uncaught thread except
+https://bugs.python.org/issue37069  opened by vstinner
+
+#37071: HTMLParser mistakenly inventing new tags while parsing
+https://bugs.python.org/issue37071  opened by htran
+
+#37073: clarify functions docs in IO modules and Bytes Objects
+https://bugs.python.org/issue37073  opened by Windson Yang
+
+#37074: os.stat() does not work for NUL and CON
+https://bugs.python.org/issue37074  opened by serhiy.storchaka
+
+#37075: Error message improvement for AsyncMock
+https://bugs.python.org/issue37075  opened by xtreak
+
+#37077: Threading: add builtin TID attribute to Thread objects for AIX
+https://bugs.python.org/issue37077  opened by Michael.Felt
+
+#37080: Cannot compile Python3.7.3 on Alt-F (ARM)
+https://bugs.python.org/issue37080  opened by Jarl Gullberg
+
+#37081: Test with OpenSSL 1.1.1c
+https://bugs.python.org/issue37081  opened by christian.heimes
+
+#37082: Assignment expression operator (walrus) not in built-in help()
+https://bugs.python.org/issue37082  opened by mbussonn
+
+#37083: Document TYPE_COMMENT in documentation reference for compound 
+https://bugs.python.org/issue37083  opened by pablogsal
+
+#37084: _ctypes not failing, can't find reason
+https://bugs.python.org/issue37084  opened by Brian Spratke
+
+#37085: Expose additional socket constants for CAN_BCM flags
+https://bugs.python.org/issue37085  opened by karlding
+
+#37086: time.sleep error message misleading
+https://bugs.python.org/issue37086  opened by Justin Fay
+
+#37087: Adding native id support for openbsd
+https://bugs.python.org/issue37087  opened by David Carlier
+
+#37088: Add a way to schedule a function to be called from the main th
+https://bugs.python.org/issue37088  opened by yselivanov
+
+#37089: `import Lib.os` works on windows (but shouldn't)
+https://bugs.python.org/issue37089  opened by Anthony Sottile
+
+#37090: test_gdb's test_pycfunction should test all calling convention
+https://bugs.python.org/issue37090  opened by petr.viktorin
+
+#37091: subprocess - uncaught PermissionError in send_signal can cause
+https://bugs.python.org/issue37091  opened by wesinator
+
+#37093: http.client aborts header parsing upon encountering non-ASCII 
+https://bugs.python.org/issue37093  opened by tburke
+
+#37095: [Feature Request]: Add zstd support in tarfile
+https://bugs.python.org/issue37095  opened by evan0greenup
+
+#37096: Add large-file tests for modules using sendfile(2)
+https://bugs.python.org/issue37096  opened by giampaolo.rodola
+
+#37097: python_is_optimized() false negatives
+https://bugs.python.org/issue37097  opened by jdemeyer
+
+#37098: test_memfd_create() test failure
+https://bugs.python.org/issue37098  opened by jdemeyer
+
+#37100: test_coroutine.test_unawaited_warning_when_module_broken fails
+https://bugs.python.org/issue37100  opened by xtreak
+
+#37102: Automatically dedent docstring constants by default
+https://bugs.python.org/issue37102  opened by gregory.p.smith
+
+#37103: Undo deprecation of optparse
+https://bugs.python.org/issue37103  opened by andersk
+
+#37105: Add deprecated-remove information on stream doc
+https://bugs.python.org/issue37105  opened by eamanu
+
+#37107: ensurepip --upgrade doesn't change the version of pip used by 
+https://bugs.python.org/issue37107  opened by cjw296
+
+#37110: Clarify hashability of custom class instances
+https://bugs.python.org/issue37110  opened by cito
+
+#37116: Use PEP 570 syntax for positional-only parameters
+https://bugs.python.org/issue37116  opened by serhiy.storchaka
+
+
+
+Most recent 15 issues with no replies (15)
+==========================================
+
+#37116: Use PEP 570 syntax for positional-only parameters
+https://bugs.python.org/issue37116
+
+#37110: Clarify hashability of custom class instances
+https://bugs.python.org/issue37110
+
+#37107: ensurepip --upgrade doesn't change the version of pip used by 
+https://bugs.python.org/issue37107
+
+#37105: Add deprecated-remove information on stream doc
+https://bugs.python.org/issue37105
+
+#37102: Automatically dedent docstring constants by default
+https://bugs.python.org/issue37102
+
+#37097: python_is_optimized() false negatives
+https://bugs.python.org/issue37097
+
+#37096: Add large-file tests for modules using sendfile(2)
+https://bugs.python.org/issue37096
+
+#37095: [Feature Request]: Add zstd support in tarfile
+https://bugs.python.org/issue37095
+
+#37093: http.client aborts header parsing upon encountering non-ASCII 
+https://bugs.python.org/issue37093
+
+#37090: test_gdb's test_pycfunction should test all calling convention
+https://bugs.python.org/issue37090
+
+#37087: Adding native id support for openbsd
+https://bugs.python.org/issue37087
+
+#37085: Expose additional socket constants for CAN_BCM flags
+https://bugs.python.org/issue37085
+
+#37084: _ctypes not failing, can't find reason
+https://bugs.python.org/issue37084
+
+#37080: Cannot compile Python3.7.3 on Alt-F (ARM)
+https://bugs.python.org/issue37080
+
+#37077: Threading: add builtin TID attribute to Thread objects for AIX
+https://bugs.python.org/issue37077
+
+
+
+Most recent 15 issues waiting for review (15)
+=============================================
+
+#37116: Use PEP 570 syntax for positional-only parameters
+https://bugs.python.org/issue37116
+
+#37105: Add deprecated-remove information on stream doc
+https://bugs.python.org/issue37105
+
+#37098: test_memfd_create() test failure
+https://bugs.python.org/issue37098
+
+#37096: Add large-file tests for modules using sendfile(2)
+https://bugs.python.org/issue37096
+
+#37090: test_gdb's test_pycfunction should test all calling convention
+https://bugs.python.org/issue37090
+
+#37088: Add a way to schedule a function to be called from the main th
+https://bugs.python.org/issue37088
+
+#37085: Expose additional socket constants for CAN_BCM flags
+https://bugs.python.org/issue37085
+
+#37081: Test with OpenSSL 1.1.1c
+https://bugs.python.org/issue37081
+
+#37077: Threading: add builtin TID attribute to Thread objects for AIX
+https://bugs.python.org/issue37077
+
+#37075: Error message improvement for AsyncMock
+https://bugs.python.org/issue37075
+
+#37064: Feature request: option to keep/add flags to pathfix.
+https://bugs.python.org/issue37064
+
+#37039: IDLE: Improve zoomheight doc and behavior.
+https://bugs.python.org/issue37039
+
+#37038: Make idlelib/run.py runnable.
+https://bugs.python.org/issue37038
+
+#37034: Argument Clinic omits name of keyword-only parameter on _PyArg
+https://bugs.python.org/issue37034
+
+#37030: Lib/cmd.py: Hide undocumented commands in help and completenam
+https://bugs.python.org/issue37030
+
+
+
+Top 10 most discussed issues (10)
+=================================
+
+#37039: IDLE: Improve zoomheight doc and behavior.
+https://bugs.python.org/issue37039  20 msgs
+
+#33725: Python crashes on macOS after fork with no exec
+https://bugs.python.org/issue33725  16 msgs
+
+#36839: Support the buffer protocol in code objects
+https://bugs.python.org/issue36839  12 msgs
+
+#36974: Implement PEP 590
+https://bugs.python.org/issue36974  12 msgs
+
+#35545: asyncio.base_events.create_connection doesn't handle scoped IP
+https://bugs.python.org/issue35545   9 msgs
+
+#36709: Asyncio SSL keep-alive connections raise errors after loop clo
+https://bugs.python.org/issue36709   9 msgs
+
+#36889: Merge StreamWriter and StreamReader into just asyncio.Stream
+https://bugs.python.org/issue36889   8 msgs
+
+#37011: pdb: restore original tracing function instead of sys.settrace
+https://bugs.python.org/issue37011   8 msgs
+
+#26423: Integer overflow in wrap_lenfunc() on 64-bit build of Windows 
+https://bugs.python.org/issue26423   6 msgs
+
+#28866: Type cache is not correctly invalidated on a class defining mr
+https://bugs.python.org/issue28866   6 msgs
+
+
+
+Issues closed (115)
+===================
+
+#5028: tokenize.generate_tokens doesn't always return logical line
+https://bugs.python.org/issue5028  closed by cheryl.sabella
+
+#11320: Usage of API method Py_SetPath causes errors in Py_Initialize(
+https://bugs.python.org/issue11320  closed by vstinner
+
+#13533: Would like Py_Initialize to play friendly with host app
+https://bugs.python.org/issue13533  closed by vstinner
+
+#14656: Add a macro for unreachable code
+https://bugs.python.org/issue14656  closed by pablogsal
+
+#14956: custom PYTHONPATH may break apps embedding Python
+https://bugs.python.org/issue14956  closed by vstinner
+
+#19569: Use __attribute__((deprecated)) to warn usage of deprecated fu
+https://bugs.python.org/issue19569  closed by vstinner
+
+#19983: When interrupted during startup, Python should not call abort(
+https://bugs.python.org/issue19983  closed by vstinner
+
+#22102: Zipfile generates Zipfile error in zip with 0 total number of 
+https://bugs.python.org/issue22102  closed by cheryl.sabella
+
+#22454: Adding the opposite function of shlex.split()
+https://bugs.python.org/issue22454  closed by berker.peksag
+
+#22640: Add silent mode for py_compile
+https://bugs.python.org/issue22640  closed by berker.peksag
+
+#24564: shutil.copytree fails when copying NFS to NFS
+https://bugs.python.org/issue24564  closed by giampaolo.rodola
+
+#24732: 3.5.0b3 Windows accept() on unready non-blocking socket raises
+https://bugs.python.org/issue24732  closed by vstinner
+
+#25735: math.factorial doc should mention integer return type
+https://bugs.python.org/issue25735  closed by cheryl.sabella
+
+#27639: UserList.__getitem__ doesn't account for slices
+https://bugs.python.org/issue27639  closed by SilentGhost
+
+#27987: obmalloc's 8-byte alignment causes undefined behavior
+https://bugs.python.org/issue27987  closed by inada.naoki
+
+#29143: Logger should ignore propagate property for disabled handlers.
+https://bugs.python.org/issue29143  closed by mariocj89
+
+#29262: Provide a way to check for *real* typing.Union instances
+https://bugs.python.org/issue29262  closed by levkivskyi
+
+#29696: Use namedtuple in string.Formatter.parse iterator response
+https://bugs.python.org/issue29696  closed by rhettinger
+
+#29778: _Py_CheckPython3 uses uninitialized dllpath when embedder sets
+https://bugs.python.org/issue29778  closed by vstinner
+
+#29883: asyncio: Windows Proactor Event Loop UDP Support
+https://bugs.python.org/issue29883  closed by asvetlov
+
+#30006: Deadlocks in `concurrent.futures.ProcessPoolExecutor`
+https://bugs.python.org/issue30006  closed by pitrou
+
+#30560: Py_SetFatalErrorAbortFunc: Allow embedding program to handle f
+https://bugs.python.org/issue30560  closed by vstinner
+
+#30969: Docs should say that `x is z or x == z` is used for `x in y` i
+https://bugs.python.org/issue30969  closed by cheryl.sabella
+
+#31745: Overloading "Py_GetPath" does not work
+https://bugs.python.org/issue31745  closed by vstinner
+
+#32299: unittest.mock.patch.dict.__enter__ should return the dict
+https://bugs.python.org/issue32299  closed by cheryl.sabella
+
+#32388: Remove cross-version binary compatibility
+https://bugs.python.org/issue32388  closed by pitrou
+
+#32941: mmap should expose madvise()
+https://bugs.python.org/issue32941  closed by pitrou
+
+#33006: docstring of filter function is incorrect
+https://bugs.python.org/issue33006  closed by ned.deily
+
+#33135: Define field prefixes for the various config structs
+https://bugs.python.org/issue33135  closed by vstinner
+
+#33407: Implement Py_DEPRECATED() macro for Visual Studio
+https://bugs.python.org/issue33407  closed by vstinner
+
+#33918: Hooking into pause/resume of iterators/coroutines
+https://bugs.python.org/issue33918  closed by asvetlov
+
+#33919: Expose _PyCoreConfig structure to Python
+https://bugs.python.org/issue33919  closed by vstinner
+
+#34148: Fatal read error on socket transport
+https://bugs.python.org/issue34148  closed by asvetlov
+
+#34613: asyncio.StreamReader initialization documentation incorrectly 
+https://bugs.python.org/issue34613  closed by asvetlov
+
+#34626: PEP 384's PyType_Spec and PyType_Slot are not documented
+https://bugs.python.org/issue34626  closed by petr.viktorin
+
+#34632: Port importlib_metadata to Python 3.8
+https://bugs.python.org/issue34632  closed by barry
+
+#34655: Support sendfile in asyncio streams API
+https://bugs.python.org/issue34655  closed by asvetlov
+
+#34791: xml package does not obey sys.flags.ignore_environment
+https://bugs.python.org/issue34791  closed by vstinner
+
+#34818: test.test_ssl.ThreadedTests.test_tls1_3 fails in 2.7 with Attr
+https://bugs.python.org/issue34818  closed by cheryl.sabella
+
+#34975: start_tls() difficult when using asyncio.start_server()
+https://bugs.python.org/issue34975  closed by asvetlov
+
+#34993: asyncio.streams.FlowControlMixin should be part of the API
+https://bugs.python.org/issue34993  closed by asvetlov
+
+#35246: asyncio.create_subprocess_exec doesn't accept pathlib.Path lik
+https://bugs.python.org/issue35246  closed by asvetlov
+
+#35279: asyncio uses too many threads by default
+https://bugs.python.org/issue35279  closed by inada.naoki
+
+#35397: Undeprecate and document urllib.parse.unwrap
+https://bugs.python.org/issue35397  closed by cheryl.sabella
+
+#35925: test_httplib test_nntplib test_ssl fail on ARMv7 Debian buster
+https://bugs.python.org/issue35925  closed by ned.deily
+
+#36204: Deprecate calling Py_Main() after Py_Initialize()? Add Py_Init
+https://bugs.python.org/issue36204  closed by vstinner
+
+#36271: '_io.TextIOWrapper' object has no attribute 'mode'
+https://bugs.python.org/issue36271  closed by berker.peksag
+
+#36540: PEP 570: Python Positional-Only Parameters
+https://bugs.python.org/issue36540  closed by pablogsal
+
+#36610: os.sendfile can return EINVAL on Solaris
+https://bugs.python.org/issue36610  closed by giampaolo.rodola
+
+#36686: Docs: asyncio.loop.subprocess_exec documentation is confusing,
+https://bugs.python.org/issue36686  closed by sbstp
+
+#36721: Add pkg-config python-3.8-embed and --embed to python3.8-confi
+https://bugs.python.org/issue36721  closed by vstinner
+
+#36739: "4.6. Defining Functions" should mention nonlocal
+https://bugs.python.org/issue36739  closed by Mariatta
+
+#36772: Let lru_cache be used as a decorator with no arguments
+https://bugs.python.org/issue36772  closed by rhettinger
+
+#36782: Add tests for the datetime C API
+https://bugs.python.org/issue36782  closed by vstinner
+
+#36794: asyncio.Lock documentation in Py3.8 lacks parts presented in d
+https://bugs.python.org/issue36794  closed by asvetlov
+
+#36809: Crash for test test_importlib
+https://bugs.python.org/issue36809  closed by vstinner
+
+#36829: Add sys.unraisablehook() to custom how "unraisable exceptions"
+https://bugs.python.org/issue36829  closed by vstinner
+
+#36840: Add stream.abort() async method
+https://bugs.python.org/issue36840  closed by asvetlov
+
+#36842: Implement PEP 578
+https://bugs.python.org/issue36842  closed by steve.dower
+
+#36843: AIX build fails with failure to get random numbers
+https://bugs.python.org/issue36843  closed by vstinner
+
+#36856: faulthandler._stack_overflow doesn't work on x86-linux with KP
+https://bugs.python.org/issue36856  closed by vstinner
+
+#36891: Additional startup plugin for vendors
+https://bugs.python.org/issue36891  closed by inada.naoki
+
+#36922: Implement Py_TPFLAGS_METHOD_DESCRIPTOR
+https://bugs.python.org/issue36922  closed by petr.viktorin
+
+#36933: sys.set_coroutine_wrapper documented as to be removed in 3.8 (
+https://bugs.python.org/issue36933  closed by asvetlov
+
+#36969: pdb.do_args: display keyword-only and positional only argument
+https://bugs.python.org/issue36969  closed by pablogsal
+
+#36983: typing.__all__ has drifted from actual contents
+https://bugs.python.org/issue36983  closed by gvanrossum
+
+#36996: unittest.mock.patch decorator doesn't work with async function
+https://bugs.python.org/issue36996  closed by asvetlov
+
+#36999: Expose the coroutine object in asyncio task objects
+https://bugs.python.org/issue36999  closed by asvetlov
+
+#37001: symtable.symtable doesn't accept bytes which leads to a mismat
+https://bugs.python.org/issue37001  closed by dino.viehland
+
+#37003: ast unparse does not support f-string new debug format.
+https://bugs.python.org/issue37003  closed by mbussonn
+
+#37007: Implement socket.if_{nametoindex,indextoname} for Windows
+https://bugs.python.org/issue37007  closed by steve.dower
+
+#37015: Fix asyncio mock warnings
+https://bugs.python.org/issue37015  closed by asvetlov
+
+#37017: Use LOAD_METHOD optimization in CallMethod C API functions
+https://bugs.python.org/issue37017  closed by inada.naoki
+
+#37021: Can _random.getrandbits() be converted to METH_FASTCALL?
+https://bugs.python.org/issue37021  closed by pablogsal
+
+#37023: test_gdb failed on AMD64 Debian PGO 3.x
+https://bugs.python.org/issue37023  closed by steve.dower
+
+#37027: Return a safe proxy over a socket from get_extra_info('socket'
+https://bugs.python.org/issue37027  closed by asvetlov
+
+#37028: Implement asyncio repl
+https://bugs.python.org/issue37028  closed by yselivanov
+
+#37032: Add CodeType.replace() method
+https://bugs.python.org/issue37032  closed by vstinner
+
+#37035: Don't log OSError exceptions in asyncio transports
+https://bugs.python.org/issue37035  closed by asvetlov
+
+#37045: Implement PEP 591: add Final qualifier and @final decorator to
+https://bugs.python.org/issue37045  closed by levkivskyi
+
+#37046: Implement PEP 586: add Literal type constructor to typing
+https://bugs.python.org/issue37046  closed by levkivskyi
+
+#37047: Refactor AsyncMock setup logic in create_autospec
+https://bugs.python.org/issue37047  closed by yselivanov
+
+#37049: Implement PEP 589: add TypedDict to typing
+https://bugs.python.org/issue37049  closed by levkivskyi
+
+#37050: Remove expr_text from ast node FormattedValue
+https://bugs.python.org/issue37050  closed by eric.smith
+
+#37051: Glossary item "hashable" incorrect
+https://bugs.python.org/issue37051  closed by rhettinger
+
+#37053: Tools/parser/unparse.py does not handle u"bar" correctly
+https://bugs.python.org/issue37053  closed by pablogsal
+
+#37054: Ignored exceptions in test_memoryio
+https://bugs.python.org/issue37054  closed by vstinner
+
+#37056: test_tools is failing on several buildbots
+https://bugs.python.org/issue37056  closed by levkivskyi
+
+#37057: suspicious.py sphinx extension access non-existing attribute.
+https://bugs.python.org/issue37057  closed by mbussonn
+
+#37058: Implement PEP 544: add Protocol to typing
+https://bugs.python.org/issue37058  closed by levkivskyi
+
+#37059: spam
+https://bugs.python.org/issue37059  closed by Mariatta
+
+#37061: The strangest glitch I have ever seen - incorrect indenterror,
+https://bugs.python.org/issue37061  closed by eric.smith
+
+#37065: File and lineno is not reported for syntax error in f-string
+https://bugs.python.org/issue37065  closed by SilentGhost
+
+#37066: os.execl opening a new bash shell doesn't work if initfile/rcf
+https://bugs.python.org/issue37066  closed by xtreak
+
+#37067: os.execl doesn't allow for empty string in mac
+https://bugs.python.org/issue37067  closed by ned.deily
+
+#37070: Clean up f-string debug handling, including potential memory l
+https://bugs.python.org/issue37070  closed by eric.smith
+
+#37072: PyNode_Compile() crashes in Python 3.8.
+https://bugs.python.org/issue37072  closed by gvanrossum
+
+#37076: _thread.start_new_thread(): call sys.unraisablehook() to handl
+https://bugs.python.org/issue37076  closed by vstinner
+
+#37078: spam
+https://bugs.python.org/issue37078  closed by xtreak
+
+#37079: PEM cadata causes ssl.SSLError: nested asn1 error
+https://bugs.python.org/issue37079  closed by christian.heimes
+
+#37092: LoggerAdapter doesn't have fatal() like Logger
+https://bugs.python.org/issue37092  closed by vinay.sajip
+
+#37094: Provide an example for TestCase.skipTest in unittest doc
+https://bugs.python.org/issue37094  closed by zach.ware
+
+#37099: test_inspect generates DeprecationWarning
+https://bugs.python.org/issue37099  closed by xtreak
+
+#37101: Filterer.filter can be rewritten using built-ins just as effic
+https://bugs.python.org/issue37101  closed by dwvisser
+
+#37104: logging.Logger.disabled is not documented
+https://bugs.python.org/issue37104  closed by vinay.sajip
+
+#37106: python re.escape doesn't escape some special characters.
+https://bugs.python.org/issue37106  closed by eric.smith
+
+#37108: Positional-only arguments break super()
+https://bugs.python.org/issue37108  closed by pablogsal
+
+#37109: Inacurrate documentation regarding return type of math.factori
+https://bugs.python.org/issue37109  closed by Antony.Lee
+
+#37111: Logging - Inconsistent behaviour when handling unicode
+https://bugs.python.org/issue37111  closed by vinay.sajip
+
+#37112: Error in compilig the AST for functions with optional position
+https://bugs.python.org/issue37112  closed by pablogsal
+
+#37113: '??'.upper() should return '???'
+https://bugs.python.org/issue37113  closed by SilentGhost
+
+#37114: lstrip remove extra characters in the presence of a matching n
+https://bugs.python.org/issue37114  closed by christian.heimes
+
+#37115: Support annotations in positional-only arguments
+https://bugs.python.org/issue37115  closed by pablogsal
+
+#1230540: Add threading.excepthook() to handle uncaught exceptions raise
+https://bugs.python.org/issue1230540  closed by vstinner
+
+#1195571: simple callback system for Py_FatalError
+https://bugs.python.org/issue1195571  closed by vstinner
+
+From tim.peters at gmail.com  Fri May 31 14:11:13 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Fri, 31 May 2019 13:11:13 -0500
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAEfz+TyYC=14N2vmAv__OBbf3ZHBS=X7H6JL81UoUOvi1ru6nA@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAExdVNky=MpntPfA9L7_mipAzX9-igYyOwFKNt0X+CpOMG_hNw@mail.gmail.com>
+ <CAExdVNn0W+FgKB2uubJ6pnXEbUk5=mLURtDiw-EABTMfMiKiyQ@mail.gmail.com>
+ <CAEfz+TyYC=14N2vmAv__OBbf3ZHBS=X7H6JL81UoUOvi1ru6nA@mail.gmail.com>
+Message-ID: <CAExdVNmV9CcWuBqh=8sHTVSfff2x-MzNUpaaBQ09mpOj7RdGQA@mail.gmail.com>
+
+[Tim]
+>> I'm keen to get feedback on this before merging the PR, because this
+>> case is so very much larger than anything I've ever tried that I'm
+>> wary that there may be more than one "surprise" lurking here. ...
+
+[Inada Naoki <songofacandy at gmail.com>]
+> I started r5a.4xlarge EC2 instance and started arena.py.
+> I will post the result in next 12 hours.
+
+Thank you!  Wrapping this up, Inada attached the results to the bug
+report.  For the OP's original big case, the time to reclaim the tree
+storage dropped from nearly 5 hours to about 70 seconds.  The time to
+build the tree didn't materially change (it was a bit faster after the
+patch, but offhand didn't look significantly faster to me).
+
+Since I called this a "design flaw" rather than "a bug", I'm not
+inclined to backport it.  If someone else thinks it should be, that's
+up to them.  I'm _assuming_ Github won't decide to backport it on its
+own - but maybe I'm wrong (Github workflow is still pretty magical to
+me).
+
+From brett at python.org  Fri May 31 14:21:20 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 31 May 2019 11:21:20 -0700
+Subject: [Python-Dev] PEP 595: Improving bugs.python.org
+In-Reply-To: <20190531102224.0bf2229f@fsol>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+ <20190531102224.0bf2229f@fsol>
+Message-ID: <CAP1=2W7xLVNQRcqTSzk_Et2=u-YTeEPb0UvR_2ZEJhmxv1QzOg@mail.gmail.com>
+
+On Fri, May 31, 2019 at 1:23 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+>
+> I second this.
+>
+> There are currently ~7000 bugs open on bugs.python.org.  The Web UI
+> makes a good job of actually being able to navigate through these bugs,
+> search through them, etc.
+>
+> Did the Steering Council conduct a usability study of Github Issues
+> with those ~7000 bugs open?
+
+
+What I can personally speak to is I work on
+https://github.com/microsoft/vscode-python for a living and we're at 928
+issues. I also interact with and know the team behind
+https://github.com/microsoft/vscode at 5,439 issues.
+https://github.com/rust-lang/rust/ is as 4,806. https://github.com/golang/go
+is at 4,467.
+
+Whether it's 928 or 5,439, to me both numbers are well beyond being small
+enough to remember everything in the repo and having to rely on search,
+labels, etc. to find anything and it's worked out for me and my team at
+work. The VS Code team has also never told me that they were unhappy with
+GitHub for their issue tracker at their scale either (I've chatted to them
+about their automatic classification bot and they just gave an internal
+talk on how they manage the project).
+
+-Brett
+
+
+>   If not, then I think the acceptance of
+> migrating to Github is a rushed job.  Please reconsider.
+>
+> Regards
+>
+> Antoine.
+>
+>
+>
+> On Thu, 23 May 2019 22:17:24 +0200
+> Ezio Melotti <ezio.melotti at gmail.com> wrote:
+> > Hello,
+> > Berker and I have been working on a PEP that suggests we keep using
+> > and improving bugs.python.org and Roundup instead of switching to
+> > GitHub Issues as proposed by PEP 581.
+> >
+> > The PEP covers:
+> > * What are the advantages of Roundup over GitHub issues;
+> > * What features are missing in Roundup and how can we add them;
+> > * Issues with PEP 581;
+> > * Issues with the migration plan proposed by PEP 588;
+> >
+> > The rendered version of PEP 595 is available at
+> > https://www.python.org/dev/peps/pep-0595/
+> >
+> > For reference, you can consult PEP 581 and 588 at
+> > https://www.python.org/dev/peps/pep-0581/ and
+> > https://www.python.org/dev/peps/pep-0588/
+> >
+> > The full text of the PEP is include below.  We are planning to update
+> > the PEP to include the feedback we receive and to update the status of
+> > features as we implement them (we also have a Google Summer of Code
+> > students working on it).
+> >
+> > Best Regards,
+> > Ezio Melotti
+> >
+> >
+> > ================
+> > PEP: 595
+> > Title: Improving bugs.python.org
+> > Author: Ezio Melotti <ezio.melotti at gmail.com>, Berker Peksag
+> > <berker.peksag at gmail.com>
+> > Status: Draft
+> > Type: Process
+> > Content-Type: text/x-rst
+> > Created: 12-May-2019
+> >
+> >
+> > Abstract
+> > ========
+> >
+> > This PEP proposes a list of improvements to make bugs.python.org
+> > more usable for contributors and core developers.  This PEP also
+> > discusses why remaining on Roundup should be preferred over
+> > switching to GitHub Issues, as proposed by :pep:`581`.
+> >
+> >
+> > Motivation
+> > ==========
+> >
+> > On May 14th, 2019 :pep:`581` has been accepted [#]_ without much
+> > public discussion and without a clear consensus [#]_.  The PEP
+> > contains factual errors and doesn't address some of the
+> > issues that the migration to GitHub Issues might present.
+> >
+> > Given the scope of the migration, the amount of work required,
+> > and how it will negatively affect the workflow during the
+> > transition phase, this decision should be re-evaluated.
+> >
+> >
+> > Roundup advantages over GitHub Issues
+> > =====================================
+> >
+> > This section discusses reasons why Roundup should be preferred
+> > over GitHub Issues and Roundup features that are not available
+> > on GitHub Issues.
+> >
+> > * **Roundup is the status quo.**  Roundup has been an integral
+> >   part of the CPython workflow for years.  It is a stable product
+> >   that has been tested and customized to adapt to our needs as the
+> >   workflow evolved.
+> >
+> >   It is possible to gradually improve it and avoid the disruption
+> >   that a switch to a different system would inevitabily bring to
+> >   the workflow.
+> >
+> > * **Open-source and Python powered.**  Roundup is an open-source
+> >   project and is written in Python.  By using it and supporting
+> >   it, we also support the Python ecosystem.  Several features
+> >   developed for bpo have also been ported to upstream Roundup
+> >   over the years.
+> >
+> > * **Fully customizable.**  Roundup can be (and has been) fully
+> >   customized to fit our needs.
+> >
+> > * **Finer-grained access control.**  Roundup allows the creation
+> >   of different roles with different permissions (e.g. create,
+> >   view, edit, etc.) for each individual property, and users can
+> >   have multiple roles.
+> >
+> > * **Flexible UI.**  While Roundup UI might look dated, it is
+> >   convenient and flexible.
+> >
+> >   For example, on the issue page, each field (e.g. title, type,
+> >   versions, status, linked files and PRs, etc.) have appropriate
+> >   UI elements (input boxes, dropdowns, tables, etc.) that are
+> >   easy to set and also provide a convenient way to get info about
+> >   the issue at a glance.  The number of fields, their values, and
+> >   the UI element they use is also fully customizable.
+> >   GitHub only provides labels.
+> >
+> >   The issue list page presents the issues in a compact and easy
+> >   to read table with separate columns for different fields.  For
+> >   comparison, Roundup lists 50 issues in a screen, whereas GitHub
+> >   takes two screens to shows 25 issues.
+> >
+> > * **Advanced search.**  Roundup provides an accurate way to search
+> >   and filter by using any combination of issue fields.
+> >   It is also possible to customize the number of results and the
+> >   fields displayed in the table, and the sorting and grouping
+> >   (up to two levels).
+> >
+> >   bpo also provides predefined summaries (e.g. "Created by you",
+> >   "Assigned to you", etc.) and allows the creation of custom
+> >   search queries that can be conveniently accessed from the sidebar.
+> >
+> > * **Nosy list autocomplete.**  The nosy list has an autocomplete
+> >   feature that suggests maintainers and experts.  The suggestions
+> >   are automatically updated when the experts index [#]_ changes.
+> >
+> > * **Dependencies and Superseders.** Roundup allows to specify
+> >   dependencies that must be addressed before the current issues
+> >   can be closed and a superseder issue to easily mark duplicates
+> >   [#]_.  The list of dependencies can also be used to create
+> >   meta-issues that references several other sub-issues [#]_.
+> >
+> >
+> > Improving Roundup
+> > =================
+> >
+> > This section lists some of the issues mentioned by :pep:`581`
+> > and other desired features and discusses how they can be implemented
+> > by improving Roundup and/or our instance.
+> >
+> > * **REST API support.**  A REST API will make integration with other
+> >   services and the development of new tools and applications easiers.
+> >
+> >   Upstream Roundup now supports a REST API. Updating the tracker will
+> >   make the REST API available.
+> >
+> > * **GitHub login support.**  This will allow users to login
+> >   to bugs.python.org (bpo) without having to create a new account.
+> >   It will also solve issues with confirmation emails being marked
+> >   as spam, and provide two-factor authentication.
+> >
+> >   A patch to add this functionality is already available and is
+> >   being integrated at the time of writing [#]_.
+> >
+> > * **Markdown support and message preview and editing.**  This feature
+> >   will allow the use of Markdown in messages and the ability to
+> >   preview the message before the submission and edit it afterward.
+> >
+> >   This can be done, but it will take some work.  Possible solutions
+> >   have been proposed on the roundup-devel mailing list [#]_.
+> >
+> > * **"Remove me from nosy list" button.**  Add a button on issue pages
+> >   to remove self from the nosy list.
+> >
+> >   This feature will be added during GSoC 2019.
+> >
+> > * **Mobile friendly theme.**  Current theme of bugs.python.org looks
+> >   dated and it doesn't work well with mobile browsers.
+> >
+> >   A mobile-friendly theme that is more modern but still familiar
+> >   will be added.
+> >
+> > * **Add PR link to BPO emails.**  Currently bpo emails don't include
+> >   links to the corresponding PRs.
+> >
+> >   A patch [#]_ is available to change the content of the bpo emails
+> >   from::
+> >
+> >      components: +Tkinter
+> >      versions: +Python 3.4
+> >      pull_requests: +42
+> >
+> >   to::
+> >
+> >      components: +Tkinter
+> >      versions: +Python 3.4
+> >      pull_request: https://github.com/python/cpython/pull/341
+> >
+> > * **Python 3 support.**  Using Python 3 will make maintenance easier.
+> >
+> >   Upstream Roundup now supports Python 3. Updating the tracker will
+> >   allow us to switch to Python 3.  The instances will need to be
+> >   updated as well.
+> >
+> > * **Use upstream Roundup.**  We currently use a fork of Roundup with
+> >   a few modifications, most notably the GitHub integration.  If this
+> >   is ported upstream, we can start using upstream Roundup without
+> >   having to maintain our fork.
+> >
+> >
+> > PEP 581 issues
+> > ==============
+> >
+> > This section addresses some errors and inaccuracies found in :pep:`581`.
+> >
+> > The "Why GitHub?" section of PEP 581 lists features currently
+> > available on GitHub Issues but not on Roundup.  Some of this features
+> > are currently supported:
+> >
+> > * "Ability to reply to issue and pull request conversations via email."
+> >
+> >   * Being able to reply by email has been one of the core features of
+> >     Roundup since the beginning.  It is also possible to create new
+> >     issues or close existing ones, set or modify fields, and add
+> >     attachments.
+> >
+> > * "Email notifications containing metadata, integrated with Gmail,
+> >   allowing systematic filtering of emails."
+> >
+> >   * Emails sent by Roundup contains metadata that can be used for
+> >     filtering.
+> >
+> > * "Additional privacy, such as offering the user a choice to hide an
+> >   email address, while still allowing communication with the user
+> >   through @-mentions."
+> >
+> >   * Email addresses are hidden by default to users that are not
+> >     registered.  Registered users can see other users' addresses
+> >     because we configured the tracker to show them.  It can easily
+> >     be changed if desired.  Users can still be added to the nosy
+> >     list by using their username even if their address is hidden.
+> >
+> > * "Ability to automatically close issues when a PR has been merged."
+> >
+> >   * The GitHub integration of Roundup automatically closes issues
+> >     when a commit that contains "fixes issue <id>" is merged.
+> >     (Alternative spellings such as "closes" or "bug" are also supported.)
+> >     See [#]_ for a recent example of this feature.
+> >
+> > * "Support for permalinks, allowing easy quoting and copying &
+> >   pasting of source code."
+> >
+> >   * Roundup has permalinks for issues, messages, attachments, etc.
+> >     In addition, Roundup allows to easily rewrite broken URLs in
+> >     messages (e.g. if the code hosting changes).
+> >
+> > * "Core developers, volunteers, and the PSF don't have to maintain the
+> >   issue infrastructure/site, giving us more time and resources to focus
+> >   on the development of Python."
+> >
+> >   * While this is partially true, additional resources are required to
+> >     write and maintain bots.
+> >
+> >     In some cases, bots are required to workaround GitHub's lack of
+> >     features rather than expanding. [#]_ was written
+> >     specifically to workaround GitHub's email integration.
+> >
+> >     Updating our bots to stay up-to-date with changes in the GitHub API
+> >     has also maintenance cost. [#]_ took two days to be fixed.
+> >
+> >     In addition, we will still need to maintain Roundup for bpo (even
+> >     if it becomes read-only) and for the other trackers
+> >     we currently host/maintain (Jython [#]_ and Roundup [#]_).
+> >
+> > The "Issues with Roundup / bpo" section of :pep:`581` lists some issues
+> > that have already been fixed:
+> >
+> > * "The upstream Roundup code is in Mercurial. Without any CI available,
+> >   it puts heavy burden on the few existing maintainers in terms of
+> >   reviewing, testing, and applying patches."
+> >
+> >   * While Roundup uses Mercurial by default, there is a git clone
+> >     available on GitHub [#]_.  Roundup also has CI available [#]_ [#]_.
+> >
+> > * "There is no REST API available. There is an open issue in Roundup for
+> >   adding REST API. Last activity was in 2016."
+> >
+> >   * The REST API has been integrated and it's now available in Roundup.
+> >
+> > * "Users email addresses are exposed. There is no option to mask it."
+> >
+> >   * Exposing addresses to registered and logged in users was a decision
+> >     taken when our instance was set up.
+> >
+> >     This has now been changed to make the email addresses hidden for
+> >     regular users too (Developers and Coordinators can still see them).
+> >     The "Email address"" column from the user listing page [#]_ has been
+> >     removed too.
+> >
+> > * "It sends a number of unnecessary emails and notifications, and it is
+> >   difficult, if not impossible, to configure."
+> >
+> >   * This can be configured.
+> >
+> > * "Creating an account has been a hassle. There have been reports of
+> people
+> >   having trouble creating accounts or logging in."
+> >
+> >   * The main issue is confirmation emails being marked as spam.  Work has
+> >     been done to resolve the issue.
+> >
+> > Migration considerations
+> > ========================
+> >
+> > This section describes issues with the migrations that might not
+> > have been addressed by :pep:`581` and :pep:`588`.
+> >
+> > :pep:`588` suggests to add a button to migrate issues to GitHub
+> > only when someone wants to keep working on them.  This approach
+> > has several issues:
+> >
+> > * bpo will need to be updated in order to add a button that,
+> >   once pressed, creates a new issue on GitHub, copies over all
+> >   the messages, attachments, and creates/adds label for the
+> >   existing fields.  Permissions will also need to be tweaked
+> >   to make individual issues read-only once they are migrated,
+> >   and to prevent users to create new accounts.
+> >
+> > * The issues will be split between two trackers; searching issues
+> >   will take significant more effort.
+> >
+> > * The conversion from Roundup to GitHub is lossy, unless all
+> >   the bpo fields are converted into labels or preserved somewhere
+> >   else.
+> >
+> > * bpo converts a number of references into links, including
+> >   issue, message, and PR IDs, changeset numbers, legacy SVN
+> >   revision numbers, paths to files in the repo, files in
+> >   tracebacks (detecting the correct branch), links to devguide
+> >   pages and sections [#]_.  This happens when messages are
+> >   requested so it is possible to create the correct link (e.g.
+> >   all the file links used to point to hg.python.org and now
+> >   point to GitHub).
+> >
+> >   If the links are hardcoded during the migration, it will be
+> >   difficult (if not impossible) to change them later.  If they
+> >   aren't, they will either be lost, or a tool to generate the
+> >   links and updating them will need to be written.
+> >
+> > * GitHub doesn't provide a way to set and preserve issue IDs
+> >   if they are migrated automatically with the use of a button.
+> >   (Some projects managed to preserve the IDs by contaacting
+> >   the GitHub staff and migrating the issues *en masse*.)
+> >
+> > * On top of the work and changes required to migrate to GitHub
+> >   issues, we will still need to keep running and maintaining
+> >   Roundup, for both our instance (read-only) and for the Jython
+> >   and Roundup trackers (read-write).
+> >
+> >
+> > In addition to the issues listed in the "Open issues" section of
+> > :pep:`588`, this issues will need to be addressed:
+> >
+> > * GitHub is properietary and there is risk of vendor lock-in.
+> >   Their business model might change and they could shut down
+> >   altogether.
+> >
+> > * Switching to GitHub Issues will likely increase the number of
+> >   invalid reports and increase the triaging effort.  This concern
+> >   has been raised in the past in a Zulip topic [#]_.
+> >
+> >   There have been already cases where people posted comments on
+> >   PRs that required moderators to mark them as off-topic or
+> >   disruptive, delete them altogether, and even lock the
+> >   conversation [#]_.
+> >
+> > * Roundup sends weekly reports to python-dev with a summary that
+> >   includes new issues, recent issues with no replies, recent
+> >   issues waiting for review, most discussed issues, closed issues,
+> >   and deltas for open/closed/total issue counts [#]_.  The report
+> >   provides an easy way to keep track of the tracker activity and
+> >   to make sure that issues that require attention are noticed.
+> >
+> >   The data collect by the weekly report is also use to generate
+> >   statistics and graphs that can be used to gain new insights [#]_.
+> >
+> > * There are currently two mailing lists where Roundup posts new
+> >   tracker issues and all messages respectively: new-bugs-announce
+> >   [#]_ and python-bugs-list [#]_.  A new system will need to be
+> >   developed to preserve this functionality.  These MLs offer
+> >   additional ways to keep track of the tracker activity.
+> >
+> >
+> > References
+> > ==========
+> >
+> > .. [#] [Python-Dev] PEP 581 (Using GitHub issues for CPython) is accepted
+> >
+> >    https://mail.python.org/pipermail/python-dev/2019-May/157399.html
+> >
+> > .. [#] [python-committers] [Python-Dev] PEP 581 (Using GitHub issues
+> >    for CPython) is accepted
+> >
+> >
+> https://mail.python.org/pipermail/python-committers/2019-May/006755.html
+> >
+> > .. [#] Experts Index -- Python Devguide
+> >
+> >    https://devguide.python.org/experts/
+> >
+> > .. [#] An example of superseded issues:
+> >    "re.sub() replaces only several matches"
+> >
+> >    https://bugs.python.org/issue12078
+> >
+> > .. [#] An example of meta issue using dependencies to track sub-issues:
+> >    "Meta-issue: support of the android platform""
+> >
+> >    https://bugs.python.org/issue26865
+> >
+> > .. [#] Support logging in with GitHub
+> >
+> >    https://github.com/python/bugs.python.org/issues/7
+> >
+> > .. [#] Re: [Roundup-devel] PEP 581 and Google Summer of Code
+> >
+> >    https://sourceforge.net/p/roundup/mailman/message/36667828/
+> >
+> > .. [#] [Tracker-discuss] [issue624] bpo emails contain useless non-github
+> >        pull_request number - users want a link to actual github PR
+> >
+> >
+> https://mail.python.org/pipermail/tracker-discuss/2018-June/004547.html
+> >
+> > .. [#] The commit reported in msg342882 closes the issue (see the
+> history below)
+> >
+> >    https://bugs.python.org/issue36951#msg342882
+> >
+> > .. [#] The cpython-emailer-webhook project
+> >
+> >    https://github.com/berkerpeksag/cpython-emailer-webhook
+> >
+> > .. [#] A recent incident caused by GitHub
+> >
+> >    https://github.com/python/bedevere/pull/163
+> >
+> > .. [#] Jython issue tracker
+> >
+> >    https://bugs.jython.org/
+> >
+> > .. [#] Roundup issue tracker
+> >
+> >    https://issues.roundup-tracker.org/
+> >
+> > .. [#] GitHub clone of Roundup
+> >
+> >    https://github.com/roundup-tracker/roundup
+> >
+> > .. [#] Travis-CI for Roundup
+> >
+> >    https://travis-ci.org/roundup-tracker/roundup) and codecov
+> >
+> > .. [#] Codecov for Roundup
+> >
+> >    https://codecov.io/gh/roundup-tracker/roundup/commits
+> >
+> > .. [#] User listing -- Python tracker
+> >
+> >    https://bugs.python.org/user?@sort=username
+> >
+> > .. [#] Generating Special Links in a Comment -- Python Devguide
+> >
+> >
+> https://devguide.python.org/triaging/#generating-special-links-in-a-comment
+> >
+> > .. [#] The New-bugs-announce mailing list
+> >
+> >    https://mail.python.org/mailman/listinfo/new-bugs-announce
+> >
+> > .. [#] The Python-bugs-list mailing list
+> >
+> >    https://mail.python.org/mailman/listinfo/python-bugs-list
+> >
+> > .. [#] An example of [Python-Dev] Summary of Python tracker Issues
+> >
+> >    https://mail.python.org/pipermail/python-dev/2019-May/157483.html
+> >
+> > .. [#] Issues stats -- Python tracker
+> >
+> >    https://bugs.python.org/issue?@template=stats
+> >
+> > .. [#] s/n ratio -- Python -- Zulip
+> >
+> >
+> https://python.zulipchat.com/#narrow/stream/130206-pep581/topic/s.2Fn.20ratio
+> >
+> > .. [#] For example this and other related PRs:
+> >
+> >    https://github.com/python/cpython/pull/9099
+> >
+> >
+> > Copyright
+> > =========
+> >
+> > This document has been placed in the public domain.
+> >
+> > ..
+> >    Local Variables:
+> >    mode: indented-text
+> >    indent-tabs-mode: nil
+> >    sentence-end-double-space: t
+> >    fill-column: 70
+> >    coding: utf-8
+> >    End:
+>
+>
+>
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe:
+> https://mail.python.org/mailman/options/python-dev/brett%40python.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190531/7b033179/attachment-0001.html>
+
+From barry at python.org  Fri May 31 14:38:35 2019
+From: barry at python.org (Barry Warsaw)
+Date: Fri, 31 May 2019 11:38:35 -0700
+Subject: [Python-Dev] PEP 595: Improving bugs.python.org
+In-Reply-To: <20190531102224.0bf2229f@fsol>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+ <20190531102224.0bf2229f@fsol>
+Message-ID: <43AB66F6-37CA-475F-BE78-E3D1FA726F43@python.org>
+
+On May 31, 2019, at 01:22, Antoine Pitrou <solipsis at pitrou.net> wrote:
+
+> I second this.
+> 
+> There are currently ~7000 bugs open on bugs.python.org.  The Web UI
+> makes a good job of actually being able to navigate through these bugs,
+> search through them, etc.
+> 
+> Did the Steering Council conduct a usability study of Github Issues
+> with those ~7000 bugs open?  If not, then I think the acceptance of
+> migrating to Github is a rushed job.  Please reconsider.
+
+Thanks for your feedback Antoine.
+
+This is a tricky issue, with many factors and tradeoffs to consider.  I really appreciate Ezio and Berker working on PEP 595, so we can put all these issues on the table.
+
+I think one of the most important tradeoffs is balancing the needs of existing developers (those who actively triage bugs today), and future contributors.  But this and other UX issues are difficult to compare on our actual data right now.  I fully expect that just as with the switch to git, we?ll do lots of sample imports and prototyping to ensure that GitHub issues will actually work for us (given our unique requirements), and to help achieve the proper balance.  It does us no good to switch if we just anger all the existing devs.
+
+IMHO, if the switch to GH doesn?t improve our workflow, then it definitely warrants a reevaluation.  I think things will be better, but let?s prove it.
+
+-Barry
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: Message signed with OpenPGP
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190531/7ed5f313/attachment.sig>
+
+From njs at pobox.com  Fri May 31 14:58:22 2019
+From: njs at pobox.com (Nathaniel Smith)
+Date: Fri, 31 May 2019 11:58:22 -0700
+Subject: [Python-Dev] PEP 595: Improving bugs.python.org
+In-Reply-To: <43AB66F6-37CA-475F-BE78-E3D1FA726F43@python.org>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+ <20190531102224.0bf2229f@fsol>
+ <43AB66F6-37CA-475F-BE78-E3D1FA726F43@python.org>
+Message-ID: <CAPJVwBnUT0feD2WujgnkBQrpZNDDfa4QB7UooniV56hedvMiBQ@mail.gmail.com>
+
+On Fri, May 31, 2019 at 11:39 AM Barry Warsaw <barry at python.org> wrote:
+>
+> On May 31, 2019, at 01:22, Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+> > I second this.
+> >
+> > There are currently ~7000 bugs open on bugs.python.org.  The Web UI
+> > makes a good job of actually being able to navigate through these bugs,
+> > search through them, etc.
+> >
+> > Did the Steering Council conduct a usability study of Github Issues
+> > with those ~7000 bugs open?  If not, then I think the acceptance of
+> > migrating to Github is a rushed job.  Please reconsider.
+>
+> Thanks for your feedback Antoine.
+>
+> This is a tricky issue, with many factors and tradeoffs to consider.  I really appreciate Ezio and Berker working on PEP 595, so we can put all these issues on the table.
+>
+> I think one of the most important tradeoffs is balancing the needs of existing developers (those who actively triage bugs today), and future contributors.  But this and other UX issues are difficult to compare on our actual data right now.  I fully expect that just as with the switch to git, we?ll do lots of sample imports and prototyping to ensure that GitHub issues will actually work for us (given our unique requirements), and to help achieve the proper balance.  It does us no good to switch if we just anger all the existing devs.
+>
+> IMHO, if the switch to GH doesn?t improve our workflow, then it definitely warrants a reevaluation.  I think things will be better, but let?s prove it.
+
+Perhaps we should put an explicit step on the transition plan, after
+the prototyping, that's "gather feedback from prototypes, re-evaluate,
+make final go/no-go decision"? I assume we'll want to do that anyway,
+and having it formally written down might reassure people. It might
+also encourage more people to actually try out the prototypes if we
+make it very clear that they're going to be asked for feedback.
+
+-n
+
+-- 
+Nathaniel J. Smith -- https://vorpus.org
+
+From willingc at gmail.com  Fri May 31 15:39:41 2019
+From: willingc at gmail.com (Carol Willing)
+Date: Fri, 31 May 2019 12:39:41 -0700
+Subject: [Python-Dev] PEP 595: Improving bugs.python.org
+In-Reply-To: <CAPJVwBnUT0feD2WujgnkBQrpZNDDfa4QB7UooniV56hedvMiBQ@mail.gmail.com>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+ <20190531102224.0bf2229f@fsol>
+ <43AB66F6-37CA-475F-BE78-E3D1FA726F43@python.org>
+ <CAPJVwBnUT0feD2WujgnkBQrpZNDDfa4QB7UooniV56hedvMiBQ@mail.gmail.com>
+Message-ID: <ac9eb3b9-0884-3507-ab3c-be2b38079298@gmail.com>
+
+
+
+Nathaniel Smith wrote:
+>
+> On Fri, May 31, 2019 at 11:39 AM Barry Warsaw <barry at python.org> wrote:
+>>
+>>
+>> On May 31, 2019, at 01:22, Antoine Pitrou <solipsis at pitrou.net> wrote:
+>>
+>>>
+>>> I second this.
+>>>
+>>> There are currently ~7000 bugs open on bugs.python.org.? The Web UI
+>>> makes a good job of actually being able to navigate through these bugs,
+>>> search through them, etc.
+>>>
+>>> Did the Steering Council conduct a usability study of Github Issues
+>>> with those ~7000 bugs open?? If not, then I think the acceptance of
+>>> migrating to Github is a rushed job.? Please reconsider.
+>>
+>>
+>
+
+
+>
+>>
+>> Thanks for your feedback Antoine.
+>>
+>> This is a tricky issue, with many factors and tradeoffs to consider.? 
+>> I really appreciate Ezio and Berker working on PEP 595, so we can put 
+>> all these issues on the table.
+>>
+>> I think one of the most important tradeoffs is balancing the needs of 
+>> existing developers (those who actively triage bugs today), and 
+>> future contributors.? But this and other UX issues are difficult to 
+>> compare on our actual data right now.? I fully expect that just as 
+>> with the switch to git, we?ll do lots of sample imports and 
+>> prototyping to ensure that GitHub issues will actually work for us 
+>> (given our unique requirements), and to help achieve the proper 
+>> balance.? It does us no good to switch if we just anger all the 
+>> existing devs.
+>>
+>> IMHO, if the switch to GH doesn?t improve our workflow, then it 
+>> definitely warrants a reevaluation.? I think things will be better, 
+>> but let?s prove it.
+>
+>
+> Perhaps we should put an explicit step on the transition plan, after
+> the prototyping, that's "gather feedback from prototypes, re-evaluate,
+> make final go/no-go decision"? I assume we'll want to do that anyway,
+> and having it formally written down might reassure people. It might
+> also encourage more people to actually try out the prototypes if we
+> make it very clear that they're going to be asked for feedback.
+>
+> -n
+>
+
+
+As Barry mentioned, there are many considerations.
+
+- Will GitHub provide a similar experience as bpo? Can the features 
+valued by existing developers be served in a suitable way by GitHub issues?
+- What opportunity costs exist for remaining on bpo? Planning, 
+reporting, integration with services, and accessibility are some.
+- Chicken and egg question: Are there 7000 open issues because the 
+existing workflow with bpo inhibits acting on open issues with patches?
+
+Antoine, as for large projects on GitHub with many issues, TypeScript is 
+a reasonable proxy with close to 4000 open issues yet only 126 open PRs. 
+There are some nice planning things that have been done in the repo 
+https://github.com/microsoft/TypeScript/issues as well as good 
+documentation around their process and workflow.
+
+Thanks to Ezio and Berker for raising points in PEP 595.
+
+- Carol
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190531/d8c9b4b2/attachment.html>
+
+From brett at python.org  Fri May 31 16:11:52 2019
+From: brett at python.org (Brett Cannon)
+Date: Fri, 31 May 2019 13:11:52 -0700
+Subject: [Python-Dev] Have a big machine and spare time? Here's a
+ possible Python bug.
+In-Reply-To: <CAExdVNmV9CcWuBqh=8sHTVSfff2x-MzNUpaaBQ09mpOj7RdGQA@mail.gmail.com>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAExdVNky=MpntPfA9L7_mipAzX9-igYyOwFKNt0X+CpOMG_hNw@mail.gmail.com>
+ <CAExdVNn0W+FgKB2uubJ6pnXEbUk5=mLURtDiw-EABTMfMiKiyQ@mail.gmail.com>
+ <CAEfz+TyYC=14N2vmAv__OBbf3ZHBS=X7H6JL81UoUOvi1ru6nA@mail.gmail.com>
+ <CAExdVNmV9CcWuBqh=8sHTVSfff2x-MzNUpaaBQ09mpOj7RdGQA@mail.gmail.com>
+Message-ID: <CAP1=2W5xokSWE_Y8VDP2j78v3kjKK8PZE3h-KxQKYZSFckq7tw@mail.gmail.com>
+
+On Fri, May 31, 2019 at 11:12 AM Tim Peters <tim.peters at gmail.com> wrote:
+
+> [Tim]
+> >> I'm keen to get feedback on this before merging the PR, because this
+> >> case is so very much larger than anything I've ever tried that I'm
+> >> wary that there may be more than one "surprise" lurking here. ...
+>
+> [Inada Naoki <songofacandy at gmail.com>]
+> > I started r5a.4xlarge EC2 instance and started arena.py.
+> > I will post the result in next 12 hours.
+>
+> Thank you!  Wrapping this up, Inada attached the results to the bug
+> report.  For the OP's original big case, the time to reclaim the tree
+> storage dropped from nearly 5 hours to about 70 seconds.  The time to
+> build the tree didn't materially change (it was a bit faster after the
+> patch, but offhand didn't look significantly faster to me).
+>
+> Since I called this a "design flaw" rather than "a bug", I'm not
+> inclined to backport it.  If someone else thinks it should be, that's
+> up to them.  I'm _assuming_ Github won't decide to backport it on its
+> own - but maybe I'm wrong (Github workflow is still pretty magical to
+> me).
+>
+
+Backports only happen if you add the appropriate labels to the PR itself
+(and if that wasn't clear from the devguide then please open an issue so we
+can fix that oversight).
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190531/fe4fe454/attachment.html>
+
+From hodgestar+pythondev at gmail.com  Fri May 31 17:28:42 2019
+From: hodgestar+pythondev at gmail.com (Simon Cross)
+Date: Fri, 31 May 2019 23:28:42 +0200
+Subject: [Python-Dev] Expected stability of PyCode_New() and
+ types.CodeType() signatures
+In-Reply-To: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+References: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+Message-ID: <CAD5NRCFiQrBAezakJ6B93WGuPuPybp+s1ODahQYdcp5owSd9jw@mail.gmail.com>
+
+As the maintainer of Genshi, one the libraries affected by the CodeType and
+similar changes, I thought I could add a users perspective to the
+discussion:
+
+Genshi is a templating engine that parses Python code from inside its
+templates. It supports Python 2.6+, 3.2+, pypy2 and pypy3. It parses Python
+using compile(...) and then walks the AST to, for example, translate
+variable lookups into template context lookups.
+
+Pretty much every major release of Python has broken Genshi's Python
+parsing in some way. While on the one hand this is a bit annoying, I also
+don't want Python to stop evolving where it makes sense.
+
+My requests to core developers are largely pragmatic:
+
+* Try not to change things unless there's a good reason to (i.e. it makes
+Python better).
+* Don't try declare that these things shouldn't be used (there is not much
+I can do about that now).
+* Do warn people that these things evolve with the language.
+* If changes do happen, try make them visible and give a clear description
+of what has changed.
+
+Also many thanks to the core developers who've submitted patches to update
+Genshi in the past -- that was awesome of you.
+
+The new CodeType.replace will remove some potential sources of breakages in
+the future, so thank you very much for adding that.
+
+Schiavo
+Simon
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190531/1800d427/attachment.html>
+
+From steve.dower at python.org  Fri May 31 12:37:39 2019
+From: steve.dower at python.org (Steve Dower)
+Date: Fri, 31 May 2019 09:37:39 -0700
+Subject: [Python-Dev] PEP 590: vectorcall without tp_call
+In-Reply-To: <e2e5cbd6-5ad0-9343-9c65-900835081263@gmail.com>
+References: <5CEE7A35.3000106@UGent.be>
+ <4554973e-385a-fefa-18ff-ef1fe13d509c@gmail.com> <5CEE8AFB.7010808@UGent.be>
+ <e2e5cbd6-5ad0-9343-9c65-900835081263@gmail.com>
+Message-ID: <69c7f252-1a23-56fc-6b78-007dadc2fca9@python.org>
+
+On 29May2019 1311, Petr Viktorin wrote:
+> On 5/29/19 3:36 PM, Jeroen Demeyer wrote:
+>> On 2019-05-29 15:29, Petr Viktorin wrote:
+>>> That sounds like a good idea for PyType_FromSpec.
+>>
+>> I don't think we're planning to support vectorcall in PyType_FromSpec 
+>> for now. That's maybe for 3.9 when vectorcall is no longer provisional.
+>>
+>>> For static types I either wouldn't bother at all, or only check in debug
+>>> builds and fail with Py_FatalError.
+>>
+>> So basically an assert(...)?
+> 
+> Yes. That's the usual way to let C extension authors know they did 
+> something wrong.
+
+It's the usual way to let core developers know they did something wrong :)
+
+I don't want to reignite the whole debug/release extension build debate 
+again, but I'll point out that it's very common to develop extension 
+modules against the release binaries on Windows, which means you won't 
+see asserts coming from core (because they've been optimised out). So if 
+this is something we're going to detect at runtime regardless of build, 
+using Py_FatalError/abort or raising a SystemError is preferable. 
+Otherwise we'll be forcing users to debug a segfault.
+
+Cheers,
+Steve
+
+From tjreedy at udel.edu  Fri May 31 18:29:10 2019
+From: tjreedy at udel.edu (Terry Reedy)
+Date: Fri, 31 May 2019 18:29:10 -0400
+Subject: [Python-Dev] Expected stability of PyCode_New() and
+ types.CodeType() signatures
+In-Reply-To: <CAD5NRCFiQrBAezakJ6B93WGuPuPybp+s1ODahQYdcp5owSd9jw@mail.gmail.com>
+References: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+ <CAD5NRCFiQrBAezakJ6B93WGuPuPybp+s1ODahQYdcp5owSd9jw@mail.gmail.com>
+Message-ID: <qcs9ro$3649$1@blaine.gmane.org>
+
+On 5/31/2019 5:28 PM, Simon Cross wrote:
+> As the maintainer of Genshi, one the libraries affected by the CodeType 
+> and similar changes, I thought I could add a users perspective to the 
+> discussion:
+> 
+> Genshi is a templating engine that parses Python code from inside its 
+> templates. It supports Python 2.6+, 3.2+, pypy2 and pypy3. It parses 
+> Python using compile(...) and then walks the AST to, for example, 
+> translate variable lookups into template context lookups.
+> 
+> Pretty much every major release of Python has broken Genshi's Python 
+> parsing in some way. While on the one hand this is a bit annoying, I 
+> also don't want Python to stop evolving where it makes sense.
+> 
+> My requests to core developers are largely pragmatic:
+> 
+> * Try not to change things unless there's a good reason to (i.e. it 
+> makes Python better).
+
+We try not to.  There is already too much work.
+
+> * Don't try declare that these things shouldn't be used (there is not 
+> much I can do about that now).
+
+That was removed from the PR before it was merged.
+
+> * Do warn people that these things evolve with the language.
+
+That was merged.
+
+> * If changes do happen, try make them visible and give a clear 
+> description of what has changed.
+
+Another chunk was added to What's New.
+
+> Also many thanks to the core developers who've submitted patches to 
+> update Genshi in the past -- that was awesome of you.
+> 
+> The new CodeType.replace will remove some potential sources of breakages 
+> in the future, so thank you very much for adding that.
+
+
+-- 
+Terry Jan Reedy
+
+
+From hodgestar+pythondev at gmail.com  Fri May 31 18:35:52 2019
+From: hodgestar+pythondev at gmail.com (Simon Cross)
+Date: Sat, 1 Jun 2019 00:35:52 +0200
+Subject: [Python-Dev] Expected stability of PyCode_New() and
+ types.CodeType() signatures
+In-Reply-To: <qcs9ro$3649$1@blaine.gmane.org>
+References: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+ <CAD5NRCFiQrBAezakJ6B93WGuPuPybp+s1ODahQYdcp5owSd9jw@mail.gmail.com>
+ <qcs9ro$3649$1@blaine.gmane.org>
+Message-ID: <CAD5NRCG7Z=h1H6maTO+K4gkmO76QixLxe8rPpeku=-acZYARyQ@mail.gmail.com>
+
+On Sat, Jun 1, 2019 at 12:29 AM Terry Reedy <tjreedy at udel.edu> wrote:
+
+> We try not to.  There is already too much work.
+> ...
+> That was removed from the PR before it was merged.
+> ...
+> That was merged.
+> ...
+> Another chunk was added to What's New.
+>
+
+Woot to all of these! :)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190601/c36d1b70/attachment.html>
+
+From gregory.szorc at gmail.com  Fri May 31 23:43:36 2019
+From: gregory.szorc at gmail.com (Gregory Szorc)
+Date: Fri, 31 May 2019 20:43:36 -0700
+Subject: [Python-Dev] RFC: PEP 587 "Python Initialization
+ Configuration": 3rd version
+In-Reply-To: <CA+3bQGGfpZAK2-66oSOWf=L+wWjnJqGrVx27jCGrcuR=d+wRRg@mail.gmail.com>
+References: <CA+3bQGHTqcgayS7YqeO6as3M3_J=KSX_v-cEYOf9UQX=5y+wkw@mail.gmail.com>
+ <7ddebc01-a067-4b52-48b7-e90347ed7cc7@gmail.com>
+ <CA+3bQGG8BdtVxh2jDWFKo4mn=n0dxzg4pPnTbsqvFhRMUFcdeg@mail.gmail.com>
+ <CAPdQG2q-Mo2mMjQOd0oj1yKQXjfXvBvGshxc3kqXHUXRZaKziA@mail.gmail.com>
+ <CA+3bQGF-PQvV8bH-7aWUVwvMTz=ssxiooLRWd_HEQAw-eEUX2A@mail.gmail.com>
+ <3a18be48-c63f-c70b-2f84-3a657a482df5@gmail.com>
+ <CA+3bQGGfpZAK2-66oSOWf=L+wWjnJqGrVx27jCGrcuR=d+wRRg@mail.gmail.com>
+Message-ID: <5dfd10c9-815d-0ead-963b-66aa2af0aa96@gmail.com>
+
+On 5/20/2019 4:09 AM, Victor Stinner wrote:
+> Hi Gregory,
+> 
+> IMHO your remarks are not directly related to the PEP 587 and can be
+> addressed in parallel.
+> 
+>> It sounds like PyOxidizer and Hermetic Python are on the same page and
+>> we're working towards a more official solution. But I want to make sure
+>> by explicitly stating what PyOxidizer is doing.
+>>
+>> Essentially, to facilitate in-memory import, we need to register a
+>> custom sys.meta_path importer *before* any file-based imports are
+>> attempted. (...)
+>> I /think/ providing a 2-phase
+>> initialization that stops between _Py_InitializeCore() and
+>> _Py_InitializeMainInterpreter() would get the job done for PyOxidizer
+>> today. (...)
+> 
+> Extract of PEP 587: "This extracts a subset of the API design from the
+> PEP 432 development and refactoring work that is now considered
+> sufficiently stable to make public (allowing 3rd party embedding
+> applications access to the same configuration APIs that the native
+> CPython CLI is now using)."
+> 
+> We know that my PEP 587 is incomplete, but the work will continue in
+> Python 3.9 to support your use case.
+> 
+> The PEP 587 introduces an experimental separation between "core" and
+> "main" initialization phases. PyConfig._init_main=0 stops at the
+> "core" phase, then you are free to run C and Python,
+> _Py_InitializeMain() finishes the Python initialization ("main"
+> phase).
+> 
+> 
+>>> In the "Isolate Python" section, I suggest to set the "isolated"
+>>> parameter to 1 which imply setting user_site_directory to 0. So
+>>> sys.path isn't modified afterwards. What you pass to PyConfig is what
+>>> you get in sys.path in this case.
+>>
+>> Regarding site.py, I agree it is problematic for embedding scenarios.
+>> Some features of site.py can be useful. Others aren't. It would be
+>> useful to have more granular control over which bits of site.run are
+>> run. My naive suggestion would be to add individual flags to control
+>> which functions site.py:main() runs. That way embedders can cherry-pick
+>> site.py features without having to manually import the module and call
+>> functions within. That feels much more robust for long-term maintainability.
+> 
+> I agree that more work can be done on the site module. IMHO core
+> features which are needed by everybody should be done before calling
+> site. Maybe using a frozen "presite" module or whatever. I would be
+> interested to make possible to use Python for most cases without the
+> site module.
+> 
+> 
+>> Regarding Python calling exit(), this is problematic for embedding
+>> scenarios.
+> 
+> I am working on that. I fixed dozens of functions. For example,
+> Py_RunMain() should not longer exit if there is an uncaught SystemExit
+> when calling PyErr_Print(). SystemExit is now handled separately
+> before calling PyErr_Print(). The work is not done, but it should be
+> way better than Python 3.6 and 3.7 state.
+> 
+> 
+>> This thread called attention to exit() during interpreter
+>> initialization. But it is also a problem elsewhere. For example,
+>> PyErr_PrintEx() will call Py_Exit() if the exception is a SystemExit.
+>> There's definitely room to improve the exception handling mechanism to
+>> give embedders better control when SystemExit is raised. As it stands,
+>> we need to check for SystemExit manually and reimplement
+>> _Py_HandleSystemExit() to emulate its behavior for e.g. exception value
+>> handling (fun fact: you can pass non-None, non-integer values to
+>> sys.exit/SystemExit).
+> 
+> I don't know well these functions, maybe new functions are needed. It
+> can be done without/outside the PEP 587.
+> 
+> 
+>> Having a more efficient member lookup for BuiltinImporter and
+>> FrozenImporter might shave off a millisecond or two from startup. This
+>> would require some kind of derived data structure. (...)
+> 
+> I don't think that the structures/API to define frozen/builtin modules
+> has to change. We can convert these lists into an hash table during
+> the initialization of the importlib module.
+> 
+> I'm not saying that the current API is perfect, just that IMHO it can
+> be solved without the API.
+> 
+> 
+>> Unfortunately, as long as there is a global data structure that can be mutated any time
+>> (the API contract doesn't prohibit modifying these global arrays after
+>> initialization), you would need to check for "cache invalidation" on
+>> every lookup, undermining performance benefits.
+> 
+> Do you really expect an application modifying these lists dynamically?
+
+At this time, not really. But the mark of good API design IMO is that
+its flexibility empowers new and novel ideas and ways of doing things.
+Bad APIs (including the use of global variables) inhibit flexibility and
+constrain creativity and advanced usage.
+
+For this particular item, I could see some potential uses in processes
+hosting multiple, independent interpreters. Maybe you want to give each
+interpreter its own set of modules. That's not something you see today
+because of the GIL and all the other global state in CPython. But with
+the GIL's days apparently being numbered, who knows what the future holds.
+
+I would highly encourage the official API surface to do away with
+globals completely and for the internals to only use globals in ways
+that impose minimal restrictions/caveats on usage/behavior. This PEP
+along with others are huge steps in the right direction.
+
