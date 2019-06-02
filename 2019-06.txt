@@ -1,0 +1,271 @@
+From storchaka at gmail.com  Sat Jun  1 03:02:13 2019
+From: storchaka at gmail.com (Serhiy Storchaka)
+Date: Sat, 1 Jun 2019 10:02:13 +0300
+Subject: [Python-Dev] Expected stability of PyCode_New() and
+ types.CodeType() signatures
+In-Reply-To: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+References: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+Message-ID: <qct7tl$3c3t$1@blaine.gmane.org>
+
+31.05.19 11:46, Petr Viktorin ????:
+> PEP 570 (Positional-Only Parameters) changed the signatures of 
+> PyCode_New() and types.CodeType(), adding a new argument for "posargcount".
+> Our policy for such changes seems to be fragmented tribal knowledge. I'm 
+> writing to check if my understanding is reasonable, so I can apply it 
+> and document it explicitly.
+> 
+> There is a surprisingly large ecosystem of tools that create code objects.
+> The expectation seems to be that these tools will need to be adapted for 
+> each minor version of Python.
+
+I have a related proposition. Yesterday I have reported two bugs (and 
+Pablo quickly fixed them) related to handling positional-only arguments. 
+These bugs were occurred due to subtle changing the meaning of 
+co_argcount. When we make some existing parameters positional-only, we 
+do not add new arguments, but mark existing parameters. But co_argcount 
+now means the only number of positional-or-keyword parameters. Most code 
+which used co_argcount needs now to be changed to use 
+co_posonlyargcount+co_argcount.
+
+I propose to make co_argcount meaning the number of positional 
+parameters (i.e. positional-only + positional-or-keyword). This would 
+remove the need of changing the code that uses co_argcount.
+
+As for the code object constructor, I propose to make posonlyargcount an 
+optional parameter (default 0) added after existing parameters. 
+PyCode_New() can be kept unchanged, but we can add new PyCode_New2() or 
+PyCode_NewEx() with different signature.
+
+
+From solipsis at pitrou.net  Sat Jun  1 05:30:32 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sat, 1 Jun 2019 11:30:32 +0200
+Subject: [Python-Dev] PEP 595: Improving bugs.python.org
+In-Reply-To: <CAPJVwBnUT0feD2WujgnkBQrpZNDDfa4QB7UooniV56hedvMiBQ@mail.gmail.com>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+ <20190531102224.0bf2229f@fsol>
+ <43AB66F6-37CA-475F-BE78-E3D1FA726F43@python.org>
+ <CAPJVwBnUT0feD2WujgnkBQrpZNDDfa4QB7UooniV56hedvMiBQ@mail.gmail.com>
+Message-ID: <20190601113032.2103819c@fsol>
+
+On Fri, 31 May 2019 11:58:22 -0700
+Nathaniel Smith <njs at pobox.com> wrote:
+> On Fri, May 31, 2019 at 11:39 AM Barry Warsaw <barry at python.org> wrote:
+> >
+> > On May 31, 2019, at 01:22, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> >  
+> > > I second this.
+> > >
+> > > There are currently ~7000 bugs open on bugs.python.org.  The Web UI
+> > > makes a good job of actually being able to navigate through these bugs,
+> > > search through them, etc.
+> > >
+> > > Did the Steering Council conduct a usability study of Github Issues
+> > > with those ~7000 bugs open?  If not, then I think the acceptance of
+> > > migrating to Github is a rushed job.  Please reconsider.  
+> >
+> > Thanks for your feedback Antoine.
+> >
+> > This is a tricky issue, with many factors and tradeoffs to consider.  I really appreciate Ezio and Berker working on PEP 595, so we can put all these issues on the table.
+> >
+> > I think one of the most important tradeoffs is balancing the needs of existing developers (those who actively triage bugs today), and future contributors.  But this and other UX issues are difficult to compare on our actual data right now.  I fully expect that just as with the switch to git, we?ll do lots of sample imports and prototyping to ensure that GitHub issues will actually work for us (given our unique requirements), and to help achieve the proper balance.  It does us no good to switch if we just anger all the existing devs.
+> >
+> > IMHO, if the switch to GH doesn?t improve our workflow, then it definitely warrants a reevaluation.  I think things will be better, but let?s prove it.  
+> 
+> Perhaps we should put an explicit step on the transition plan, after
+> the prototyping, that's "gather feedback from prototypes, re-evaluate,
+> make final go/no-go decision"? I assume we'll want to do that anyway,
+> and having it formally written down might reassure people. It might
+> also encourage more people to actually try out the prototypes if we
+> make it very clear that they're going to be asked for feedback.
+
+Indeed, regardless of the exact implementation details, I think "try
+first, decide after" is the right procedure here.
+
+Regards
+
+Antoine.
+
+From pablogsal at gmail.com  Sat Jun  1 09:09:34 2019
+From: pablogsal at gmail.com (Pablo Galindo Salgado)
+Date: Sat, 1 Jun 2019 14:09:34 +0100
+Subject: [Python-Dev] Expected stability of PyCode_New() and
+ types.CodeType() signatures
+Message-ID: <CAFjbc8GsB20m0K-ZbBoiMdiG0WjbS81s=XbTnHFNGTDjPdvA1g@mail.gmail.com>
+
+>
+> I propose to make co_argcount meaning the number of positional
+> parameters (i.e. positional-only + positional-or-keyword). This would
+> remove the need of changing the code that uses co_argcount.
+>
+
+I like the proposal, it will certainly make handling normal cases
+downstream much easier because
+if you do not care about positional-only arguments you can keep
+inspecting co_argcount
+and that
+will give you what you expect. Note that if we choose to do this, it has to
+be done now-ish IMHO to
+avoid making the change painful because it will change the semantics of
+co_argcount.
+
+
+> As for the code object constructor, I propose to make posonlyargcount an
+> optional parameter (default 0) added after existing parameters.
+> PyCode_New() can be kept unchanged, but we can add new PyCode_New2() or
+> PyCode_NewEx() with different signature.
+
+
+I am not convinced about having a default argument in the code constructor.
+The code constructor
+is kept with all arguments positional for efficiency and adding defaults
+will make it slower or having
+a more confusing an asymmetrical interface. Also, this will be misaligned
+on how keyword-only
+parameters are provided. This is by far not the first time this constructor
+has changed.
+
+On the Python side, the new code.replace should cover most of the
+Python-side use cases regarding
+creating code objects from the Python side.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190601/8b1827fb/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: license.dash-license
+Type: application/octet-stream
+Size: 693 bytes
+Desc: not available
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190601/8b1827fb/attachment.obj>
+
+From stefan_ml at behnel.de  Sat Jun  1 09:28:09 2019
+From: stefan_ml at behnel.de (Stefan Behnel)
+Date: Sat, 1 Jun 2019 15:28:09 +0200
+Subject: [Python-Dev] Expected stability of PyCode_New() and
+ types.CodeType() signatures
+In-Reply-To: <qct7tl$3c3t$1@blaine.gmane.org>
+References: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+ <qct7tl$3c3t$1@blaine.gmane.org>
+Message-ID: <qctuha$5205$1@blaine.gmane.org>
+
+Serhiy Storchaka schrieb am 01.06.19 um 09:02:
+> I have a related proposition. Yesterday I have reported two bugs (and Pablo
+> quickly fixed them) related to handling positional-only arguments. These
+> bugs were occurred due to subtle changing the meaning of co_argcount. When
+> we make some existing parameters positional-only, we do not add new
+> arguments, but mark existing parameters. But co_argcount now means the only
+> number of positional-or-keyword parameters. Most code which used
+> co_argcount needs now to be changed to use co_posonlyargcount+co_argcount.
+> 
+> I propose to make co_argcount meaning the number of positional parameters
+> (i.e. positional-only + positional-or-keyword). This would remove the need
+> of changing the code that uses co_argcount.
+
+Sounds reasonable to me. The main distinction points are positional
+arguments vs. keyword arguments vs. local variables. Whether the positional
+ones are positional or positional-only is irrelevant in many cases.
+
+
+> PyCode_New() can be kept unchanged, but we can add new PyCode_New2() or
+> PyCode_NewEx() with different signature.
+
+It's not a commonly used function, and it's easy for C code to adapt. I
+don't think it's worth adding a new function to the C-API here, compared to
+just changing the signature. Very few users would benefit, at the cost of
+added complexity.
+
+Stefan
+
+
+From pablogsal at gmail.com  Sat Jun  1 11:55:32 2019
+From: pablogsal at gmail.com (Pablo Galindo Salgado)
+Date: Sat, 1 Jun 2019 16:55:32 +0100
+Subject: [Python-Dev] Expected stability of PyCode_New() and
+ types.CodeType() signatures
+Message-ID: <CAFjbc8E+zdp096fVFBaNnD7UFT6feiTr0sPQkdytD7KtYy3Cnw@mail.gmail.com>
+
+Opened https://bugs.python.org/issue37122 to track this in the bug tracker.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190601/633b348e/attachment.html>
+
+From tim.peters at gmail.com  Sun Jun  2 01:56:52 2019
+From: tim.peters at gmail.com (Tim Peters)
+Date: Sun, 2 Jun 2019 00:56:52 -0500
+Subject: [Python-Dev] obmalloc (was Have a big machine and spare time?
+ Here's a possible Python bug.)
+In-Reply-To: <20190526112415.33e4a02d@fsol>
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+ <CAPdQG2rr978QuKb08YBeiHCxGPbnmm9A3vTU3-_nvOngM976nw@mail.gmail.com>
+ <20190526112415.33e4a02d@fsol>
+Message-ID: <CAExdVN=7VmELOvv-BfW-JL8yFEMVTLt=yyBsFNTWB7pugE9HmQ@mail.gmail.com>
+
+[Antoine Pitrou, replying to Thomas Wouters]
+> Interesting that a 20-year simple allocator (obmalloc) is able to do
+> better than the sophisticated TCMalloc.
+
+It's very hard to beat obmalloc (O) at what it does.  TCMalloc (T) is
+actually very similar where they overlap, but has to be more complex
+because it's trying to do more than O.
+
+In either case, for small objects "the fast path" consists merely of
+taking the first block of memory off a singly-linked size-segregated
+free list.  For freeing, the fast path is just linking the block back
+to the front of the appropriate free list.  What _could_ be faster?  A
+"bump allocator" allocates faster (just increment a highwater mark),
+but creates worlds of problems when freeing.
+
+But because O is only trying to deal with small (<= 512 bytes)
+requests, it can use a very fast method based on trivial address
+arithmetic to find the size of an allocated block by just reading it
+up from the start of the (4K) "pool" the address belongs to.  T can't
+do that - it appears to need to look up the address in a more
+elaborate radix tree, to find info recording the size of the block
+(which may be just about anything - no upper limit).
+
+> (well, of course, obmalloc doesn't have to worry about concurrent
+> scenarios, which explains some of the simplicity)
+
+Right, T has a different collection of free lists for each thread. so
+on each entry has to figure out which collection to use (and so
+doesn't need to lock).  That's not free.  O only has one collection,
+and relies on the GIL.
+
+Against that, O burns cycles worrying about something else:  because
+it was controversial when it was new, O thought it was necessary to
+handle free/realloc calls even when passed addresses that had actually
+been obtained from the system malloc/realloc.  The T docs I saw said
+"don't do that - things will blow up in mysterious ways".
+
+That's where O's excruciating "address_in_range()" logic comes from.
+While that's zippy and scales extremely well (it doesn't depend on how
+many objects/arenas/pools exist), it's not free, and is a significant
+part of the "fast path" expense for both allocation and deallocation.
+
+It also limits us to a maximum pool size of 4K (to avoid possible
+segfaults when reading up memory that was actually obtained from the
+system malloc/realloc), and that's become increasingly painful:  on
+64-bit boxes the bytes lost to pool headers increased, and O changed
+to handle requests up to 512 bytes instead of its original limit of
+256.  O was intended to supply "a bunch" of  usable blocks per pool,
+not just a handful.  We "should" really at least double the pool and
+arena sizes now.
+
+I don't think we need to cater anymore to careless code that mixes
+system memory calls with O calls (e.g., if an extension gets memory
+via `malloc()`, it's its responsibility to call `free()`), and if not
+then `address_in_range()` isn't really necessary anymore either, and
+then we could increase the pool size.  O would, however, need a new
+way to recognize when its version of malloc punted to the system
+malloc.
+
+BTW, one more:  last I saw T never returns memory to "the system", but
+O does - indeed, the parent thread here was all about _enormous_ time
+waste due to that in O ;-)  That's not free either, but doesn't affect
+O's fast paths.
+
