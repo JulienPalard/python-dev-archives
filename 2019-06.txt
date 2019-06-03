@@ -269,3 +269,406 @@ O does - indeed, the parent thread here was all about _enormous_ time
 waste due to that in O ;-)  That's not free either, but doesn't affect
 O's fast paths.
 
+From ezio.melotti at gmail.com  Sun Jun  2 04:24:42 2019
+From: ezio.melotti at gmail.com (Ezio Melotti)
+Date: Sun, 2 Jun 2019 10:24:42 +0200
+Subject: [Python-Dev] PEP 595: Improving bugs.python.org
+In-Reply-To: <20190601113032.2103819c@fsol>
+References: <CACBhJdGC61F+oyX9imk5=swSRnFC51Q-VQ6WTrhAGiTQ7ofPrw@mail.gmail.com>
+ <20190531102224.0bf2229f@fsol>
+ <43AB66F6-37CA-475F-BE78-E3D1FA726F43@python.org>
+ <CAPJVwBnUT0feD2WujgnkBQrpZNDDfa4QB7UooniV56hedvMiBQ@mail.gmail.com>
+ <20190601113032.2103819c@fsol>
+Message-ID: <CACBhJdFXszxZs+gy_Ch=RnKtsEYVXaKzNNADY5SHsK2J1MpuLA@mail.gmail.com>
+
+On Sat, Jun 1, 2019 at 11:50 AM Antoine Pitrou <solipsis at pitrou.net> wrote:
+>
+> On Fri, 31 May 2019 11:58:22 -0700
+> Nathaniel Smith <njs at pobox.com> wrote:
+> > On Fri, May 31, 2019 at 11:39 AM Barry Warsaw <barry at python.org> wrote:
+> > >
+> > > On May 31, 2019, at 01:22, Antoine Pitrou <solipsis at pitrou.net> wrote:
+> > >
+> > > > I second this.
+> > > >
+> > > > There are currently ~7000 bugs open on bugs.python.org.  The Web UI
+> > > > makes a good job of actually being able to navigate through these bugs,
+> > > > search through them, etc.
+> > > >
+> > > > Did the Steering Council conduct a usability study of Github Issues
+> > > > with those ~7000 bugs open?  If not, then I think the acceptance of
+> > > > migrating to Github is a rushed job.  Please reconsider.
+> > >
+> > > Thanks for your feedback Antoine.
+> > >
+> > > This is a tricky issue, with many factors and tradeoffs to consider.  I really appreciate Ezio and Berker working on PEP 595, so we can put all these issues on the table.
+> > >
+> > > I think one of the most important tradeoffs is balancing the needs of existing developers (those who actively triage bugs today), and future contributors.
+
+These can be further divided in several groups: from core devs and
+release managers, to triagers, to regular and occasional contributors,
+to people that just want to report an issue and be done with it, to
+people that think the error they just got is a Python bug, each of
+them with different goals and needs.
+
+I think that rather than discussing whether GitHub Issues is better or
+worse than Roundup, we should first try to understand who is facing
+what issues now, and who will face what issues after the switch.  This
+can be done both by gathering feedback from different types of people
+and by testing and comparing the solutions (see below).
+
+Once we know what the issues are, we should evaluate if and how we can
+address them, and also -- if we can't make everyone happy -- what
+groups of people we want to prioritize (e.g. do we want core devs to
+be more effective at dealing with the thousands of already existing
+issues, or we want to make it easier for users to report new bugs?).
+
+> > >  But this and other UX issues are difficult to compare on our actual data right now.  I fully expect that just as with the switch to git, we?ll do lots of sample imports and prototyping to ensure that GitHub issues will actually work for us (given our unique requirements), and to help achieve the proper balance.  It does us no good to switch if we just anger all the existing devs.
+> > >
+> > > IMHO, if the switch to GH doesn?t improve our workflow, then it definitely warrants a reevaluation.  I think things will be better, but let?s prove it.
+> >
+> > Perhaps we should put an explicit step on the transition plan, after
+> > the prototyping, that's "gather feedback from prototypes, re-evaluate,
+> > make final go/no-go decision"? I assume we'll want to do that anyway,
+> > and having it formally written down might reassure people. It might
+> > also encourage more people to actually try out the prototypes if we
+> > make it very clear that they're going to be asked for feedback.
+>
+> Indeed, regardless of the exact implementation details, I think "try
+> first, decide after" is the right procedure here.
+>
+
+Testing a change of this magnitude is not trivial.  I can see several
+possible options:
+* using the on-demand approach proposed by PEP 588, a full migration,
+or some other solution (e.g. parallel, synced trackers);
+* doing a throwaway test migration (import zero/some/all existing
+issues, then discard any new message/issue at the end of the test) or
+using real issues directly (import zero/some/all issues and keep
+adding real messages/issues);
+  * if we do a test migration and it works, we might need to do a
+second, real migration, possibly involving the GH staff twice; if it
+doesn't work, we discard everything and that's it;
+  * if we use real issues, we might need to migrate things back to
+Roundup if GH doesn't fit our needs and it might be confusing for
+users;
+* starting from scratch on GH with new issues (at least initially, for
+testing purposes) or porting some/all issues from bpo;
+  * if we start from scratch we don't need to write the tools to
+migrate, but we won't have feedback about searching/navigating through
+lot of issues;
+  * if we port some/all the issues, we need to write the tools to do
+it, even if it's just for testing purposes and we end going back to
+Roundup;
+* limiting the test to triagers/core-devs, or involve regular users;
+  * if we involve regular users we might get better feedback, but
+there's risk of confusion (afaik the only way to inform users on
+GitHub Issues is writing another bot that adds messages) and backlash;
+* doing separate specific tests (e.g. having a read-only repo with all
+the issues to test search/navigation, and a separate read-write repo
+to test issue creation) or a "real-world" test;
+  * some specific tests might be easier to setup (e.g. issue creation
+test using templates), but for others we still need to import some/all
+the issues;
+
+If we agree on testing, I think we need to discuss the options, define
+and document a list of steps, and start working on it.
+
+Best Regards,
+Ezio Melotti
+
+> Regards
+>
+> Antoine.
+
+From solipsis at pitrou.net  Sun Jun  2 05:37:06 2019
+From: solipsis at pitrou.net (Antoine Pitrou)
+Date: Sun, 2 Jun 2019 11:37:06 +0200
+Subject: [Python-Dev] obmalloc (was Have a big machine and spare time?
+ Here's a possible Python bug.)
+References: <CAExdVNmP=LHAXbXmhsecq=S9dAEVb6UYykDQ=xUcO1zJVh1Pfw@mail.gmail.com>
+ <CAEfz+TxM-_viFaaQgqFbzoON0VnN74dpyJsP4Db=Ui-wj9=J-w@mail.gmail.com>
+ <CA+LW3i1w8AcjCjRjyGkJyLwdmiQZxTLv_AMxUtUJrPjQk6MYQA@mail.gmail.com>
+ <CAEfz+TwcyHnOisiPc6qmNFfPSS63+Ts_6H08jKGCnFuTTk9frQ@mail.gmail.com>
+ <64d3f69a-b900-d17d-679e-aa748d0a23ab@python.org>
+ <CAPdQG2rr978QuKb08YBeiHCxGPbnmm9A3vTU3-_nvOngM976nw@mail.gmail.com>
+ <20190526112415.33e4a02d@fsol>
+ <CAExdVN=7VmELOvv-BfW-JL8yFEMVTLt=yyBsFNTWB7pugE9HmQ@mail.gmail.com>
+Message-ID: <20190602113706.01c14820@fsol>
+
+On Sun, 2 Jun 2019 00:56:52 -0500
+Tim Peters <tim.peters at gmail.com> wrote:
+> 
+> But because O is only trying to deal with small (<= 512 bytes)
+> requests, it can use a very fast method based on trivial address
+> arithmetic to find the size of an allocated block by just reading it
+> up from the start of the (4K) "pool" the address belongs to.  T can't
+> do that - it appears to need to look up the address in a more
+> elaborate radix tree, to find info recording the size of the block
+> (which may be just about anything - no upper limit).
+
+The interesting thing here is that in many situations, the size is
+known up front when deallocating - it is simply not communicated to the
+deallocator because the traditional free() API takes a sole pointer,
+not a size.  But CPython could communicate that size easily if we
+would like to change the deallocation API.  Then there's no bother
+looking up the allocated size in sophisticated lookup structures.
+
+I'll note that jemalloc provides such APIs:
+http://jemalloc.net/jemalloc.3.html
+
+"""The dallocx() function causes the memory referenced by ptr to be
+made available for future allocations.
+
+The sdallocx() function is an extension of dallocx() with a size
+parameter to allow the caller to pass in the allocation size as an
+optimization."""
+
+Regards
+
+Antoine.
+
+
+> 
+> > (well, of course, obmalloc doesn't have to worry about concurrent
+> > scenarios, which explains some of the simplicity)  
+> 
+> Right, T has a different collection of free lists for each thread. so
+> on each entry has to figure out which collection to use (and so
+> doesn't need to lock).  That's not free.  O only has one collection,
+> and relies on the GIL.
+> 
+> Against that, O burns cycles worrying about something else:  because
+> it was controversial when it was new, O thought it was necessary to
+> handle free/realloc calls even when passed addresses that had actually
+> been obtained from the system malloc/realloc.  The T docs I saw said
+> "don't do that - things will blow up in mysterious ways".
+> 
+> That's where O's excruciating "address_in_range()" logic comes from.
+> While that's zippy and scales extremely well (it doesn't depend on how
+> many objects/arenas/pools exist), it's not free, and is a significant
+> part of the "fast path" expense for both allocation and deallocation.
+> 
+> It also limits us to a maximum pool size of 4K (to avoid possible
+> segfaults when reading up memory that was actually obtained from the
+> system malloc/realloc), and that's become increasingly painful:  on
+> 64-bit boxes the bytes lost to pool headers increased, and O changed
+> to handle requests up to 512 bytes instead of its original limit of
+> 256.  O was intended to supply "a bunch" of  usable blocks per pool,
+> not just a handful.  We "should" really at least double the pool and
+> arena sizes now.
+> 
+> I don't think we need to cater anymore to careless code that mixes
+> system memory calls with O calls (e.g., if an extension gets memory
+> via `malloc()`, it's its responsibility to call `free()`), and if not
+> then `address_in_range()` isn't really necessary anymore either, and
+> then we could increase the pool size.  O would, however, need a new
+> way to recognize when its version of malloc punted to the system
+> malloc.
+> 
+> BTW, one more:  last I saw T never returns memory to "the system", but
+> O does - indeed, the parent thread here was all about _enormous_ time
+> waste due to that in O ;-)  That's not free either, but doesn't affect
+> O's fast paths.
+
+
+
+
+From armin.rigo at gmail.com  Sun Jun  2 07:03:32 2019
+From: armin.rigo at gmail.com (Armin Rigo)
+Date: Sun, 2 Jun 2019 13:03:32 +0200
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <5CEE2124.4020409@canterbury.ac.nz>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+ <5CEE2124.4020409@canterbury.ac.nz>
+Message-ID: <CAMSv6X1e6HkM8eYov+mdN5zvGZ7G_vWfFAfk9aKK1CdBGhqdNQ@mail.gmail.com>
+
+Hi,
+
+On Wed, 29 May 2019 at 08:07, Greg Ewing <greg.ewing at canterbury.ac.nz> wrote:
+> Nick Coghlan wrote:
+> > Having a single locals() call de-optimize an entire function would be
+> > far from ideal.
+>
+> I don't see what would be so bad about that. The vast majority
+> of functions have no need for locals().
+
+You have the occasional big function that benefits a lot from being
+JIT-compiled but which contains ``.format(**locals())``.  That occurs
+in practice, and that's why PyPy is happy that there is a difference
+between ``locals()`` and ``sys._getframe().f_locals``.  PyPy could be
+made to support the full mutable view, but that's extra work that
+isn't done so far and is a bit unlikely to occur at this point.  It
+also raises the significantly the efforts for other JIT
+implementations of Python if they have to support a full-featured
+``locals()``; supporting ``_getframe().f_locals`` is to some extent
+optional, but supporting ``locals()`` is not.
+
+
+A bient?t,
+
+Armin.
+
+From greg.ewing at canterbury.ac.nz  Sun Jun  2 07:52:02 2019
+From: greg.ewing at canterbury.ac.nz (Greg Ewing)
+Date: Sun, 02 Jun 2019 23:52:02 +1200
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CAMSv6X1e6HkM8eYov+mdN5zvGZ7G_vWfFAfk9aKK1CdBGhqdNQ@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+ <5CEE2124.4020409@canterbury.ac.nz>
+ <CAMSv6X1e6HkM8eYov+mdN5zvGZ7G_vWfFAfk9aKK1CdBGhqdNQ@mail.gmail.com>
+Message-ID: <5CF3B862.4080401@canterbury.ac.nz>
+
+Armin Rigo wrote:
+> You have the occasional big function that benefits a lot from being
+> JIT-compiled but which contains ``.format(**locals())``.
+
+There should be a lot less need for that now that we have f-strings.
+
+-- 
+Greg
+
+From steve at pearwood.info  Sun Jun  2 08:51:17 2019
+From: steve at pearwood.info (Steven D'Aprano)
+Date: Sun, 2 Jun 2019 22:51:17 +1000
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <5CF3B862.4080401@canterbury.ac.nz>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+ <5CEE2124.4020409@canterbury.ac.nz>
+ <CAMSv6X1e6HkM8eYov+mdN5zvGZ7G_vWfFAfk9aKK1CdBGhqdNQ@mail.gmail.com>
+ <5CF3B862.4080401@canterbury.ac.nz>
+Message-ID: <20190602125117.GV4221@ando.pearwood.info>
+
+On Sun, Jun 02, 2019 at 11:52:02PM +1200, Greg Ewing wrote:
+> Armin Rigo wrote:
+> >You have the occasional big function that benefits a lot from being
+> >JIT-compiled but which contains ``.format(**locals())``.
+> 
+> There should be a lot less need for that now that we have f-strings.
+
+I think you're forgetting that a lot of code (especially libraries) 
+either have to support older versions of Python, and so cannot use 
+f-strings at all, or was written using **locals before f-strings came 
+along, and hasn't been touched since.
+
+Another case where f-strings don't help is when the template is 
+dynamically generated.
+
+It may be that there will be less new code written using **locals() but 
+I don't think that the **locals() trick will disappear any time before 
+Python 5000.
+
+
+-- 
+Steven
+
+From python at mrabarnett.plus.com  Sun Jun  2 11:13:33 2019
+From: python at mrabarnett.plus.com (MRAB)
+Date: Sun, 2 Jun 2019 16:13:33 +0100
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <20190602125117.GV4221@ando.pearwood.info>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+ <5CEE2124.4020409@canterbury.ac.nz>
+ <CAMSv6X1e6HkM8eYov+mdN5zvGZ7G_vWfFAfk9aKK1CdBGhqdNQ@mail.gmail.com>
+ <5CF3B862.4080401@canterbury.ac.nz>
+ <20190602125117.GV4221@ando.pearwood.info>
+Message-ID: <88cac4a6-c083-7578-4044-f04b68b26817@mrabarnett.plus.com>
+
+On 2019-06-02 13:51, Steven D'Aprano wrote:
+> On Sun, Jun 02, 2019 at 11:52:02PM +1200, Greg Ewing wrote:
+>> Armin Rigo wrote:
+>> >You have the occasional big function that benefits a lot from being
+>> >JIT-compiled but which contains ``.format(**locals())``.
+>> 
+>> There should be a lot less need for that now that we have f-strings.
+> 
+> I think you're forgetting that a lot of code (especially libraries)
+> either have to support older versions of Python, and so cannot use
+> f-strings at all, or was written using **locals before f-strings came
+> along, and hasn't been touched since.
+> 
+> Another case where f-strings don't help is when the template is
+> dynamically generated.
+> 
+> It may be that there will be less new code written using **locals() but
+> I don't think that the **locals() trick will disappear any time before
+> Python 5000.
+> 
+We've had .format_map since Python 3.2, so why use 
+``.format(**locals())`` instead of ``.format_map(locals())``?
+
+From random832 at fastmail.com  Sun Jun  2 13:33:10 2019
+From: random832 at fastmail.com (Random832)
+Date: Sun, 02 Jun 2019 13:33:10 -0400
+Subject: [Python-Dev] [PEP 558] thinking through locals() semantics
+In-Reply-To: <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+References: <CAPJVwBn1Bh0rt8hbT8OOK+xPikcSh58mGbupg5yWXdYVRHeruw@mail.gmail.com>
+ <20190528022848.GF4221@ando.pearwood.info>
+ <CAP7+vJJrhPh1quvxRewVFNYva=HLsoZZwhbCk-ZgCXhCSXFdGg@mail.gmail.com>
+ <CAPJVwBmNF-4p7XhP=fPQ1Y+tUP=CXfOkBu1imHT50SjJ_euqEg@mail.gmail.com>
+ <CADiSq7dbxHaDCeiwgZaS90AznfRbdVT5FzomYzJhqsSKZQqdvA@mail.gmail.com>
+ <CAP7+vJL+kRto_SHd864mysmv67CUdg6svMwQ-pMsj_Uk_JUyhw@mail.gmail.com>
+ <CADiSq7cRLjiA1mdqTyfgruX4aqhFveKeWmPO6emqZh5ftg7ykw@mail.gmail.com>
+Message-ID: <94b2c4fe-5a56-432c-ac7f-06f74ae97ecb@www.fastmail.com>
+
+On Wed, May 29, 2019, at 01:25, Nick Coghlan wrote:
+> Having a single locals() call de-optimize an entire function would be 
+> far from ideal.
+
+What if there were a way to explicitly de-optimize a function, rather than guessing the user's intent based on looking for locals and exec calls (both of which are builtins which could be shadowed or assigned to other variables)?
+
+Also, regardless of anything else, maybe in an optimized function locals should return a read-only mapping?
+
+From vstinner at redhat.com  Sun Jun  2 13:52:59 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Sun, 2 Jun 2019 19:52:59 +0200
+Subject: [Python-Dev] Expected stability of PyCode_New() and
+ types.CodeType() signatures
+In-Reply-To: <CAD5NRCFiQrBAezakJ6B93WGuPuPybp+s1ODahQYdcp5owSd9jw@mail.gmail.com>
+References: <67fbae0d-0155-a21d-cd4b-6e16628debb6@gmail.com>
+ <CAD5NRCFiQrBAezakJ6B93WGuPuPybp+s1ODahQYdcp5owSd9jw@mail.gmail.com>
+Message-ID: <CA+3bQGEEMNL8yqdRS1m7kHkJL7ppRFx5f3n4pcyRtG4orN7O3g@mail.gmail.com>
+
+Le vendredi 31 mai 2019, Simon Cross <hodgestar+pythondev at gmail.com> a
+?crit :
+> As the maintainer of Genshi, ...
+> The new CodeType.replace will remove some potential sources of breakages
+in the future, so thank you very much for adding that.
+
+Hi Simon,
+
+You're welcome :-) Genshi was one of my motivation to add
+CodeType.replace() ;-)
+
+Victor
+
+-- 
+Night gathers, and now my watch begins. It shall not end until my death.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190602/3e1921d5/attachment.html>
+
