@@ -672,3 +672,165 @@ Night gathers, and now my watch begins. It shall not end until my death.
 An HTML attachment was scrubbed...
 URL: <http://mail.python.org/pipermail/python-dev/attachments/20190602/3e1921d5/attachment.html>
 
+From pablogsal at gmail.com  Mon Jun  3 06:38:58 2019
+From: pablogsal at gmail.com (Pablo Galindo Salgado)
+Date: Mon, 3 Jun 2019 11:38:58 +0100
+Subject: [Python-Dev] Recent buildbot reports and asyncio test failures
+Message-ID: <CAFjbc8HwNvxJyC-AFEbXG5ktg5Oe9jB8F31RXfn7O5fuVkSSOA@mail.gmail.com>
+
+Hi everyone,
+
+Just a heads-up regarding some messages you will see in your pull requests.
+There is an intermittent failure on some buildbots
+regarding asyncio:
+
+https://buildbot.python.org/all/#/builders/21
+
+As the builds do not fail all the time, the systems understand that if your
+(merged) commits fail to build, they may be the cause
+of the failure and then it does a report into the pull request.
+
+I am working on investigating a way to improve the report mechanism to make
+it less noisy in this case, but bear in mind that
+the correct way to solve this is fixing the asyncio bug in the test suite
+and this won't likely go away completely until is solved.
+
+We are doing all that we can to solve all the recent leaks and failures on
+the test suite, but there is a noticeable increase in the
+number of merged pull requests because of the imminent feature freeze and
+because this happens across several timezones
+is very difficult to get them all.
+
+Thanks to everyone that is helping solving these bugs :)
+
+Regards from sunny London,
+Pablo Galindo Salgado
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://mail.python.org/pipermail/python-dev/attachments/20190603/bcd8def7/attachment.html>
+
+From vstinner at redhat.com  Mon Jun  3 11:05:19 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Mon, 3 Jun 2019 17:05:19 +0200
+Subject: [Python-Dev] Recent buildbot reports and asyncio test failures
+In-Reply-To: <CAFjbc8HwNvxJyC-AFEbXG5ktg5Oe9jB8F31RXfn7O5fuVkSSOA@mail.gmail.com>
+References: <CAFjbc8HwNvxJyC-AFEbXG5ktg5Oe9jB8F31RXfn7O5fuVkSSOA@mail.gmail.com>
+Message-ID: <CA+3bQGGP+-mcA480NX_s_rQuhONrCajii_P+apD_SO8RMJwsqg@mail.gmail.com>
+
+Many tests are failing randomly on buildbots.
+
+*MANY* failures: "test_asyncio: test_cancel_gather_2() dangling thread"
+https://bugs.python.org/issue37137
+
+Some failures on specific buildbots. multiprocessing does crash
+randomly on Windows:
+   https://bugs.python.org/issue37143
+and on FreeBSD:
+   https://bugs.python.org/issue37135
+I bet on a regression caused by:
+   https://bugs.python.org/issue33608#msg344240
+
+One failure. "test_asyncio timed out on AMD64 FreeBSD CURRENT Shared 3.x"
+https://bugs.python.org/issue37142
+
+I failed to reproduce any of these bugs.
+
+Victor
+
+
+Le lun. 3 juin 2019 ? 12:42, Pablo Galindo Salgado
+<pablogsal at gmail.com> a ?crit :
+>
+> Hi everyone,
+>
+> Just a heads-up regarding some messages you will see in your pull requests. There is an intermittent failure on some buildbots
+> regarding asyncio:
+>
+> https://buildbot.python.org/all/#/builders/21
+>
+> As the builds do not fail all the time, the systems understand that if your (merged) commits fail to build, they may be the cause
+> of the failure and then it does a report into the pull request.
+>
+> I am working on investigating a way to improve the report mechanism to make it less noisy in this case, but bear in mind that
+> the correct way to solve this is fixing the asyncio bug in the test suite and this won't likely go away completely until is solved.
+>
+> We are doing all that we can to solve all the recent leaks and failures on the test suite, but there is a noticeable increase in the
+> number of merged pull requests because of the imminent feature freeze and because this happens across several timezones
+> is very difficult to get them all.
+>
+> Thanks to everyone that is helping solving these bugs :)
+>
+> Regards from sunny London,
+> Pablo Galindo Salgado
+> _______________________________________________
+> Python-Dev mailing list
+> Python-Dev at python.org
+> https://mail.python.org/mailman/listinfo/python-dev
+> Unsubscribe: https://mail.python.org/mailman/options/python-dev/vstinner%40redhat.com
+
+
+
+--
+Night gathers, and now my watch begins. It shall not end until my death.
+
+From vstinner at redhat.com  Mon Jun  3 21:35:10 2019
+From: vstinner at redhat.com (Victor Stinner)
+Date: Tue, 4 Jun 2019 03:35:10 +0200
+Subject: [Python-Dev] Recent buildbot reports and asyncio test failures
+In-Reply-To: <CA+3bQGGP+-mcA480NX_s_rQuhONrCajii_P+apD_SO8RMJwsqg@mail.gmail.com>
+References: <CAFjbc8HwNvxJyC-AFEbXG5ktg5Oe9jB8F31RXfn7O5fuVkSSOA@mail.gmail.com>
+ <CA+3bQGGP+-mcA480NX_s_rQuhONrCajii_P+apD_SO8RMJwsqg@mail.gmail.com>
+Message-ID: <CA+3bQGFJ2th5Td5exPMt2soA81ooSBgXMWvJL+nDKArnYqYmQA@mail.gmail.com>
+
+Hi,
+
+Update. I'm collaborating with Pablo to fix these recent regressions.
+We had to revert 2 changes to fix asyncio and multiprocessing test
+failures and crashes.
+
+New issue:
+
+"opcode cache for LOAD_GLOBAL emits false alarm in memory leak hunting"
+https://bugs.python.org/issue37146
+
+INADA-san worked around this issue by disabling the new opcode cache
+(LOAD_GLOBAL optimization) when Python is compiled in debug mode.
+
+We should try to find a more long term solution after beta1 release.
+
+
+Le lun. 3 juin 2019 ? 17:05, Victor Stinner <vstinner at redhat.com> a ?crit :
+> *MANY* failures: "test_asyncio: test_cancel_gather_2() dangling thread"
+> https://bugs.python.org/issue37137
+
+Andrew Svetlov identified the root issue, it's a side effect of a new feature:
+https://bugs.python.org/issue37137#msg344488
+
+He reverted his change to fix the bug. We may reconsider the feature
+after beta1 (that's up to our Release Manager, I guess).
+
+Note: I pushed 2 changes to attempt to fix the issue, but they didn't
+fix the issue. We can consider to revert them after beta1.
+
+
+> Some failures on specific buildbots. multiprocessing does crash
+> randomly on Windows:
+>    https://bugs.python.org/issue37143
+> and on FreeBSD:
+>    https://bugs.python.org/issue37135
+> I bet on a regression caused by:
+>    https://bugs.python.org/issue33608#msg344240
+
+Pablo and me identified the root issue:
+https://bugs.python.org/issue37135#msg344509
+
+I reverted a change to fix the regression.
+
+Sadly, previously I also reverted a different change which wasn't the
+root cause. We can consider to maybe reapply it after beta1.
+
+(!) "Night gathers, and now my watch begins. It shall not end until my
+death." (!)
+
+Victor
+
